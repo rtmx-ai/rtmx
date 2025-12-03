@@ -1,0 +1,142 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rtmx"
+version = "0.1.0"
+description = "Requirements Traceability Matrix toolkit for GenAI-driven development"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "ioTACTICAL", email = "dev@iotactical.com" }
+]
+keywords = [
+    "requirements",
+    "traceability",
+    "rtm",
+    "testing",
+    "compliance",
+    "cmmc",
+    "fedramp",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pandas>=2.0",
+    "pydantic>=2.0",
+    "click>=8.0",
+    "tabulate>=0.9",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+pytest = [
+    "pytest>=7.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0",
+    "pandas-stubs>=2.0",
+    "build>=1.0",
+    "twine>=4.0",
+]
+
+[project.scripts]
+rtmx = "rtmx.cli.main:main"
+
+[project.entry-points.pytest11]
+rtmx = "rtmx.pytest.plugin"
+
+[project.urls]
+Homepage = "https://github.com/iotactical/rtm"
+Documentation = "https://github.com/iotactical/rtm#readme"
+Repository = "https://github.com/iotactical/rtm"
+Issues = "https://github.com/iotactical/rtm/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rtmx"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B008",   # do not perform function calls in argument defaults
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["rtmx"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "tabulate.*"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q --cov=rtmx --cov-report=term-missing"
+markers = [
+    "req(id): Link test to RTM requirement ID",
+    "scope_unit: Single component isolation test",
+    "scope_integration: Multi-component interaction test",
+    "scope_system: End-to-end system test",
+    "technique_nominal: Typical operating parameters",
+    "technique_parametric: Parameter space exploration",
+    "technique_monte_carlo: Random scenario testing",
+    "technique_stress: Boundary/edge case testing",
+    "env_simulation: Pure software synthetic signals",
+    "env_hil: Hardware-in-loop testing",
+    "env_anechoic: RF characterization",
+    "env_static_field: Outdoor stationary targets",
+    "env_dynamic_field: Outdoor moving targets",
+]
+
+[tool.coverage.run]
+source = ["src/rtmx"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
