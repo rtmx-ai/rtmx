@@ -41,11 +41,27 @@ dependencies = [
     "click>=8.0",
     "tabulate>=0.9",
     "rich>=13.0",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
 pytest = [
     "pytest>=7.0",
+]
+agents = [
+    "jinja2>=3.0",
+]
+github = [
+    "PyGithub>=2.0",
+]
+jira = [
+    "jira>=3.0",
+]
+mcp = [
+    "mcp>=0.1.0",
+]
+all = [
+    "rtmx[agents,github,jira,mcp]",
 ]
 dev = [
     "pytest>=7.0",
@@ -55,6 +71,7 @@ dev = [
     "pandas-stubs>=2.0",
     "build>=1.0",
     "twine>=4.0",
+    "types-PyYAML>=6.0",
 ]
 
 [project.scripts]
