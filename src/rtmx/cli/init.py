@@ -97,7 +97,7 @@ This is a sample requirement. Replace with your actual requirements.
 
     # Create config file
     config_content = """# RTMX Configuration
-# See https://github.com/iotactical/rtm for documentation
+# See https://github.com/iotactical/rtmx for documentation
 
 rtmx:
   database: docs/rtm_database.csv

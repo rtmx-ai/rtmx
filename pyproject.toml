@@ -82,10 +82,10 @@ rtmx = "rtmx.cli.main:main"
 rtmx = "rtmx.pytest.plugin"
 
 [project.urls]
-Homepage = "https://github.com/iotactical/rtm"
-Documentation = "https://github.com/iotactical/rtm#readme"
-Repository = "https://github.com/iotactical/rtm"
-Issues = "https://github.com/iotactical/rtm/issues"
+Homepage = "https://github.com/iotactical/rtmx"
+Documentation = "https://github.com/iotactical/rtmx#readme"
+Repository = "https://github.com/iotactical/rtmx"
+Issues = "https://github.com/iotactical/rtmx/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rtmx"]

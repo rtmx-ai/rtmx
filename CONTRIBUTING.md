@@ -191,8 +191,8 @@ Please describe:
 
 ## Questions?
 
-- Open a [GitHub Discussion](https://github.com/iotactical/rtm/discussions)
-- Check existing [Issues](https://github.com/iotactical/rtm/issues)
+- Open a [GitHub Discussion](https://github.com/iotactical/rtmx/discussions)
+- Check existing [Issues](https://github.com/iotactical/rtmx/issues)
 
 ## License
 
