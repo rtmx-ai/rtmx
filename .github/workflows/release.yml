@@ -3,33 +3,16 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - "v*.*.*"
 
 jobs:
-  # Skip pre-release tags (rc, beta, alpha)
-  check-tag:
-    name: Check Tag Type
+  release:
+    name: Build & Publish
     runs-on: ubuntu-latest
-    outputs:
-      is_stable: ${{ steps.check.outputs.is_stable }}
-    steps:
-      - name: Check if stable release
-        id: check
-        run: |
-          TAG="${{ github.ref_name }}"
-          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "is_stable=true" >> $GITHUB_OUTPUT
-            echo "Stable release: $TAG"
-          else
-            echo "is_stable=false" >> $GITHUB_OUTPUT
-            echo "Pre-release (skipping): $TAG"
-          fi
-
-  build:
-    name: Build Package
-    runs-on: ubuntu-latest
-    needs: check-tag
-    if: needs.check-tag.outputs.is_stable == 'true'
+    environment: pypi
+    permissions:
+      contents: write
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
@@ -42,120 +25,28 @@ jobs:
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip
-          pip install build
+          pip install build twine
 
       - name: Build package
         run: python -m build
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-  generate-sbom:
-    name: Generate SBOM
-    runs-on: ubuntu-latest
-    needs: check-tag
-    if: needs.check-tag.outputs.is_stable == 'true'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-          pip install cyclonedx-bom
-
-      - name: Generate SBOM (CycloneDX)
-        run: |
-          cyclonedx-py environment -o sbom.json --format json
-          cyclonedx-py environment -o sbom.xml --format xml
-
-      - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: |
-            sbom.json
-            sbom.xml
-
-  publish-pypi:
-    name: Publish to PyPI
-    runs-on: ubuntu-latest
-    needs: [check-tag, build]
-    if: needs.check-tag.outputs.is_stable == 'true'
-    environment: pypi
-    permissions:
-      id-token: write
-
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload dist/*
 
-  github-release:
-    name: Create GitHub Release
-    runs-on: ubuntu-latest
-    needs: [check-tag, build, generate-sbom, publish-pypi]
-    if: needs.check-tag.outputs.is_stable == 'true'
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-      - name: Download SBOM artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: sbom
-          path: sbom/
-
-      - name: Extract changelog for this version
+      - name: Extract changelog
         id: changelog
         run: |
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"  # Remove 'v' prefix
-
-          # Extract changelog section for this version
+          VERSION="${GITHUB_REF_NAME#v}"
           if [ -f CHANGELOG.md ]; then
-            # Get content between this version header and the next
             NOTES=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | head -n -1 | tail -n +2)
-            if [ -z "$NOTES" ]; then
-              NOTES="Release ${VERSION}"
-            fi
-          else
-            NOTES="Release ${VERSION}"
           fi
-
-          # Write to file for multiline support
-          echo "$NOTES" > release_notes.md
+          echo "${NOTES:-Release ${VERSION}}" > release_notes.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           body_path: release_notes.md
-          files: |
-            dist/*
-            sbom/sbom.json
-            sbom/sbom.xml
-          fail_on_unmatched_files: false
+          files: dist/*
