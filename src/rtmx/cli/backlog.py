@@ -32,8 +32,7 @@ def run_backlog(
 
     # Get incomplete requirements
     incomplete = [
-        req for req in db
-        if req.status in (Status.MISSING, Status.PARTIAL, Status.NOT_STARTED)
+        req for req in db if req.status in (Status.MISSING, Status.PARTIAL, Status.NOT_STARTED)
     ]
 
     # Filter by phase if specified
@@ -84,7 +83,11 @@ def run_backlog(
         blocks = blocking_counts.get(req.req_id, 0)
 
         # Truncate description
-        desc = req.requirement_text[:40] + "..." if len(req.requirement_text) > 40 else req.requirement_text
+        desc = (
+            req.requirement_text[:40] + "..."
+            if len(req.requirement_text) > 40
+            else req.requirement_text
+        )
 
         print(
             f"{priority_color}{req.priority.value:<10}{Colors.RESET} "

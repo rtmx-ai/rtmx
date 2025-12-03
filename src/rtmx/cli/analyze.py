@@ -49,7 +49,9 @@ def run_analyze(
                 print(f"  {Colors.YELLOW}○{Colors.RESET} {test_file.relative_to(target_path)}")
                 unmarked_count += 1
             else:
-                print(f"  {Colors.GREEN}✓{Colors.RESET} {test_file.relative_to(target_path)} ({len(markers)} req markers)")
+                print(
+                    f"  {Colors.GREEN}✓{Colors.RESET} {test_file.relative_to(target_path)} ({len(markers)} req markers)"
+                )
 
         if len(test_files) > 10:
             print(f"  ... and {len(test_files) - 10} more test files")
@@ -95,7 +97,9 @@ def run_analyze(
     if not rtm_path.exists():
         recommendations.append("Run 'rtmx init' to create RTM structure")
     if test_files and unmarked_count > 0:
-        recommendations.append("Run 'rtmx bootstrap --from-tests' to generate requirements from tests")
+        recommendations.append(
+            "Run 'rtmx bootstrap --from-tests' to generate requirements from tests"
+        )
     if config.adapters.github.enabled and config.adapters.github.repo:
         recommendations.append("Run 'rtmx sync github --import' to import GitHub issues")
     if config.adapters.jira.enabled and config.adapters.jira.project:

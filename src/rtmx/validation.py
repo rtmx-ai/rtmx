@@ -101,29 +101,33 @@ def check_reciprocity(db: RTMDatabase) -> list[tuple[str, str, str]]:
         # Check: if A blocks B, then B should depend on A
         for blocked_id in req.blocks:
             if not db.exists(blocked_id):
-                violations.append(
-                    (req.req_id, blocked_id, "blocks non-existent requirement")
-                )
+                violations.append((req.req_id, blocked_id, "blocks non-existent requirement"))
                 continue
 
             blocked_req = db.get(blocked_id)
             if req.req_id not in blocked_req.dependencies:
                 violations.append(
-                    (req.req_id, blocked_id, f"blocks {blocked_id} but {blocked_id} doesn't depend on {req.req_id}")
+                    (
+                        req.req_id,
+                        blocked_id,
+                        f"blocks {blocked_id} but {blocked_id} doesn't depend on {req.req_id}",
+                    )
                 )
 
         # Check: if A depends on B, then B should block A
         for dep_id in req.dependencies:
             if not db.exists(dep_id):
-                violations.append(
-                    (req.req_id, dep_id, "depends on non-existent requirement")
-                )
+                violations.append((req.req_id, dep_id, "depends on non-existent requirement"))
                 continue
 
             dep_req = db.get(dep_id)
             if req.req_id not in dep_req.blocks:
                 violations.append(
-                    (dep_id, req.req_id, f"{req.req_id} depends on {dep_id} but {dep_id} doesn't block {req.req_id}")
+                    (
+                        dep_id,
+                        req.req_id,
+                        f"{req.req_id} depends on {dep_id} but {dep_id} doesn't block {req.req_id}",
+                    )
                 )
 
     return violations

@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from jira import JIRA
     from jira.resources import Issue
 
-    from rtmx.config import JiraConfig
+    from rtmx.config import JiraAdapterConfig
     from rtmx.models import Requirement
 
 
@@ -26,7 +26,7 @@ class JiraAdapter(ServiceAdapter):
     Provides bidirectional sync between RTMX requirements and Jira tickets.
     """
 
-    def __init__(self, config: JiraConfig) -> None:
+    def __init__(self, config: JiraAdapterConfig) -> None:
         """Initialize Jira adapter.
 
         Args:
@@ -111,15 +111,11 @@ class JiraAdapter(ServiceAdapter):
         # Parse dates
         created_at = None
         if issue.fields.created:
-            created_at = datetime.fromisoformat(
-                issue.fields.created.replace("Z", "+00:00")
-            )
+            created_at = datetime.fromisoformat(issue.fields.created.replace("Z", "+00:00"))
 
         updated_at = None
         if issue.fields.updated:
-            updated_at = datetime.fromisoformat(
-                issue.fields.updated.replace("Z", "+00:00")
-            )
+            updated_at = datetime.fromisoformat(issue.fields.updated.replace("Z", "+00:00"))
 
         # Get labels
         labels = []

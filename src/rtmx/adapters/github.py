@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from github import Github
     from github.Issue import Issue
 
-    from rtmx.config import GitHubConfig
+    from rtmx.config import GitHubAdapterConfig
     from rtmx.models import Requirement
 
 
@@ -26,7 +26,7 @@ class GitHubAdapter(ServiceAdapter):
     Provides bidirectional sync between RTMX requirements and GitHub Issues.
     """
 
-    def __init__(self, config: GitHubConfig) -> None:
+    def __init__(self, config: GitHubAdapterConfig) -> None:
         """Initialize GitHub adapter.
 
         Args:
@@ -109,12 +109,8 @@ class GitHubAdapter(ServiceAdapter):
             status=issue.state,
             labels=[label.name for label in issue.labels],
             url=issue.html_url,
-            created_at=issue.created_at.replace(tzinfo=timezone.utc)
-            if issue.created_at
-            else None,
-            updated_at=issue.updated_at.replace(tzinfo=timezone.utc)
-            if issue.updated_at
-            else None,
+            created_at=issue.created_at.replace(tzinfo=timezone.utc) if issue.created_at else None,
+            updated_at=issue.updated_at.replace(tzinfo=timezone.utc) if issue.updated_at else None,
             assignee=issue.assignee.login if issue.assignee else None,
             priority=self._extract_priority(issue),
             requirement_id=requirement_id,

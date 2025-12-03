@@ -273,7 +273,9 @@ def _print_footer(
         phase_missing = phase_counts[Status.MISSING] + phase_counts[Status.NOT_STARTED]
         phase_total = phase_complete + phase_partial + phase_missing
 
-        phase_pct = ((phase_complete + phase_partial * 0.5) / phase_total * 100) if phase_total else 0
+        phase_pct = (
+            ((phase_complete + phase_partial * 0.5) / phase_total * 100) if phase_total else 0
+        )
 
         # Status indicator
         if phase_missing == 0 and phase_partial == 0 and phase_total > 0:
@@ -290,7 +292,8 @@ def _print_footer(
 
     # Find critical blockers
     blockers = [
-        req for req in db
+        req
+        for req in db
         if req.status in (Status.MISSING, Status.NOT_STARTED)
         and req.priority.value in ("P0", "HIGH")
         and req.phase == 1
@@ -307,6 +310,7 @@ def _print_footer(
     # Final summary line
     print()
     from rtmx.formatting import percentage_color
+
     color = percentage_color(completion_pct)
     print(
         f"{color}{Colors.BOLD}{'=' * 20} "
@@ -321,13 +325,13 @@ def _export_json(db: RTMDatabase, path: Path, completion_pct: float) -> None:
     counts = db.status_counts()
 
     # Build category breakdown
-    by_category: dict[str, dict[str, int]] = {}
+    by_category: dict[str, int] = {}
     for req in db:
         key = f"{req.category}_{req.status.value}"
         by_category[key] = by_category.get(key, 0) + 1
 
     # Build phase breakdown
-    by_phase: dict[str, dict[str, int]] = {}
+    by_phase: dict[str, int] = {}
     for req in db:
         if req.phase:
             key = f"phase{req.phase}_{req.status.value}"

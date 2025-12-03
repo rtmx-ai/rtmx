@@ -212,3 +212,4 @@ pytest -v -s --tb=long         # Verbose test output
 - **Click over argparse**: Better UX, composable commands
 - **Pydantic-style validation**: Type safety without runtime overhead
 - **Lazy imports in CLI**: Fast startup time
+- When you push, always monitor CI in a background process. Fix pipeline errors immediately. A broken pipeline always becomes the team's highest priority.

@@ -45,7 +45,7 @@ def extract_markers_from_file(file_path: Path) -> list[TestRequirement]:
 
     for node in ast.walk(tree):
         # Check functions and async functions
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
             req_markers = _extract_req_markers(node)
             other_markers = _extract_other_markers(node)
 
@@ -68,7 +68,9 @@ def extract_markers_from_file(file_path: Path) -> list[TestRequirement]:
             if req_markers:
                 # Find all test methods in the class
                 for item in node.body:
-                    if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name.startswith("test_"):
+                    if isinstance(
+                        item, ast.FunctionDef | ast.AsyncFunctionDef
+                    ) and item.name.startswith("test_"):
                         for req_id in req_markers:
                             results.append(
                                 TestRequirement(
@@ -97,7 +99,9 @@ def _extract_req_markers(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Clas
     return req_ids
 
 
-def _extract_other_markers(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef) -> list[str]:
+def _extract_other_markers(
+    node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef,
+) -> list[str]:
     """Extract other RTM-related markers (scope_, technique_, env_)."""
     markers: list[str] = []
     rtm_prefixes = ("scope_", "technique_", "env_")
@@ -211,7 +215,9 @@ def run_from_tests(
             in_db = "✓" if req_id in db_reqs else "✗"
             status_color = Colors.GREEN if req_id in db_reqs else Colors.YELLOW
 
-            print(f"{status_color}{in_db}{Colors.RESET} {Colors.BOLD}{req_id}{Colors.RESET} ({len(tests)} test(s))")
+            print(
+                f"{status_color}{in_db}{Colors.RESET} {Colors.BOLD}{req_id}{Colors.RESET} ({len(tests)} test(s))"
+            )
 
             for t in tests:
                 marker_str = f" [{', '.join(t.markers)}]" if t.markers else ""

@@ -34,7 +34,9 @@ def run_bootstrap(
         config: RTMX configuration
     """
     if not any([from_tests, from_github, from_jira]):
-        print(f"{Colors.YELLOW}No source specified. Use --from-tests, --from-github, or --from-jira{Colors.RESET}")
+        print(
+            f"{Colors.YELLOW}No source specified. Use --from-tests, --from-github, or --from-jira{Colors.RESET}"
+        )
         sys.exit(1)
 
     print("=== RTMX Bootstrap ===")

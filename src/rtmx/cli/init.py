@@ -36,8 +36,8 @@ def run_init(force: bool = False) -> None:
 
         if existing:
             print(f"{Colors.YELLOW}Warning: The following files already exist:{Colors.RESET}")
-            for f in existing:
-                print(f"  {f}")
+            for filepath in existing:
+                print(f"  {filepath}")
             print()
             print(f"{Colors.DIM}Use --force to overwrite{Colors.RESET}")
             sys.exit(1)
