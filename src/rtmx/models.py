@@ -227,14 +227,14 @@ class Requirement:
         phase: int | None = None
         if phase_val not in (None, "", "phase"):
             with contextlib.suppress(ValueError, TypeError):
-                phase = int(phase_val)
+                phase = int(str(phase_val))
 
         # Parse effort_weeks
         effort_val = data.get("effort_weeks", data.get("Effort_Weeks"))
         effort_weeks: float | None = None
         if effort_val not in (None, ""):
             with contextlib.suppress(ValueError, TypeError):
-                effort_weeks = float(effort_val)
+                effort_weeks = float(str(effort_val))
 
         # Parse dependencies and blocks
         deps_str = str(data.get("dependencies", data.get("Dependencies", "")))
