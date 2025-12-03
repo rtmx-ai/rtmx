@@ -1,7 +1,7 @@
 # RTMX Development Makefile
 # Requirements Traceability Matrix toolkit
 
-.PHONY: help install dev test lint format typecheck clean build publish
+.PHONY: help install dev test lint format typecheck clean build publish pre-commit-install pre-commit-run
 
 PYTHON := python3
 VENV := .venv
@@ -92,3 +92,12 @@ backlog: ## Show backlog
 
 cycles: ## Check for dependency cycles
 	$(VENV)/bin/rtmx cycles
+
+# Pre-commit targets
+
+pre-commit-install: ## Install pre-commit hooks
+	$(PIP) install pre-commit
+	$(VENV)/bin/pre-commit install
+
+pre-commit-run: ## Run pre-commit on all files
+	$(VENV)/bin/pre-commit run --all-files

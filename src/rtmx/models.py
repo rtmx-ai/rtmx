@@ -102,6 +102,7 @@ class Requirement:
         started_date: When work began (YYYY-MM-DD)
         completed_date: When completed (YYYY-MM-DD)
         requirement_file: Path to detailed specification markdown
+        external_id: ID in external system (GitHub issue #, Jira key)
         extra: Additional fields not in core schema
     """
 
@@ -125,6 +126,7 @@ class Requirement:
     started_date: str = ""
     completed_date: str = ""
     requirement_file: str = ""
+    external_id: str = ""
     extra: dict[str, Any] = field(default_factory=dict)
 
     def has_test(self) -> bool:
@@ -149,6 +151,27 @@ class Requirement:
                 pass
         return False
 
+    # Convenience aliases for adapters
+    @property
+    def id(self) -> str:
+        """Alias for req_id."""
+        return self.req_id
+
+    @property
+    def text(self) -> str:
+        """Alias for requirement_text."""
+        return self.requirement_text
+
+    @property
+    def rationale(self) -> str:
+        """Get rationale from notes or extra fields."""
+        return self.extra.get("rationale", self.notes)
+
+    @property
+    def acceptance(self) -> str:
+        """Get acceptance criteria from target_value or extra fields."""
+        return self.extra.get("acceptance", self.target_value)
+
     def to_dict(self) -> dict[str, Any]:
         """Convert requirement to dictionary for serialization."""
         data = {
@@ -172,6 +195,7 @@ class Requirement:
             "started_date": self.started_date,
             "completed_date": self.completed_date,
             "requirement_file": self.requirement_file,
+            "external_id": self.external_id,
         }
         # Add extra fields
         data.update(self.extra)
@@ -223,7 +247,7 @@ class Requirement:
             "effort_weeks", "Effort_Weeks", "dependencies", "Dependencies",
             "blocks", "Blocks", "assignee", "Assignee", "sprint", "Sprint",
             "started_date", "Started_Date", "completed_date", "Completed_Date",
-            "requirement_file", "Requirement_File",
+            "requirement_file", "Requirement_File", "external_id", "External_ID",
         }
         extra = {k: v for k, v in data.items() if k not in known_fields}
 
@@ -248,6 +272,7 @@ class Requirement:
             started_date=str(data.get("started_date", data.get("Started_Date", ""))),
             completed_date=str(data.get("completed_date", data.get("Completed_Date", ""))),
             requirement_file=str(data.get("requirement_file", data.get("Requirement_File", ""))),
+            external_id=str(data.get("external_id", data.get("External_ID", ""))),
             extra=extra,
         )
 
