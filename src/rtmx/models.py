@@ -9,10 +9,12 @@ This module provides the fundamental data structures for requirements traceabili
 
 from __future__ import annotations
 
+import contextlib
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterator, Self
+from typing import TYPE_CHECKING, Any, Self
 
 if TYPE_CHECKING:
     from rtmx.graph import DependencyGraph
@@ -197,19 +199,15 @@ class Requirement:
         phase_val = data.get("phase", data.get("Phase"))
         phase: int | None = None
         if phase_val not in (None, "", "phase"):
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 phase = int(phase_val)
-            except (ValueError, TypeError):
-                pass
 
         # Parse effort_weeks
         effort_val = data.get("effort_weeks", data.get("Effort_Weeks"))
         effort_weeks: float | None = None
         if effort_val not in (None, ""):
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 effort_weeks = float(effort_val)
-            except (ValueError, TypeError):
-                pass
 
         # Parse dependencies and blocks
         deps_str = str(data.get("dependencies", data.get("Dependencies", "")))
@@ -292,12 +290,9 @@ class RTMDatabase:
         Raises:
             RTMError: If file not found or invalid
         """
-        from rtmx.parser import load_csv, find_rtm_database
+        from rtmx.parser import find_rtm_database, load_csv
 
-        if path is None:
-            resolved_path = find_rtm_database()
-        else:
-            resolved_path = Path(path)
+        resolved_path = find_rtm_database() if path is None else Path(path)
 
         if not resolved_path.exists():
             raise RTMError(f"RTM database not found: {resolved_path}")
@@ -373,10 +368,7 @@ class RTMDatabase:
                 value = Status.from_string(value)
             elif key == "priority" and isinstance(value, str):
                 value = Priority.from_string(value)
-            elif key == "dependencies" and isinstance(value, str):
-                from rtmx.parser import parse_dependencies
-                value = parse_dependencies(value)
-            elif key == "blocks" and isinstance(value, str):
+            elif key == "dependencies" and isinstance(value, str) or key == "blocks" and isinstance(value, str):
                 from rtmx.parser import parse_dependencies
                 value = parse_dependencies(value)
 
@@ -555,7 +547,7 @@ class RTMDatabase:
         Returns:
             Dictionary mapping status to count
         """
-        counts: dict[Status, int] = {s: 0 for s in Status}
+        counts: dict[Status, int] = dict.fromkeys(Status, 0)
         for req in self._requirements.values():
             counts[req.status] += 1
         return counts

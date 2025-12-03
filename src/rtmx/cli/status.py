@@ -77,11 +77,11 @@ def run_status(
 
 
 def _print_summary(
-    db: RTMDatabase,
+    _db: RTMDatabase,
     complete: int,
     partial: int,
     missing: int,
-    total: int,
+    _total: int,
     completion_pct: float,
 ) -> None:
     """Print summary statistics only."""
@@ -91,8 +91,9 @@ def _print_summary(
     print()
 
     # Counts
+    total_count = complete + partial + missing
     print(format_count(complete, partial, missing))
-    print(f"{Colors.DIM}({total} total){Colors.RESET}")
+    print(f"{Colors.DIM}({total_count} total){Colors.RESET}")
 
 
 def _print_by_category(
@@ -249,7 +250,7 @@ def _print_footer(
     complete: int,
     partial: int,
     missing: int,
-    total: int,
+    _total: int,
     completion_pct: float,
 ) -> None:
     """Print footer with phase breakdown."""

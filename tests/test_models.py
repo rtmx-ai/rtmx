@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from rtmx import Priority, Requirement, RTMDatabase, Status
-from rtmx.models import RequirementNotFoundError, RTMError
+from rtmx.models import RequirementNotFoundError
 
 
 class TestStatus:

@@ -31,7 +31,7 @@ def run_cycles(rtm_csv: Path | None) -> None:
     graph = db._get_graph()
     stats = graph.statistics()
 
-    print(f"RTM Statistics:")
+    print("RTM Statistics:")
     print(f"  Total requirements: {stats['nodes']}")
     print(f"  Total dependencies: {stats['edges']}")
     print(f"  Average dependencies per requirement: {stats['avg_dependencies']:.2f}")
@@ -53,7 +53,7 @@ def run_cycles(rtm_csv: Path | None) -> None:
     total_in_cycles = sum(len(c) for c in cycles)
     cycles_sorted = sorted(cycles, key=len, reverse=True)
 
-    print(f"Summary:")
+    print("Summary:")
     print(f"  Circular dependency groups: {len(cycles)}")
     print(f"  Requirements involved in cycles: {total_in_cycles}")
     print(f"  Largest cycle: {len(cycles_sorted[0])} requirements")
@@ -85,7 +85,7 @@ def run_cycles(rtm_csv: Path | None) -> None:
     print(f"\n{'=' * 80}")
     print("RECOMMENDATIONS:")
     print(f"{'=' * 80}")
-    print("""
+    print(f"""
 1. Review dependency direction:
    - Ensure parent requirements don't depend on child requirements
    - Component requirements should depend on system requirements, not vice versa
@@ -102,8 +102,8 @@ def run_cycles(rtm_csv: Path | None) -> None:
    - Requirements should not depend on later-phase requirements
 
 5. Total effort to fix:
-   - {total} requirements involved in {cycles} cycles
+   - {total_in_cycles} requirements involved in {len(cycles)} cycles
    - Suggest reviewing in batches: largest cycles first
-    """.format(total=total_in_cycles, cycles=len(cycles)))
+    """)
 
     sys.exit(1)  # Exit with error if cycles found

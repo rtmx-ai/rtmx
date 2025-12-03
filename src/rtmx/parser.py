@@ -10,7 +10,7 @@ import csv
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from rtmx.models import RTMError, Requirement
+from rtmx.models import Requirement, RTMError
 
 if TYPE_CHECKING:
     pass
@@ -35,10 +35,7 @@ def find_rtm_database(start_path: Path | None = None) -> Path:
     Raises:
         RTMError: If database not found
     """
-    if start_path is None:
-        start_path = Path.cwd()
-    else:
-        start_path = Path(start_path).resolve()
+    start_path = Path.cwd() if start_path is None else Path(start_path).resolve()
 
     current = start_path
     for _ in range(20):  # Limit search depth
@@ -74,10 +71,7 @@ def parse_dependencies(dep_str: str) -> set[str]:
     dep_str = dep_str.strip()
 
     # Detect separator
-    if "|" in dep_str:
-        parts = dep_str.split("|")
-    else:
-        parts = dep_str.split()
+    parts = dep_str.split("|") if "|" in dep_str else dep_str.split()
 
     # Clean and filter
     return {p.strip() for p in parts if p.strip()}

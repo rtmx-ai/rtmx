@@ -8,7 +8,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from rtmx.formatting import Colors, format_phase, format_percentage, header
+from rtmx.formatting import Colors, header
 from rtmx.models import Priority, RTMDatabase, RTMError, Status
 
 

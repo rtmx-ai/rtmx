@@ -13,9 +13,9 @@ Example:
 from rtmx.models import (
     Priority,
     Requirement,
+    RequirementNotFoundError,
     RTMDatabase,
     RTMError,
-    RequirementNotFoundError,
     RTMValidationError,
     Status,
 )
