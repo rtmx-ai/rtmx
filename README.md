@@ -2,11 +2,11 @@
 
 Requirements Traceability Matrix toolkit for GenAI-driven development.
 
-[![CI](https://github.com/iotactical/rtm/actions/workflows/ci.yml/badge.svg)](https://github.com/iotactical/rtm/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/iotactical/rtm/graph/badge.svg)](https://codecov.io/gh/iotactical/rtm)
+[![CI](https://github.com/iotactical/rtmx/actions/workflows/ci.yml/badge.svg)](https://github.com/iotactical/rtmx/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/iotactical/rtmx/graph/badge.svg)](https://codecov.io/gh/iotactical/rtmx)
 [![PyPI version](https://img.shields.io/pypi/v/rtmx.svg)](https://pypi.org/project/rtmx/)
 [![Python versions](https://img.shields.io/pypi/pyversions/rtmx.svg)](https://pypi.org/project/rtmx/)
-[![License](https://img.shields.io/github/license/iotactical/rtm.svg)](https://github.com/iotactical/rtm/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/iotactical/rtmx.svg)](https://github.com/iotactical/rtmx/blob/main/LICENSE)
 [![Downloads](https://img.shields.io/pypi/dm/rtmx.svg)](https://pypi.org/project/rtmx/)
 
 ## Overview
@@ -203,7 +203,7 @@ RTMX is designed as a foundation for the Jetstream digital engineering platform:
 
 ```bash
 # Clone and install
-git clone https://github.com/iotactical/rtm.git
+git clone https://github.com/iotactical/rtmx.git
 cd rtm
 make dev
 
