@@ -209,9 +209,7 @@ class TestInitialization:
         spec_path = temp_project / "docs" / "requirements" / "EXAMPLE" / "REQ-EX-001.md"
         assert spec_path.exists()
 
-    def test_init_fails_if_exists_without_force(
-        self, initialized_project: Path
-    ) -> None:
+    def test_init_fails_if_exists_without_force(self, initialized_project: Path) -> None:
         """Init should fail if files exist and --force not provided."""
         result = run_rtmx("init", cwd=initialized_project)
 
@@ -324,18 +322,14 @@ class TestInitializationEdgeCases:
 class TestConfiguration:
     """Tests for rtmx.yaml configuration handling."""
 
-    def test_config_discovery_in_current_dir(
-        self, initialized_project: Path
-    ) -> None:
+    def test_config_discovery_in_current_dir(self, initialized_project: Path) -> None:
         """Commands should find config in current directory."""
         result = run_rtmx("status", cwd=initialized_project)
         # Exit code 1 is valid when not 100% complete (CI behavior)
         assert result.returncode in [0, 1]
         assert "%" in result.stdout  # Status should show completion percentage
 
-    def test_config_discovery_in_parent_dir(
-        self, initialized_project: Path
-    ) -> None:
+    def test_config_discovery_in_parent_dir(self, initialized_project: Path) -> None:
         """Commands should find config in parent directories.
 
         Note: Currently, database paths in config are relative to cwd,
@@ -439,9 +433,7 @@ class TestConfigurationEdgeCases:
 class TestStatusCommand:
     """Tests for rtmx status command."""
 
-    def test_status_shows_completion(
-        self, project_with_requirements: Path
-    ) -> None:
+    def test_status_shows_completion(self, project_with_requirements: Path) -> None:
         """Status should show completion percentage."""
         result = run_rtmx("status", cwd=project_with_requirements)
 
@@ -449,9 +441,7 @@ class TestStatusCommand:
         assert result.returncode in [0, 1]
         assert "%" in result.stdout or "complete" in result.stdout.lower()
 
-    def test_status_verbose_shows_categories(
-        self, project_with_requirements: Path
-    ) -> None:
+    def test_status_verbose_shows_categories(self, project_with_requirements: Path) -> None:
         """Status -v should show category breakdown."""
         result = run_rtmx("status", "-v", cwd=project_with_requirements)
 
@@ -459,9 +449,7 @@ class TestStatusCommand:
         assert result.returncode in [0, 1]
         assert "CORE" in result.stdout or "FEATURES" in result.stdout
 
-    def test_status_very_verbose_shows_all(
-        self, project_with_requirements: Path
-    ) -> None:
+    def test_status_very_verbose_shows_all(self, project_with_requirements: Path) -> None:
         """Status -vvv should show all requirements."""
         result = run_rtmx("status", "-vvv", cwd=project_with_requirements)
 
@@ -492,9 +480,7 @@ class TestStatusCommand:
 class TestBacklogCommand:
     """Tests for rtmx backlog command."""
 
-    def test_backlog_shows_incomplete(
-        self, project_with_requirements: Path
-    ) -> None:
+    def test_backlog_shows_incomplete(self, project_with_requirements: Path) -> None:
         """Backlog should show incomplete requirements."""
         result = run_rtmx("backlog", cwd=project_with_requirements)
 
@@ -502,9 +488,7 @@ class TestBacklogCommand:
         # Should show MISSING and PARTIAL, not COMPLETE
         assert "REQ-CORE-003" in result.stdout or "REQ-FEAT-001" in result.stdout
 
-    def test_backlog_filter_by_phase(
-        self, project_with_requirements: Path
-    ) -> None:
+    def test_backlog_filter_by_phase(self, project_with_requirements: Path) -> None:
         """Backlog --phase should filter by phase."""
         result = run_rtmx("backlog", "--phase", "1", cwd=project_with_requirements)
 
@@ -514,9 +498,7 @@ class TestBacklogCommand:
             # REQ-FEAT-001 is phase 2, should not appear
             pass  # Implementation may vary
 
-    def test_backlog_empty_when_all_complete(
-        self, initialized_project: Path
-    ) -> None:
+    def test_backlog_empty_when_all_complete(self, initialized_project: Path) -> None:
         """Backlog should be empty when all requirements complete."""
         db_path = initialized_project / "docs" / "rtm_database.csv"
         with open(db_path) as f:
@@ -636,16 +618,14 @@ class TestDependencyCommands:
 class TestPytestIntegration:
     """Tests for pytest marker integration."""
 
-    def test_from_tests_discovers_markers(
-        self, initialized_project: Path
-    ) -> None:
+    def test_from_tests_discovers_markers(self, initialized_project: Path) -> None:
         """from-tests should discover pytest markers."""
         # Create a test file with markers
         tests_dir = initialized_project / "tests"
         tests_dir.mkdir()
         test_file = tests_dir / "test_example.py"
         test_file.write_text(
-            '''
+            """
 import pytest
 
 @pytest.mark.req("REQ-TEST-001")
@@ -656,7 +636,7 @@ def test_feature():
 @pytest.mark.scope_unit
 def test_another():
     pass
-'''
+"""
         )
 
         result = run_rtmx("from-tests", str(tests_dir), cwd=initialized_project)
@@ -664,26 +644,22 @@ def test_another():
         assert result.returncode == 0
         assert "REQ-TEST-001" in result.stdout or "REQ-TEST-002" in result.stdout
 
-    def test_from_tests_update_writes_db(
-        self, initialized_project: Path
-    ) -> None:
+    def test_from_tests_update_writes_db(self, initialized_project: Path) -> None:
         """from-tests --update should update database."""
         tests_dir = initialized_project / "tests"
         tests_dir.mkdir()
         test_file = tests_dir / "test_example.py"
         test_file.write_text(
-            '''
+            """
 import pytest
 
 @pytest.mark.req("REQ-NEW-001")
 def test_new_feature():
     pass
-'''
+"""
         )
 
-        result = run_rtmx(
-            "from-tests", str(tests_dir), "--update", cwd=initialized_project
-        )
+        result = run_rtmx("from-tests", str(tests_dir), "--update", cwd=initialized_project)
 
         assert result.returncode == 0
 
@@ -712,15 +688,11 @@ class TestAgentInstallation:
         claude_md = initialized_project / "CLAUDE.md"
         claude_md.write_text("# Project Instructions\n\nExisting content.\n")
 
-        result = run_rtmx(
-            "install", "--agents", "claude", "--dry-run", cwd=initialized_project
-        )
+        result = run_rtmx("install", "--agents", "claude", "--dry-run", cwd=initialized_project)
 
         assert result.returncode == 0
 
-    def test_install_preserves_existing_content(
-        self, initialized_project: Path
-    ) -> None:
+    def test_install_preserves_existing_content(self, initialized_project: Path) -> None:
         """Install should preserve existing agent config content."""
         claude_md = initialized_project / "CLAUDE.md"
         original = "# My Project\n\nImportant instructions.\n"
@@ -744,9 +716,7 @@ class TestAgentInstallation:
 class TestUninstall:
     """Tests for rtmx uninstall command."""
 
-    def test_uninstall_not_implemented_yet(
-        self, initialized_project: Path
-    ) -> None:
+    def test_uninstall_not_implemented_yet(self, initialized_project: Path) -> None:
         """Uninstall command may not be implemented yet."""
         result = run_rtmx("uninstall", cwd=initialized_project)
 
@@ -777,9 +747,7 @@ class TestDataIntegrity:
         # Should fail gracefully, not crash
         assert result.returncode in [0, 1]
 
-    def test_handles_csv_with_headers_only(
-        self, initialized_project: Path
-    ) -> None:
+    def test_handles_csv_with_headers_only(self, initialized_project: Path) -> None:
         """Commands should handle CSV with only headers."""
         db_path = initialized_project / "docs" / "rtm_database.csv"
         with open(db_path) as f:
@@ -793,9 +761,7 @@ class TestDataIntegrity:
         # Empty database is valid (0 requirements = 100% or special handling)
         assert result.returncode in [0, 1]
 
-    def test_handles_special_characters_in_text(
-        self, initialized_project: Path
-    ) -> None:
+    def test_handles_special_characters_in_text(self, initialized_project: Path) -> None:
         """Commands should handle special characters in requirement text."""
         db_path = initialized_project / "docs" / "rtm_database.csv"
         with open(db_path) as f:
@@ -905,9 +871,7 @@ class TestConcurrencyAndRobustness:
         # Should fail gracefully
         assert result.returncode != 0
 
-    def test_handles_csv_with_wrong_encoding(
-        self, initialized_project: Path
-    ) -> None:
+    def test_handles_csv_with_wrong_encoding(self, initialized_project: Path) -> None:
         """Commands should handle CSV with unexpected encoding."""
         db_path = initialized_project / "docs" / "rtm_database.csv"
         with open(db_path) as f:
@@ -1087,9 +1051,7 @@ class TestErrorRecovery:
         assert result.returncode in [0, 1]
         assert "%" in result.stdout
 
-    def test_handles_network_errors_gracefully(
-        self, initialized_project: Path
-    ) -> None:
+    def test_handles_network_errors_gracefully(self, initialized_project: Path) -> None:
         """Sync commands should handle network errors gracefully."""
         # Configure GitHub adapter with invalid token
         config_path = initialized_project / "rtmx.yaml"
@@ -1108,8 +1070,6 @@ class TestErrorRecovery:
             yaml.dump(config, f)
 
         # Sync should fail gracefully
-        result = run_rtmx(
-            "sync", "github", "--import", "--dry-run", cwd=initialized_project
-        )
+        result = run_rtmx("sync", "github", "--import", "--dry-run", cwd=initialized_project)
         # Should not crash, but may return error
         assert result.returncode in [0, 1, 2]

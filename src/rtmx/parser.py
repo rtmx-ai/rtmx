@@ -49,8 +49,7 @@ def find_rtm_database(start_path: Path | None = None) -> Path:
         current = parent
 
     raise RTMError(
-        f"Could not find RTM database (looking for {DEFAULT_RTM_PATH}). "
-        f"Started from {start_path}"
+        f"Could not find RTM database (looking for {DEFAULT_RTM_PATH}). Started from {start_path}"
     )
 
 
@@ -180,10 +179,7 @@ def load_csv(path: Path) -> list[Requirement]:
             for row in reader:
                 # Normalize row keys if needed
                 if col_format == "PascalCase":
-                    row = {
-                        normalize_column_name(k): v
-                        for k, v in row.items()
-                    }
+                    row = {normalize_column_name(k): v for k, v in row.items()}
 
                 # Convert boolean fields
                 row = _convert_booleans(row)
@@ -255,16 +251,26 @@ def _convert_booleans(row: dict[str, str]) -> dict[str, str | bool]:
     """
     boolean_fields = {
         # Phoenix validation taxonomy
-        "unit_test", "integration_test", "parametric_test",
-        "monte_carlo_test", "stress_test",
+        "unit_test",
+        "integration_test",
+        "parametric_test",
+        "monte_carlo_test",
+        "stress_test",
         # Environment columns
-        "env_simulation", "env_hil", "env_anechoic",
-        "env_static_field", "env_dynamic_field",
+        "env_simulation",
+        "env_hil",
+        "env_anechoic",
+        "env_static_field",
+        "env_dynamic_field",
         # Scope columns
-        "scope_unit", "scope_integration", "scope_system",
+        "scope_unit",
+        "scope_integration",
+        "scope_system",
         # Technique columns
-        "technique_nominal", "technique_parametric",
-        "technique_monte_carlo", "technique_stress",
+        "technique_nominal",
+        "technique_parametric",
+        "technique_monte_carlo",
+        "technique_stress",
     }
 
     result: dict[str, str | bool] = {}

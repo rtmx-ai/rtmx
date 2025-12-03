@@ -93,12 +93,14 @@ class RTMXTools:
                 # Add individual requirements
                 requirements = []
                 for req in db.all():
-                    requirements.append({
-                        "id": req.req_id,
-                        "category": req.category,
-                        "status": req.status.value,
-                        "text": req.requirement_text[:100],
-                    })
+                    requirements.append(
+                        {
+                            "id": req.req_id,
+                            "category": req.category,
+                            "status": req.status.value,
+                            "text": req.requirement_text[:100],
+                        }
+                    )
                 result["requirements"] = requirements
 
             return ToolResult(success=True, data=result)
@@ -126,10 +128,7 @@ class RTMXTools:
             db = self._get_db()
 
             # Filter incomplete requirements
-            incomplete = [
-                r for r in db.all()
-                if r.status != Status.COMPLETE
-            ]
+            incomplete = [r for r in db.all() if r.status != Status.COMPLETE]
 
             # Apply filters
             if phase is not None:
@@ -137,7 +136,8 @@ class RTMXTools:
 
             if critical_only:
                 from rtmx.models import Priority
-                incomplete = [r for r in incomplete if r.priority == Priority.CRITICAL]
+
+                incomplete = [r for r in incomplete if r.priority == Priority.P0]
 
             # Sort by priority and blocking count
             def sort_key(req):
@@ -153,15 +153,17 @@ class RTMXTools:
             # Build result
             backlog = []
             for req in incomplete[:limit]:
-                backlog.append({
-                    "id": req.req_id,
-                    "text": req.requirement_text[:100],
-                    "priority": req.priority.value,
-                    "phase": req.phase,
-                    "status": req.status.value,
-                    "blocks": list(req.blocks),
-                    "dependencies": list(req.dependencies),
-                })
+                backlog.append(
+                    {
+                        "id": req.req_id,
+                        "text": req.requirement_text[:100],
+                        "priority": req.priority.value,
+                        "phase": req.phase,
+                        "status": req.status.value,
+                        "blocks": list(req.blocks),
+                        "dependencies": list(req.dependencies),
+                    }
+                )
 
             return ToolResult(
                 success=True,
@@ -271,11 +273,13 @@ class RTMXTools:
             for dep_id in req.dependencies:
                 try:
                     dep = db.get(dep_id)
-                    deps.append({
-                        "id": dep.req_id,
-                        "status": dep.status.value,
-                        "text": dep.requirement_text[:50],
-                    })
+                    deps.append(
+                        {
+                            "id": dep.req_id,
+                            "status": dep.status.value,
+                            "text": dep.requirement_text[:50],
+                        }
+                    )
                 except Exception:
                     deps.append({"id": dep_id, "status": "NOT_FOUND", "text": ""})
 
@@ -284,11 +288,13 @@ class RTMXTools:
             for block_id in req.blocks:
                 try:
                     block = db.get(block_id)
-                    blocks.append({
-                        "id": block.req_id,
-                        "status": block.status.value,
-                        "text": block.requirement_text[:50],
-                    })
+                    blocks.append(
+                        {
+                            "id": block.req_id,
+                            "status": block.status.value,
+                            "text": block.requirement_text[:50],
+                        }
+                    )
                 except Exception:
                     blocks.append({"id": block_id, "status": "NOT_FOUND", "text": ""})
 
@@ -322,21 +328,25 @@ class RTMXTools:
             matches = []
             for req in db.all():
                 # Search in ID, text, category, notes
-                searchable = " ".join([
-                    req.req_id,
-                    req.requirement_text,
-                    req.category,
-                    req.subcategory,
-                    req.notes,
-                ]).lower()
+                searchable = " ".join(
+                    [
+                        req.req_id,
+                        req.requirement_text,
+                        req.category,
+                        req.subcategory,
+                        req.notes,
+                    ]
+                ).lower()
 
                 if query_lower in searchable:
-                    matches.append({
-                        "id": req.req_id,
-                        "text": req.requirement_text[:100],
-                        "status": req.status.value,
-                        "category": req.category,
-                    })
+                    matches.append(
+                        {
+                            "id": req.req_id,
+                            "text": req.requirement_text[:100],
+                            "status": req.status.value,
+                            "category": req.category,
+                        }
+                    )
 
                 if len(matches) >= limit:
                     break

@@ -46,9 +46,7 @@ class RTMXPlugin:
     """RTMX pytest plugin instance."""
 
     def __init__(self) -> None:
-        self.coverage: dict[str, RequirementCoverage] = defaultdict(
-            lambda: RequirementCoverage("")
-        )
+        self.coverage: dict[str, RequirementCoverage] = defaultdict(lambda: RequirementCoverage(""))
         self._current_req_ids: list[str] = []
 
     def record_test(self, item: pytest.Item, outcome: str) -> None:
@@ -194,9 +192,7 @@ def pytest_terminal_summary(
         return
 
     terminalreporter.write_sep("=", "RTMX Requirement Coverage")
-    terminalreporter.write_line(
-        f"Requirements with tests: {summary['total_requirements']}"
-    )
+    terminalreporter.write_line(f"Requirements with tests: {summary['total_requirements']}")
     terminalreporter.write_line(
         f"  Passing: {summary['passing']}  "
         f"Failing: {summary['failing']}  "

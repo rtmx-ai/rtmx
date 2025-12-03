@@ -30,8 +30,7 @@ def create_server(config: RTMXConfig | None = None):
         from mcp.types import TextContent, Tool
     except ImportError as e:
         raise ImportError(
-            "MCP package is required for MCP server. "
-            "Install with: pip install rtmx[mcp]"
+            "MCP package is required for MCP server. Install with: pip install rtmx[mcp]"
         ) from e
 
     from rtmx.adapters.mcp.tools import RTMXTools

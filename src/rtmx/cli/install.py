@@ -192,7 +192,9 @@ def run_install(
             # Check if rtmx section already exists
             content = path.read_text()
             if "RTMX Requirements Traceability" in content and not force:
-                print(f"  {Colors.YELLOW}RTMX section already exists (use --force to overwrite){Colors.RESET}")
+                print(
+                    f"  {Colors.YELLOW}RTMX section already exists (use --force to overwrite){Colors.RESET}"
+                )
                 continue
 
             if not skip_backup and not dry_run:
@@ -209,7 +211,10 @@ def run_install(
                 new_lines = []
                 in_rtmx_section = False
                 for line in lines:
-                    if "## RTMX Requirements Traceability" in line or "# RTMX Requirements Traceability" in line:
+                    if (
+                        "## RTMX Requirements Traceability" in line
+                        or "# RTMX Requirements Traceability" in line
+                    ):
                         in_rtmx_section = True
                         continue
                     if in_rtmx_section and line.startswith("## "):

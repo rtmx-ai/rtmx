@@ -1,6 +1,5 @@
 """Tests for rtmx.graph module."""
 
-
 from rtmx.graph import DependencyGraph
 
 

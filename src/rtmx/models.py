@@ -10,11 +10,17 @@ This module provides the fundamental data structures for requirements traceabili
 from __future__ import annotations
 
 import contextlib
+import sys
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 if TYPE_CHECKING:
     from rtmx.graph import DependencyGraph
@@ -131,10 +137,7 @@ class Requirement:
 
     def has_test(self) -> bool:
         """Check if requirement has an associated test."""
-        return (
-            self.test_module not in ("", "MISSING")
-            and self.test_function not in ("", "MISSING")
-        )
+        return self.test_module not in ("", "MISSING") and self.test_function not in ("", "MISSING")
 
     def is_complete(self) -> bool:
         """Check if requirement is fully complete."""
@@ -239,15 +242,48 @@ class Requirement:
 
         # Collect extra fields
         known_fields = {
-            "req_id", "Req_ID", "category", "Category", "subcategory", "Subcategory",
-            "requirement_text", "Requirement_Text", "target_value", "Target_Value",
-            "test_module", "Test_Module", "test_function", "Test_Function",
-            "validation_method", "Validation_Method", "status", "Status",
-            "priority", "Priority", "phase", "Phase", "notes", "Notes",
-            "effort_weeks", "Effort_Weeks", "dependencies", "Dependencies",
-            "blocks", "Blocks", "assignee", "Assignee", "sprint", "Sprint",
-            "started_date", "Started_Date", "completed_date", "Completed_Date",
-            "requirement_file", "Requirement_File", "external_id", "External_ID",
+            "req_id",
+            "Req_ID",
+            "category",
+            "Category",
+            "subcategory",
+            "Subcategory",
+            "requirement_text",
+            "Requirement_Text",
+            "target_value",
+            "Target_Value",
+            "test_module",
+            "Test_Module",
+            "test_function",
+            "Test_Function",
+            "validation_method",
+            "Validation_Method",
+            "status",
+            "Status",
+            "priority",
+            "Priority",
+            "phase",
+            "Phase",
+            "notes",
+            "Notes",
+            "effort_weeks",
+            "Effort_Weeks",
+            "dependencies",
+            "Dependencies",
+            "blocks",
+            "Blocks",
+            "assignee",
+            "Assignee",
+            "sprint",
+            "Sprint",
+            "started_date",
+            "Started_Date",
+            "completed_date",
+            "Completed_Date",
+            "requirement_file",
+            "Requirement_File",
+            "external_id",
+            "External_ID",
         }
         extra = {k: v for k, v in data.items() if k not in known_fields}
 
@@ -393,8 +429,14 @@ class RTMDatabase:
                 value = Status.from_string(value)
             elif key == "priority" and isinstance(value, str):
                 value = Priority.from_string(value)
-            elif key == "dependencies" and isinstance(value, str) or key == "blocks" and isinstance(value, str):
+            elif (
+                key == "dependencies"
+                and isinstance(value, str)
+                or key == "blocks"
+                and isinstance(value, str)
+            ):
                 from rtmx.parser import parse_dependencies
+
                 value = parse_dependencies(value)
 
             if hasattr(req, key):
@@ -505,6 +547,7 @@ class RTMDatabase:
         """Get or create dependency graph."""
         if self._graph is None:
             from rtmx.graph import DependencyGraph
+
             self._graph = DependencyGraph.from_database(self)
         return self._graph
 
@@ -544,6 +587,7 @@ class RTMDatabase:
             List of validation error messages (empty if valid)
         """
         from rtmx.validation import validate_schema
+
         return validate_schema(self)
 
     def check_reciprocity(self) -> list[tuple[str, str, str]]:
@@ -553,6 +597,7 @@ class RTMDatabase:
             List of (req_id, related_id, issue) tuples
         """
         from rtmx.validation import check_reciprocity
+
         return check_reciprocity(self)
 
     def fix_reciprocity(self) -> int:
@@ -562,6 +607,7 @@ class RTMDatabase:
             Number of violations fixed
         """
         from rtmx.validation import fix_reciprocity
+
         return fix_reciprocity(self)
 
     # Statistics

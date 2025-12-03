@@ -12,7 +12,7 @@ from rtmx.adapters.base import ExternalItem, ServiceAdapter, SyncResult
 from rtmx.config import RTMXConfig
 from rtmx.formatting import Colors
 from rtmx.models import Requirement
-from rtmx.parser import parse_rtm_csv
+from rtmx.parser import load_csv
 
 
 def run_sync(
@@ -40,7 +40,9 @@ def run_sync(
         config: RTMX configuration
     """
     if not any([do_import, do_export, bidirectional]):
-        print(f"{Colors.YELLOW}No sync direction specified. Use --import, --export, or --bidirectional{Colors.RESET}")
+        print(
+            f"{Colors.YELLOW}No sync direction specified. Use --import, --export, or --bidirectional{Colors.RESET}"
+        )
         sys.exit(1)
 
     if prefer_local and prefer_remote:
@@ -116,7 +118,9 @@ def _get_adapter(service: str, config: RTMXConfig) -> ServiceAdapter | None:
 
             return GitHubAdapter(config.adapters.github)
         except ImportError:
-            print(f"{Colors.RED}PyGithub not installed. Run: pip install rtmx[github]{Colors.RESET}")
+            print(
+                f"{Colors.RED}PyGithub not installed. Run: pip install rtmx[github]{Colors.RESET}"
+            )
             return None
 
     elif service == "jira":
@@ -133,7 +137,9 @@ def _get_adapter(service: str, config: RTMXConfig) -> ServiceAdapter | None:
 
             return JiraAdapter(config.adapters.jira)
         except ImportError:
-            print(f"{Colors.RED}jira package not installed. Run: pip install rtmx[jira]{Colors.RESET}")
+            print(
+                f"{Colors.RED}jira package not installed. Run: pip install rtmx[jira]{Colors.RESET}"
+            )
             return None
 
     else:
@@ -157,11 +163,11 @@ def _run_import(
     external_id_map: dict[str, str] = {}  # external_id -> requirement_id
 
     if rtm_path.exists():
-        rtm_data = parse_rtm_csv(rtm_path)
-        for req in rtm_data.requirements:
-            requirements[req.id] = req
+        reqs = load_csv(rtm_path)
+        for req in reqs:
+            requirements[req.req_id] = req
             if req.external_id:
-                external_id_map[req.external_id] = req.id
+                external_id_map[req.external_id] = req.req_id
 
     # Fetch external items
     items_found = 0
@@ -190,7 +196,9 @@ def _run_import(
             if dry_run:
                 print(f"  Would link {item.requirement_id} to {item.external_id}")
             else:
-                print(f"  {Colors.GREEN}⇄{Colors.RESET} Linked {item.requirement_id} ↔ {item.external_id}")
+                print(
+                    f"  {Colors.GREEN}⇄{Colors.RESET} Linked {item.requirement_id} ↔ {item.external_id}"
+                )
             result.updated.append(item.requirement_id)
 
         else:
@@ -223,33 +231,35 @@ def _run_export(
         print(f"{Colors.RED}RTM database not found: {rtm_path}{Colors.RESET}")
         return result
 
-    rtm_data = parse_rtm_csv(rtm_path)
+    reqs = load_csv(rtm_path)
 
-    for req in rtm_data.requirements:
+    for req in reqs:
         if req.external_id:
             # Already exported - update
             if dry_run:
-                print(f"  Would update: {req.id} → {req.external_id}")
+                print(f"  Would update: {req.req_id} → {req.external_id}")
             else:
                 success = adapter.update_item(req.external_id, req)
                 if success:
-                    print(f"  {Colors.BLUE}↻{Colors.RESET} Updated {req.id} → {req.external_id}")
-                    result.updated.append(req.id)
+                    print(
+                        f"  {Colors.BLUE}↻{Colors.RESET} Updated {req.req_id} → {req.external_id}"
+                    )
+                    result.updated.append(req.req_id)
                 else:
-                    print(f"  {Colors.RED}✗{Colors.RESET} Failed to update {req.id}")
-                    result.errors.append((req.id, "Update failed"))
+                    print(f"  {Colors.RED}✗{Colors.RESET} Failed to update {req.req_id}")
+                    result.errors.append((req.req_id, "Update failed"))
         else:
             # New export
             if dry_run:
-                print(f"  Would export: {req.id}")
+                print(f"  Would export: {req.req_id}")
             else:
                 try:
                     external_id = adapter.create_item(req)
-                    print(f"  {Colors.GREEN}+{Colors.RESET} Exported {req.id} → {external_id}")
-                    result.created.append(req.id)
+                    print(f"  {Colors.GREEN}+{Colors.RESET} Exported {req.req_id} → {external_id}")
+                    result.created.append(req.req_id)
                 except Exception as e:
-                    print(f"  {Colors.RED}✗{Colors.RESET} Failed to export {req.id}: {e}")
-                    result.errors.append((req.id, str(e)))
+                    print(f"  {Colors.RED}✗{Colors.RESET} Failed to export {req.req_id}: {e}")
+                    result.errors.append((req.req_id, str(e)))
 
     return result
 
@@ -271,11 +281,11 @@ def _run_bidirectional(
     external_id_map: dict[str, str] = {}
 
     if rtm_path.exists():
-        rtm_data = parse_rtm_csv(rtm_path)
-        for req in rtm_data.requirements:
-            requirements[req.id] = req
+        reqs = load_csv(rtm_path)
+        for req in reqs:
+            requirements[req.req_id] = req
             if req.external_id:
-                external_id_map[req.external_id] = req.id
+                external_id_map[req.external_id] = req.req_id
 
     # Fetch external items
     external_items: dict[str, ExternalItem] = {}
@@ -307,11 +317,17 @@ def _run_bidirectional(
                     if dry_run:
                         print(f"  Would update {req_id}: {req.status} → {external_status}")
                     else:
-                        print(f"  {Colors.BLUE}↻{Colors.RESET} {req_id}: Remote wins ({external_status})")
+                        print(
+                            f"  {Colors.BLUE}↻{Colors.RESET} {req_id}: Remote wins ({external_status})"
+                        )
                     result.updated.append(req_id)
                 else:
-                    print(f"  {Colors.YELLOW}?{Colors.RESET} Conflict: {req_id} (local={req.status}, remote={external_status})")
-                    result.conflicts.append((req_id, f"Status conflict: {req.status} vs {external_status}"))
+                    print(
+                        f"  {Colors.YELLOW}?{Colors.RESET} Conflict: {req_id} (local={req.status}, remote={external_status})"
+                    )
+                    result.conflicts.append(
+                        (req_id, f"Status conflict: {req.status} vs {external_status}")
+                    )
             else:
                 result.skipped.append(req_id)
 
@@ -323,7 +339,9 @@ def _run_bidirectional(
         if dry_run:
             print(f"  Would import: [{external_id}] {item.title[:50]}...")
         else:
-            print(f"  {Colors.GREEN}←{Colors.RESET} Import candidate: [{external_id}] {item.title[:50]}...")
+            print(
+                f"  {Colors.GREEN}←{Colors.RESET} Import candidate: [{external_id}] {item.title[:50]}..."
+            )
         result.created.append(external_id)
 
     # Requirements not in external service (export candidates)

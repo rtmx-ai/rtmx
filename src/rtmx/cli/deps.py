@@ -117,7 +117,11 @@ def _print_deps_summary(db: RTMDatabase, reqs: list) -> None:
     for req in sorted_reqs[:30]:
         deps = dep_counts.get(req.req_id, 0)
         blocks = block_counts.get(req.req_id, 0)
-        desc = req.requirement_text[:45] + "..." if len(req.requirement_text) > 45 else req.requirement_text
+        desc = (
+            req.requirement_text[:45] + "..."
+            if len(req.requirement_text) > 45
+            else req.requirement_text
+        )
 
         # Highlight high-blocking requirements
         if blocks > 5:
@@ -136,4 +140,6 @@ def _print_deps_summary(db: RTMDatabase, reqs: list) -> None:
     print(f"{Colors.BOLD}Summary:{Colors.RESET}")
     print(f"  Total requirements: {len(reqs)}")
     print(f"  Requirements with dependencies: {sum(1 for r in reqs if r.dependencies)}")
-    print(f"  Requirements blocking others: {sum(1 for r in reqs if block_counts.get(r.req_id, 0) > 0)}")
+    print(
+        f"  Requirements blocking others: {sum(1 for r in reqs if block_counts.get(r.req_id, 0) > 0)}"
+    )

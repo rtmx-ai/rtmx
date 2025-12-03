@@ -61,7 +61,8 @@ def main(
 
 @main.command()
 @click.option(
-    "-v", "--verbose",
+    "-v",
+    "--verbose",
     count=True,
     help="Increase verbosity (-v categories, -vv subcategories, -vvv all)",
 )

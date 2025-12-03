@@ -94,7 +94,9 @@ class TestFixReciprocity:
 
         # Verify violation exists
         violations_before = check_reciprocity(db)
-        has_violation = any("REQ-SW-001" in str(v) and "REQ-SW-003" in str(v) for v in violations_before)
+        has_violation = any(
+            "REQ-SW-001" in str(v) and "REQ-SW-003" in str(v) for v in violations_before
+        )
 
         if has_violation:
             # Fix it
