@@ -152,7 +152,7 @@ def cycles(ctx: click.Context) -> None:
     help="Overwrite existing files",
 )
 @click.pass_context
-def init(ctx: click.Context, force: bool) -> None:
+def init(_ctx: click.Context, force: bool) -> None:
     """Initialize RTM in current project.
 
     Creates docs/rtm_database.csv and docs/requirements/ structure.
@@ -160,6 +160,71 @@ def init(ctx: click.Context, force: bool) -> None:
     from rtmx.cli.init import run_init
 
     run_init(force)
+
+
+@main.command("from-tests")
+@click.argument(
+    "test_path",
+    required=False,
+    type=click.Path(exists=True, path_type=Path),
+)
+@click.option(
+    "--all",
+    "show_all",
+    is_flag=True,
+    help="Show all markers found",
+)
+@click.option(
+    "--missing",
+    "show_missing",
+    is_flag=True,
+    help="Show requirements not in database",
+)
+@click.option(
+    "--update",
+    is_flag=True,
+    help="Update RTM database with test information",
+)
+@click.pass_context
+def from_tests(
+    ctx: click.Context,
+    test_path: Path | None,
+    show_all: bool,
+    show_missing: bool,
+    update: bool,
+) -> None:
+    """Scan test files for requirement markers.
+
+    Extracts @pytest.mark.req() markers from test files and reports coverage.
+    """
+    from rtmx.cli.from_tests import run_from_tests
+
+    rtm_csv = ctx.obj.get("rtm_csv")
+    run_from_tests(
+        str(test_path) if test_path else None,
+        str(rtm_csv) if rtm_csv else None,
+        show_all,
+        show_missing,
+        update,
+    )
+
+
+@main.command()
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(path_type=Path),
+    help="Output file (default: stdout)",
+)
+@click.pass_context
+def makefile(_ctx: click.Context, output: Path | None) -> None:
+    """Generate Makefile targets for RTM commands.
+
+    Outputs Makefile targets that can be appended to your project's Makefile.
+    """
+    from rtmx.cli.makefile import run_makefile
+
+    run_makefile(output)
 
 
 if __name__ == "__main__":

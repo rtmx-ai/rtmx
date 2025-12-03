@@ -280,7 +280,7 @@ class DependencyGraph:
             List of requirement IDs in topological order, or None if cycles exist
         """
         # Kahn's algorithm
-        in_degree: dict[str, int] = {node: 0 for node in self._nodes}
+        in_degree: dict[str, int] = dict.fromkeys(self._nodes, 0)
 
         for node in self._nodes:
             for dep in self._forward.get(node, set()):
