@@ -506,7 +506,9 @@ def run_health(
             else:
                 icon = f"{Colors.DIM}SKIP{Colors.RESET}"
 
-            blocking_marker = " [blocking]" if check.blocking and check.result == CheckResult.FAIL else ""
+            blocking_marker = (
+                " [blocking]" if check.blocking and check.result == CheckResult.FAIL else ""
+            )
             print(f"  [{icon}] {check.name}: {check.message}{blocking_marker}")
 
         print()

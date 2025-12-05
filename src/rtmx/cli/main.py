@@ -240,6 +240,7 @@ def setup(
 
     if not result.success:
         import sys
+
         sys.exit(1)
 
 

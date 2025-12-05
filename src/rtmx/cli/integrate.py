@@ -146,7 +146,9 @@ def run_integrate(
                 return result
             else:
                 result.warnings.append("Uncommitted changes detected")
-                print(f"{Colors.YELLOW}  [WARN] Uncommitted changes (would block execute mode){Colors.RESET}")
+                print(
+                    f"{Colors.YELLOW}  [WARN] Uncommitted changes (would block execute mode){Colors.RESET}"
+                )
     except GitError as e:
         result.errors.append(str(e))
         print(f"{Colors.RED}  [FAIL] Git error: {e}{Colors.RESET}")
@@ -216,7 +218,12 @@ def run_integrate(
         return result
 
     # Phase 4: Preview/Execute integration
-    print(header(f"Phase 4: {'Preview' if mode == IntegrationMode.PREVIEW else 'Execute'} Integration", "-"))
+    print(
+        header(
+            f"Phase 4: {'Preview' if mode == IntegrationMode.PREVIEW else 'Execute'} Integration",
+            "-",
+        )
+    )
 
     # Generate branch name
     if branch_name is None:
@@ -330,7 +337,9 @@ def run_integrate(
     print(header("Phase 5: Post-Integration Validation", "-"))
 
     # Reload config from work path
-    work_config = load_config(work_path / "rtmx.yaml" if (work_path / "rtmx.yaml").exists() else None)
+    work_config = load_config(
+        work_path / "rtmx.yaml" if (work_path / "rtmx.yaml").exists() else None
+    )
 
     post_health = run_health_checks(work_config)
 
@@ -350,8 +359,12 @@ def run_integrate(
                 comparison = compare_databases(rtm_path, new_rtm_path)
                 result.comparison_status = comparison.summary_status
                 print(f"  Comparison: {comparison.summary_status}")
-                print(f"    Req count: {comparison.baseline_req_count} -> {comparison.current_req_count}")
-                print(f"    Completion: {comparison.baseline_completion:.1f}% -> {comparison.current_completion:.1f}%")
+                print(
+                    f"    Req count: {comparison.baseline_req_count} -> {comparison.current_req_count}"
+                )
+                print(
+                    f"    Completion: {comparison.baseline_completion:.1f}% -> {comparison.current_completion:.1f}%"
+                )
             except Exception as e:
                 result.warnings.append(f"Comparison failed: {e}")
 
@@ -373,8 +386,8 @@ def run_integrate(
 
 ## Validation Results
 - Health Status: {post_health.status.value}
-- Checks Passed: {post_health.summary['passed']}
-- Warnings: {post_health.summary['warnings']}
+- Checks Passed: {post_health.summary["passed"]}
+- Warnings: {post_health.summary["warnings"]}
 
 ## Rollback
 If needed, rollback with:

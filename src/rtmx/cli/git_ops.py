@@ -470,7 +470,9 @@ def print_git_status(status: GitStatus) -> None:
     if status.is_clean:
         print(f"{Colors.GREEN}  Git status: Clean{Colors.RESET}")
     else:
-        print(f"{Colors.YELLOW}  Git status: {len(status.uncommitted_files)} uncommitted files{Colors.RESET}")
+        print(
+            f"{Colors.YELLOW}  Git status: {len(status.uncommitted_files)} uncommitted files{Colors.RESET}"
+        )
         for f in status.uncommitted_files[:5]:
             print(f"    {f}")
         if len(status.uncommitted_files) > 5:

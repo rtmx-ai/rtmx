@@ -208,7 +208,11 @@ class TestRunHealthChecks:
         """Test running all health checks."""
         report = run_health_checks(test_config)
         assert isinstance(report, HealthReport)
-        assert report.status in (HealthStatus.HEALTHY, HealthStatus.DEGRADED, HealthStatus.UNHEALTHY)
+        assert report.status in (
+            HealthStatus.HEALTHY,
+            HealthStatus.DEGRADED,
+            HealthStatus.UNHEALTHY,
+        )
         assert len(report.checks) > 0
         assert report.summary["total"] == len(report.checks)
 
