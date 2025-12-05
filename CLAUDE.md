@@ -216,3 +216,4 @@ pytest -v -s --tb=long         # Verbose test output
 - The contact information for the rtmx project is ioTACTICAL Engineering, engineering@iotactical.co.
 - The company name is ioTACTICAL LLC. The contact information is "ioTACTICAL Engineering" reachable at engineering@iotactical.co.
 - Never use --no-verify or SKIP= when we run a commit. Pre-commit checks exist to fully verify what we are pushing to main. Catching an error in main that should have been caught locally is a quality escape, and we should always minimize or eliminate quality escapes. Quality lives as far left as possible, and for this project, that's in the local development environment.
+- Every tag for release to pypi should be accompanied with a thorough documentation review and update.
