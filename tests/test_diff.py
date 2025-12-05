@@ -37,17 +37,13 @@ REQ-004,SOFTWARE,NEW,New requirement,Value,tests/test.py,test_func4,Unit Test,MI
 class TestFormatTerminalReport:
     """Tests for format_terminal_report function."""
 
-    def test_format_terminal_report_contains_header(
-        self, baseline_csv: Path, current_csv: Path
-    ):
+    def test_format_terminal_report_contains_header(self, baseline_csv: Path, current_csv: Path):
         """Test terminal report contains header."""
         report = compare_databases(baseline_csv, current_csv)
         output = format_terminal_report(report)
         assert "RTM Comparison" in output
 
-    def test_format_terminal_report_contains_status(
-        self, baseline_csv: Path, current_csv: Path
-    ):
+    def test_format_terminal_report_contains_status(self, baseline_csv: Path, current_csv: Path):
         """Test terminal report contains status."""
         report = compare_databases(baseline_csv, current_csv)
         output = format_terminal_report(report)
@@ -57,27 +53,21 @@ class TestFormatTerminalReport:
             for status in ["BREAKING", "REGRESSED", "DEGRADED", "IMPROVED", "STABLE"]
         )
 
-    def test_format_terminal_report_contains_paths(
-        self, baseline_csv: Path, current_csv: Path
-    ):
+    def test_format_terminal_report_contains_paths(self, baseline_csv: Path, current_csv: Path):
         """Test terminal report contains file paths."""
         report = compare_databases(baseline_csv, current_csv)
         output = format_terminal_report(report)
         assert "Baseline" in output
         assert "Current" in output
 
-    def test_format_terminal_report_contains_metrics(
-        self, baseline_csv: Path, current_csv: Path
-    ):
+    def test_format_terminal_report_contains_metrics(self, baseline_csv: Path, current_csv: Path):
         """Test terminal report contains key metrics."""
         report = compare_databases(baseline_csv, current_csv)
         output = format_terminal_report(report)
         assert "Requirements" in output
         assert "Completion" in output
 
-    def test_format_terminal_report_shows_added(
-        self, baseline_csv: Path, current_csv: Path
-    ):
+    def test_format_terminal_report_shows_added(self, baseline_csv: Path, current_csv: Path):
         """Test terminal report shows added requirements."""
         report = compare_databases(baseline_csv, current_csv)
         output = format_terminal_report(report)
@@ -85,9 +75,7 @@ class TestFormatTerminalReport:
             assert "Added Requirements" in output
             assert "REQ-004" in output
 
-    def test_format_terminal_report_shows_removed(
-        self, baseline_csv: Path, current_csv: Path
-    ):
+    def test_format_terminal_report_shows_removed(self, baseline_csv: Path, current_csv: Path):
         """Test terminal report shows removed requirements."""
         report = compare_databases(baseline_csv, current_csv)
         output = format_terminal_report(report)

@@ -33,11 +33,16 @@ def run_diff(
 
     # Validate paths
     if not baseline_path.exists():
-        print(f"{Colors.RED}Error: Baseline not found: {baseline_path}{Colors.RESET}", file=sys.stderr)
+        print(
+            f"{Colors.RED}Error: Baseline not found: {baseline_path}{Colors.RESET}", file=sys.stderr
+        )
         sys.exit(1)
 
     if not current_path.exists():
-        print(f"{Colors.RED}Error: Current RTM not found: {current_path}{Colors.RESET}", file=sys.stderr)
+        print(
+            f"{Colors.RED}Error: Current RTM not found: {current_path}{Colors.RESET}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Compare databases
@@ -117,7 +122,9 @@ def format_terminal_report(report) -> str:
 
     # Cycles
     cycle_delta = report.current_cycles - report.baseline_cycles
-    delta_color = Colors.RED if cycle_delta > 0 else (Colors.GREEN if cycle_delta < 0 else Colors.RESET)
+    delta_color = (
+        Colors.RED if cycle_delta > 0 else (Colors.GREEN if cycle_delta < 0 else Colors.RESET)
+    )
     lines.append(
         f"{'Circular Dependencies':<25} {report.baseline_cycles:>12} {report.current_cycles:>12} "
         f"{delta_color}{cycle_delta:>+10}{Colors.RESET}"
@@ -125,7 +132,9 @@ def format_terminal_report(report) -> str:
 
     # Reciprocity
     recip_delta = report.current_reciprocity_violations - report.baseline_reciprocity_violations
-    delta_color = Colors.RED if recip_delta > 0 else (Colors.GREEN if recip_delta < 0 else Colors.RESET)
+    delta_color = (
+        Colors.RED if recip_delta > 0 else (Colors.GREEN if recip_delta < 0 else Colors.RESET)
+    )
     lines.append(
         f"{'Reciprocity Violations':<25} {report.baseline_reciprocity_violations:>12} "
         f"{report.current_reciprocity_violations:>12} {delta_color}{recip_delta:>+10}{Colors.RESET}"
@@ -136,7 +145,9 @@ def format_terminal_report(report) -> str:
 
     # Status distribution
     lines.append("Status Distribution:")
-    all_statuses = set(report.baseline_status_counts.keys()) | set(report.current_status_counts.keys())
+    all_statuses = set(report.baseline_status_counts.keys()) | set(
+        report.current_status_counts.keys()
+    )
     for status in sorted(all_statuses):
         baseline_count = report.baseline_status_counts.get(status, 0)
         current_count = report.current_status_counts.get(status, 0)
@@ -147,7 +158,9 @@ def format_terminal_report(report) -> str:
 
     # Added requirements
     if report.added_requirements:
-        lines.append(f"{Colors.GREEN}Added Requirements ({len(report.added_requirements)}):{Colors.RESET}")
+        lines.append(
+            f"{Colors.GREEN}Added Requirements ({len(report.added_requirements)}):{Colors.RESET}"
+        )
         for req_id in report.added_requirements[:15]:
             lines.append(f"  + {req_id}")
         if len(report.added_requirements) > 15:
@@ -156,7 +169,9 @@ def format_terminal_report(report) -> str:
 
     # Removed requirements
     if report.removed_requirements:
-        lines.append(f"{Colors.RED}Removed Requirements ({len(report.removed_requirements)}) [BREAKING]:{Colors.RESET}")
+        lines.append(
+            f"{Colors.RED}Removed Requirements ({len(report.removed_requirements)}) [BREAKING]:{Colors.RESET}"
+        )
         for req_id in report.removed_requirements[:15]:
             lines.append(f"  - {req_id}")
         if len(report.removed_requirements) > 15:
