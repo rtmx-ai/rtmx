@@ -210,6 +210,37 @@ class TestTarjanAlgorithm:
         cycles = graph.find_cycles()
         assert len(cycles) == 0
 
+    def test_y_pattern_no_double_counting(self):
+        """Test Y-pattern doesn't double-count shared edges.
+
+        Pattern: A -> B -> D and C -> B -> D
+        The B -> D edge should only be counted once when calculating
+        transitive blocks. This is a regression test for a bug found
+        in related projects (cyclone, phoenix).
+        """
+        graph = DependencyGraph()
+        graph.add_edge("A", "B")  # A depends on B
+        graph.add_edge("C", "B")  # C depends on B
+        graph.add_edge("B", "D")  # B depends on D
+
+        # Edge count should be exactly 3, not 4
+        assert graph.edge_count == 3
+
+        # D transitively blocks B, A, and C (3 nodes, not 4)
+        blocked_by_d = graph.transitive_blocks("D")
+        assert blocked_by_d == {"A", "B", "C"}
+        assert len(blocked_by_d) == 3
+
+        # B transitively blocks A and C only
+        blocked_by_b = graph.transitive_blocks("B")
+        assert blocked_by_b == {"A", "C"}
+        assert len(blocked_by_b) == 2
+
+        # Critical path: D should be first (blocks 3), B second (blocks 2)
+        critical = graph.critical_path()
+        assert critical[0] == "D"
+        assert critical[1] == "B"
+
     def test_nested_cycles(self):
         """Test nested/overlapping cycles."""
         graph = DependencyGraph()

@@ -1,0 +1,146 @@
+# RTMX Validation - Reusable Workflow
+# This workflow can be called from other repositories to validate RTM integrity
+#
+# Usage in other repos:
+#   jobs:
+#     rtm-check:
+#       uses: iotactical/rtmx/.github/workflows/rtmx-validate.yml@main
+#       with:
+#         rtm-csv: docs/rtm_database.csv
+#         fail-on-warnings: false
+
+name: RTMX Validation
+
+on:
+  workflow_call:
+    inputs:
+      rtm-csv:
+        description: 'Path to RTM database CSV'
+        required: false
+        default: 'docs/rtm_database.csv'
+        type: string
+      fail-on-warnings:
+        description: 'Fail if validation warnings present'
+        required: false
+        default: false
+        type: boolean
+      python-version:
+        description: 'Python version to use'
+        required: false
+        default: '3.12'
+        type: string
+    outputs:
+      status:
+        description: 'Health check status (healthy, degraded, unhealthy)'
+        value: ${{ jobs.validate.outputs.status }}
+      passed:
+        description: 'Number of checks passed'
+        value: ${{ jobs.validate.outputs.passed }}
+      warnings:
+        description: 'Number of warnings'
+        value: ${{ jobs.validate.outputs.warnings }}
+      failed:
+        description: 'Number of checks failed'
+        value: ${{ jobs.validate.outputs.failed }}
+
+jobs:
+  validate:
+    name: RTM Validation
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.health.outputs.status }}
+      passed: ${{ steps.health.outputs.passed }}
+      warnings: ${{ steps.health.outputs.warnings }}
+      failed: ${{ steps.health.outputs.failed }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ inputs.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install rtmx
+        run: pip install rtmx
+
+      - name: Run health check
+        id: health
+        run: |
+          rtmx health --format json > health-report.json || true
+
+          # Extract values from JSON report
+          STATUS=$(jq -r '.status' health-report.json)
+          PASSED=$(jq -r '.summary.passed' health-report.json)
+          WARNINGS=$(jq -r '.summary.warnings' health-report.json)
+          FAILED=$(jq -r '.summary.failed' health-report.json)
+
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+
+          echo "### RTMX Health Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | $STATUS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+          echo "| Warnings | $WARNINGS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload health report
+        uses: actions/upload-artifact@v4
+        with:
+          name: rtmx-health-report
+          path: health-report.json
+          retention-days: 30
+
+      - name: Check status
+        run: |
+          if [ "${{ inputs.fail-on-warnings }}" = "true" ]; then
+            rtmx health --strict
+          else
+            rtmx health
+          fi
+
+  test-coverage:
+    name: Test Marker Coverage
+    runs-on: ubuntu-latest
+    needs: validate
+    if: needs.validate.outputs.status != 'unhealthy'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ inputs.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install rtmx pytest
+          pip install -e ".[dev]" 2>/dev/null || pip install -e . 2>/dev/null || true
+
+      - name: Check test markers
+        run: |
+          rtmx from-tests --missing || true
+
+          echo "### Test Marker Coverage" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          rtmx from-tests 2>&1 | head -50 >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Generate coverage report
+        run: |
+          rtmx from-tests --all > test-marker-coverage.txt 2>&1 || true
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-marker-coverage
+          path: test-marker-coverage.txt
+          retention-days: 30

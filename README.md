@@ -1,22 +1,57 @@
 # RTMX
 
-Requirements Traceability Matrix toolkit for GenAI-driven development.
+**Requirements Traceability Matrix toolkit for AI-driven development.**
 
 [![CI](https://github.com/iotactical/rtmx/actions/workflows/ci.yml/badge.svg)](https://github.com/iotactical/rtmx/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/iotactical/rtmx/graph/badge.svg)](https://codecov.io/gh/iotactical/rtmx)
+[![Coverage Status](https://coveralls.io/repos/github/iotactical/rtmx/badge.svg?branch=main)](https://coveralls.io/github/iotactical/rtmx?branch=main)
 [![PyPI version](https://img.shields.io/pypi/v/rtmx.svg)](https://pypi.org/project/rtmx/)
 [![Python versions](https://img.shields.io/pypi/pyversions/rtmx.svg)](https://pypi.org/project/rtmx/)
 [![License](https://img.shields.io/github/license/iotactical/rtmx.svg)](https://github.com/iotactical/rtmx/blob/main/LICENSE)
-[![Downloads](https://img.shields.io/pypi/dm/rtmx.svg)](https://pypi.org/project/rtmx/)
 
-## Overview
+---
 
-RTMX provides tools for managing requirements traceability in software projects, with focus on:
+RTMX brings **requirements traceability** to modern software development. Track what you're building, why you're building it, and prove it works—all from your terminal.
 
-- **GenAI Integration**: Token-efficient data model for AI-driven development
-- **Compliance Frameworks**: Support for CMMC, FedRAMP, and other compliance standards
-- **Pytest Integration**: Link tests to requirements with markers
-- **Dependency Analysis**: Cycle detection, critical path analysis
+```
+$ rtmx status
+
+=============================== RTM Status Check ===============================
+
+Requirements: [██████████████████████████████████████████████████]  54.2%
+
+✓ 5 complete  ⚠ 3 partial  ✗ 4 missing
+(12 total)
+
+Requirements by Category:
+
+  ✗ API               33.3%   1 complete   0 partial   2 missing
+  ✓ AUTHENTICATION    83.3%   2 complete   1 partial   0 missing
+  ✗ DATA              37.5%   1 complete   1 partial   2 missing
+  ⚠ UI                75.0%   1 complete   1 partial   0 missing
+
+================================= Phase Status =================================
+
+Phase 1:   91.7%  ⚠ In Progress  (5✓ 1⚠ 0✗)
+Phase 2:   25.0%  ⚠ In Progress  (0✓ 2⚠ 2✗)
+Phase 3:    0.0%  ✗ Not Started  (0✓ 0⚠ 2✗)
+```
+
+## Why RTMX?
+
+**For AI-assisted development**, RTMX provides the context AI agents need:
+- Token-efficient CSV format that fits in context windows
+- Clear requirement IDs for precise references (`REQ-AUTH-001`)
+- Dependency graphs that show what to build next
+
+**For teams**, RTMX brings clarity:
+- One command to see project progress: `make rtm`
+- Prioritized backlog with blocking dependencies
+- Tests linked directly to requirements
+
+**For compliance**, RTMX provides traceability:
+- Every requirement linked to its test
+- Audit-ready CSV database (version-controlled, diff-friendly)
+- Validation that catches gaps before reviewers do
 
 ## Installation
 
@@ -24,48 +59,126 @@ RTMX provides tools for managing requirements traceability in software projects,
 pip install rtmx
 ```
 
-For development:
-
-```bash
-pip install rtmx[dev]
-```
-
 ## Quick Start
 
-### Initialize RTM in your project
+### 1. Set up RTMX in your project
 
 ```bash
-rtmx init
+rtmx setup
 ```
 
-This creates:
-- `docs/rtm_database.csv` - Requirements database
-- `docs/requirements/` - Requirement specification files
-- `rtmx.yaml` - Configuration file
+This creates everything you need:
+- `rtmx.yaml` — Configuration file
+- `docs/rtm_database.csv` — Requirements database
+- `docs/requirements/` — Requirement specification files
+- Makefile targets (`make rtm`, `make backlog`)
+- AI agent configs (CLAUDE.md, .cursorrules)
 
-### Check status
+For existing projects, use `--branch` to review changes before merging:
 
 ```bash
-rtmx status           # Summary
-rtmx status -v        # Category breakdown
-rtmx status -vv       # Subcategory breakdown
-rtmx status -vvv      # All requirements
+rtmx setup --branch    # Creates a git branch for review
+rtmx setup --pr        # Creates branch + opens PR
 ```
 
-### View backlog
+### 2. Check your status
 
 ```bash
-rtmx backlog              # All incomplete
-rtmx backlog --phase 1    # Phase 1 only
-rtmx backlog --critical   # Critical path only
+$ rtmx status -v
+
+Requirements: [██████████████████████████████████████████████████]  54.2%
+
+Requirements by Category:
+  ✗ API               33.3%   1 complete   0 partial   2 missing
+  ✓ AUTHENTICATION    83.3%   2 complete   1 partial   0 missing
+  ✗ DATA              37.5%   1 complete   1 partial   2 missing
+  ⚠ UI                75.0%   1 complete   1 partial   0 missing
 ```
 
-### Check for issues
+### 3. See what to work on next
 
 ```bash
-rtmx cycles               # Detect circular dependencies
-rtmx reconcile            # Check dependency reciprocity
-rtmx reconcile --execute  # Fix reciprocity issues
+$ rtmx backlog
+
+=================================== Backlog ===================================
+
+Priority   ID                 Blocks   Phase    Description
+------------------------------------------------------------------------------------------
+HIGH       REQ-DATA-003       1        P2       System shall perform automated backups
+HIGH       REQ-DATA-002       0        P1       System shall cache frequently accessed data
+HIGH       REQ-AUTH-003       0        P2       System shall support TOTP-based MFA
+MEDIUM     REQ-API-002        0        P2       System shall support GraphQL queries
+
+Total: 7 incomplete requirements
+  4 are HIGH/P0 priority
+  1 are blocking other requirements
+```
+
+### 4. Run health checks
+
+```bash
+$ rtmx health
+
+============================== RTMX Health Check ==============================
+
+  [PASS] config_valid: Config valid: rtmx.yaml
+  [PASS] rtm_exists: RTM database found: docs/rtm_database.csv
+  [PASS] rtm_loads: RTM database loaded: 12 requirements
+  [PASS] schema_valid: Schema validation passed
+  [WARN] reciprocity: Reciprocity violations: 10
+  [PASS] cycles: No circular dependencies
+
+============================================================
+Status: DEGRADED (warnings present)
+Summary: 5 passed, 1 warnings, 0 failed, 2 skipped
+```
+
+## Pytest Integration
+
+Link your tests directly to requirements:
+
+```python
+import pytest
+
+@pytest.mark.req("REQ-AUTH-001")
+@pytest.mark.scope_unit
+def test_oauth_login():
+    """Validates REQ-AUTH-001: OAuth 2.0 authentication."""
+    assert authenticate_user(token) == expected_user
+```
+
+RTMX automatically tracks which requirements have tests and which don't.
+
+**Available markers:**
+
+| Marker | Purpose |
+|--------|---------|
+| `@pytest.mark.req("REQ-XXX-NNN")` | Links test to requirement |
+| `@pytest.mark.scope_unit` | Unit test scope |
+| `@pytest.mark.scope_integration` | Integration test scope |
+| `@pytest.mark.scope_system` | System/E2E test scope |
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `rtmx setup` | Initialize RTMX in your project |
+| `rtmx status` | Show completion progress (`-v`, `-vv`, `-vvv` for detail) |
+| `rtmx backlog` | Show prioritized incomplete requirements |
+| `rtmx health` | Run integration health checks |
+| `rtmx cycles` | Detect circular dependencies |
+| `rtmx reconcile` | Check/fix dependency reciprocity |
+| `rtmx from-tests` | Scan tests for requirement markers |
+| `rtmx diff` | Compare RTM versions (for PRs) |
+
+## Makefile Integration
+
+After `rtmx setup`, you get these Makefile targets:
+
+```bash
+make rtm       # Quick status check
+make backlog   # See what's next
+make health    # Run health checks
 ```
 
 ## Python API
@@ -73,11 +186,8 @@ rtmx reconcile --execute  # Fix reciprocity issues
 ```python
 from rtmx import RTMDatabase, Status
 
-# Load database
+# Load and query
 db = RTMDatabase.load("docs/rtm_database.csv")
-
-# Query requirements
-req = db.get("REQ-SW-001")
 incomplete = db.filter(status=Status.MISSING)
 phase1 = db.filter(phase=1)
 
@@ -94,38 +204,15 @@ db.update("REQ-SW-001", status=Status.COMPLETE)
 db.save()
 ```
 
-## Pytest Integration
-
-RTMX provides pytest markers for requirement traceability:
-
-```python
-import pytest
-
-@pytest.mark.req("REQ-SW-001")
-@pytest.mark.scope_unit
-@pytest.mark.technique_nominal
-@pytest.mark.env_simulation
-def test_feature_x():
-    """Test that validates REQ-SW-001."""
-    assert feature_x() == expected
-```
-
-Available markers:
-
-- `req(id)` - Link test to requirement
-- Scope: `scope_unit`, `scope_integration`, `scope_system`
-- Technique: `technique_nominal`, `technique_parametric`, `technique_monte_carlo`, `technique_stress`
-- Environment: `env_simulation`, `env_hil`, `env_anechoic`, `env_static_field`, `env_dynamic_field`
-
 ## Configuration
 
-Create `rtmx.yaml` in your project root:
+`rtmx.yaml`:
 
 ```yaml
 rtmx:
   database: docs/rtm_database.csv
   requirements_dir: docs/requirements
-  schema: core  # or "phoenix" for extended schema
+  schema: core
   pytest:
     marker_prefix: "req"
     register_markers: true
@@ -133,94 +220,61 @@ rtmx:
 
 ## RTM Schema
 
-### Core Schema (20 columns)
+The CSV database includes these columns:
 
-| Column | Type | Required | Description |
-|--------|------|----------|-------------|
-| `req_id` | string | Yes | Unique identifier (e.g., REQ-SW-001) |
-| `category` | string | Yes | High-level grouping |
-| `subcategory` | string | No | Detailed classification |
-| `requirement_text` | string | Yes | Human-readable description |
-| `target_value` | string | No | Quantitative criteria |
-| `test_module` | string | No | Test file path |
-| `test_function` | string | No | Test function name |
-| `validation_method` | string | No | Testing approach |
-| `status` | string | Yes | COMPLETE/PARTIAL/MISSING |
-| `priority` | string | No | P0/HIGH/MEDIUM/LOW |
-| `phase` | integer | No | Development phase |
-| `notes` | string | No | Additional context |
-| `effort_weeks` | float | No | Estimated effort |
-| `dependencies` | list | No | Pipe-separated req IDs |
-| `blocks` | list | No | Pipe-separated req IDs |
-| `assignee` | string | No | Owner |
-| `sprint` | string | No | Target version |
-| `started_date` | date | No | YYYY-MM-DD |
-| `completed_date` | date | No | YYYY-MM-DD |
-| `requirement_file` | string | No | Path to spec file |
+| Column | Required | Description |
+|--------|----------|-------------|
+| `req_id` | Yes | Unique identifier (e.g., `REQ-AUTH-001`) |
+| `category` | Yes | High-level grouping |
+| `requirement_text` | Yes | Human-readable description |
+| `status` | Yes | `COMPLETE`, `PARTIAL`, `MISSING`, `NOT_STARTED` |
+| `priority` | No | `P0`, `HIGH`, `MEDIUM`, `LOW` |
+| `phase` | No | Development phase number |
+| `dependencies` | No | Pipe-separated req IDs this depends on |
+| `blocks` | No | Pipe-separated req IDs this blocks |
+| `test_module` | No | Test file path |
+| `test_function` | No | Test function name |
 
-### Phoenix Extension
+See the [schema documentation](docs/schema.md) for the complete 20-column schema.
 
-The Phoenix schema adds validation taxonomy columns:
+## CI/CD Integration
 
-- Scope: `scope_unit`, `scope_integration`, `scope_system`
-- Technique: `technique_nominal`, `technique_parametric`, etc.
-- Environment: `env_simulation`, `env_hil`, `env_anechoic`, etc.
-- Metrics: `baseline_metric`, `current_metric`, `target_metric`
+RTMX provides GitHub Actions workflows:
 
-## Makefile Integration
-
-Add to your Makefile:
-
-```makefile
-.PHONY: rtm rtm-v rtm-vv rtm-vvv backlog
-
-rtm:
-	rtmx status
-
-rtm-v:
-	rtmx status -v
-
-rtm-vv:
-	rtmx status -vv
-
-rtm-vvv:
-	rtmx status -vvv
-
-backlog:
-	rtmx backlog
+**Health check on every push:**
+```yaml
+- run: pip install rtmx
+- run: rtmx health --format ci
 ```
 
-## Jetstream Integration
-
-RTMX is designed as a foundation for the Jetstream digital engineering platform:
-
-- CMMC Level 2 compliance mapping
-- FedRAMP High authorization support
-- Prometheus metrics export (planned)
-- Multi-project federation (planned)
+**RTM diff on pull requests:**
+```yaml
+- run: |
+    git show origin/main:docs/rtm_database.csv > base.csv
+    rtmx diff base.csv docs/rtm_database.csv --format markdown
+```
 
 ## Development
 
 ```bash
-# Clone and install
 git clone https://github.com/iotactical/rtmx.git
-cd rtm
-make dev
-
-# Run tests
-make test
-
-# Run linter
-make lint
-
-# Format code
-make format
+cd rtmx
+make dev      # Install with dev dependencies
+make test     # Run tests
+make lint     # Run linter
 ```
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions welcome! Please read our contributing guidelines before submitting PRs.
+
+---
+
+<p align="center">
+  <strong>Built by <a href="https://iotactical.co">ioTACTICAL</a></strong><br>
+  <em>Engineering teams building what matters.</em>
+</p>

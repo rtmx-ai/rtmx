@@ -16,7 +16,7 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 
 Instead, please report security vulnerabilities by emailing:
 
-**security@iotactical.com**
+**security@iotactical.co**
 
 Include the following information:
 - Type of vulnerability (e.g., injection, authentication bypass, etc.)
