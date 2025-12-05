@@ -323,7 +323,7 @@ def run_integrate(
             agents=None,
             install_all=True,
             skip_backup=False,
-            config=config,
+            _config=config,
         )
         os.chdir(original_cwd)
         print(f"{Colors.GREEN}  [PASS] rtmx install completed{Colors.RESET}")
