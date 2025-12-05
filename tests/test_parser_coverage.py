@@ -349,7 +349,7 @@ class TestLoadCsv:
         """Test loading basic CSV file."""
         csv_path = tmp_path / "test.csv"
         csv_path.write_text(
-            "req_id,category,status\n" "REQ-001,SOFTWARE,COMPLETE\n" "REQ-002,HARDWARE,MISSING\n"
+            "req_id,category,status\nREQ-001,SOFTWARE,COMPLETE\nREQ-002,HARDWARE,MISSING\n"
         )
 
         requirements = load_csv(csv_path)
@@ -365,8 +365,7 @@ class TestLoadCsv:
         """Test loading CSV with snake_case columns."""
         csv_path = tmp_path / "test.csv"
         csv_path.write_text(
-            "req_id,category,requirement_text,status\n"
-            "REQ-001,SOFTWARE,Test requirement,COMPLETE\n"
+            "req_id,category,requirement_text,status\nREQ-001,SOFTWARE,Test requirement,COMPLETE\n"
         )
 
         requirements = load_csv(csv_path)
@@ -381,8 +380,7 @@ class TestLoadCsv:
         """Test loading CSV with PascalCase columns."""
         csv_path = tmp_path / "test.csv"
         csv_path.write_text(
-            "Req_ID,Category,Requirement_Text,Status\n"
-            "REQ-001,SOFTWARE,Test requirement,COMPLETE\n"
+            "Req_ID,Category,Requirement_Text,Status\nREQ-001,SOFTWARE,Test requirement,COMPLETE\n"
         )
 
         requirements = load_csv(csv_path)
@@ -397,7 +395,7 @@ class TestLoadCsv:
     def test_load_csv_with_dependencies(self, tmp_path):
         """Test loading CSV with dependencies."""
         csv_path = tmp_path / "test.csv"
-        csv_path.write_text("req_id,dependencies,blocks\n" "REQ-001,REQ-A|REQ-B,REQ-C\n")
+        csv_path.write_text("req_id,dependencies,blocks\nREQ-001,REQ-A|REQ-B,REQ-C\n")
 
         requirements = load_csv(csv_path)
         assert requirements[0].dependencies == {"REQ-A", "REQ-B"}
@@ -411,7 +409,7 @@ class TestLoadCsv:
         """Test loading CSV with boolean fields."""
         csv_path = tmp_path / "test.csv"
         csv_path.write_text(
-            "req_id,unit_test,integration_test,scope_unit\n" "REQ-001,True,False,true\n"
+            "req_id,unit_test,integration_test,scope_unit\nREQ-001,True,False,true\n"
         )
 
         requirements = load_csv(csv_path)
@@ -466,7 +464,7 @@ class TestLoadCsv:
         # Create CSV with mismatched quotes - Python's csv module is quite forgiving
         # so we just verify that edge cases don't crash
         csv_path.write_text(
-            "req_id,category\n" '"REQ-001,SOFTWARE\n'  # Missing closing quote
+            'req_id,category\n"REQ-001,SOFTWARE\n'  # Missing closing quote
         )
 
         # CSV parser handles this gracefully - just verify no crash
@@ -497,7 +495,7 @@ class TestLoadCsv:
     def test_load_csv_preserves_types(self, tmp_path):
         """Test loading CSV preserves numeric types."""
         csv_path = tmp_path / "test.csv"
-        csv_path.write_text("req_id,phase,effort_weeks\n" "REQ-001,1,2.5\n")
+        csv_path.write_text("req_id,phase,effort_weeks\nREQ-001,1,2.5\n")
 
         requirements = load_csv(csv_path)
         assert requirements[0].phase == 1

@@ -961,7 +961,7 @@ class TestRunReconcile:
                         "status": "MISSING",
                         "priority": "HIGH",
                         "phase": "1",
-                        "dependencies": f"REQ-{i+1:03d}" if i < 24 else "",
+                        "dependencies": f"REQ-{i + 1:03d}" if i < 24 else "",
                         "blocks": "",  # Missing reciprocal
                     }
                 )
