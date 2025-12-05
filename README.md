@@ -12,29 +12,7 @@
 
 RTMX brings **requirements traceability** to modern software development. Track what you're building, why you're building it, and prove it works—all from your terminal.
 
-```
-$ rtmx status
-
-=============================== RTM Status Check ===============================
-
-Requirements: [██████████████████████████████████████████████████]  54.2%
-
-✓ 5 complete  ⚠ 3 partial  ✗ 4 missing
-(12 total)
-
-Requirements by Category:
-
-  ✗ API               33.3%   1 complete   0 partial   2 missing
-  ✓ AUTHENTICATION    83.3%   2 complete   1 partial   0 missing
-  ✗ DATA              37.5%   1 complete   1 partial   2 missing
-  ⚠ UI                75.0%   1 complete   1 partial   0 missing
-
-================================= Phase Status =================================
-
-Phase 1:   91.7%  ⚠ In Progress  (5✓ 1⚠ 0✗)
-Phase 2:   25.0%  ⚠ In Progress  (0✓ 2⚠ 2✗)
-Phase 3:    0.0%  ✗ Not Started  (0✓ 0⚠ 2✗)
-```
+![rtmx status](docs/assets/rtmx-status.png)
 
 ## Why RTMX?
 
@@ -84,54 +62,18 @@ rtmx setup --pr        # Creates branch + opens PR
 ### 2. Check your status
 
 ```bash
-$ rtmx status -v
-
-Requirements: [██████████████████████████████████████████████████]  54.2%
-
-Requirements by Category:
-  ✗ API               33.3%   1 complete   0 partial   2 missing
-  ✓ AUTHENTICATION    83.3%   2 complete   1 partial   0 missing
-  ✗ DATA              37.5%   1 complete   1 partial   2 missing
-  ⚠ UI                75.0%   1 complete   1 partial   0 missing
+rtmx status -v    # Verbose output with category breakdown
+rtmx status -vv   # Very verbose with requirement details
+rtmx status -vvv  # Maximum detail
 ```
 
 ### 3. See what to work on next
 
-```bash
-$ rtmx backlog
-
-=================================== Backlog ===================================
-
-Priority   ID                 Blocks   Phase    Description
-------------------------------------------------------------------------------------------
-HIGH       REQ-DATA-003       1        P2       System shall perform automated backups
-HIGH       REQ-DATA-002       0        P1       System shall cache frequently accessed data
-HIGH       REQ-AUTH-003       0        P2       System shall support TOTP-based MFA
-MEDIUM     REQ-API-002        0        P2       System shall support GraphQL queries
-
-Total: 7 incomplete requirements
-  4 are HIGH/P0 priority
-  1 are blocking other requirements
-```
+![rtmx backlog](docs/assets/rtmx-backlog.png)
 
 ### 4. Run health checks
 
-```bash
-$ rtmx health
-
-============================== RTMX Health Check ==============================
-
-  [PASS] config_valid: Config valid: rtmx.yaml
-  [PASS] rtm_exists: RTM database found: docs/rtm_database.csv
-  [PASS] rtm_loads: RTM database loaded: 12 requirements
-  [PASS] schema_valid: Schema validation passed
-  [WARN] reciprocity: Reciprocity violations: 10
-  [PASS] cycles: No circular dependencies
-
-============================================================
-Status: DEGRADED (warnings present)
-Summary: 5 passed, 1 warnings, 0 failed, 2 skipped
-```
+![rtmx health](docs/assets/rtmx-health.png)
 
 ## Pytest Integration
 
