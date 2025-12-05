@@ -203,13 +203,13 @@ def compare_databases(
     from rtmx.validation import check_reciprocity
 
     # Load databases if paths provided
-    if isinstance(baseline, (str, Path)):
+    if isinstance(baseline, str | Path):
         baseline_path = str(baseline)
         baseline = RTMDatabase.load(Path(baseline))
     else:
         baseline_path = str(baseline._path) if baseline._path else "memory"
 
-    if isinstance(current, (str, Path)):
+    if isinstance(current, str | Path):
         current_path = str(current)
         current = RTMDatabase.load(Path(current))
     else:
