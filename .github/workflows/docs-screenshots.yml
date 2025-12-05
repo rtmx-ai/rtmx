@@ -1,0 +1,92 @@
+# Regenerate terminal screenshots for documentation
+# Runs on main branch pushes and commits updated images if they changed
+
+name: Update Doc Screenshots
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/rtmx/cli/**'
+      - 'src/rtmx/formatting.py'
+
+permissions:
+  contents: write
+
+jobs:
+  update-screenshots:
+    name: Regenerate Terminal Screenshots
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install -e .
+          pip install ansi2image
+
+      - name: Create demo project
+        run: |
+          mkdir -p /tmp/rtmx_demo/docs
+          cat > /tmp/rtmx_demo/rtmx.yaml << 'YAML'
+          rtmx:
+            database: docs/rtm_database.csv
+            requirements_dir: docs/requirements
+            schema: core
+          YAML
+
+          cat > /tmp/rtmx_demo/docs/rtm_database.csv << 'CSV'
+          req_id,category,subcategory,requirement_text,target_value,test_module,test_function,validation_method,status,priority,phase,notes,effort_weeks,dependencies,blocks,assignee,sprint,started_date,completed_date,requirement_file
+          REQ-AUTH-001,AUTHENTICATION,Login,System shall authenticate users via OAuth 2.0,OAuth 2.0 PKCE,tests/test_auth.py,test_oauth_login,Integration Test,COMPLETE,P0,1,Core authentication,2.0,,,alice,v1.0,2024-11-01,2024-11-15,docs/requirements/AUTH/REQ-AUTH-001.md
+          REQ-AUTH-002,AUTHENTICATION,Session,System shall manage user sessions with JWT,15 min expiry,tests/test_auth.py,test_jwt_session,Unit Test,COMPLETE,HIGH,1,Session management,1.5,REQ-AUTH-001,,alice,v1.0,2024-11-10,2024-11-20,docs/requirements/AUTH/REQ-AUTH-002.md
+          REQ-AUTH-003,AUTHENTICATION,MFA,System shall support TOTP-based MFA,RFC 6238,tests/test_auth.py,test_totp_mfa,Integration Test,PARTIAL,HIGH,2,Multi-factor auth,2.0,REQ-AUTH-001|REQ-AUTH-002,,bob,v1.1,2024-11-25,,docs/requirements/AUTH/REQ-AUTH-003.md
+          REQ-API-001,API,REST,System shall expose RESTful endpoints,OpenAPI 3.0,tests/test_api.py,test_rest_endpoints,Integration Test,COMPLETE,P0,1,REST API,3.0,REQ-AUTH-001,,charlie,v1.0,2024-10-15,2024-11-01,docs/requirements/API/REQ-API-001.md
+          REQ-API-002,API,GraphQL,System shall support GraphQL queries,GraphQL spec,tests/test_api.py,test_graphql_queries,Integration Test,MISSING,MEDIUM,2,GraphQL support,4.0,REQ-API-001,,charlie,v1.2,,,docs/requirements/API/REQ-API-002.md
+          REQ-API-003,API,Webhooks,System shall deliver webhooks for events,< 5s latency,tests/test_api.py,test_webhook_delivery,System Test,MISSING,MEDIUM,3,Event webhooks,2.5,REQ-API-001,,,,,,docs/requirements/API/REQ-API-003.md
+          REQ-DATA-001,DATA,Storage,System shall persist data in PostgreSQL,ACID compliant,tests/test_data.py,test_postgres_storage,Integration Test,COMPLETE,P0,1,Database layer,2.0,,,dave,v1.0,2024-10-01,2024-10-20,docs/requirements/DATA/REQ-DATA-001.md
+          REQ-DATA-002,DATA,Cache,System shall cache frequently accessed data,Redis cluster,tests/test_data.py,test_redis_cache,Integration Test,PARTIAL,HIGH,1,Caching layer,1.5,REQ-DATA-001,,dave,v1.0,2024-10-15,,docs/requirements/DATA/REQ-DATA-002.md
+          REQ-DATA-003,DATA,Backup,System shall perform automated backups,Daily snapshots,tests/test_data.py,test_backup_automation,System Test,MISSING,HIGH,2,Backup automation,2.0,REQ-DATA-001,REQ-DATA-004,eve,v1.1,,,docs/requirements/DATA/REQ-DATA-003.md
+          REQ-DATA-004,DATA,Recovery,System shall support point-in-time recovery,< 1 hour RPO,tests/test_data.py,test_pitr_recovery,System Test,NOT_STARTED,HIGH,3,Disaster recovery,3.0,REQ-DATA-003,,eve,,,docs/requirements/DATA/REQ-DATA-004.md
+          REQ-UI-001,UI,Dashboard,System shall provide real-time dashboard,< 100ms refresh,tests/test_ui.py,test_dashboard_refresh,E2E Test,COMPLETE,HIGH,1,Main dashboard,3.0,REQ-API-001,,frank,v1.0,2024-11-01,2024-11-25,docs/requirements/UI/REQ-UI-001.md
+          REQ-UI-002,UI,Mobile,System shall support responsive mobile view,iOS/Android,tests/test_ui.py,test_mobile_responsive,E2E Test,PARTIAL,MEDIUM,2,Mobile support,2.5,REQ-UI-001,,frank,v1.1,2024-11-20,,docs/requirements/UI/REQ-UI-002.md
+          CSV
+
+      - name: Generate screenshots
+        run: |
+          cd /tmp/rtmx_demo
+          mkdir -p $GITHUB_WORKSPACE/docs/assets
+
+          # Generate status screenshot
+          script -q -c "rtmx status" /dev/null | grep -v "^Script " > /tmp/status.txt
+          ansi2image /tmp/status.txt -o $GITHUB_WORKSPACE/docs/assets/rtmx-status.png
+
+          # Generate backlog screenshot
+          script -q -c "rtmx backlog" /dev/null | grep -v "^Script " > /tmp/backlog.txt
+          ansi2image /tmp/backlog.txt -o $GITHUB_WORKSPACE/docs/assets/rtmx-backlog.png
+
+          # Generate health screenshot
+          script -q -c "rtmx health" /dev/null | grep -v "^Script " > /tmp/health.txt
+          ansi2image /tmp/health.txt -o $GITHUB_WORKSPACE/docs/assets/rtmx-health.png
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --quiet docs/assets/ || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit updated screenshots
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/assets/
+          git commit -m "docs: Auto-update terminal screenshots [skip ci]"
+          git push
