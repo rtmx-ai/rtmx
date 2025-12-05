@@ -3,7 +3,7 @@
 **Requirements Traceability Matrix toolkit for AI-driven development.**
 
 [![CI](https://github.com/iotactical/rtmx/actions/workflows/ci.yml/badge.svg)](https://github.com/iotactical/rtmx/actions/workflows/ci.yml)
-[![Coverage Status](https://coveralls.io/repos/github/iotactical/rtmx/badge.svg?branch=main)](https://coveralls.io/github/iotactical/rtmx?branch=main)
+[![Coverage Status](https://coveralls.io/repos/github/iotactical/rtmx/badge.svg?branch=main&v=2)](https://coveralls.io/github/iotactical/rtmx?branch=main)
 [![PyPI version](https://img.shields.io/pypi/v/rtmx.svg)](https://pypi.org/project/rtmx/)
 [![Python versions](https://img.shields.io/pypi/pyversions/rtmx.svg)](https://pypi.org/project/rtmx/)
 [![License](https://img.shields.io/github/license/iotactical/rtmx.svg)](https://github.com/iotactical/rtmx/blob/main/LICENSE)
