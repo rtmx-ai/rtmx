@@ -7,10 +7,10 @@ name = "rtmx"
 version = "0.0.1"
 description = "Requirements Traceability Matrix toolkit for GenAI-driven development"
 readme = "README.md"
-license = "MIT"
+license = "Apache-2.0"
 requires-python = ">=3.10"
 authors = [
-    { name = "ioTACTICAL", email = "dev@iotactical.com" }
+    { name = "ioTACTICAL LLC", email = "engineering@iotactical.co" }
 ]
 keywords = [
     "requirements",

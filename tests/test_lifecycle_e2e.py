@@ -1,11 +1,11 @@
 """End-to-end tests for RTMX lifecycle management.
 
 This module tests the complete lifecycle of RTMX within a project:
-1. Initialization - rtmx init
+1. Setup - rtmx setup (unified initialization)
 2. Configuration - rtmx.yaml management
 3. Operations - status, backlog, deps, cycles, reconcile
-4. Integration - from-tests, sync, install
-5. Removal - uninstall, cleanup
+4. Integration - from-tests, sync
+5. Removal - cleanup
 
 Each test uses isolated temporary directories to ensure reproducibility.
 """
@@ -64,12 +64,12 @@ def temp_project() -> Generator[Path, None, None]:
 def initialized_project(temp_project: Path) -> Path:
     """Create an initialized RTMX project."""
     result = subprocess.run(
-        [sys.executable, "-m", "rtmx", "init"],
+        [sys.executable, "-m", "rtmx", "setup", "--minimal"],
         cwd=temp_project,
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0, f"Init failed: {result.stderr}"
+    assert result.returncode == 0, f"Setup failed: {result.stderr}"
     return temp_project
 
 
@@ -177,25 +177,25 @@ def run_rtmx(
 # =============================================================================
 
 
-@pytest.mark.req("REQ-RTM-INIT-001")
+@pytest.mark.req("REQ-RTM-SETUP-001")
 @pytest.mark.scope_integration
 @pytest.mark.technique_nominal
 @pytest.mark.env_simulation
-class TestInitialization:
-    """Tests for rtmx init command."""
+class TestSetup:
+    """Tests for rtmx setup command."""
 
-    def test_init_creates_structure(self, temp_project: Path) -> None:
-        """Init should create rtmx.yaml, docs/rtm_database.csv, and docs/requirements/."""
-        result = run_rtmx("init", cwd=temp_project)
+    def test_setup_creates_structure(self, temp_project: Path) -> None:
+        """Setup should create rtmx.yaml, docs/rtm_database.csv, and docs/requirements/."""
+        result = run_rtmx("setup", "--minimal", cwd=temp_project)
 
         assert result.returncode == 0
         assert (temp_project / "rtmx.yaml").exists()
         assert (temp_project / "docs" / "rtm_database.csv").exists()
         assert (temp_project / "docs" / "requirements").is_dir()
 
-    def test_init_creates_sample_requirement(self, temp_project: Path) -> None:
-        """Init should create a sample requirement with spec file."""
-        run_rtmx("init", cwd=temp_project)
+    def test_setup_creates_sample_requirement(self, temp_project: Path) -> None:
+        """Setup should create a sample requirement with spec file."""
+        run_rtmx("setup", "--minimal", cwd=temp_project)
 
         db_path = temp_project / "docs" / "rtm_database.csv"
         with open(db_path) as f:
@@ -203,28 +203,31 @@ class TestInitialization:
             rows = list(reader)
 
         assert len(rows) >= 1
-        assert rows[0]["req_id"] == "REQ-EX-001"
+        assert rows[0]["req_id"] == "REQ-INIT-001"
 
         # Check sample spec file exists
-        spec_path = temp_project / "docs" / "requirements" / "EXAMPLE" / "REQ-EX-001.md"
+        spec_path = temp_project / "docs" / "requirements" / "SETUP" / "REQ-INIT-001.md"
         assert spec_path.exists()
 
-    def test_init_fails_if_exists_without_force(self, initialized_project: Path) -> None:
-        """Init should fail if files exist and --force not provided."""
-        result = run_rtmx("init", cwd=initialized_project)
+    def test_setup_is_idempotent(self, initialized_project: Path) -> None:
+        """Setup should be idempotent - safe to run multiple times."""
+        # Run setup again on already initialized project
+        result = run_rtmx("setup", "--minimal", cwd=initialized_project)
 
-        assert result.returncode != 0
-        # Check for "already exist" message (printed to stdout)
-        assert "already exist" in result.stdout.lower() or "exists" in result.stdout.lower()
+        # Should succeed (idempotent)
+        assert result.returncode == 0
+        # Check structure still valid
+        assert (initialized_project / "rtmx.yaml").exists()
+        assert (initialized_project / "docs" / "rtm_database.csv").exists()
 
-    def test_init_force_overwrites(self, initialized_project: Path) -> None:
-        """Init --force should overwrite existing files."""
+    def test_setup_force_overwrites(self, initialized_project: Path) -> None:
+        """Setup --force should overwrite existing files."""
         # Modify the config
         config_path = initialized_project / "rtmx.yaml"
         with open(config_path, "a") as f:
             f.write("\n# Modified\n")
 
-        result = run_rtmx("init", "--force", cwd=initialized_project)
+        result = run_rtmx("setup", "--minimal", "--force", cwd=initialized_project)
 
         assert result.returncode == 0
 
@@ -233,9 +236,9 @@ class TestInitialization:
             content = f.read()
         assert "# Modified" not in content
 
-    def test_init_creates_valid_yaml_config(self, temp_project: Path) -> None:
-        """Init should create a valid YAML configuration file."""
-        run_rtmx("init", cwd=temp_project)
+    def test_setup_creates_valid_yaml_config(self, temp_project: Path) -> None:
+        """Setup should create a valid YAML configuration file."""
+        run_rtmx("setup", "--minimal", cwd=temp_project)
 
         config_path = temp_project / "rtmx.yaml"
         with open(config_path) as f:
@@ -245,9 +248,9 @@ class TestInitialization:
         assert "database" in config["rtmx"]
         assert "requirements_dir" in config["rtmx"]
 
-    def test_init_creates_valid_csv_schema(self, temp_project: Path) -> None:
-        """Init should create CSV with correct schema columns."""
-        run_rtmx("init", cwd=temp_project)
+    def test_setup_creates_valid_csv_schema(self, temp_project: Path) -> None:
+        """Setup should create CSV with correct schema columns."""
+        run_rtmx("setup", "--minimal", cwd=temp_project)
 
         db_path = temp_project / "docs" / "rtm_database.csv"
         with open(db_path) as f:
@@ -264,25 +267,25 @@ class TestInitialization:
             assert col in fieldnames, f"Missing required column: {col}"
 
 
-@pytest.mark.req("REQ-RTM-INIT-002")
+@pytest.mark.req("REQ-RTM-SETUP-002")
 @pytest.mark.scope_integration
 @pytest.mark.technique_stress
 @pytest.mark.env_simulation
-class TestInitializationEdgeCases:
-    """Edge cases and failure modes for initialization."""
+class TestSetupEdgeCases:
+    """Edge cases and failure modes for setup."""
 
-    def test_init_in_nested_directory(self, temp_project: Path) -> None:
-        """Init should work in nested directories."""
+    def test_setup_in_nested_directory(self, temp_project: Path) -> None:
+        """Setup should work in nested directories."""
         nested = temp_project / "src" / "project"
         nested.mkdir(parents=True)
 
-        result = run_rtmx("init", cwd=nested)
+        result = run_rtmx("setup", "--minimal", cwd=nested)
 
         assert result.returncode == 0
         assert (nested / "rtmx.yaml").exists()
 
-    def test_init_with_readonly_parent(self, temp_project: Path) -> None:
-        """Init should fail gracefully with permission errors."""
+    def test_setup_with_readonly_file(self, temp_project: Path) -> None:
+        """Setup should fail gracefully with permission errors."""
         readonly_dir = temp_project / "readonly"
         readonly_dir.mkdir()
 
@@ -293,16 +296,16 @@ class TestInitializationEdgeCases:
         os.chmod(docs_dir / "rtm_database.csv", 0o444)
 
         try:
-            run_rtmx("init", cwd=readonly_dir)
+            run_rtmx("setup", "--minimal", cwd=readonly_dir)
             # Should fail or warn about existing file
             # Behavior depends on implementation
         finally:
             os.chmod(docs_dir / "rtm_database.csv", 0o644)
 
-    def test_init_idempotent_with_force(self, temp_project: Path) -> None:
-        """Multiple init --force should be idempotent."""
+    def test_setup_multiple_times_idempotent(self, temp_project: Path) -> None:
+        """Multiple setup runs should be idempotent."""
         for _ in range(3):
-            result = run_rtmx("init", "--force", cwd=temp_project)
+            result = run_rtmx("setup", "--minimal", cwd=temp_project)
             assert result.returncode == 0
 
         # Structure should still be valid
@@ -668,37 +671,40 @@ def test_new_feature():
         assert db_path.exists()
 
 
-@pytest.mark.req("REQ-RTM-INSTALL-001")
+@pytest.mark.req("REQ-RTM-SETUP-003")
 @pytest.mark.scope_integration
 @pytest.mark.technique_nominal
 @pytest.mark.env_simulation
-class TestAgentInstallation:
-    """Tests for AI agent integration installation."""
+class TestSetupAgentIntegration:
+    """Tests for AI agent integration via setup command."""
 
-    def test_install_detects_no_agents(self, initialized_project: Path) -> None:
-        """Install should handle projects with no agent configs."""
-        result = run_rtmx("install", "--dry-run", cwd=initialized_project)
+    def test_setup_handles_no_agent_configs(self, temp_project: Path) -> None:
+        """Setup should handle projects with no agent configs."""
+        result = run_rtmx("setup", "--dry-run", cwd=temp_project)
 
-        # Should succeed or report no agents found
-        assert result.returncode in [0, 1]
-
-    def test_install_to_claude_md(self, initialized_project: Path) -> None:
-        """Install should add prompts to CLAUDE.md."""
-        # Create CLAUDE.md
-        claude_md = initialized_project / "CLAUDE.md"
-        claude_md.write_text("# Project Instructions\n\nExisting content.\n")
-
-        result = run_rtmx("install", "--agents", "claude", "--dry-run", cwd=initialized_project)
-
+        # Should succeed
         assert result.returncode == 0
 
-    def test_install_preserves_existing_content(self, initialized_project: Path) -> None:
-        """Install should preserve existing agent config content."""
-        claude_md = initialized_project / "CLAUDE.md"
+    def test_setup_adds_prompts_to_claude_md(self, temp_project: Path) -> None:
+        """Setup should add prompts to existing CLAUDE.md."""
+        # Create CLAUDE.md
+        claude_md = temp_project / "CLAUDE.md"
+        claude_md.write_text("# Project Instructions\n\nExisting content.\n")
+
+        result = run_rtmx("setup", cwd=temp_project)
+
+        assert result.returncode == 0
+        # Check RTMX section was added
+        content = claude_md.read_text()
+        assert "RTMX" in content
+
+    def test_setup_preserves_existing_content(self, temp_project: Path) -> None:
+        """Setup should preserve existing agent config content."""
+        claude_md = temp_project / "CLAUDE.md"
         original = "# My Project\n\nImportant instructions.\n"
         claude_md.write_text(original)
 
-        run_rtmx("install", "--agents", "claude", cwd=initialized_project)
+        run_rtmx("setup", cwd=temp_project)
 
         content = claude_md.read_text()
         assert "Important instructions" in content
@@ -907,9 +913,9 @@ class TestFullLifecycle:
     """End-to-end tests covering the complete lifecycle."""
 
     def test_complete_workflow(self, temp_project: Path) -> None:
-        """Test complete init → use → status workflow."""
+        """Test complete setup → use → status workflow."""
         # 1. Initialize
-        result = run_rtmx("init", cwd=temp_project)
+        result = run_rtmx("setup", "--minimal", cwd=temp_project)
         assert result.returncode == 0
 
         # 2. Check initial status (exit code 1 is valid when not 100% complete)
@@ -951,7 +957,7 @@ class TestFullLifecycle:
     def test_git_integration_workflow(self, temp_project: Path) -> None:
         """Test that RTM files are git-friendly."""
         # Initialize RTMX
-        run_rtmx("init", cwd=temp_project)
+        run_rtmx("setup", "--minimal", cwd=temp_project)
 
         # Add files to git
         subprocess.run(
@@ -987,7 +993,7 @@ class TestFullLifecycle:
     def test_multi_phase_development(self, temp_project: Path) -> None:
         """Test multi-phase requirement tracking."""
         # Initialize
-        run_rtmx("init", cwd=temp_project)
+        run_rtmx("setup", "--minimal", cwd=temp_project)
 
         # Add phased requirements
         db_path = temp_project / "docs" / "rtm_database.csv"
@@ -1032,8 +1038,8 @@ class TestFullLifecycle:
 class TestErrorRecovery:
     """Tests for error recovery and resilience."""
 
-    def test_recover_from_partial_init(self, temp_project: Path) -> None:
-        """System should recover from partial initialization."""
+    def test_recover_from_partial_setup(self, temp_project: Path) -> None:
+        """System should recover from partial setup."""
         # Create partial structure
         (temp_project / "rtmx.yaml").write_text("rtmx:\n  database: docs/rtm.csv\n")
         # But don't create the database
@@ -1042,8 +1048,8 @@ class TestErrorRecovery:
         result = run_rtmx("status", cwd=temp_project)
         assert result.returncode != 0
 
-        # Init --force should fix it
-        result = run_rtmx("init", "--force", cwd=temp_project)
+        # Setup --force should fix it
+        result = run_rtmx("setup", "--minimal", "--force", cwd=temp_project)
         assert result.returncode == 0
 
         # Now status should work (exit code 1 valid for incomplete)

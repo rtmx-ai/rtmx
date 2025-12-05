@@ -167,19 +167,80 @@ def cycles(ctx: click.Context) -> None:
 
 @main.command()
 @click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Preview changes without making them",
+)
+@click.option(
+    "--minimal",
+    is_flag=True,
+    help="Only create config and RTM, skip agents and Makefile",
+)
+@click.option(
     "--force",
     is_flag=True,
     help="Overwrite existing files",
 )
+@click.option(
+    "--skip-agents",
+    is_flag=True,
+    help="Skip agent config injection",
+)
+@click.option(
+    "--skip-makefile",
+    is_flag=True,
+    help="Skip Makefile targets",
+)
+@click.option(
+    "--branch",
+    is_flag=True,
+    help="Create git branch for isolation (safer for existing projects)",
+)
+@click.option(
+    "--pr",
+    "create_pr",
+    is_flag=True,
+    help="Create pull request after setup (implies --branch)",
+)
 @click.pass_context
-def init(_ctx: click.Context, force: bool) -> None:
-    """Initialize RTM in current project.
+def setup(
+    _ctx: click.Context,
+    dry_run: bool,
+    minimal: bool,
+    force: bool,
+    skip_agents: bool,
+    skip_makefile: bool,
+    branch: bool,
+    create_pr: bool,
+) -> None:
+    """Complete rtmx setup in one command.
 
-    Creates docs/rtm_database.csv and docs/requirements/ structure.
+    Performs full integration: config, RTM, agent prompts, Makefile.
+    Safe to run multiple times (idempotent). Creates backups before modifying files.
+
+    \b
+    Examples:
+        rtmx setup              # Full setup with smart defaults
+        rtmx setup --dry-run    # Preview what would happen
+        rtmx setup --minimal    # Just config and RTM database
+        rtmx setup --branch     # Create git branch for review workflow
+        rtmx setup --pr         # Create branch and pull request
     """
-    from rtmx.cli.init import run_init
+    from rtmx.cli.setup import run_setup
 
-    run_init(force)
+    result = run_setup(
+        dry_run=dry_run,
+        minimal=minimal,
+        force=force,
+        skip_agents=skip_agents,
+        skip_makefile=skip_makefile,
+        branch="auto" if branch else None,
+        create_pr=create_pr,
+    )
+
+    if not result.success:
+        import sys
+        sys.exit(1)
 
 
 @main.command("from-tests")
@@ -229,24 +290,6 @@ def from_tests(
     )
 
 
-@main.command()
-@click.option(
-    "--output",
-    "-o",
-    type=click.Path(path_type=Path),
-    help="Output file (default: stdout)",
-)
-@click.pass_context
-def makefile(_ctx: click.Context, output: Path | None) -> None:
-    """Generate Makefile targets for RTM commands.
-
-    Outputs Makefile targets that can be appended to your project's Makefile.
-    """
-    from rtmx.cli.makefile import run_makefile
-
-    run_makefile(output)
-
-
 # =============================================================================
 # Agent Integration Commands (Phase 6+)
 # =============================================================================
@@ -292,112 +335,6 @@ def analyze(
 
     config: RTMXConfig = ctx.obj["config"]
     run_analyze(path, output, output_format, deep, config)
-
-
-@main.command()
-@click.option(
-    "--from-tests",
-    "from_tests",
-    is_flag=True,
-    help="Generate requirements from test functions",
-)
-@click.option(
-    "--from-github",
-    "from_github",
-    is_flag=True,
-    help="Import from GitHub issues",
-)
-@click.option(
-    "--from-jira",
-    "from_jira",
-    is_flag=True,
-    help="Import from Jira tickets",
-)
-@click.option(
-    "--merge",
-    is_flag=True,
-    help="Merge with existing RTM (don't overwrite)",
-)
-@click.option(
-    "--dry-run",
-    is_flag=True,
-    help="Preview without writing files",
-)
-@click.option(
-    "--prefix",
-    default="REQ",
-    help="Requirement ID prefix",
-)
-@click.pass_context
-def bootstrap(
-    ctx: click.Context,
-    from_tests: bool,
-    from_github: bool,
-    from_jira: bool,
-    merge: bool,
-    dry_run: bool,
-    prefix: str,
-) -> None:
-    """Generate initial RTM from project artifacts.
-
-    Bootstrap requirements traceability from existing tests, issues, or tickets.
-    """
-    from rtmx.cli.bootstrap import run_bootstrap
-
-    config: RTMXConfig = ctx.obj["config"]
-    run_bootstrap(from_tests, from_github, from_jira, merge, dry_run, prefix, config)
-
-
-@main.command()
-@click.option(
-    "--dry-run",
-    is_flag=True,
-    help="Preview changes without writing",
-)
-@click.option(
-    "--non-interactive",
-    is_flag=True,
-    help="Skip confirmation prompts (for CI)",
-)
-@click.option(
-    "--force",
-    is_flag=True,
-    help="Overwrite existing rtmx sections",
-)
-@click.option(
-    "--agents",
-    help="Comma-separated agent list (claude,cursor,copilot)",
-)
-@click.option(
-    "--all",
-    "install_all",
-    is_flag=True,
-    help="Install to all detected agents",
-)
-@click.option(
-    "--skip-backup",
-    is_flag=True,
-    help="Don't backup modified files",
-)
-@click.pass_context
-def install(
-    ctx: click.Context,
-    dry_run: bool,
-    non_interactive: bool,
-    force: bool,
-    agents: str | None,
-    install_all: bool,
-    skip_backup: bool,
-) -> None:
-    """Inject RTM-aware prompts into AI agent configurations.
-
-    Detects and enhances CLAUDE.md, .cursorrules, copilot-instructions.md.
-    """
-    from rtmx.cli.install import run_install
-
-    config: RTMXConfig = ctx.obj["config"]
-    agent_list = agents.split(",") if agents else None
-    run_install(dry_run, non_interactive, force, agent_list, install_all, skip_backup, config)
 
 
 @main.command()
@@ -498,6 +435,90 @@ def mcp_server(
 
     config: RTMXConfig = ctx.obj["config"]
     run_mcp_server(port, host, daemon, pidfile, config)
+
+
+# =============================================================================
+# Integration Commands (E2E Production Integration)
+# =============================================================================
+
+
+@main.command()
+@click.option(
+    "--format",
+    "format_type",
+    type=click.Choice(["terminal", "json", "ci"]),
+    default="terminal",
+    help="Output format",
+)
+@click.option(
+    "--strict",
+    is_flag=True,
+    help="Treat warnings as errors",
+)
+@click.option(
+    "--check",
+    "checks",
+    multiple=True,
+    help="Specific checks to run (can be repeated)",
+)
+@click.pass_context
+def health(
+    ctx: click.Context,
+    format_type: str,
+    strict: bool,
+    checks: tuple[str, ...],
+) -> None:
+    """Run integration health check.
+
+    Single command to verify rtmx integration health for CI/CD pipelines.
+    Exit codes: 0=healthy, 1=warnings (with --strict), 2=errors.
+    """
+    from rtmx.cli.health import run_health
+
+    config: RTMXConfig = ctx.obj["config"]
+    checks_list = list(checks) if checks else None
+    run_health(format_type, strict, checks_list, config)
+
+
+@main.command("diff")
+@click.argument(
+    "baseline",
+    type=click.Path(exists=True, path_type=Path),
+)
+@click.argument(
+    "current",
+    required=False,
+    type=click.Path(exists=True, path_type=Path),
+)
+@click.option(
+    "--format",
+    "format_type",
+    type=click.Choice(["terminal", "markdown", "json"]),
+    default="terminal",
+    help="Output format",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(path_type=Path),
+    help="Output file",
+)
+@click.pass_context
+def diff_cmd(
+    _ctx: click.Context,
+    baseline: Path,
+    current: Path | None,
+    format_type: str,
+    output: Path | None,
+) -> None:
+    """Compare RTM databases before and after changes.
+
+    Compares baseline with current (default: docs/rtm_database.csv).
+    Exit codes: 0=stable/improved, 1=regressed/degraded, 2=breaking.
+    """
+    from rtmx.cli.diff import run_diff
+
+    run_diff(baseline, current, format_type, output)
 
 
 if __name__ == "__main__":
