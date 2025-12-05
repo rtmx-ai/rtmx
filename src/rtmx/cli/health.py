@@ -45,7 +45,7 @@ class Check:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
-        d = {
+        d: dict[str, Any] = {
             "name": self.name,
             "result": self.result.value,
             "message": self.message,
@@ -267,11 +267,11 @@ def check_test_markers(config: RTMXConfig) -> Check:
         for test_file in test_files:
             try:
                 file_markers = extract_markers_from_file(test_file)
-                for func_name, marker_info in file_markers.items():
-                    for req_id in marker_info.get("req_ids", []):
-                        if req_id not in markers_found:
-                            markers_found[req_id] = []
-                        markers_found[req_id].append(f"{test_file}::{func_name}")
+                for test_req in file_markers:
+                    req_id = test_req.req_id
+                    if req_id not in markers_found:
+                        markers_found[req_id] = []
+                    markers_found[req_id].append(f"{test_file}::{test_req.test_function}")
             except Exception:
                 pass  # Skip files that can't be parsed
 

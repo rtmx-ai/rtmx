@@ -74,7 +74,7 @@ def detect_project(project_path: Path) -> dict[str, Any]:
     """
     from rtmx.cli.git_ops import get_git_status, is_git_repo
 
-    detection = {
+    detection: dict[str, Any] = {
         "is_git_repo": is_git_repo(project_path),
         "git_clean": True,
         "git_branch": None,
