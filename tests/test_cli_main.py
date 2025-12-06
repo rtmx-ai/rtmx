@@ -266,7 +266,7 @@ def test_backlog_command_help(runner: CliRunner) -> None:
 
     assert result.exit_code == 0
     assert "--phase" in result.output
-    assert "--critical" in result.output
+    assert "--view" in result.output
 
 
 @pytest.mark.req("REQ-CLI-003")
@@ -285,8 +285,10 @@ def test_backlog_phase_option(runner: CliRunner, sample_rtm_csv: Path) -> None:
 @pytest.mark.technique_nominal
 @pytest.mark.env_simulation
 def test_backlog_critical_option(runner: CliRunner, sample_rtm_csv: Path) -> None:
-    """Test backlog command with critical path filter."""
-    result = runner.invoke(main, ["--rtm-csv", str(sample_rtm_csv), "backlog", "--critical"])
+    """Test backlog command with critical path view."""
+    result = runner.invoke(
+        main, ["--rtm-csv", str(sample_rtm_csv), "backlog", "--view", "critical"]
+    )
 
     assert result.exit_code in [0, 1]
 
