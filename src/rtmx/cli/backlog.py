@@ -122,7 +122,7 @@ def _format_phase(phase: int | None) -> str:
     """Format phase number."""
     if phase is None:
         return f"{Colors.DIM}-{Colors.RESET}"
-    return f"P{phase}"
+    return str(phase)
 
 
 def _truncate(text: str, max_len: int = 35) -> str:
@@ -179,7 +179,7 @@ def _show_all(
         )
 
     headers = ["#", "", "Requirement", "Description", "Priority", "Blocks", "Phase"]
-    print(tabulate(table_data, headers=headers, tablefmt="simple_grid"))
+    print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
     # Summary
     _print_summary(incomplete, blocking_counts)
@@ -225,7 +225,7 @@ def _show_critical_path(
         )
 
     headers = ["#", "", "Requirement", "Description", "Blocks", "Phase"]
-    print(tabulate(table_data, headers=headers, tablefmt="simple_grid"))
+    print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
     print()
     print(f"{Colors.DIM}Showing top {len(blockers)} critical path items{Colors.RESET}")
@@ -283,7 +283,7 @@ def _show_quick_wins(
         )
 
     headers = ["#", "", "Requirement", "Description", "Effort", "Phase"]
-    print(tabulate(table_data, headers=headers, tablefmt="simple_grid"))
+    print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
     print()
     print(
@@ -330,7 +330,7 @@ def _show_blockers(
         )
 
     headers = ["#", "", "Requirement", "Description", "Priority", "Blocks"]
-    print(tabulate(table_data, headers=headers, tablefmt="simple_grid"))
+    print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
     # Total blocked
     total_blocked = sum(t for t, _ in blocking_counts.values())
