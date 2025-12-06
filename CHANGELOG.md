@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2] - 2025-12-06
+
+### Added
+- Unified `rtmx setup` command combining init, install, and makefile generation
+- `rtmx health` command for project health scoring
+- `rtmx diff` command for comparing RTM versions
+- Phoenix-style backlog display with summary header and sections
+- View modes for backlog: `--view all|critical|quick-wins|blockers`
+- Colored terminal screenshots in README documentation
+- Auto-regeneration of terminal screenshots in CI
+
+### Changed
+- Backlog output now matches Phoenix/Cyclone format with Critical Path and Quick Wins sections
+- Phase display format changed to "Phase X" style
+- Blocks column shows transitive count with direct count in parentheses
+- Status icons updated (△ for PARTIAL)
+
+### Improved
+- Code coverage increased from 26% to 87%
+- Added comprehensive test suite for CLI commands, models, adapters
+
+### Fixed
+- Type errors in health.py, setup.py, integrate.py
+- Pre-commit hook compatibility issues
+
 ## [0.0.1] - 2024-12-03
 
 ### Added
@@ -42,5 +67,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Security scanning (pip-audit, CodeQL)
 - E2E test suite for lifecycle management
 
-[Unreleased]: https://github.com/iotactical/rtmx/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/iotactical/rtmx/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/iotactical/rtmx/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/iotactical/rtmx/releases/tag/v0.0.1
