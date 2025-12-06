@@ -473,11 +473,11 @@ class TestRunBacklog:
         self, sample_rtm_csv: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test backlog shows all incomplete requirements."""
-        from rtmx.cli.backlog import run_backlog
+        from rtmx.cli.backlog import BacklogView, run_backlog
 
         monkeypatch.setattr(sys, "exit", lambda x: None)
 
-        run_backlog(sample_rtm_csv, phase=None, critical=False)
+        run_backlog(sample_rtm_csv, phase=None, view=BacklogView.ALL, limit=10)
 
         captured = capsys.readouterr()
         output = captured.out
@@ -492,11 +492,11 @@ class TestRunBacklog:
         self, sample_rtm_csv: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test backlog filtered by specific phase."""
-        from rtmx.cli.backlog import run_backlog
+        from rtmx.cli.backlog import BacklogView, run_backlog
 
         monkeypatch.setattr(sys, "exit", lambda x: None)
 
-        run_backlog(sample_rtm_csv, phase=1, critical=False)
+        run_backlog(sample_rtm_csv, phase=1, view=BacklogView.ALL, limit=10)
 
         captured = capsys.readouterr()
         output = captured.out
@@ -510,11 +510,11 @@ class TestRunBacklog:
         self, sample_rtm_csv: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test backlog showing only critical path (blocking requirements)."""
-        from rtmx.cli.backlog import run_backlog
+        from rtmx.cli.backlog import BacklogView, run_backlog
 
         monkeypatch.setattr(sys, "exit", lambda x: None)
 
-        run_backlog(sample_rtm_csv, phase=None, critical=True)
+        run_backlog(sample_rtm_csv, phase=None, view=BacklogView.CRITICAL, limit=10)
 
         captured = capsys.readouterr()
         output = captured.out
@@ -525,11 +525,11 @@ class TestRunBacklog:
         self, sample_rtm_csv: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test backlog sorts by priority (P0 > HIGH > MEDIUM > LOW)."""
-        from rtmx.cli.backlog import run_backlog
+        from rtmx.cli.backlog import BacklogView, run_backlog
 
         monkeypatch.setattr(sys, "exit", lambda x: None)
 
-        run_backlog(sample_rtm_csv, phase=None, critical=False)
+        run_backlog(sample_rtm_csv, phase=None, view=BacklogView.ALL, limit=10)
 
         captured = capsys.readouterr()
         output = captured.out
@@ -546,7 +546,7 @@ class TestRunBacklog:
         self, tmp_path: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test backlog when all requirements are complete."""
-        from rtmx.cli.backlog import run_backlog
+        from rtmx.cli.backlog import BacklogView, run_backlog
 
         # Create CSV with all complete
         csv_path = tmp_path / "complete.csv"
@@ -594,7 +594,7 @@ class TestRunBacklog:
 
         monkeypatch.setattr(sys, "exit", mock_exit)
 
-        run_backlog(csv_path, phase=None, critical=False)
+        run_backlog(csv_path, phase=None, view=BacklogView.ALL, limit=10)
 
         captured = capsys.readouterr()
         output = captured.out
@@ -605,11 +605,11 @@ class TestRunBacklog:
         self, sample_rtm_csv: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test backlog displays blocking counts correctly."""
-        from rtmx.cli.backlog import run_backlog
+        from rtmx.cli.backlog import BacklogView, run_backlog
 
         monkeypatch.setattr(sys, "exit", lambda x: None)
 
-        run_backlog(sample_rtm_csv, phase=None, critical=False)
+        run_backlog(sample_rtm_csv, phase=None, view=BacklogView.ALL, limit=10)
 
         captured = capsys.readouterr()
         output = captured.out
@@ -993,7 +993,7 @@ class TestCLIIntegration:
         self, sample_rtm_csv: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Test that status and backlog show consistent data."""
-        from rtmx.cli.backlog import run_backlog
+        from rtmx.cli.backlog import BacklogView, run_backlog
         from rtmx.cli.status import run_status
 
         monkeypatch.setattr(sys, "exit", lambda x: None)
@@ -1007,7 +1007,7 @@ class TestCLIIntegration:
 
         # Get backlog
         sys.stdout = StringIO()
-        run_backlog(sample_rtm_csv, phase=None, critical=False)
+        run_backlog(sample_rtm_csv, phase=None, view=BacklogView.ALL, limit=10)
         backlog_output = sys.stdout.getvalue()
         sys.stdout = old_stdout
 
