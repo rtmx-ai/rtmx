@@ -472,7 +472,7 @@ class TestRunBacklog:
     def test_backlog_all_incomplete(
         self, sample_rtm_csv: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Test backlog shows all incomplete requirements."""
+        """Test backlog shows summary header and sections."""
         from rtmx.cli.backlog import BacklogView, run_backlog
 
         monkeypatch.setattr(sys, "exit", lambda x: None)
@@ -481,12 +481,17 @@ class TestRunBacklog:
 
         captured = capsys.readouterr()
         output = captured.out
-        assert "Backlog" in output
-        assert "REQ-CORE-002" in output  # PARTIAL
-        assert "REQ-CORE-003" in output  # MISSING
-        assert "REQ-FEAT-001" in output  # MISSING
-        assert "REQ-FEAT-002" in output  # NOT_STARTED
-        assert "REQ-CORE-001" not in output  # COMPLETE - should not appear
+        # Check summary header
+        assert "Prioritized Backlog" in output
+        assert "Total Requirements:" in output
+        assert "MISSING:" in output
+        assert "PARTIAL:" in output
+        assert "Estimated Effort:" in output
+        # Check section headers
+        assert "CRITICAL PATH ITEMS" in output
+        assert "QUICK WINS" in output
+        # COMPLETE requirements should not appear
+        assert "REQ-CORE-001" not in output
 
     def test_backlog_filter_by_phase(
         self, sample_rtm_csv: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
@@ -500,9 +505,9 @@ class TestRunBacklog:
 
         captured = capsys.readouterr()
         output = captured.out
-        assert "Backlog (Phase 1)" in output
-        assert "REQ-CORE-002" in output
-        assert "REQ-CORE-003" in output
+        # Check phase appears in title
+        assert "Prioritized Backlog (Phase 1)" in output
+        # Phase 2 and 3 requirements should not appear
         assert "REQ-FEAT-001" not in output  # Phase 2
         assert "REQ-FEAT-002" not in output  # Phase 3
 
@@ -521,26 +526,20 @@ class TestRunBacklog:
         assert "Critical Path" in output
         # Should only show requirements that block others
 
-    def test_backlog_priority_sorting(
+    def test_backlog_blockers_view(
         self, sample_rtm_csv: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Test backlog sorts by priority (P0 > HIGH > MEDIUM > LOW)."""
+        """Test backlog blockers view shows blocking requirements."""
         from rtmx.cli.backlog import BacklogView, run_backlog
 
         monkeypatch.setattr(sys, "exit", lambda x: None)
 
-        run_backlog(sample_rtm_csv, phase=None, view=BacklogView.ALL, limit=10)
+        run_backlog(sample_rtm_csv, phase=None, view=BacklogView.BLOCKERS, limit=10)
 
         captured = capsys.readouterr()
         output = captured.out
-        lines = output.split("\n")
-
-        # HIGH priority should appear before MEDIUM and LOW
-        high_pos = next(i for i, line in enumerate(lines) if "HIGH" in line)
-        medium_pos = next(i for i, line in enumerate(lines) if "MEDIUM" in line)
-        low_pos = next(i for i, line in enumerate(lines) if "LOW" in line)
-
-        assert high_pos < medium_pos < low_pos
+        # Check blockers view header
+        assert "Blocking Requirements" in output
 
     def test_backlog_no_incomplete(
         self, tmp_path: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch

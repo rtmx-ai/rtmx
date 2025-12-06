@@ -45,7 +45,8 @@ def run_backlog(
         print(f"{Colors.RED}Error: {e}{Colors.RESET}", file=sys.stderr)
         sys.exit(1)
 
-    # Get incomplete requirements
+    # Get all requirements and incomplete ones
+    all_reqs = list(db)
     incomplete = [
         req for req in db if req.status in (Status.MISSING, Status.PARTIAL, Status.NOT_STARTED)
     ]
@@ -76,7 +77,7 @@ def run_backlog(
     elif view == BacklogView.BLOCKERS:
         _show_blockers(incomplete, blocking_counts, phase, limit)
     else:
-        _show_all(incomplete, blocking_counts, phase)
+        _show_all(all_reqs, incomplete, blocking_counts, phase, limit)
 
 
 def _format_blocks(transitive: int, direct: int) -> str:
@@ -84,15 +85,15 @@ def _format_blocks(transitive: int, direct: int) -> str:
     if transitive == 0:
         return f"{Colors.DIM}-{Colors.RESET}"
     if transitive == direct:
-        return f"{Colors.YELLOW}{transitive}{Colors.RESET}"
-    return f"{Colors.YELLOW}{transitive}{Colors.RESET} {Colors.DIM}({direct}){Colors.RESET}"
+        return f"{Colors.YELLOW}{transitive} reqs{Colors.RESET}"
+    return f"{Colors.YELLOW}{transitive} ({direct}){Colors.RESET}"
 
 
 def _format_status(status: Status) -> str:
     """Format status icon."""
     icons = {
         Status.COMPLETE: f"{Colors.GREEN}✓{Colors.RESET}",
-        Status.PARTIAL: f"{Colors.YELLOW}⚠{Colors.RESET}",
+        Status.PARTIAL: f"{Colors.YELLOW}△{Colors.RESET}",
         Status.MISSING: f"{Colors.RED}✗{Colors.RESET}",
         Status.NOT_STARTED: f"{Colors.DIM}○{Colors.RESET}",
     }
@@ -122,7 +123,7 @@ def _format_phase(phase: int | None) -> str:
     """Format phase number."""
     if phase is None:
         return f"{Colors.DIM}-{Colors.RESET}"
-    return str(phase)
+    return f"Phase {phase}"
 
 
 def _truncate(text: str, max_len: int = 35) -> str:
@@ -132,76 +133,78 @@ def _truncate(text: str, max_len: int = 35) -> str:
     return text[: max_len - 3] + "..."
 
 
-def _sort_by_priority(incomplete: list, blocking_counts: dict[str, tuple[int, int]]) -> list:
-    """Sort requirements by priority and blocking count."""
-    priority_order = {Priority.P0: 0, Priority.HIGH: 1, Priority.MEDIUM: 2, Priority.LOW: 3}
+def _sort_by_blocking(incomplete: list, blocking_counts: dict[str, tuple[int, int]]) -> list:
+    """Sort requirements by blocking count (highest first)."""
 
     def sort_key(req):
-        trans, _ = blocking_counts.get(req.req_id, (0, 0))
-        return (
-            priority_order.get(req.priority, 4),
-            -trans,  # More blocks = higher priority
-            req.phase or 99,
-        )
+        trans, direct = blocking_counts.get(req.req_id, (0, 0))
+        return (-trans, -direct, req.phase or 99)
 
     return sorted(incomplete, key=sort_key)
 
 
-def _show_all(
-    incomplete: list,
-    blocking_counts: dict[str, tuple[int, int]],
-    phase: int | None,
-) -> None:
-    """Show all incomplete requirements in grid format."""
-    title = "Backlog"
+def _print_summary_header(all_reqs: list, incomplete: list, phase: int | None) -> None:
+    """Print summary header at top of backlog."""
+    # Count by status
+    missing = sum(1 for r in incomplete if r.status == Status.MISSING)
+    partial = sum(1 for r in incomplete if r.status == Status.PARTIAL)
+    total = len(all_reqs)
+
+    # Calculate percentages
+    missing_pct = (missing / total * 100) if total > 0 else 0
+    partial_pct = (partial / total * 100) if total > 0 else 0
+
+    # Total effort
+    total_effort = sum(req.effort_weeks or 0 for req in incomplete)
+
+    # Print title
+    title = "Prioritized Backlog"
     if phase:
         title += f" (Phase {phase})"
     print(header(title, "="))
     print()
 
-    # Sort by priority
-    sorted_reqs = _sort_by_priority(incomplete, blocking_counts)
-
-    # Build table data
-    table_data = []
-    for i, req in enumerate(sorted_reqs, 1):
-        trans, direct = blocking_counts.get(req.req_id, (0, 0))
-        table_data.append(
-            [
-                i,
-                _format_status(req.status),
-                req.req_id,
-                _truncate(req.requirement_text),
-                _format_priority(req.priority),
-                _format_blocks(trans, direct),
-                _format_phase(req.phase),
-            ]
-        )
-
-    headers = ["#", "", "Requirement", "Description", "Priority", "Blocks", "Phase"]
-    print(tabulate(table_data, headers=headers, tablefmt="grid"))
-
-    # Summary
-    _print_summary(incomplete, blocking_counts)
+    # Print summary stats
+    print(f"Total Requirements: {total}")
+    print(f"  {Colors.RED}✗ MISSING: {missing} ({missing_pct:.1f}%){Colors.RESET}")
+    print(f"  {Colors.YELLOW}△ PARTIAL: {partial} ({partial_pct:.1f}%){Colors.RESET}")
+    print(f"Estimated Effort: {total_effort:.1f} weeks")
+    print()
 
 
-def _show_critical_path(
+def _show_all(
+    all_reqs: list,
     incomplete: list,
     blocking_counts: dict[str, tuple[int, int]],
     phase: int | None,
     limit: int,
 ) -> None:
-    """Show critical path items (highest blocking impact)."""
-    title = "Critical Path"
-    if phase:
-        title += f" (Phase {phase})"
-    print(header(title, "="))
+    """Show combined view with Critical Path and Quick Wins sections."""
+    # Print summary header
+    _print_summary_header(all_reqs, incomplete, phase)
+
+    # Critical Path section
+    _show_critical_path_section(incomplete, blocking_counts, limit)
+
+    print()
+
+    # Quick Wins section
+    _show_quick_wins_section(incomplete, blocking_counts, limit)
+
+
+def _show_critical_path_section(
+    incomplete: list,
+    blocking_counts: dict[str, tuple[int, int]],
+    limit: int,
+) -> None:
+    """Show critical path items section."""
+    print(f"{Colors.BOLD}CRITICAL PATH ITEMS (TOP {limit}){Colors.RESET}")
     print()
 
     # Filter to items that block others and sort by blocking count
     blockers = [(req, blocking_counts.get(req.req_id, (0, 0))) for req in incomplete]
     blockers = [(req, counts) for req, counts in blockers if counts[0] > 0]
-    blockers.sort(key=lambda x: (-x[1][0], -x[1][1]))  # Sort by transitive, then direct
+    blockers.sort(key=lambda x: (-x[1][0], -x[1][1]))
 
     if not blockers:
         print(f"{Colors.GREEN}✓ No blocking requirements found!{Colors.RESET}")
@@ -219,32 +222,27 @@ def _show_critical_path(
                 _format_status(req.status),
                 req.req_id,
                 _truncate(req.requirement_text),
+                _format_effort(req.effort_weeks),
                 _format_blocks(trans, direct),
                 _format_phase(req.phase),
             ]
         )
 
-    headers = ["#", "", "Requirement", "Description", "Blocks", "Phase"]
+    headers = ["#", "Status", "Requirement", "Description", "Effort", "Blocks", "Phase"]
     print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
-    print()
-    print(f"{Colors.DIM}Showing top {len(blockers)} critical path items{Colors.RESET}")
 
-
-def _show_quick_wins(
+def _show_quick_wins_section(
     incomplete: list,
     _blocking_counts: dict[str, tuple[int, int]],
-    phase: int | None,
     limit: int,
 ) -> None:
-    """Show quick wins (low effort, high priority, not blocked)."""
-    title = "Quick Wins"
-    if phase:
-        title += f" (Phase {phase})"
-    print(header(title, "="))
+    """Show quick wins section."""
+    print(f"{Colors.BOLD}QUICK WINS (<1 week, HIGH priority){Colors.RESET}")
     print()
 
     # Filter: HIGH/P0 priority, effort <= 1 week, not blocked by others
+    incomplete_ids = {r.req_id for r in incomplete}
     quick_wins = []
     for req in incomplete:
         if req.priority not in (Priority.P0, Priority.HIGH):
@@ -252,15 +250,13 @@ def _show_quick_wins(
         if req.effort_weeks is not None and req.effort_weeks > 1.0:
             continue
         # Check if blocked by incomplete items
-        blocked = any(dep in {r.req_id for r in incomplete} for dep in (req.dependencies or []))
+        blocked = any(dep in incomplete_ids for dep in (req.dependencies or []))
         if blocked:
             continue
         quick_wins.append(req)
 
     if not quick_wins:
-        print(
-            f"{Colors.DIM}No quick wins found (HIGH/P0 priority, ≤1 week, unblocked){Colors.RESET}"
-        )
+        print(f"{Colors.DIM}No quick wins found{Colors.RESET}")
         return
 
     # Sort by effort (ascending), then priority
@@ -282,13 +278,40 @@ def _show_quick_wins(
             ]
         )
 
-    headers = ["#", "", "Requirement", "Description", "Effort", "Phase"]
+    headers = ["#", "Status", "Requirement", "Description", "Effort", "Phase"]
     print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
+
+def _show_critical_path(
+    incomplete: list,
+    blocking_counts: dict[str, tuple[int, int]],
+    phase: int | None,
+    limit: int,
+) -> None:
+    """Show critical path items (highest blocking impact)."""
+    title = "Critical Path"
+    if phase:
+        title += f" (Phase {phase})"
+    print(header(title, "="))
     print()
-    print(
-        f"{Colors.DIM}Showing {len(quick_wins)} quick wins (HIGH/P0, ≤1 week, unblocked){Colors.RESET}"
-    )
+
+    _show_critical_path_section(incomplete, blocking_counts, limit)
+
+
+def _show_quick_wins(
+    incomplete: list,
+    blocking_counts: dict[str, tuple[int, int]],
+    phase: int | None,
+    limit: int,
+) -> None:
+    """Show quick wins (low effort, high priority, not blocked)."""
+    title = "Quick Wins"
+    if phase:
+        title += f" (Phase {phase})"
+    print(header(title, "="))
+    print()
+
+    _show_quick_wins_section(incomplete, blocking_counts, limit)
 
 
 def _show_blockers(
@@ -324,12 +347,13 @@ def _show_blockers(
                 _format_status(req.status),
                 req.req_id,
                 _truncate(req.requirement_text),
-                _format_priority(req.priority),
+                _format_effort(req.effort_weeks),
                 _format_blocks(trans, direct),
+                _format_phase(req.phase),
             ]
         )
 
-    headers = ["#", "", "Requirement", "Description", "Priority", "Blocks"]
+    headers = ["#", "Status", "Requirement", "Description", "Effort", "Blocks", "Phase"]
     print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
     # Total blocked
@@ -338,22 +362,3 @@ def _show_blockers(
     print(
         f"{Colors.YELLOW}{len(blockers)} requirements blocking {total_blocked} others{Colors.RESET}"
     )
-
-
-def _print_summary(incomplete: list, blocking_counts: dict[str, tuple[int, int]]) -> None:
-    """Print backlog summary."""
-    print()
-    print(f"{Colors.BOLD}Total: {len(incomplete)} incomplete requirements{Colors.RESET}")
-
-    high_priority = sum(1 for req in incomplete if req.priority in (Priority.P0, Priority.HIGH))
-    if high_priority:
-        print(f"{Colors.RED}  {high_priority} HIGH/P0 priority{Colors.RESET}")
-
-    blockers = sum(1 for req in incomplete if blocking_counts.get(req.req_id, (0, 0))[0] > 0)
-    if blockers:
-        print(f"{Colors.YELLOW}  {blockers} blocking other requirements{Colors.RESET}")
-
-    # Effort estimate
-    total_effort = sum(req.effort_weeks or 0 for req in incomplete)
-    if total_effort > 0:
-        print(f"{Colors.DIM}  {total_effort:.1f} weeks estimated effort{Colors.RESET}")
