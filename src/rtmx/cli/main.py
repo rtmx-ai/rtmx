@@ -91,20 +91,38 @@ def status(ctx: click.Context, verbose: int, json_output: Path | None) -> None:
     help="Filter by phase number",
 )
 @click.option(
-    "--critical",
-    is_flag=True,
-    help="Show critical path only",
+    "--view",
+    type=click.Choice(["all", "critical", "quick-wins", "blockers"]),
+    default="all",
+    help="View mode: all, critical (path), quick-wins, blockers",
+)
+@click.option(
+    "--limit",
+    "-n",
+    type=int,
+    default=10,
+    help="Limit items in summary views (default: 10)",
 )
 @click.pass_context
-def backlog(ctx: click.Context, phase: int | None, critical: bool) -> None:
+def backlog(ctx: click.Context, phase: int | None, view: str, limit: int) -> None:
     """Show prioritized backlog.
 
     Displays incomplete requirements sorted by priority and blocking count.
+
+    View modes:
+
+      all        - Full backlog with all incomplete requirements
+
+      critical   - Top items blocking the most other requirements
+
+      quick-wins - HIGH/P0 priority, ≤1 week effort, unblocked
+
+      blockers   - Requirements that block others
     """
-    from rtmx.cli.backlog import run_backlog
+    from rtmx.cli.backlog import BacklogView, run_backlog
 
     rtm_csv = ctx.obj.get("rtm_csv")
-    run_backlog(rtm_csv, phase, critical)
+    run_backlog(rtm_csv, phase, BacklogView(view), limit)
 
 
 @main.command()
