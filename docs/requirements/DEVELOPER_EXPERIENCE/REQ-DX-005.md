@@ -1,9 +1,10 @@
 # REQ-DX-005: Git Hook Integration
 
-## Status: NOT_STARTED
+## Status: COMPLETE
 ## Priority: LOW
 ## Phase: 4
 ## Effort: 0.5 weeks
+## Completed: 2026-01-02
 
 ## Description
 
@@ -11,12 +12,12 @@ Add optional git hooks for automated validation on commit and push.
 
 ## Acceptance Criteria
 
-- [ ] `rtmx install --hooks` installs pre-commit hook
-- [ ] Pre-commit hook runs `rtmx health --strict`
-- [ ] Hook fails commit if health check fails
-- [ ] `rtmx install --hooks --pre-push` adds marker compliance check
-- [ ] Hooks are shell scripts, not Python (faster)
-- [ ] Uninstall via `rtmx install --hooks --remove`
+- [x] `rtmx install --hooks` installs pre-commit hook
+- [x] Pre-commit hook runs `rtmx health --strict`
+- [x] Hook fails commit if health check fails
+- [x] `rtmx install --hooks --pre-push` adds marker compliance check
+- [x] Hooks are shell scripts, not Python (faster)
+- [x] Uninstall via `rtmx install --hooks --remove`
 
 ## Usage
 

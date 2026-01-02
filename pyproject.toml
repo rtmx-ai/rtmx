@@ -74,6 +74,7 @@ dev = [
     "twine>=4.0",
     "types-PyYAML>=6.0",
     "pdoc>=14.0",
+    "jinja2>=3.0",
 ]
 
 [project.scripts]

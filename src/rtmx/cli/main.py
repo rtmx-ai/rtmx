@@ -34,18 +34,41 @@ from rtmx.formatting import Colors
     is_flag=True,
     help="Disable colored output",
 )
+@click.option(
+    "--no-migrate",
+    is_flag=True,
+    help="Suppress automatic migration from legacy layout to .rtmx/",
+)
 @click.pass_context
 def main(
     ctx: click.Context,
     rtm_csv: Path | None,
     config_path: Path | None,
     no_color: bool,
+    no_migrate: bool,
 ) -> None:
     """RTMX - Requirements Traceability Matrix toolkit.
 
     Manage requirements traceability for GenAI-driven development.
     """
     ctx.ensure_object(dict)
+
+    # Store no_migrate flag for later use
+    ctx.obj["no_migrate"] = no_migrate
+
+    # Check for legacy layout and offer migration (unless suppressed)
+    # Only check if we're in an interactive context and not running init/setup
+    invoked_subcommand = ctx.invoked_subcommand
+    skip_migration_commands = {"init", "setup", "version", None}
+
+    if invoked_subcommand not in skip_migration_commands and sys.stdout.isatty() and not no_migrate:
+        from rtmx.migration import run_migration_if_needed
+
+        run_migration_if_needed(
+            root_path=Path.cwd(),
+            no_migrate=no_migrate,
+            interactive=True,
+        )
 
     # Load configuration
     config = load_config(config_path)
@@ -220,6 +243,11 @@ def cycles(ctx: click.Context) -> None:
     is_flag=True,
     help="Create pull request after setup (implies --branch)",
 )
+@click.option(
+    "--scaffold",
+    is_flag=True,
+    help="Auto-generate requirement spec files from database entries",
+)
 @click.pass_context
 def setup(
     _ctx: click.Context,
@@ -230,6 +258,7 @@ def setup(
     skip_makefile: bool,
     branch: bool,
     create_pr: bool,
+    scaffold: bool,
 ) -> None:
     """Complete rtmx setup in one command.
 
@@ -243,10 +272,29 @@ def setup(
         rtmx setup --minimal    # Just config and RTM database
         rtmx setup --branch     # Create git branch for review workflow
         rtmx setup --pr         # Create branch and pull request
+        rtmx setup --scaffold   # Generate spec files for all requirements
     """
+    # Handle scaffold-only mode
+    if scaffold:
+        from pathlib import Path
+
+        from rtmx.templates import run_scaffold
+
+        scaffold_result = run_scaffold(
+            project_path=Path.cwd(),
+            force=force,
+            dry_run=dry_run,
+        )
+
+        if not scaffold_result.success:
+            import sys
+
+            sys.exit(1)
+        return
+
     from rtmx.cli.setup import run_setup
 
-    result = run_setup(
+    setup_result = run_setup(
         dry_run=dry_run,
         minimal=minimal,
         force=force,
@@ -256,7 +304,7 @@ def setup(
         create_pr=create_pr,
     )
 
-    if not result.success:
+    if not setup_result.success:
         import sys
 
         sys.exit(1)
@@ -666,6 +714,21 @@ def bootstrap(
     is_flag=True,
     help="Don't create backup files",
 )
+@click.option(
+    "--hooks",
+    is_flag=True,
+    help="Install git hooks instead of agent configs",
+)
+@click.option(
+    "--pre-push",
+    is_flag=True,
+    help="Also install pre-push hook (requires --hooks)",
+)
+@click.option(
+    "--remove",
+    is_flag=True,
+    help="Remove installed hooks (requires --hooks)",
+)
 @click.pass_context
 def install(
     ctx: click.Context,
@@ -675,10 +738,14 @@ def install(
     agents: tuple[str, ...],
     install_all: bool,
     skip_backup: bool,
+    hooks: bool,
+    pre_push: bool,
+    remove: bool,
 ) -> None:
-    """Install RTM-aware prompts into AI agent configs.
+    """Install RTM-aware prompts into AI agent configs or git hooks.
 
     Injects RTMX context and commands into Claude, Cursor, or Copilot configs.
+    With --hooks, installs git hooks for automated validation.
 
     \b
     Examples:
@@ -686,19 +753,27 @@ def install(
         rtmx install --all              # Install to all detected agents
         rtmx install --agents claude    # Install only to Claude
         rtmx install --dry-run          # Preview changes
+        rtmx install --hooks            # Install pre-commit hook
+        rtmx install --hooks --pre-push # Install both hooks
+        rtmx install --hooks --remove   # Remove rtmx hooks
     """
-    from rtmx.cli.install import run_install
+    if hooks:
+        from rtmx.cli.install import run_hooks
 
-    config: RTMXConfig = ctx.obj["config"]
-    run_install(
-        dry_run,
-        non_interactive,
-        force,
-        list(agents) if agents else None,
-        install_all,
-        skip_backup,
-        config,
-    )
+        run_hooks(dry_run=dry_run, pre_push=pre_push, remove=remove)
+    else:
+        from rtmx.cli.install import run_install
+
+        config: RTMXConfig = ctx.obj["config"]
+        run_install(
+            dry_run,
+            non_interactive,
+            force,
+            list(agents) if agents else None,
+            install_all,
+            skip_backup,
+            config,
+        )
 
 
 @main.command()
@@ -758,6 +833,63 @@ def config_cmd(
 
     config: RTMXConfig = ctx.obj["config"]
     run_config(config, validate_config, output_format)
+
+
+# =============================================================================
+# Documentation Generation Commands (REQ-DX-004)
+# =============================================================================
+
+
+@main.group()
+def docs() -> None:
+    """Generate documentation from RTMX internals.
+
+    Auto-generate schema and configuration reference documentation.
+
+    \b
+    Examples:
+        rtmx docs schema                # Generate schema.md
+        rtmx docs config                # Generate config.md
+        rtmx docs schema -o docs/       # Custom output location
+    """
+    pass
+
+
+@docs.command("schema")
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(path_type=Path),
+    help="Output file (default: .rtmx/cache/schema.md)",
+)
+def docs_schema(output: Path | None) -> None:
+    """Generate schema documentation.
+
+    Creates markdown documentation for all RTM schemas including
+    core schema and Phoenix extension with column types, defaults,
+    and descriptions.
+    """
+    from rtmx.cli.docs import run_docs_schema
+
+    run_docs_schema(output)
+
+
+@docs.command("config")
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(path_type=Path),
+    help="Output file (default: .rtmx/cache/config.md)",
+)
+def docs_config(output: Path | None) -> None:
+    """Generate configuration reference.
+
+    Creates markdown documentation for RTMXConfig showing all
+    configuration options with their defaults and descriptions.
+    """
+    from rtmx.cli.docs import run_docs_config
+
+    run_docs_config(output)
 
 
 if __name__ == "__main__":
