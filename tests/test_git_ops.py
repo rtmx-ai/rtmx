@@ -4,6 +4,8 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from rtmx.cli.git_ops import (
     GitError,
     GitStatus,
@@ -16,6 +18,10 @@ from rtmx.cli.git_ops import (
 )
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestGitError:
     """Tests for GitError exception."""
 
@@ -25,6 +31,10 @@ class TestGitError:
         assert str(error) == "Test error message"
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestGitStatus:
     """Tests for GitStatus dataclass."""
 
@@ -50,6 +60,10 @@ class TestGitStatus:
         assert len(status.uncommitted_files) == 1
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestIsGitRepo:
     """Tests for is_git_repo function."""
 
@@ -63,6 +77,10 @@ class TestIsGitRepo:
         assert is_git_repo(tmp_path) is False
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestGetGitStatus:
     """Tests for get_git_status function."""
 
@@ -123,6 +141,10 @@ class TestGetGitStatus:
         assert any("file.txt" in f for f in status.uncommitted_files)
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestCreateRollbackPoint:
     """Tests for create_rollback_point function."""
 
@@ -153,6 +175,10 @@ class TestCreateRollbackPoint:
         assert all(c in "0123456789abcdef" for c in rollback_sha)
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestGenerateBranchName:
     """Tests for generate_branch_name function."""
 
@@ -178,6 +204,10 @@ class TestGenerateBranchName:
         assert name.startswith("feature-")
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestCreateBranch:
     """Tests for create_branch function."""
 
@@ -215,6 +245,10 @@ class TestCreateBranch:
         assert "test-branch" in result.stdout
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestCheckGhInstalled:
     """Tests for check_gh_installed function."""
 

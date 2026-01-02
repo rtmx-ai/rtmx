@@ -34,6 +34,10 @@ REQ-004,SOFTWARE,NEW,New requirement,Value,tests/test.py,test_func4,Unit Test,MI
     return path
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestFormatTerminalReport:
     """Tests for format_terminal_report function."""
 
@@ -94,6 +98,10 @@ class TestFormatTerminalReport:
             assert "Status Changes" in output
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestDiffOutputFormats:
     """Tests for different output formats."""
 
@@ -123,6 +131,10 @@ class TestDiffOutputFormats:
         assert "|" in md  # Table formatting
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestDiffExitCodes:
     """Tests for diff exit code logic."""
 

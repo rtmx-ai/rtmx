@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from rtmx.cli.integrate import (
     GitStrategy,
     IntegrationMode,
@@ -9,6 +11,10 @@ from rtmx.cli.integrate import (
 )
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestIntegrationMode:
     """Tests for IntegrationMode enum."""
 
@@ -19,6 +25,10 @@ class TestIntegrationMode:
         assert IntegrationMode.EXECUTE.value == "execute"
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestGitStrategy:
     """Tests for GitStrategy enum."""
 
@@ -28,6 +38,10 @@ class TestGitStrategy:
         assert GitStrategy.BRANCH.value == "branch"
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestIntegrationResult:
     """Tests for IntegrationResult dataclass."""
 
@@ -108,6 +122,10 @@ class TestIntegrationResult:
         assert d["pr_url"] == "https://github.com/org/repo/pull/123"
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestIntegrationModeLogic:
     """Tests for integration mode logic."""
 
@@ -144,6 +162,10 @@ class TestIntegrationModeLogic:
         assert result.git_strategy == GitStrategy.WORKTREE
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestIntegrationResultErrors:
     """Tests for IntegrationResult error handling."""
 

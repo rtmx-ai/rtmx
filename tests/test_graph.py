@@ -1,8 +1,14 @@
 """Tests for rtmx.graph module."""
 
+import pytest
+
 from rtmx.graph import DependencyGraph
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestDependencyGraph:
     """Tests for DependencyGraph class."""
 
@@ -195,6 +201,10 @@ class TestDependencyGraph:
         assert stats["cycles"] == 0
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestTarjanAlgorithm:
     """Tests specifically for Tarjan's SCC algorithm edge cases."""
 
@@ -296,6 +306,10 @@ class TestTarjanAlgorithm:
         assert set(path[:-1]) == set(cycles[0])
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_integration
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestGraphFromDatabase:
     """Tests for creating graphs from RTMDatabase."""
 
