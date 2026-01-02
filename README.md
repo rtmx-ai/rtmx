@@ -102,16 +102,37 @@ RTMX automatically tracks which requirements have tests and which don't.
 
 ## Commands
 
+### Core Commands
+
 | Command | Description |
 |---------|-------------|
-| `rtmx setup` | Initialize RTMX in your project |
+| `rtmx setup` | Complete RTMX setup (config, RTM, agents, Makefile) |
+| `rtmx init` | Minimal setup (config and RTM database only) |
 | `rtmx status` | Show completion progress (`-v`, `-vv`, `-vvv` for detail) |
 | `rtmx backlog` | Show prioritized incomplete requirements |
 | `rtmx health` | Run integration health checks |
+| `rtmx config` | Show or validate configuration |
+
+### Analysis Commands
+
+| Command | Description |
+|---------|-------------|
+| `rtmx deps` | Show dependency graph |
 | `rtmx cycles` | Detect circular dependencies |
 | `rtmx reconcile` | Check/fix dependency reciprocity |
-| `rtmx from-tests` | Scan tests for requirement markers |
+| `rtmx analyze` | Discover requirements from project artifacts |
 | `rtmx diff` | Compare RTM versions (for PRs) |
+
+### Integration Commands
+
+| Command | Description |
+|---------|-------------|
+| `rtmx from-tests` | Scan tests for requirement markers |
+| `rtmx bootstrap` | Generate RTM from tests, GitHub, or Jira |
+| `rtmx sync` | Synchronize with GitHub Issues or Jira |
+| `rtmx install` | Install prompts into AI agent configs |
+| `rtmx makefile` | Generate Makefile targets |
+| `rtmx mcp-server` | Start MCP server for AI agent integration |
 
 ## Makefile Integration
 

@@ -540,5 +540,217 @@ def diff_cmd(
     run_diff(baseline, current, format_type, output)
 
 
+# =============================================================================
+# Standalone Commands (formerly hidden)
+# =============================================================================
+
+
+@main.command()
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Overwrite existing files",
+)
+def init(force: bool) -> None:
+    """Initialize RTM structure in current directory.
+
+    Creates minimal RTM setup: config, database, and sample requirement.
+    Use 'rtmx setup' for full integration including agents and Makefile.
+    """
+    from rtmx.cli.init import run_init
+
+    run_init(force)
+
+
+@main.command()
+@click.option(
+    "--from-tests",
+    "from_tests",
+    is_flag=True,
+    help="Generate requirements from test functions",
+)
+@click.option(
+    "--from-github",
+    "from_github",
+    is_flag=True,
+    help="Import from GitHub issues",
+)
+@click.option(
+    "--from-jira",
+    "from_jira",
+    is_flag=True,
+    help="Import from Jira tickets",
+)
+@click.option(
+    "--merge",
+    is_flag=True,
+    help="Merge with existing RTM (default: replace)",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Preview without writing files",
+)
+@click.option(
+    "--prefix",
+    default="REQ",
+    help="Requirement ID prefix (default: REQ)",
+)
+@click.pass_context
+def bootstrap(
+    ctx: click.Context,
+    from_tests: bool,
+    from_github: bool,
+    from_jira: bool,
+    merge: bool,
+    dry_run: bool,
+    prefix: str,
+) -> None:
+    """Generate initial RTM from project artifacts.
+
+    Bootstrap requirements from existing tests, GitHub issues, or Jira tickets.
+
+    \b
+    Examples:
+        rtmx bootstrap --from-tests        # Generate from test markers
+        rtmx bootstrap --from-github       # Import from GitHub issues
+        rtmx bootstrap --from-jira         # Import from Jira tickets
+        rtmx bootstrap --from-tests --merge  # Merge with existing RTM
+    """
+    from rtmx.cli.bootstrap import run_bootstrap
+
+    config: RTMXConfig = ctx.obj["config"]
+    run_bootstrap(from_tests, from_github, from_jira, merge, dry_run, prefix, config)
+
+
+@main.command()
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Preview changes without writing",
+)
+@click.option(
+    "-y",
+    "--yes",
+    "non_interactive",
+    is_flag=True,
+    help="Skip confirmation prompts",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Overwrite existing RTMX sections",
+)
+@click.option(
+    "--agents",
+    multiple=True,
+    type=click.Choice(["claude", "cursor", "copilot"]),
+    help="Specific agents to install (can repeat)",
+)
+@click.option(
+    "--all",
+    "install_all",
+    is_flag=True,
+    help="Install to all detected agents",
+)
+@click.option(
+    "--skip-backup",
+    is_flag=True,
+    help="Don't create backup files",
+)
+@click.pass_context
+def install(
+    ctx: click.Context,
+    dry_run: bool,
+    non_interactive: bool,
+    force: bool,
+    agents: tuple[str, ...],
+    install_all: bool,
+    skip_backup: bool,
+) -> None:
+    """Install RTM-aware prompts into AI agent configs.
+
+    Injects RTMX context and commands into Claude, Cursor, or Copilot configs.
+
+    \b
+    Examples:
+        rtmx install                    # Interactive selection
+        rtmx install --all              # Install to all detected agents
+        rtmx install --agents claude    # Install only to Claude
+        rtmx install --dry-run          # Preview changes
+    """
+    from rtmx.cli.install import run_install
+
+    config: RTMXConfig = ctx.obj["config"]
+    run_install(
+        dry_run,
+        non_interactive,
+        force,
+        list(agents) if agents else None,
+        install_all,
+        skip_backup,
+        config,
+    )
+
+
+@main.command()
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(path_type=Path),
+    help="Output file (default: stdout)",
+)
+def makefile(output: Path | None) -> None:
+    """Generate Makefile targets for RTM commands.
+
+    Outputs Makefile targets for common RTMX operations.
+
+    \b
+    Examples:
+        rtmx makefile                   # Print to stdout
+        rtmx makefile -o rtmx.mk        # Write to file
+        rtmx makefile >> Makefile       # Append to Makefile
+    """
+    from rtmx.cli.makefile import run_makefile
+
+    run_makefile(output)
+
+
+@main.command("config")
+@click.option(
+    "--validate",
+    "validate_config",
+    is_flag=True,
+    help="Validate configuration and check paths",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["terminal", "yaml", "json"]),
+    default="terminal",
+    help="Output format",
+)
+@click.pass_context
+def config_cmd(
+    ctx: click.Context,
+    validate_config: bool,
+    output_format: str,
+) -> None:
+    """Show or validate RTMX configuration.
+
+    Displays the effective configuration after merging defaults with rtmx.yaml.
+
+    \b
+    Examples:
+        rtmx config                     # Show current config
+        rtmx config --validate          # Check config validity
+        rtmx config --format yaml       # Output as YAML
+    """
+    from rtmx.cli.config_cmd import run_config
+
+    config: RTMXConfig = ctx.obj["config"]
+    run_config(config, validate_config, output_format)
+
+
 if __name__ == "__main__":
     main()

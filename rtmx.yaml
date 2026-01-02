@@ -1,0 +1,42 @@
+# RTMX Configuration
+# See https://github.com/iotactical/rtmx for documentation
+
+rtmx:
+  database: docs/rtm_database.csv
+  requirements_dir: docs/requirements
+  schema: core
+
+  pytest:
+    marker_prefix: "req"
+    register_markers: true
+
+  agents:
+    claude:
+      enabled: true
+      config_path: "CLAUDE.md"
+    cursor:
+      enabled: false
+      config_path: ".cursorrules"
+    copilot:
+      enabled: false
+      config_path: ".github/copilot-instructions.md"
+    template_dir: ".rtmx/templates/"
+
+  adapters:
+    github:
+      enabled: false
+      repo: "iotactical/rtmx"
+      token_env: "GITHUB_TOKEN"
+      labels:
+        - "requirement"
+        - "feature"
+    jira:
+      enabled: false
+
+  mcp:
+    enabled: false
+    port: 3000
+    host: "localhost"
+
+  sync:
+    conflict_resolution: "manual"

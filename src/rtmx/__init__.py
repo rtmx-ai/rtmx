@@ -10,6 +10,7 @@ Example:
     >>> cycles = db.find_cycles()
 """
 
+from rtmx.config import RTMXConfig, load_config
 from rtmx.models import (
     Priority,
     Requirement,
@@ -20,7 +21,7 @@ from rtmx.models import (
     Status,
 )
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 __all__ = [
     "RTMDatabase",
     "Requirement",
@@ -29,5 +30,7 @@ __all__ = [
     "RTMError",
     "RequirementNotFoundError",
     "RTMValidationError",
+    "RTMXConfig",
+    "load_config",
     "__version__",
 ]

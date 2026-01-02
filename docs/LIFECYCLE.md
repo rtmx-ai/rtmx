@@ -227,8 +227,14 @@ rtmx status [-v|-vv|-vvv] [--json OUTPUT]
 Show incomplete requirements prioritized by criticality.
 
 ```bash
-rtmx backlog [--phase N] [--critical] [--assignee NAME]
+rtmx backlog [--phase N] [--view {all|critical|quick-wins|blockers}] [--limit N]
 ```
+
+| Option | Description |
+|--------|-------------|
+| `--phase N` | Filter by phase number |
+| `--view` | View mode: all (default), critical (path), quick-wins, blockers |
+| `--limit N` | Limit items shown (default: 10) |
 
 ### 3.2 Requirement Management
 
@@ -321,20 +327,33 @@ def test_feature():
 
 ### 3.5 Validation
 
-#### `rtmx validate`
+#### `rtmx health`
 
-Validate RTM database integrity.
+Run integration health checks on RTM database.
 
 ```bash
-rtmx validate [--strict] [--fix]
+rtmx health [--format {terminal|json|ci}] [--strict] [--check NAME]
 ```
 
-Checks:
+| Option | Description |
+|--------|-------------|
+| `--format` | Output format: terminal (default), json, ci |
+| `--strict` | Treat warnings as errors |
+| `--check` | Run specific checks only (can repeat) |
+
+Checks performed:
 - Required fields present
 - Valid status/priority values
 - No duplicate IDs
 - Dependencies reference existing requirements
 - Reciprocity consistency
+- Test coverage gaps
+- Phase ordering
+
+Exit codes:
+- 0: Healthy
+- 1: Warnings (with --strict)
+- 2: Errors
 
 ---
 
@@ -582,23 +601,36 @@ RTMX creates automatic backups before destructive operations:
 
 ## Command Reference
 
+### Core Commands
+
 ```
-rtmx init [--force] [--schema TYPE]     Initialize RTM in project
-rtmx status [-v|-vv|-vvv] [--json]      Show completion status
-rtmx backlog [--phase N] [--critical]   Show incomplete requirements
-rtmx deps [--req ID] [--format FMT]     Show dependency graph
+rtmx setup [--dry-run] [--minimal]       Complete RTMX setup (recommended)
+rtmx init [--force]                      Minimal RTM initialization
+rtmx status [-v|-vv|-vvv] [--json]       Show completion status
+rtmx backlog [--phase N] [--view MODE]   Show incomplete requirements
+rtmx health [--format FMT] [--strict]    Run integration health checks
+rtmx config [--validate] [--format FMT]  Show or validate configuration
+```
+
+### Analysis Commands
+
+```
+rtmx deps [--req ID] [--category CAT]    Show dependency graph
 rtmx cycles                              Detect circular dependencies
 rtmx reconcile [--execute]               Fix dependency reciprocity
-rtmx validate [--strict] [--fix]         Validate database integrity
+rtmx analyze [--format FMT] [--deep]     Discover requirements
+rtmx diff BASELINE [CURRENT]             Compare RTM versions (for PRs)
+```
+
+### Integration Commands
+
+```
 rtmx from-tests [--update]               Sync from pytest markers
 rtmx bootstrap [--from-tests] [--merge]  Generate from artifacts
-rtmx analyze [--format FMT]              Discover requirements
 rtmx install [--all] [--dry-run]         Install agent prompts
-rtmx uninstall [--all] [--keep-data]     Remove RTMX from project
 rtmx sync {github|jira} [--import]       Sync with external services
-rtmx remove REQ-ID [--force]             Remove a requirement
-rtmx mcp-server [--daemon]               Start MCP server
-rtmx makefile                            Generate Makefile targets
+rtmx makefile [-o FILE]                  Generate Makefile targets
+rtmx mcp-server [--port N] [--daemon]    Start MCP server
 ```
 
 ---
