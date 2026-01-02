@@ -8,6 +8,10 @@ from rtmx import Priority, Requirement, RTMDatabase, Status
 from rtmx.models import RequirementNotFoundError
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestStatus:
     """Tests for Status enum."""
 
@@ -32,6 +36,10 @@ class TestStatus:
         assert Status.from_string("") == Status.MISSING
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestPriority:
     """Tests for Priority enum."""
 
@@ -54,6 +62,10 @@ class TestPriority:
         assert Priority.from_string("UNKNOWN") == Priority.MEDIUM
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestRequirement:
     """Tests for Requirement dataclass."""
 
@@ -129,6 +141,10 @@ class TestRequirement:
         assert "REQ-B" in data["dependencies"]
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestRTMDatabase:
     """Tests for RTMDatabase class."""
 

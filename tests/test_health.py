@@ -26,6 +26,10 @@ def test_config(core_rtm_path: Path) -> RTMXConfig:
     return RTMXConfig(database=str(core_rtm_path))
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestCheckResult:
     """Tests for CheckResult enum."""
 
@@ -37,6 +41,10 @@ class TestCheckResult:
         assert CheckResult.SKIP.value == "skip"
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestHealthStatus:
     """Tests for HealthStatus enum."""
 
@@ -47,6 +55,10 @@ class TestHealthStatus:
         assert HealthStatus.UNHEALTHY.value == "unhealthy"
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestCheck:
     """Tests for Check dataclass."""
 
@@ -80,6 +92,10 @@ class TestCheck:
         assert d["details"] == {"count": 5}
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestHealthReport:
     """Tests for HealthReport dataclass."""
 
@@ -111,6 +127,10 @@ class TestHealthReport:
         assert d["summary"]["passed"] == 1
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestCheckRtmExists:
     """Tests for check_rtm_exists function."""
 
@@ -137,6 +157,10 @@ class TestCheckRtmExists:
         assert "empty" in result.message.lower()
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestCheckRtmLoads:
     """Tests for check_rtm_loads function."""
 
@@ -157,6 +181,10 @@ class TestCheckRtmLoads:
         assert result.result == CheckResult.FAIL
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestCheckSchemaValid:
     """Tests for check_schema_valid function."""
 
@@ -167,6 +195,10 @@ class TestCheckSchemaValid:
         assert result.result == CheckResult.PASS
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestCheckReciprocity:
     """Tests for check_reciprocity function."""
 
@@ -178,6 +210,10 @@ class TestCheckReciprocity:
         assert result.blocking is False
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestCheckCycles:
     """Tests for check_cycles function."""
 
@@ -189,6 +225,10 @@ class TestCheckCycles:
         assert result.blocking is False
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestCheckConfigValid:
     """Tests for check_config_valid function."""
 
@@ -201,6 +241,10 @@ class TestCheckConfigValid:
         assert "default" in result.message.lower()
 
 
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_integration
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestRunHealthChecks:
     """Tests for run_health_checks function."""
 

@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from rtmx import RTMDatabase, Status
 from rtmx.validation import (
     check_reciprocity,
@@ -11,6 +13,10 @@ from rtmx.validation import (
 )
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestValidateSchema:
     """Tests for schema validation."""
 
@@ -42,6 +48,10 @@ class TestValidateSchema:
         assert req.status in (Status.COMPLETE, Status.PARTIAL, Status.MISSING, Status.NOT_STARTED)
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestCheckReciprocity:
     """Tests for dependency reciprocity checking."""
 
@@ -78,6 +88,10 @@ class TestCheckReciprocity:
         assert len(violations) > 0
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestFixReciprocity:
     """Tests for reciprocity fixing."""
 
@@ -107,6 +121,10 @@ class TestFixReciprocity:
             assert len(violations_after) < len(violations_before)
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestValidateAll:
     """Tests for validate_all function."""
 
@@ -123,6 +141,10 @@ class TestValidateAll:
         assert isinstance(result["reciprocity"], list)
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_integration
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestDatabaseValidationIntegration:
     """Integration tests for RTMDatabase validation methods."""
 

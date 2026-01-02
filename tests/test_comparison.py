@@ -39,6 +39,10 @@ REQ-004,SOFTWARE,NEW,New requirement,Value,tests/test.py,test_func4,Unit Test,MI
     return path
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestStatusChange:
     """Tests for StatusChange dataclass."""
 
@@ -73,6 +77,10 @@ class TestStatusChange:
         assert change.change_type == "removed"
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestCaptureBaseline:
     """Tests for capture_baseline function."""
 
@@ -93,6 +101,10 @@ class TestCaptureBaseline:
         assert result["completion"] == pytest.approx(50.0, rel=0.1)
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestCompareDatabases:
     """Tests for compare_databases function."""
 
@@ -135,6 +147,10 @@ class TestCompareDatabases:
         assert report.current_completion > report.baseline_completion
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestComparisonReport:
     """Tests for ComparisonReport methods."""
 
@@ -177,6 +193,10 @@ REQ-001,SOFTWARE,CORE,First requirement,Value,tests/test.py,test_func,Unit Test,
         assert report.summary_status == "breaking"
 
 
+@pytest.mark.req("REQ-CORE-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestEdgeCases:
     """Tests for edge cases."""
 
