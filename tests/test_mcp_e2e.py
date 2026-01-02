@@ -38,12 +38,28 @@ if TYPE_CHECKING:
 
 
 def mcp_available() -> bool:
-    """Check if MCP package is available."""
+    """Check if MCP package is properly available for rtmx.
+
+    Checks if:
+    1. The mcp module can be imported
+    2. The rtmx MCP server doesn't report "not installed"
+    """
     try:
         import mcp  # noqa: F401
-
-        return True
     except ImportError:
+        return False
+
+    # Also verify rtmx[mcp] extras are properly installed
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "rtmx", "mcp-server", "--help"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        # Check if the help message includes the "not installed" warning
+        return "MCP package not installed" not in result.stdout
+    except (subprocess.TimeoutExpired, FileNotFoundError):
         return False
 
 
