@@ -74,18 +74,19 @@ publish-test: build ## Publish to TestPyPI
 	$(VENV)/bin/twine upload --repository testpypi dist/*
 
 # RTM self-test targets (dogfooding)
+# Note: status exits 1 when incomplete, so we use || true to show status without failing make
 
 rtm: ## Show RTM status (summary)
-	$(VENV)/bin/rtmx status
+	@$(VENV)/bin/rtmx status || true
 
 rtm-v: ## Show RTM status (categories)
-	$(VENV)/bin/rtmx status -v
+	@$(VENV)/bin/rtmx status -v || true
 
 rtm-vv: ## Show RTM status (subcategories)
-	$(VENV)/bin/rtmx status -vv
+	@$(VENV)/bin/rtmx status -vv || true
 
 rtm-vvv: ## Show RTM status (all requirements)
-	$(VENV)/bin/rtmx status -vvv
+	@$(VENV)/bin/rtmx status -vvv || true
 
 backlog: ## Show backlog
 	$(VENV)/bin/rtmx backlog

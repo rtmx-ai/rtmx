@@ -170,6 +170,7 @@ def run_from_tests(
     if not path.exists():
         print(f"{Colors.RED}Error: Test path does not exist: {path}{Colors.RESET}")
         sys.exit(1)
+        return  # Unreachable, but needed for mocked sys.exit in tests
 
     # Scan for markers
     print(f"Scanning {path} for requirement markers...")

@@ -551,15 +551,23 @@ def diff_cmd(
     is_flag=True,
     help="Overwrite existing files",
 )
-def init(force: bool) -> None:
+@click.option(
+    "--legacy",
+    is_flag=True,
+    help="Use legacy docs/ directory structure instead of .rtmx/",
+)
+def init(force: bool, legacy: bool) -> None:
     """Initialize RTM structure in current directory.
 
     Creates minimal RTM setup: config, database, and sample requirement.
     Use 'rtmx setup' for full integration including agents and Makefile.
+
+    By default, uses the .rtmx/ directory structure. Use --legacy for the
+    older docs/ structure.
     """
     from rtmx.cli.init import run_init
 
-    run_init(force)
+    run_init(force, use_rtmx_dir=not legacy)
 
 
 @main.command()

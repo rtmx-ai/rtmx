@@ -16,15 +16,20 @@ if TYPE_CHECKING:
     pass
 
 
-# Default RTM database location
+# Directory and file name constants
+RTMX_DIR_NAME = ".rtmx"
+DATABASE_FILE_NAME = "database.csv"
+
+# Legacy RTM database location
 DEFAULT_RTM_PATH = Path("docs/rtm_database.csv")
 
 
 def find_rtm_database(start_path: Path | None = None) -> Path:
     """Find the RTM database by searching upward from start_path.
 
-    Searches for docs/rtm_database.csv starting from start_path
-    (or current directory) and moving up the directory tree.
+    Checks for database files in this order:
+    1. .rtmx/database.csv (new standard)
+    2. docs/rtm_database.csv (legacy)
 
     Args:
         start_path: Starting directory for search. Defaults to cwd.
@@ -39,9 +44,15 @@ def find_rtm_database(start_path: Path | None = None) -> Path:
 
     current = start_path
     for _ in range(20):  # Limit search depth
-        rtm_path = current / DEFAULT_RTM_PATH
-        if rtm_path.exists():
-            return rtm_path
+        # Check .rtmx/database.csv first (new standard)
+        rtmx_db = current / RTMX_DIR_NAME / DATABASE_FILE_NAME
+        if rtmx_db.exists():
+            return rtmx_db
+
+        # Fall back to legacy location
+        legacy_db = current / DEFAULT_RTM_PATH
+        if legacy_db.exists():
+            return legacy_db
 
         parent = current.parent
         if parent == current:  # Reached filesystem root
@@ -49,7 +60,7 @@ def find_rtm_database(start_path: Path | None = None) -> Path:
         current = parent
 
     raise RTMError(
-        f"Could not find RTM database (looking for {DEFAULT_RTM_PATH}). Started from {start_path}"
+        f"Could not find RTM database (looking for {RTMX_DIR_NAME}/{DATABASE_FILE_NAME} or {DEFAULT_RTM_PATH}). Started from {start_path}"
     )
 
 

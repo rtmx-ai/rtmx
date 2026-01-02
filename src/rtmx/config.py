@@ -11,6 +11,11 @@ from typing import Any
 
 import yaml
 
+# Directory and file name constants
+RTMX_DIR_NAME = ".rtmx"
+CONFIG_FILE_NAME = "config.yaml"
+LEGACY_CONFIG_NAMES = ("rtmx.yaml", "rtmx.yml")
+
 
 @dataclass
 class AgentConfig:
@@ -274,25 +279,32 @@ class RTMXConfig:
 
 
 def find_config_file(start_path: Path | None = None) -> Path | None:
-    """Find rtmx.yaml by searching upward from start_path.
+    """Find RTMX config by searching upward from start_path.
+
+    Checks for config files in this order:
+    1. .rtmx/config.yaml (new standard)
+    2. rtmx.yaml (legacy)
+    3. rtmx.yml (legacy)
 
     Args:
         start_path: Starting directory (defaults to cwd)
 
     Returns:
-        Path to rtmx.yaml if found, None otherwise
+        Path to config file if found, None otherwise
     """
     current = Path.cwd() if start_path is None else Path(start_path).resolve()
 
     while current != current.parent:
-        config_path = current / "rtmx.yaml"
-        if config_path.exists():
-            return config_path
+        # Check .rtmx/config.yaml first (new standard)
+        rtmx_dir_config = current / RTMX_DIR_NAME / CONFIG_FILE_NAME
+        if rtmx_dir_config.exists():
+            return rtmx_dir_config
 
-        # Also check for rtmx.yml
-        config_path = current / "rtmx.yml"
-        if config_path.exists():
-            return config_path
+        # Fall back to legacy config names
+        for config_name in LEGACY_CONFIG_NAMES:
+            config_path = current / config_name
+            if config_path.exists():
+                return config_path
 
         current = current.parent
 

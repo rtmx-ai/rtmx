@@ -44,6 +44,7 @@ def run_backlog(
     except RTMError as e:
         print(f"{Colors.RED}Error: {e}{Colors.RESET}", file=sys.stderr)
         sys.exit(1)
+        return  # Unreachable, but needed for mocked sys.exit in tests
 
     # Get all requirements and incomplete ones
     all_reqs = list(db)

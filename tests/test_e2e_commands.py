@@ -590,10 +590,13 @@ class TestInitE2E:
     """End-to-end tests for rtmx init command."""
 
     def test_init_creates_structure(self, temp_project: Path) -> None:
-        """Init command should create basic structure."""
+        """Init command should create .rtmx/ directory structure."""
         result = run_rtmx("init", cwd=temp_project)
         assert result.returncode == 0
-        assert (temp_project / "docs" / "rtm_database.csv").exists()
+        assert (temp_project / ".rtmx" / "database.csv").exists()
+        assert (temp_project / ".rtmx" / "config.yaml").exists()
+        assert (temp_project / ".rtmx" / "requirements").exists()
+        assert (temp_project / ".rtmx" / "cache").exists()
 
     def test_init_force_overwrites(self, initialized_project: Path) -> None:
         """Init command --force should overwrite existing."""

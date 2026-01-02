@@ -433,7 +433,6 @@ class TestRunStatus:
         # 1 complete out of 5 = 20% completion
         assert exit_code == 1
 
-    @pytest.mark.skip(reason="Source code has UnboundLocalError bug when CSV doesn't exist")
     def test_status_invalid_csv_path(
         self, tmp_path: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -710,7 +709,6 @@ class TestRunCycles:
         assert "Review dependency direction" in output
         assert "largest cycles first" in output
 
-    @pytest.mark.skip(reason="Source code has UnboundLocalError bug when CSV doesn't exist")
     def test_cycles_invalid_csv(
         self, tmp_path: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -892,7 +890,6 @@ class TestRunReconcile:
         # Should show either "All violations resolved" or number of remaining
         assert "violations" in output.lower()
 
-    @pytest.mark.skip(reason="Source code has UnboundLocalError bug when CSV doesn't exist")
     def test_reconcile_invalid_csv(
         self, tmp_path: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
     ) -> None:

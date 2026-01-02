@@ -44,10 +44,12 @@ def run_sync(
             f"{Colors.YELLOW}No sync direction specified. Use --import, --export, or --bidirectional{Colors.RESET}"
         )
         sys.exit(1)
+        return  # Unreachable, but needed for mocked sys.exit in tests
 
     if prefer_local and prefer_remote:
         print(f"{Colors.RED}Cannot use both --prefer-local and --prefer-remote{Colors.RESET}")
         sys.exit(1)
+        return  # Unreachable, but needed for mocked sys.exit in tests
 
     print(f"=== RTMX Sync: {service.upper()} ===")
     print()

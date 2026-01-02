@@ -25,6 +25,7 @@ def run_reconcile(rtm_csv: Path | None, execute: bool) -> None:
     except RTMError as e:
         print(f"{Colors.RED}Error: {e}{Colors.RESET}", file=sys.stderr)
         sys.exit(1)
+        return  # Unreachable, but needed for mocked sys.exit in tests
 
     print(header("Reciprocity Check", "="))
     print()

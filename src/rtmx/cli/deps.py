@@ -31,6 +31,7 @@ def run_deps(
     except RTMError as e:
         print(f"{Colors.RED}Error: {e}{Colors.RESET}", file=sys.stderr)
         sys.exit(1)
+        return  # Unreachable, but needed for mocked sys.exit in tests
 
     # Build title
     title = "Dependencies"
@@ -56,6 +57,7 @@ def run_deps(
         if not db.exists(req_id):
             print(f"{Colors.RED}Error: Requirement {req_id} not found{Colors.RESET}")
             sys.exit(1)
+            return  # Unreachable, but needed for mocked sys.exit in tests
 
         req = db.get(req_id)
         _print_requirement_deps(db, req)

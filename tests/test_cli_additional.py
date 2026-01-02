@@ -555,7 +555,6 @@ class TestRunDiff:
         # Should exit 0 for improved/stable
         assert exit_code == 0
 
-    @pytest.mark.skip(reason="Source code has UnboundLocalError bug when file doesn't exist")
     def test_diff_baseline_not_found(
         self,
         sample_rtm_csv: Path,
@@ -581,7 +580,6 @@ class TestRunDiff:
         assert "Error" in captured.err or "Error" in captured.out
         assert exit_code == 1
 
-    @pytest.mark.skip(reason="Source code has UnboundLocalError bug when file doesn't exist")
     def test_diff_current_not_found(
         self,
         baseline_rtm_csv: Path,
@@ -707,7 +705,6 @@ class TestRunDeps:
     ) -> None:
         """Test deps command with non-existent requirement ID."""
         from rtmx.cli.deps import run_deps
-        from rtmx.models import RequirementNotFoundError
 
         exit_code = None
 
@@ -717,9 +714,11 @@ class TestRunDeps:
 
         monkeypatch.setattr(sys, "exit", mock_exit)
 
-        # Source code raises exception instead of catching and printing error
-        with pytest.raises(RequirementNotFoundError):
-            run_deps(sample_rtm_csv, category=None, phase=None, req_id="REQ-INVALID-999")
+        run_deps(sample_rtm_csv, category=None, phase=None, req_id="REQ-INVALID-999")
+
+        captured = capsys.readouterr()
+        assert "not found" in captured.out
+        assert exit_code == 1
 
     def test_deps_summary_statistics(
         self, sample_rtm_csv: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch

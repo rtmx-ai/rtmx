@@ -36,20 +36,22 @@ from rtmx.config import RTMXConfig
 @pytest.mark.technique_nominal
 @pytest.mark.env_simulation
 def test_run_init_creates_structure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test that run_init creates the expected directory structure."""
+    """Test that run_init creates the expected .rtmx/ directory structure."""
     monkeypatch.chdir(tmp_path)
 
     run_init(force=False)
 
-    # Check directories created
-    assert (tmp_path / "docs").exists()
-    assert (tmp_path / "docs" / "requirements").exists()
-    assert (tmp_path / "docs" / "requirements" / "EXAMPLE").exists()
+    # Check .rtmx/ directories created
+    assert (tmp_path / ".rtmx").exists()
+    assert (tmp_path / ".rtmx" / "requirements").exists()
+    assert (tmp_path / ".rtmx" / "requirements" / "EXAMPLE").exists()
+    assert (tmp_path / ".rtmx" / "cache").exists()
 
     # Check files created
-    assert (tmp_path / "docs" / "rtm_database.csv").exists()
-    assert (tmp_path / "rtmx.yaml").exists()
-    assert (tmp_path / "docs" / "requirements" / "EXAMPLE" / "REQ-EX-001.md").exists()
+    assert (tmp_path / ".rtmx" / "database.csv").exists()
+    assert (tmp_path / ".rtmx" / "config.yaml").exists()
+    assert (tmp_path / ".rtmx" / ".gitignore").exists()
+    assert (tmp_path / ".rtmx" / "requirements" / "EXAMPLE" / "REQ-EX-001.md").exists()
 
 
 @pytest.mark.req("REQ-CLI-001")
@@ -62,7 +64,7 @@ def test_run_init_sample_csv_content(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
     run_init(force=False)
 
-    csv_path = tmp_path / "docs" / "rtm_database.csv"
+    csv_path = tmp_path / ".rtmx" / "database.csv"
     content = csv_path.read_text()
 
     assert "req_id,category,subcategory" in content
@@ -82,7 +84,7 @@ def test_run_init_sample_requirement_content(
 
     run_init(force=False)
 
-    req_file = tmp_path / "docs" / "requirements" / "EXAMPLE" / "REQ-EX-001.md"
+    req_file = tmp_path / ".rtmx" / "requirements" / "EXAMPLE" / "REQ-EX-001.md"
     content = req_file.read_text()
 
     assert "# REQ-EX-001" in content
@@ -95,17 +97,17 @@ def test_run_init_sample_requirement_content(
 @pytest.mark.technique_nominal
 @pytest.mark.env_simulation
 def test_run_init_config_file_content(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test that run_init creates valid config file."""
+    """Test that run_init creates valid config file in .rtmx/."""
     monkeypatch.chdir(tmp_path)
 
     run_init(force=False)
 
-    config_file = tmp_path / "rtmx.yaml"
+    config_file = tmp_path / ".rtmx" / "config.yaml"
     content = config_file.read_text()
 
     assert "rtmx:" in content
-    assert "database: docs/rtm_database.csv" in content
-    assert "requirements_dir: docs/requirements" in content
+    assert "database: .rtmx/database.csv" in content
+    assert "requirements_dir: .rtmx/requirements" in content
 
 
 @pytest.mark.req("REQ-CLI-001")
@@ -115,12 +117,11 @@ def test_run_init_config_file_content(tmp_path: Path, monkeypatch: pytest.Monkey
 def test_run_init_existing_files_without_force(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Test that run_init exits when files exist and force=False."""
+    """Test that run_init exits when .rtmx/ exists and force=False."""
     monkeypatch.chdir(tmp_path)
 
-    # Create existing files
-    (tmp_path / "docs").mkdir(parents=True, exist_ok=True)
-    (tmp_path / "docs" / "rtm_database.csv").write_text("existing")
+    # Create existing .rtmx directory
+    (tmp_path / ".rtmx").mkdir(parents=True, exist_ok=True)
 
     with pytest.raises(SystemExit) as exc_info:
         run_init(force=False)
@@ -138,15 +139,14 @@ def test_run_init_existing_files_with_force(
     """Test that run_init overwrites files when force=True."""
     monkeypatch.chdir(tmp_path)
 
-    # Create existing files
-    (tmp_path / "docs").mkdir(parents=True, exist_ok=True)
-    (tmp_path / "docs" / "rtm_database.csv").write_text("existing")
-    (tmp_path / "rtmx.yaml").write_text("old config")
+    # Create existing .rtmx directory with files
+    (tmp_path / ".rtmx").mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".rtmx" / "database.csv").write_text("existing")
 
     run_init(force=True)
 
     # Files should be overwritten
-    csv_content = (tmp_path / "docs" / "rtm_database.csv").read_text()
+    csv_content = (tmp_path / ".rtmx" / "database.csv").read_text()
     assert "REQ-EX-001" in csv_content
     assert "existing" not in csv_content
 
@@ -167,6 +167,26 @@ def test_run_init_prints_instructions(
     assert "RTM initialized successfully" in captured.out
     assert "Next steps:" in captured.out
     assert "rtmx status" in captured.out
+
+
+@pytest.mark.req("REQ-CLI-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_run_init_legacy_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that run_init with use_rtmx_dir=False creates legacy structure."""
+    monkeypatch.chdir(tmp_path)
+
+    run_init(force=False, use_rtmx_dir=False)
+
+    # Check legacy directories created
+    assert (tmp_path / "docs").exists()
+    assert (tmp_path / "docs" / "requirements").exists()
+    assert (tmp_path / "docs" / "rtm_database.csv").exists()
+    assert (tmp_path / "rtmx.yaml").exists()
+
+    # Check .rtmx does NOT exist
+    assert not (tmp_path / ".rtmx").exists()
 
 
 # =============================================================================

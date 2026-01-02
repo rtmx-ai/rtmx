@@ -37,6 +37,7 @@ def run_diff(
             f"{Colors.RED}Error: Baseline not found: {baseline_path}{Colors.RESET}", file=sys.stderr
         )
         sys.exit(1)
+        return  # Unreachable, but needed for mocked sys.exit in tests
 
     if not current_path.exists():
         print(
@@ -44,6 +45,7 @@ def run_diff(
             file=sys.stderr,
         )
         sys.exit(1)
+        return  # Unreachable, but needed for mocked sys.exit in tests
 
     # Compare databases
     try:

@@ -23,6 +23,7 @@ def run_cycles(rtm_csv: Path | None) -> None:
     except RTMError as e:
         print(f"{Colors.RED}Error: {e}{Colors.RESET}", file=sys.stderr)
         sys.exit(1)
+        return  # Unreachable, but needed for mocked sys.exit in tests
 
     print(header("Circular Dependency Analysis", "="))
     print()
