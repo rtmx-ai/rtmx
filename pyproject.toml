@@ -73,6 +73,7 @@ dev = [
     "build>=1.0",
     "twine>=4.0",
     "types-PyYAML>=6.0",
+    "pdoc>=14.0",
 ]
 
 [project.scripts]
