@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-01-02
+
+### Added
+- **Phase 3 Complete**: Architecture decisions formally documented
+  - 5 ADRs: CSV format, Click framework, lazy imports, markers, adapters
+  - API documentation generated with pdoc
+- **Phase 4 Complete**: Developer experience improvements
+  - `.rtmx/` directory structure for all artifacts (REQ-DX-001)
+  - Auto-migration from root configs to `.rtmx/` (REQ-DX-002)
+  - `rtmx setup --scaffold` for auto-generating requirement specs (REQ-DX-003)
+  - `rtmx docs` command for schema/config documentation (REQ-DX-004)
+  - `rtmx install --hooks` for git hook installation (REQ-DX-005)
+  - ADR-006 npm distribution trade study (REQ-DX-006)
+- Comprehensive test suite expansion:
+  - 55 E2E system tests (REQ-TEST-003)
+  - 20 adapter integration tests with mock HTTP servers (REQ-TEST-004)
+  - 108 Monte Carlo tests for graph algorithms (REQ-TEST-005)
+  - 26 sync E2E tests (REQ-TEST-007)
+  - 17 MCP server E2E tests (REQ-TEST-008)
+  - 18 performance/stress tests with 1000+ req databases (REQ-TEST-009)
+  - 33 migration tests (REQ-DX-002)
+  - 26 template rendering tests (REQ-DX-003)
+  - 31 docs command tests (REQ-DX-004)
+- Test marker CI enforcement at 80% threshold (REQ-QUAL-003)
+
+### Changed
+- All rtmx artifacts now default to `.rtmx/` directory
+- Config discovery prefers `.rtmx/rtmx.yaml` over root `rtmx.yaml`
+- Database discovery prefers `.rtmx/rtm_database.csv`
+
+### Fixed
+- UnboundLocalError bugs in 8 CLI files (missing return after sys.exit)
+- MCP availability check for reliable CI test skipping
+- Ruff version pinned to match pre-commit config
+
 ## [0.0.2] - 2025-12-06
 
 ### Added
@@ -67,6 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Security scanning (pip-audit, CodeQL)
 - E2E test suite for lifecycle management
 
-[Unreleased]: https://github.com/iotactical/rtmx/compare/v0.0.2...HEAD
+[Unreleased]: https://github.com/iotactical/rtmx/compare/v0.0.3...HEAD
+[0.0.3]: https://github.com/iotactical/rtmx/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/iotactical/rtmx/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/iotactical/rtmx/releases/tag/v0.0.1
