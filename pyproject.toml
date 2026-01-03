@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rtmx"
-version = "0.0.3"
+version = "0.0.4"
 description = "Requirements Traceability Matrix toolkit for GenAI-driven development"
 readme = "README.md"
 license = "Apache-2.0"
@@ -63,8 +63,17 @@ jira = [
 mcp = [
     "mcp>=0.1.0",
 ]
+tui = [
+    "textual>=0.47.0",
+]
+web = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "jinja2>=3.0",
+    "watchfiles>=0.21.0",
+]
 all = [
-    "rtmx[rich,agents,github,jira,mcp]",
+    "rtmx[rich,agents,github,jira,mcp,tui,web]",
 ]
 dev = [
     "pytest>=7.0",
@@ -78,6 +87,11 @@ dev = [
     "pdoc>=14.0",
     "jinja2>=3.0",
     "rich>=13.0",
+    "textual>=0.47.0",
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "watchfiles>=0.21.0",
+    "httpx>=0.27.0",  # For testing FastAPI
 ]
 
 [project.scripts]

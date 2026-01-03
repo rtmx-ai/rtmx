@@ -5,8 +5,10 @@ Displays RTM completion status with pytest-style verbosity levels.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
+import time
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -24,11 +26,36 @@ from rtmx.formatting import (
 from rtmx.models import RTMDatabase, RTMError, Status
 
 
+def get_file_mtime(path: Path) -> float | None:
+    """Get file modification time.
+
+    Args:
+        path: Path to file
+
+    Returns:
+        Modification time as float, or None if file doesn't exist
+    """
+    try:
+        return path.stat().st_mtime
+    except (OSError, FileNotFoundError):
+        return None
+
+
+def clear_screen() -> str:
+    """Return ANSI escape codes to clear screen and move cursor to top.
+
+    Returns:
+        ANSI escape sequence string
+    """
+    return "\033[2J\033[H"
+
+
 def run_status(
     rtm_csv: Path | None,
     verbosity: int,
     json_output: Path | None,
     use_rich: bool | None = None,
+    live: bool = False,
 ) -> None:
     """Run status command.
 
@@ -37,8 +64,14 @@ def run_status(
         verbosity: Verbosity level (0-3)
         json_output: Optional path for JSON export
         use_rich: Force rich output (True), plain output (False), or auto-detect (None)
+        live: Watch file and auto-refresh on changes
     """
     from rtmx.formatting import is_rich_available, render_rich_status
+
+    # Handle live mode
+    if live:
+        _run_live_status(rtm_csv, verbosity, use_rich)
+        return
 
     try:
         db = RTMDatabase.load(rtm_csv)
@@ -306,6 +339,10 @@ def _print_footer(
     completion_pct: float,
 ) -> None:
     """Print footer with phase breakdown."""
+    from rtmx.config import load_config
+
+    config = load_config()
+
     print(header("Phase Status", "="))
     print()
 
@@ -337,8 +374,10 @@ def _print_footer(
         else:
             status = f"{Colors.RED}✗ Not Started{Colors.RESET}"
 
+        # Use phase display with name if available
+        phase_display = config.get_phase_display(phase)
         print(
-            f"Phase {phase}:  {format_percentage(phase_pct)}  {status}  "
+            f"{phase_display}:  {format_percentage(phase_pct)}  {status}  "
             f"{Colors.DIM}({phase_complete}✓ {phase_partial}⚠ {phase_missing}✗){Colors.RESET}"
         )
 
@@ -408,3 +447,74 @@ def _export_json(db: RTMDatabase, path: Path, completion_pct: float) -> None:
         json.dump(data, f, indent=2)
 
     print(f"{Colors.GREEN}✅ JSON exported: {path}{Colors.RESET}")
+
+
+def _run_live_status(
+    rtm_csv: Path | None,
+    verbosity: int,
+    use_rich: bool | None,
+) -> None:
+    """Run status in live mode, watching for file changes.
+
+    Args:
+        rtm_csv: Path to RTM CSV or None to auto-discover
+        verbosity: Verbosity level (0-3)
+        use_rich: Force rich output (True), plain output (False), or auto-detect (None)
+    """
+    from rtmx.config import load_config
+
+    # Resolve the RTM CSV path
+    if rtm_csv is None:
+        config = load_config()
+        resolved_path = config.database
+        if resolved_path is None or not resolved_path.exists():
+            print(
+                f"{Colors.RED}Error: Could not find RTM database. "
+                f"Run 'rtmx init' or specify --rtm-csv{Colors.RESET}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+            return
+    else:
+        resolved_path = rtm_csv
+
+    print(f"{Colors.CYAN}Watching {resolved_path} for changes...{Colors.RESET}")
+    print(f"{Colors.DIM}Press Ctrl+C to exit{Colors.RESET}")
+    print()
+
+    last_mtime: float | None = None
+
+    try:
+        while True:
+            current_mtime = get_file_mtime(resolved_path)
+
+            # Render if file changed or first run
+            if current_mtime != last_mtime:
+                # Clear screen
+                print(clear_screen(), end="")
+
+                # Run regular status (non-live, suppress exit)
+                with contextlib.suppress(SystemExit):
+                    run_status(
+                        rtm_csv=resolved_path,
+                        verbosity=verbosity,
+                        json_output=None,
+                        use_rich=use_rich,
+                        live=False,
+                    )
+
+                # Show timestamp and watch message
+                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                print()
+                print(f"{Colors.DIM}Last updated: {now}{Colors.RESET}")
+                print(f"{Colors.CYAN}Watching for changes... (Ctrl+C to exit){Colors.RESET}")
+
+                last_mtime = current_mtime
+
+            # Poll interval - check every 0.5 seconds for responsive updates
+            time.sleep(0.5)
+
+    except KeyboardInterrupt:
+        print()
+        print(f"{Colors.GREEN}✓ Stopped watching{Colors.RESET}")
+        sys.exit(0)

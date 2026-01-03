@@ -36,6 +36,48 @@ def is_rich_available() -> bool:
     return _RICH_AVAILABLE
 
 
+def format_table(
+    data: list[list],
+    headers: list[str],
+    use_rich: bool | None = None,  # noqa: ARG001
+) -> str:
+    """Format tabular data with aligned columns using tabulate.
+
+    Always uses tabulate with grid format for consistent display.
+    The use_rich parameter is kept for API compatibility but ignored.
+
+    Args:
+        data: List of rows, each row is a list of cell values
+        headers: List of column header strings
+        use_rich: Ignored (kept for API compatibility)
+
+    Returns:
+        Formatted table string
+    """
+    return _format_tabulate_table(data, headers)
+
+
+def _format_tabulate_table(data: list[list], headers: list[str]) -> str:
+    """Format table using tabulate library."""
+    from tabulate import tabulate
+
+    # Strip any ANSI codes and Text objects for tabulate
+    clean_data = []
+    for row in data:
+        clean_row = []
+        for cell in row:
+            if isinstance(cell, str):
+                clean_row.append(cell)
+            elif hasattr(cell, "plain"):
+                # Rich Text object
+                clean_row.append(cell.plain)
+            else:
+                clean_row.append(str(cell) if cell is not None else "")
+        clean_data.append(clean_row)
+
+    return tabulate(clean_data, headers=headers, tablefmt="grid")
+
+
 class Colors:
     """ANSI color codes for terminal output."""
 

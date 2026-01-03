@@ -181,6 +181,7 @@ class RTMXConfig:
     database: Path = field(default_factory=lambda: Path("docs/rtm_database.csv"))
     requirements_dir: Path = field(default_factory=lambda: Path("docs/requirements"))
     schema: str = "core"
+    phases: dict[int, str] = field(default_factory=dict)
     pytest: PytestConfig = field(default_factory=PytestConfig)
     agents: AgentsConfig = field(default_factory=AgentsConfig)
     adapters: AdaptersConfig = field(default_factory=AdaptersConfig)
@@ -189,6 +190,67 @@ class RTMXConfig:
 
     # Path where config was loaded from (if any)
     _config_path: Path | None = None
+
+    def get_phase_name(self, phase_num: int | None) -> str:
+        """Get human-readable phase name.
+
+        Args:
+            phase_num: Phase number
+
+        Returns:
+            Phase name from config or "Phase N" if not defined
+        """
+        if phase_num is None:
+            return "N/A"
+        return self.phases.get(phase_num, f"Phase {phase_num}")
+
+    def get_phase_display(self, phase_num: int | None) -> str:
+        """Get phase display string with number and name.
+
+        Args:
+            phase_num: Phase number
+
+        Returns:
+            "Phase N (Name)" or "Phase N" if no name defined
+        """
+        if phase_num is None:
+            return "N/A"
+        name = self.phases.get(phase_num)
+        if name:
+            return f"Phase {phase_num} ({name})"
+        return f"Phase {phase_num}"
+
+    def resolve_phase(self, phase_arg: str | int | None) -> int | None:
+        """Resolve phase argument to phase number.
+
+        Accepts either a phase number or a phase name.
+
+        Args:
+            phase_arg: Phase number (int/str) or phase name (str)
+
+        Returns:
+            Phase number or None if not found
+        """
+        if phase_arg is None:
+            return None
+
+        # If it's already an int, return it
+        if isinstance(phase_arg, int):
+            return phase_arg
+
+        # Try parsing as int first
+        try:
+            return int(phase_arg)
+        except ValueError:
+            pass
+
+        # Search for phase by name (case-insensitive)
+        phase_lower = phase_arg.lower()
+        for num, name in self.phases.items():
+            if name.lower() == phase_lower:
+                return num
+
+        return None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], config_path: Path | None = None) -> RTMXConfig:
@@ -203,10 +265,20 @@ class RTMXConfig:
         """
         rtmx_data = data.get("rtmx", data)
 
+        # Parse phases - convert string keys to int
+        import contextlib
+
+        phases_raw = rtmx_data.get("phases", {})
+        phases = {}
+        for key, value in phases_raw.items():
+            with contextlib.suppress(ValueError, TypeError):
+                phases[int(key)] = str(value)
+
         config = cls(
             database=Path(rtmx_data.get("database", "docs/rtm_database.csv")),
             requirements_dir=Path(rtmx_data.get("requirements_dir", "docs/requirements")),
             schema=rtmx_data.get("schema", "core"),
+            phases=phases,
         )
 
         if "pytest" in rtmx_data:
@@ -225,7 +297,7 @@ class RTMXConfig:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert config to dictionary for serialization."""
-        return {
+        result: dict[str, Any] = {
             "rtmx": {
                 "database": str(self.database),
                 "requirements_dir": str(self.requirements_dir),
@@ -276,6 +348,10 @@ class RTMXConfig:
                 },
             }
         }
+        # Only include phases if defined
+        if self.phases:
+            result["rtmx"]["phases"] = self.phases
+        return result
 
 
 def find_config_file(start_path: Path | None = None) -> Path | None:

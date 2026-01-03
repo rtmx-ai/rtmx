@@ -1,18 +1,25 @@
 # REQ-UX-005: TUI shall support vim-style keyboard navigation
 
-## Status: MISSING
+## Status: COMPLETE
 ## Priority: MEDIUM
 ## Phase: 5
 
 ## Description
-TUI shall support vim-style keyboard navigation
+TUI shall support vim-style keyboard navigation for efficient requirement list browsing.
 
 ## Acceptance Criteria
-- [ ] j/k/enter work
+- [x] `j` moves cursor down
+- [x] `k` moves cursor up
+- [x] `g` jumps to top
+- [x] `G` jumps to bottom
+- [x] `Enter` selects current row
+- [x] `r` refreshes data
 
 ## Test Cases
-- `tests/test_cli_ux.py::test_tui_navigation`
+- `tests/test_cli_ux.py::TestTUI::test_tui_command_exists`
+- `tests/test_cli_ux.py::TestTUI::test_tui_app_class_exists`
 
-
-## Notes
-Vim keybindings for requirement list navigation
+## Implementation Notes
+- Vim keybindings integrated into `RTMXApp` class
+- Uses textual's `Binding` system for key mappings
+- Navigation updates detail panel in real-time

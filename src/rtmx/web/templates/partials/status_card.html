@@ -1,0 +1,28 @@
+<div class="status-card">
+    <div class="status-summary">
+        <div class="progress-ring">
+            <span class="percentage">{{ percentage }}%</span>
+        </div>
+        <div class="stats">
+            <div class="stat">
+                <span class="stat-value complete">{{ complete }}</span>
+                <span class="stat-label">Complete</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value partial">{{ partial }}</span>
+                <span class="stat-label">Partial</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value missing">{{ missing }}</span>
+                <span class="stat-label">Missing</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value total">{{ total }}</span>
+                <span class="stat-label">Total</span>
+            </div>
+        </div>
+    </div>
+    <div class="progress-bar">
+        <div class="progress-fill" style="width: {{ percentage }}%"></div>
+    </div>
+</div>

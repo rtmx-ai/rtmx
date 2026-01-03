@@ -1,6 +1,6 @@
 # REQ-SCHEMA-001: RTM database shall support named phases
 
-## Status: MISSING
+## Status: COMPLETE
 ## Priority: HIGH
 ## Phase: 4
 
@@ -8,12 +8,12 @@
 RTM database shall support named phases, allowing phase numbers to be mapped to human-readable names. This provides meaningful context for project managers and stakeholders.
 
 ## Acceptance Criteria
-- [ ] rtmx.yaml supports phase definitions with names
-- [ ] Phase names displayed in status output instead of/alongside numbers
-- [ ] Phase names displayed in backlog output
-- [ ] Phase names displayed in rich progress output
-- [ ] Phase names optional - defaults to "Phase N" if not defined
-- [ ] CLI commands support --phase by name or number
+- [x] rtmx.yaml supports phase definitions with names
+- [x] Phase names displayed in status output instead of/alongside numbers
+- [x] Phase names displayed in backlog output
+- [x] Phase names displayed in rich progress output
+- [x] Phase names optional - defaults to "Phase N" if not defined
+- [x] CLI commands support --phase by name or number (via resolve_phase method)
 
 ## Configuration Schema
 
