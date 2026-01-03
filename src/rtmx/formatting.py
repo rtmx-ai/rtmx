@@ -11,7 +11,7 @@ This module provides consistent terminal output formatting:
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING
+from typing import IO, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from rtmx.models import Priority, Status
@@ -366,7 +366,7 @@ def render_rich_status(
     total: int,
     completion_pct: float,
     phase_stats: list[tuple[int, int, int, int, float]],
-    file: object | None = None,
+    file: IO[str] | None = None,
     width: int = 70,
 ) -> None:
     """Render status using rich library.
