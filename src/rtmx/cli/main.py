@@ -124,9 +124,9 @@ def status(
 )
 @click.option(
     "--view",
-    type=click.Choice(["all", "critical", "quick-wins", "blockers"]),
+    type=click.Choice(["all", "critical", "quick-wins", "blockers", "list"]),
     default="all",
-    help="View mode: all, critical (path), quick-wins, blockers",
+    help="View mode: all, critical (path), quick-wins, blockers, list",
 )
 @click.option(
     "--limit",
@@ -150,6 +150,8 @@ def backlog(ctx: click.Context, phase: int | None, view: str, limit: int) -> Non
       quick-wins - HIGH/P0 priority, ≤1 week effort, unblocked
 
       blockers   - Requirements that block others
+
+      list       - Complete list of all requirements for a phase
     """
     from rtmx.cli.backlog import BacklogView, run_backlog
 

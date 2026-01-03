@@ -221,3 +221,62 @@ class TestRichDetection:
         # Mock rich not being available
         with patch.object(formatting, "_RICH_AVAILABLE", False):
             assert formatting.is_rich_available() is False
+
+
+class TestBacklogListView:
+    """Tests for REQ-UX-007: Backlog list view."""
+
+    @pytest.fixture
+    def sample_rtm_csv(self, tmp_path: Path) -> Path:
+        """Create a sample RTM CSV for testing."""
+        csv_content = """req_id,category,subcategory,requirement_text,target_value,test_module,test_function,validation_method,status,priority,phase,notes,effort_weeks,dependencies,blocks,assignee,sprint,started_date,completed_date,requirement_file
+REQ-001,CORE,API,Core requirement 1,Target,tests/test.py,test_func,Unit Test,COMPLETE,HIGH,1,Note,1.0,,,,,,,
+REQ-002,CORE,API,Core requirement 2,Target,tests/test.py,test_func,Unit Test,MISSING,HIGH,1,Note,1.0,REQ-001,,,,,,
+REQ-003,CORE,API,Core requirement 3,Target,tests/test.py,test_func,Unit Test,MISSING,MEDIUM,2,Note,1.0,,,,,,,
+"""
+        csv_path = tmp_path / "rtm_database.csv"
+        csv_path.write_text(csv_content)
+        return csv_path
+
+    @pytest.mark.req("REQ-UX-007")
+    @pytest.mark.scope_unit
+    @pytest.mark.technique_nominal
+    @pytest.mark.env_simulation
+    def test_backlog_list_view_shows_all_phase_requirements(
+        self, sample_rtm_csv: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Test that list view shows ALL requirements for a phase."""
+        from rtmx.cli.backlog import BacklogView, run_backlog
+
+        with patch.object(sys, "exit"):
+            run_backlog(sample_rtm_csv, phase=1, view=BacklogView.LIST, limit=10)
+
+        captured = capsys.readouterr()
+        output = captured.out
+
+        # Should show phase in title
+        assert "Phase 1" in output
+        # Should show both complete and incomplete requirements
+        assert "REQ-001" in output  # Complete
+        assert "REQ-002" in output  # Incomplete
+        # Should NOT show phase 2 requirements
+        assert "REQ-003" not in output
+        # Should show completion stats
+        assert "complete" in output.lower()
+
+    @pytest.mark.req("REQ-UX-007")
+    @pytest.mark.scope_unit
+    @pytest.mark.technique_nominal
+    @pytest.mark.env_simulation
+    def test_backlog_list_view_cli(self, sample_rtm_csv: Path) -> None:
+        """Test that --view list works via CLI."""
+        from rtmx.cli.main import main
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main, ["--rtm-csv", str(sample_rtm_csv), "backlog", "--view", "list", "--phase", "1"]
+        )
+
+        # Should show all phase 1 requirements
+        assert "REQ-001" in result.output
+        assert "REQ-002" in result.output
