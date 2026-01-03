@@ -23,6 +23,7 @@ class BacklogView(str, Enum):
     CRITICAL = "critical"
     QUICK_WINS = "quick-wins"
     BLOCKERS = "blockers"
+    LIST = "list"
 
 
 def run_backlog(
@@ -36,7 +37,7 @@ def run_backlog(
     Args:
         rtm_csv: Path to RTM CSV or None to auto-discover
         phase: Optional phase filter
-        view: View mode (all, critical, quick-wins, blockers)
+        view: View mode (all, critical, quick-wins, blockers, list)
         limit: Max items to show in summary views
     """
     try:
@@ -51,6 +52,15 @@ def run_backlog(
     incomplete = [
         req for req in db if req.status in (Status.MISSING, Status.PARTIAL, Status.NOT_STARTED)
     ]
+
+    # For LIST view with phase filter, show ALL requirements (complete + incomplete)
+    if view == BacklogView.LIST and phase is not None:
+        phase_reqs = [req for req in all_reqs if req.phase == phase]
+        if not phase_reqs:
+            print(f"{Colors.YELLOW}No requirements found for Phase {phase}{Colors.RESET}")
+            sys.exit(0)
+        _show_list(phase_reqs, phase)
+        return
 
     # Filter by phase if specified
     if phase is not None:
@@ -77,6 +87,9 @@ def run_backlog(
         _show_quick_wins(incomplete, blocking_counts, phase, limit)
     elif view == BacklogView.BLOCKERS:
         _show_blockers(incomplete, blocking_counts, phase, limit)
+    elif view == BacklogView.LIST:
+        # LIST view without phase filter shows all incomplete
+        _show_list(incomplete, phase)
     else:
         _show_all(all_reqs, incomplete, blocking_counts, phase, limit)
 
@@ -363,3 +376,75 @@ def _show_blockers(
     print(
         f"{Colors.YELLOW}{len(blockers)} requirements blocking {total_blocked} others{Colors.RESET}"
     )
+
+
+def _show_list(
+    requirements: list,
+    phase: int | None,
+) -> None:
+    """Show complete list of all requirements.
+
+    When phase is specified, shows ALL requirements (complete + incomplete).
+    Otherwise shows only incomplete requirements.
+    """
+    # Calculate stats
+    complete = sum(1 for r in requirements if r.status == Status.COMPLETE)
+    partial = sum(1 for r in requirements if r.status == Status.PARTIAL)
+    incomplete = len(requirements) - complete - partial
+    total = len(requirements)
+    pct = (complete / total * 100) if total > 0 else 0
+
+    # Title
+    if phase is not None:
+        title = f"Phase {phase}: All Requirements"
+    else:
+        title = "All Incomplete Requirements"
+    print(header(title, "="))
+    print()
+
+    # Summary
+    print(f"Total: {total} requirements | ", end="")
+    print(f"{Colors.GREEN}{complete} complete ({pct:.1f}%){Colors.RESET} | ", end="")
+    print(f"{Colors.RED}{incomplete + partial} incomplete{Colors.RESET}")
+    print()
+
+    # Sort: incomplete first (by priority), then complete (by ID)
+    def sort_key(req):
+        status_order = {
+            Status.MISSING: 0,
+            Status.NOT_STARTED: 1,
+            Status.PARTIAL: 2,
+            Status.COMPLETE: 3,
+        }
+        priority_order = {
+            Priority.P0: 0,
+            Priority.HIGH: 1,
+            Priority.MEDIUM: 2,
+            Priority.LOW: 3,
+        }
+        return (status_order.get(req.status, 4), priority_order.get(req.priority, 4), req.req_id)
+
+    sorted_reqs = sorted(requirements, key=sort_key)
+
+    # Build table
+    table_data = []
+    for i, req in enumerate(sorted_reqs, 1):
+        # Format dependencies (convert set to sorted list)
+        deps = sorted(req.dependencies) if req.dependencies else []
+        deps_str = ", ".join(deps[:2]) if deps else "-"
+        if len(deps) > 2:
+            deps_str += f" +{len(deps) - 2}"
+
+        table_data.append(
+            [
+                i,
+                _format_status(req.status),
+                req.req_id,
+                _truncate(req.requirement_text, 40),
+                _format_effort(req.effort_weeks),
+                deps_str,
+            ]
+        )
+
+    headers = ["#", "Status", "Requirement", "Description", "Effort", "Depends On"]
+    print(tabulate(table_data, headers=headers, tablefmt="grid"))
