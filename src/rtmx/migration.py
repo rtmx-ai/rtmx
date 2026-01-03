@@ -22,6 +22,9 @@ NEW_DATABASE_NAME = "database.csv"
 LEGACY_REQUIREMENTS_PATH = Path("docs/requirements")
 NEW_REQUIREMENTS_DIR = "requirements"
 
+# Skip marker file - created when user declines migration
+SKIP_MIGRATION_MARKER = ".rtmx-skip-migration"
+
 
 @dataclass
 class LegacyLayoutResult:
@@ -126,6 +129,11 @@ def should_migrate(root_path: Path, no_migrate: bool = False) -> bool:
     # Check environment variable
     env_no_migrate = os.environ.get("RTMX_NO_MIGRATE", "").lower()
     if env_no_migrate in ("1", "true", "yes"):
+        return False
+
+    # Check for skip marker (user previously declined migration)
+    skip_marker = root_path / SKIP_MIGRATION_MARKER
+    if skip_marker.exists():
         return False
 
     # Check if migration is needed
@@ -418,10 +426,30 @@ def migrate_layout(root_path: Path, confirm: bool = False) -> MigrationResult:
     return result
 
 
+def create_skip_marker(root_path: Path) -> Path:
+    """Create a skip marker file to prevent future migration prompts.
+
+    Args:
+        root_path: Project root directory
+
+    Returns:
+        Path to created marker file
+    """
+    skip_marker = root_path / SKIP_MIGRATION_MARKER
+    skip_marker.write_text(
+        "# This file prevents rtmx from prompting for migration.\n"
+        "# Delete this file to be prompted again, or run:\n"
+        "#   rtmx migrate\n"
+        "# to migrate manually.\n"
+    )
+    return skip_marker
+
+
 def prompt_for_migration(root_path: Path) -> bool:
     """Display migration prompt and get user confirmation.
 
     This function is meant to be called from the CLI layer.
+    If user declines, asks whether to remember this choice.
 
     Args:
         root_path: Project root directory
@@ -455,7 +483,16 @@ def prompt_for_migration(root_path: Path) -> bool:
     click.echo("  3. Update path references in config")
     click.echo()
 
-    return click.confirm("Proceed with migration?", default=True)
+    if click.confirm("Proceed with migration?", default=True):
+        return True
+
+    # User declined - ask if they want to remember this choice
+    click.echo()
+    if click.confirm("Don't ask again for this project?", default=True):
+        marker = create_skip_marker(root_path)
+        click.echo(f"Created {marker.name} - delete to be prompted again")
+
+    return False
 
 
 def run_migration_if_needed(

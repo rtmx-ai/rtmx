@@ -569,3 +569,101 @@ class TestMigrationEdgeCases:
 
         assert result.success is True
         assert (tmp_path / ".rtmx" / "config.yaml").exists()
+
+
+@pytest.mark.req("REQ-DX-002")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+class TestMigrationSkipMarker:
+    """Test skip marker file to remember user's decline choice."""
+
+    def test_skip_marker_suppresses_migration(self, tmp_path: Path) -> None:
+        """Skip marker file should suppress migration prompts."""
+        from rtmx.migration import SKIP_MIGRATION_MARKER, should_migrate
+
+        # Create legacy config
+        (tmp_path / "rtmx.yaml").write_text("rtmx:\n  database: docs/rtm_database.csv\n")
+
+        # Create skip marker
+        (tmp_path / SKIP_MIGRATION_MARKER).write_text("# Skip migration")
+
+        result = should_migrate(tmp_path, no_migrate=False)
+        assert result is False
+
+    def test_create_skip_marker_function(self, tmp_path: Path) -> None:
+        """create_skip_marker should create marker file with instructions."""
+        from rtmx.migration import SKIP_MIGRATION_MARKER, create_skip_marker
+
+        marker_path = create_skip_marker(tmp_path)
+
+        assert marker_path == tmp_path / SKIP_MIGRATION_MARKER
+        assert marker_path.exists()
+        content = marker_path.read_text()
+        assert "rtmx migrate" in content  # Should mention how to migrate manually
+
+    def test_prompt_creates_skip_marker_on_decline(self, tmp_path: Path) -> None:
+        """When user declines and confirms 'don't ask again', skip marker should be created."""
+        from rtmx.migration import SKIP_MIGRATION_MARKER, prompt_for_migration
+
+        # Create legacy config
+        (tmp_path / "rtmx.yaml").write_text("rtmx:\n  database: docs/rtm_database.csv\n")
+
+        # Mock: first confirm returns False (decline migration)
+        # Second confirm returns True (don't ask again)
+        with patch("click.confirm", side_effect=[False, True]):
+            with patch("click.echo"):  # Suppress output
+                result = prompt_for_migration(tmp_path)
+
+        assert result is False
+        assert (tmp_path / SKIP_MIGRATION_MARKER).exists()
+
+    def test_prompt_no_skip_marker_when_user_wants_reminder(self, tmp_path: Path) -> None:
+        """When user declines but wants to be asked again, no skip marker created."""
+        from rtmx.migration import SKIP_MIGRATION_MARKER, prompt_for_migration
+
+        # Create legacy config
+        (tmp_path / "rtmx.yaml").write_text("rtmx:\n  database: docs/rtm_database.csv\n")
+
+        # Mock: first confirm returns False (decline migration)
+        # Second confirm returns False (ask me again)
+        with patch("click.confirm", side_effect=[False, False]):
+            with patch("click.echo"):  # Suppress output
+                result = prompt_for_migration(tmp_path)
+
+        assert result is False
+        assert not (tmp_path / SKIP_MIGRATION_MARKER).exists()
+
+    def test_skip_marker_takes_precedence_over_legacy_detection(self, tmp_path: Path) -> None:
+        """Skip marker should prevent migration even with full legacy layout."""
+        from rtmx.migration import SKIP_MIGRATION_MARKER, should_migrate
+
+        # Create full legacy layout
+        (tmp_path / "rtmx.yaml").write_text("rtmx:\n  database: docs/rtm_database.csv\n")
+        docs_dir = tmp_path / "docs"
+        docs_dir.mkdir()
+        (docs_dir / "rtm_database.csv").write_text("req_id,category\nREQ-001,TEST\n")
+        req_dir = docs_dir / "requirements"
+        req_dir.mkdir()
+        (req_dir / "sample.md").write_text("# Sample")
+
+        # Create skip marker
+        (tmp_path / SKIP_MIGRATION_MARKER).write_text("# Skip migration")
+
+        result = should_migrate(tmp_path, no_migrate=False)
+        assert result is False
+
+    def test_deleting_skip_marker_enables_prompts(self, tmp_path: Path) -> None:
+        """After deleting skip marker, migration prompts should resume."""
+        from rtmx.migration import SKIP_MIGRATION_MARKER, should_migrate
+
+        # Create legacy config
+        (tmp_path / "rtmx.yaml").write_text("rtmx:\n  database: docs/rtm_database.csv\n")
+
+        # Create and then delete skip marker
+        skip_marker = tmp_path / SKIP_MIGRATION_MARKER
+        skip_marker.write_text("# Skip migration")
+        assert should_migrate(tmp_path) is False
+
+        skip_marker.unlink()
+        assert should_migrate(tmp_path) is True
