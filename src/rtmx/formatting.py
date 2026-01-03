@@ -5,6 +5,7 @@ This module provides consistent terminal output formatting:
 - Progress bars
 - Status indicators
 - Table formatting
+- Rich library integration (optional)
 """
 
 from __future__ import annotations
@@ -14,6 +15,25 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from rtmx.models import Priority, Status
+
+# Detect if rich library is available
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.text import Text
+
+    _RICH_AVAILABLE = True
+except ImportError:
+    _RICH_AVAILABLE = False
+
+
+def is_rich_available() -> bool:
+    """Check if the rich library is available.
+
+    Returns:
+        True if rich is installed and importable
+    """
+    return _RICH_AVAILABLE
 
 
 class Colors:
@@ -292,3 +312,127 @@ def format_phase(phase: int | None) -> str:
         color = Colors.RED
 
     return f"{color}[P{phase}]{Colors.RESET}"
+
+
+# Rich output functions (only available when rich is installed)
+
+
+def render_rich_status(
+    complete: int,
+    partial: int,
+    missing: int,
+    total: int,
+    completion_pct: float,
+    phase_stats: list[tuple[int, int, int, int, float]],
+    file: object | None = None,
+    width: int = 70,
+) -> None:
+    """Render status using rich library.
+
+    Args:
+        complete: Number of complete requirements
+        partial: Number of partial requirements
+        missing: Number of missing requirements
+        total: Total requirements
+        completion_pct: Overall completion percentage
+        phase_stats: List of (phase, complete, partial, missing, pct) tuples
+        file: Optional file to write to (for testing)
+        width: Panel width in characters (default 70 for 80-column terminals)
+    """
+    if not _RICH_AVAILABLE:
+        raise RuntimeError("rich library is not available")
+
+    console = Console(file=file, force_terminal=file is None, width=width + 4)
+
+    # Bar width leaves room for: "Overall: " (9) + " XX.X%" (6) = 15 chars + padding
+    bar_width = width - 20
+
+    # Overall status panel
+    overall_bar = _rich_progress_bar(complete, partial, missing, total, bar_width)
+    overall_text = Text()
+    overall_text.append("Overall: ")
+    overall_text.append(overall_bar)
+    overall_text.append(f" {completion_pct:5.1f}%\n\n")
+    overall_text.append(f"✓ {complete} complete  ", style="green")
+    overall_text.append(f"⚠ {partial} partial  ", style="yellow")
+    overall_text.append(f"✗ {missing} missing", style="red")
+
+    status_panel = Panel(
+        overall_text,
+        title="RTMX Status",
+        border_style="blue",
+        width=width,
+    )
+    console.print(status_panel)
+    console.print()
+
+    # Phase progress panel
+    if phase_stats:
+        # Bar width for phase: leaves room for "Phase XX: " (10) + " XXX.X% X  (Xc Xp Xm)" (~25)
+        phase_bar_width = width - 40
+
+        phase_lines = []
+        for phase_num, p_complete, p_partial, p_missing, p_pct in phase_stats:
+            p_total = p_complete + p_partial + p_missing
+            bar = _rich_progress_bar(p_complete, p_partial, p_missing, p_total, phase_bar_width)
+
+            # Status indicator
+            if p_missing == 0 and p_partial == 0 and p_total > 0:
+                status = "✓"
+                style = "green"
+            elif p_pct > 0:
+                status = "⚠"
+                style = "yellow"
+            else:
+                status = "✗"
+                style = "red"
+
+            line = Text()
+            line.append(f"Phase {phase_num:2d}: ", style="bold")
+            line.append(bar)
+            line.append(f" {p_pct:5.1f}% ")
+            line.append(status, style=style)
+            line.append(f"  ({p_complete}✓ {p_partial}⚠ {p_missing}✗)", style="dim")
+            phase_lines.append(line)
+
+        phase_text = Text("\n").join(phase_lines)
+        phase_panel = Panel(
+            phase_text,
+            title="Phase Progress",
+            border_style="cyan",
+            width=width,
+        )
+        console.print(phase_panel)
+
+
+def _rich_progress_bar(
+    complete: int, partial: int, _missing: int, total: int, width: int = 40
+) -> Text:
+    """Create a rich progress bar with colored segments.
+
+    Colors match the legend: green (complete), yellow (partial), red (missing).
+    The _missing parameter is unused but kept for API consistency with callers.
+
+    Args:
+        complete: Number of complete items
+        partial: Number of partial items
+        _missing: Number of missing items (unused, calculated from remainder)
+        total: Total items
+        width: Bar width in characters
+
+    Returns:
+        Rich Text object with colored progress bar
+    """
+    if total == 0:
+        return Text("░" * width, style="dim red")
+
+    complete_width = int((complete / total) * width)
+    partial_width = int((partial / total) * width)
+    remaining_width = width - complete_width - partial_width
+
+    bar = Text()
+    bar.append("█" * complete_width, style="green")
+    bar.append("█" * partial_width, style="yellow")
+    bar.append("░" * remaining_width, style="dim red")
+
+    return bar

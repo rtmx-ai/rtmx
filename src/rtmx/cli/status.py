@@ -28,6 +28,7 @@ def run_status(
     rtm_csv: Path | None,
     verbosity: int,
     json_output: Path | None,
+    use_rich: bool | None = None,
 ) -> None:
     """Run status command.
 
@@ -35,7 +36,10 @@ def run_status(
         rtm_csv: Path to RTM CSV or None to auto-discover
         verbosity: Verbosity level (0-3)
         json_output: Optional path for JSON export
+        use_rich: Force rich output (True), plain output (False), or auto-detect (None)
     """
+    from rtmx.formatting import is_rich_available, render_rich_status
+
     try:
         db = RTMDatabase.load(rtm_csv)
     except RTMError as e:
@@ -51,6 +55,53 @@ def run_status(
     total = len(db)
     completion_pct = db.completion_percentage()
 
+    # Determine if we should use rich output
+    should_use_rich = (
+        use_rich if use_rich is not None else (is_rich_available() and sys.stdout.isatty())
+    )
+
+    if should_use_rich and use_rich is True and not is_rich_available():
+        print(
+            f"{Colors.RED}Error: --rich requires the 'rich' library. Install with: pip install rtmx[rich]{Colors.RESET}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+        return
+
+    # Use rich output if available and requested
+    if should_use_rich and is_rich_available() and verbosity == 0:
+        # Calculate phase stats
+        by_phase: dict[int, dict[Status, int]] = {}
+        for req in db:
+            phase = req.phase or 0
+            if phase == 0:
+                continue
+            if phase not in by_phase:
+                by_phase[phase] = {}
+            by_phase[phase][req.status] = by_phase[phase].get(req.status, 0) + 1
+
+        phase_stats = []
+        for phase in sorted(by_phase.keys()):
+            phase_counts = by_phase[phase]
+            p_complete = phase_counts.get(Status.COMPLETE, 0)
+            p_partial = phase_counts.get(Status.PARTIAL, 0)
+            p_missing = phase_counts.get(Status.MISSING, 0) + phase_counts.get(
+                Status.NOT_STARTED, 0
+            )
+            p_total = p_complete + p_partial + p_missing
+            p_pct = ((p_complete + p_partial * 0.5) / p_total * 100) if p_total else 0
+            phase_stats.append((phase, p_complete, p_partial, p_missing, p_pct))
+
+        render_rich_status(complete, partial, missing, total, completion_pct, phase_stats)
+
+        # Export JSON if requested
+        if json_output:
+            _export_json(db, json_output, completion_pct)
+
+        sys.exit(0 if completion_pct >= 99 else 1)
+        return
+
+    # Plain output (original implementation)
     # Print header
     print(header("RTM Status Check", "="))
     print()
