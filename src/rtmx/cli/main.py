@@ -95,16 +95,25 @@ def main(
     type=click.Path(path_type=Path),
     help="Export status as JSON",
 )
+@click.option(
+    "--rich/--no-rich",
+    "use_rich",
+    default=None,
+    help="Force rich or plain output (auto-detects by default)",
+)
 @click.pass_context
-def status(ctx: click.Context, verbose: int, json_output: Path | None) -> None:
+def status(
+    ctx: click.Context, verbose: int, json_output: Path | None, use_rich: bool | None
+) -> None:
     """Show RTM status.
 
     Displays completion status with pytest-style verbosity levels.
+    Use --rich for enhanced terminal output with progress bars (requires rich library).
     """
     from rtmx.cli.status import run_status
 
     rtm_csv = ctx.obj.get("rtm_csv")
-    run_status(rtm_csv, verbose, json_output)
+    run_status(rtm_csv, verbose, json_output, use_rich)
 
 
 @main.command()
