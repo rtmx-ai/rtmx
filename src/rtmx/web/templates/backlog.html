@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Backlog - RTMX{% endblock %}
+
+{% block content %}
+<div class="backlog">
+    <h1>Backlog</h1>
+    <p class="subtitle">{{ total }} incomplete requirements</p>
+
+    <div class="requirements-table" hx-trigger="rtm-update from:body" hx-get="/backlog" hx-swap="outerHTML">
+        {% if requirements %}
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th>Priority</th>
+                    <th>Phase</th>
+                    <th>Effort</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in requirements %}
+                <tr class="priority-{{ req.priority|lower }}">
+                    <td class="req-id">{{ req.req_id }}</td>
+                    <td class="description">{{ req.description }}</td>
+                    <td>{{ req.category }}</td>
+                    <td class="priority {{ req.priority|lower }}">{{ req.priority }}</td>
+                    <td>{{ req.phase_display }}</td>
+                    <td>{% if req.effort_weeks %}{{ req.effort_weeks }}w{% else %}-{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>No incomplete requirements. All done!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

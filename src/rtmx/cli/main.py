@@ -101,19 +101,90 @@ def main(
     default=None,
     help="Force rich or plain output (auto-detects by default)",
 )
+@click.option(
+    "--live",
+    is_flag=True,
+    default=False,
+    help="Watch file and auto-refresh on changes",
+)
 @click.pass_context
 def status(
-    ctx: click.Context, verbose: int, json_output: Path | None, use_rich: bool | None
+    ctx: click.Context,
+    verbose: int,
+    json_output: Path | None,
+    use_rich: bool | None,
+    live: bool,
 ) -> None:
     """Show RTM status.
 
     Displays completion status with pytest-style verbosity levels.
     Use --rich for enhanced terminal output with progress bars (requires rich library).
+    Use --live to watch for file changes and auto-refresh.
     """
     from rtmx.cli.status import run_status
 
     rtm_csv = ctx.obj.get("rtm_csv")
-    run_status(rtm_csv, verbose, json_output, use_rich)
+    run_status(rtm_csv, verbose, json_output, use_rich, live)
+
+
+@main.command()
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    help="Bind address (default: 127.0.0.1)",
+)
+@click.option(
+    "--port",
+    type=int,
+    default=8080,
+    help="Port number (default: 8080)",
+)
+@click.option(
+    "--reload",
+    is_flag=True,
+    help="Enable auto-reload on code changes",
+)
+@click.pass_context
+def serve(
+    ctx: click.Context,
+    host: str,
+    port: int,
+    reload: bool,
+) -> None:
+    """Start the RTMX web dashboard server.
+
+    Launches a FastAPI server with real-time WebSocket updates.
+    The dashboard auto-refreshes when the RTM database changes.
+
+    Requires the web dependencies: pip install rtmx[web]
+
+    \b
+    Examples:
+        rtmx serve                      # Start on localhost:8080
+        rtmx serve --port 3000          # Custom port
+        rtmx serve --host 0.0.0.0       # Allow external connections
+        rtmx serve --reload             # Auto-reload on code changes
+    """
+    from rtmx.cli.serve import run_serve
+
+    rtm_csv = ctx.obj.get("rtm_csv")
+    run_serve(rtm_csv, host, port, reload)
+
+
+@main.command()
+@click.pass_context
+def tui(ctx: click.Context) -> None:
+    """Launch interactive TUI dashboard.
+
+    Provides a split-pane view with requirements list and detail panels.
+    Navigate with vim-style keys (j/k/g/G), press 'q' to quit.
+
+    Requires the textual library: pip install rtmx[tui]
+    """
+    from rtmx.cli.tui import run_tui
+
+    rtm_csv = ctx.obj.get("rtm_csv")
+    run_tui(rtm_csv)
 
 
 @main.command()

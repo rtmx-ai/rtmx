@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}RTMX Dashboard{% endblock %}</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/ws.js"></script>
+</head>
+<body hx-ext="ws" ws-connect="/ws">
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="/">RTMX</a>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="{% if request.url.path == '/' or request.url.path == '/dashboard' %}active{% endif %}">Dashboard</a>
+            <a href="/backlog" class="{% if request.url.path == '/backlog' %}active{% endif %}">Backlog</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>RTMX - Requirements Traceability Matrix</p>
+    </footer>
+
+    <script>
+        // Handle WebSocket updates - refresh relevant sections
+        document.body.addEventListener('htmx:wsAfterMessage', function(evt) {
+            try {
+                const data = JSON.parse(evt.detail.message);
+                if (data.event === 'rtm-update') {
+                    // Trigger HTMX refresh on elements listening for rtm-update
+                    htmx.trigger(document.body, 'rtm-update');
+                }
+            } catch (e) {
+                // Ignore non-JSON messages (like pong)
+            }
+        });
+
+        // Ping to keep WebSocket alive
+        setInterval(function() {
+            const ws = htmx.find('[ws-connect]');
+            if (ws && ws.__htmx_websocket) {
+                ws.__htmx_websocket.send('ping');
+            }
+        }, 30000);
+    </script>
+</body>
+</html>

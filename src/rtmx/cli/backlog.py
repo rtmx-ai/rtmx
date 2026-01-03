@@ -10,9 +10,7 @@ import sys
 from enum import Enum
 from pathlib import Path
 
-from tabulate import tabulate
-
-from rtmx.formatting import Colors, header
+from rtmx.formatting import Colors, format_table, header
 from rtmx.models import Priority, RTMDatabase, RTMError, Status
 
 
@@ -134,10 +132,14 @@ def _format_effort(effort: float | None) -> str:
 
 
 def _format_phase(phase: int | None) -> str:
-    """Format phase number."""
+    """Format phase with name if available."""
+    from rtmx.config import load_config
+
     if phase is None:
         return f"{Colors.DIM}-{Colors.RESET}"
-    return f"Phase {phase}"
+
+    config = load_config()
+    return config.get_phase_display(phase)
 
 
 def _truncate(text: str, max_len: int = 35) -> str:
@@ -193,7 +195,7 @@ def _show_all(
     phase: int | None,
     limit: int,
 ) -> None:
-    """Show combined view with Critical Path and Quick Wins sections."""
+    """Show combined view with Critical Path, Quick Wins, and Remaining sections."""
     # Print summary header
     _print_summary_header(all_reqs, incomplete, phase)
 
@@ -204,6 +206,11 @@ def _show_all(
 
     # Quick Wins section
     _show_quick_wins_section(incomplete, blocking_counts, limit)
+
+    print()
+
+    # Remaining Requirements section
+    _show_remaining_section(incomplete, blocking_counts)
 
 
 def _show_critical_path_section(
@@ -243,7 +250,7 @@ def _show_critical_path_section(
         )
 
     headers = ["#", "Status", "Requirement", "Description", "Effort", "Blocks", "Phase"]
-    print(tabulate(table_data, headers=headers, tablefmt="grid"))
+    print(format_table(table_data, headers))
 
 
 def _show_quick_wins_section(
@@ -293,7 +300,45 @@ def _show_quick_wins_section(
         )
 
     headers = ["#", "Status", "Requirement", "Description", "Effort", "Phase"]
-    print(tabulate(table_data, headers=headers, tablefmt="grid"))
+    print(format_table(table_data, headers))
+
+
+def _show_remaining_section(
+    incomplete: list,
+    _blocking_counts: dict[str, tuple[int, int]],
+) -> None:
+    """Show all remaining incomplete requirements."""
+    print(f"{Colors.BOLD}REMAINING REQUIREMENTS{Colors.RESET}")
+    print()
+
+    if not incomplete:
+        print(f"{Colors.GREEN}✓ No remaining requirements!{Colors.RESET}")
+        return
+
+    # Sort by phase, then priority, then ID
+    priority_order = {Priority.P0: 0, Priority.HIGH: 1, Priority.MEDIUM: 2, Priority.LOW: 3}
+    sorted_reqs = sorted(
+        incomplete,
+        key=lambda r: (r.phase or 99, priority_order.get(r.priority, 4), r.req_id),
+    )
+
+    # Build table
+    table_data = []
+    for i, req in enumerate(sorted_reqs, 1):
+        table_data.append(
+            [
+                i,
+                _format_status(req.status),
+                req.req_id,
+                _truncate(req.requirement_text),
+                _format_priority(req.priority),
+                _format_effort(req.effort_weeks),
+                _format_phase(req.phase),
+            ]
+        )
+
+    headers = ["#", "Status", "Requirement", "Description", "Priority", "Effort", "Phase"]
+    print(format_table(table_data, headers))
 
 
 def _show_critical_path(
@@ -368,7 +413,7 @@ def _show_blockers(
         )
 
     headers = ["#", "Status", "Requirement", "Description", "Effort", "Blocks", "Phase"]
-    print(tabulate(table_data, headers=headers, tablefmt="grid"))
+    print(format_table(table_data, headers))
 
     # Total blocked
     total_blocked = sum(t for t, _ in blocking_counts.values())
@@ -396,7 +441,11 @@ def _show_list(
 
     # Title
     if phase is not None:
-        title = f"Phase {phase}: All Requirements"
+        from rtmx.config import load_config
+
+        config = load_config()
+        phase_display = config.get_phase_display(phase)
+        title = f"{phase_display}: All Requirements"
     else:
         title = "All Incomplete Requirements"
     print(header(title, "="))
@@ -447,4 +496,4 @@ def _show_list(
         )
 
     headers = ["#", "Status", "Requirement", "Description", "Effort", "Depends On"]
-    print(tabulate(table_data, headers=headers, tablefmt="grid"))
+    print(format_table(table_data, headers))

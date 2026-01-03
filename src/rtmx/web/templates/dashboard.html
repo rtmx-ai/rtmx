@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - RTMX{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h1>Requirements Status</h1>
+
+    <div hx-trigger="rtm-update from:body" hx-get="/partials/status" hx-swap="innerHTML">
+        {% include "partials/status_card.html" %}
+    </div>
+
+    <h2>Phase Progress</h2>
+    <div hx-trigger="rtm-update from:body" hx-get="/partials/phases" hx-swap="innerHTML">
+        {% include "partials/phase_progress.html" %}
+    </div>
+</div>
+{% endblock %}

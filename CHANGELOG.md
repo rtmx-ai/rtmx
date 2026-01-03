@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-01-03
+
+### Added
+- **Phase 5 Complete**: CLI UX enhancements
+  - Rich progress bars and formatted output (REQ-UX-001, REQ-UX-002)
+  - `rtmx status --live` auto-refresh mode (REQ-UX-003)
+  - `rtmx tui` interactive Textual dashboard (REQ-UX-004, REQ-UX-005)
+  - Optional `rtmx[tui]` and `rtmx[rich]` dependencies (REQ-UX-006)
+  - Named phase support in config with display names (REQ-SCHEMA-001)
+- **Phase 6 Complete**: Web UI dashboard
+  - `rtmx serve` command starts FastAPI web server (REQ-WEB-001)
+  - REST API: `/api/status`, `/api/backlog`, `/api/requirements` (REQ-WEB-002-004)
+  - HTML dashboard with phase progress and backlog views (REQ-WEB-005-006)
+  - WebSocket support for real-time updates (REQ-WEB-007)
+  - Optional `rtmx[web]` dependency group (REQ-WEB-008)
+- 19 web UI tests covering all endpoints and WebSocket functionality
+
+### Changed
+- Backlog output now matches Phoenix format with summary header and sections
+- Phase display shows names from config (e.g., "Phase 6 (Web UI)")
+
+### Fixed
+- TUI module now handles missing textual dependency gracefully
+- TemplateResponse deprecation warnings fixed for FastAPI/Starlette
+
 ## [0.0.3] - 2026-01-02
 
 ### Added

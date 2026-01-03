@@ -1,0 +1,25 @@
+<div class="phase-list">
+    {% for phase in phases %}
+    <div class="phase-card {{ phase.status_class }}">
+        <div class="phase-header">
+            <span class="phase-icon">{{ phase.status_icon }}</span>
+            <span class="phase-name">{{ phase.display }}</span>
+            <span class="phase-percentage">{{ phase.percentage }}%</span>
+        </div>
+        <div class="phase-progress">
+            <div class="phase-bar">
+                <div class="phase-fill" style="width: {{ phase.percentage }}%"></div>
+            </div>
+        </div>
+        <div class="phase-stats">
+            <span class="complete" title="Complete">{{ phase.complete }}</span>
+            <span class="partial" title="Partial">{{ phase.partial }}</span>
+            <span class="missing" title="Missing">{{ phase.missing }}</span>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No phases defined</p>
+    </div>
+    {% endfor %}
+</div>

@@ -6,6 +6,21 @@ rtmx:
   requirements_dir: docs/requirements
   schema: core
 
+  # Phase names for human-readable display
+  phases:
+    1: "Foundation"
+    2: "Core Features"
+    3: "Testing"
+    4: "Developer Experience"
+    5: "CLI UX"
+    6: "Web UI"
+    7: "Real-Time"
+    8: "Website"
+    9: "CRDT"
+    10: "Collaboration"
+    11: "IDE Integration"
+    12: "Distribution"
+
   pytest:
     marker_prefix: "req"
     register_markers: true

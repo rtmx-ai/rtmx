@@ -654,3 +654,183 @@ def test_config_roundtrip(tmp_path):
     assert loaded.mcp.enabled == original.mcp.enabled
     assert loaded.mcp.port == original.mcp.port
     assert loaded.sync.conflict_resolution == original.sync.conflict_resolution
+
+
+# Phase names tests (REQ-SCHEMA-001)
+
+
+@pytest.mark.req("REQ-SCHEMA-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_rtmx_config_phases_default_empty():
+    """Test RTMXConfig phases defaults to empty dict."""
+    config = RTMXConfig()
+    assert config.phases == {}
+
+
+@pytest.mark.req("REQ-SCHEMA-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_rtmx_config_phases_from_dict():
+    """Test RTMXConfig loads phases from dict."""
+    data = {
+        "rtmx": {
+            "phases": {
+                1: "Foundation",
+                2: "Core Features",
+                3: "Testing",
+            }
+        }
+    }
+    config = RTMXConfig.from_dict(data)
+
+    assert config.phases == {1: "Foundation", 2: "Core Features", 3: "Testing"}
+
+
+@pytest.mark.req("REQ-SCHEMA-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_rtmx_config_phases_from_dict_string_keys():
+    """Test RTMXConfig handles string keys in phases (from YAML)."""
+    data = {
+        "rtmx": {
+            "phases": {
+                "1": "Foundation",
+                "2": "Core Features",
+            }
+        }
+    }
+    config = RTMXConfig.from_dict(data)
+
+    assert config.phases == {1: "Foundation", 2: "Core Features"}
+
+
+@pytest.mark.req("REQ-SCHEMA-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_get_phase_name_with_defined_name():
+    """Test get_phase_name returns defined name."""
+    config = RTMXConfig(phases={1: "Foundation", 2: "Core"})
+
+    assert config.get_phase_name(1) == "Foundation"
+    assert config.get_phase_name(2) == "Core"
+
+
+@pytest.mark.req("REQ-SCHEMA-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_get_phase_name_fallback():
+    """Test get_phase_name falls back to 'Phase N' when not defined."""
+    config = RTMXConfig(phases={1: "Foundation"})
+
+    assert config.get_phase_name(1) == "Foundation"
+    assert config.get_phase_name(5) == "Phase 5"
+    assert config.get_phase_name(None) == "N/A"
+
+
+@pytest.mark.req("REQ-SCHEMA-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_get_phase_display_with_name():
+    """Test get_phase_display includes phase number and name."""
+    config = RTMXConfig(phases={1: "Foundation", 2: "Core"})
+
+    assert config.get_phase_display(1) == "Phase 1 (Foundation)"
+    assert config.get_phase_display(2) == "Phase 2 (Core)"
+
+
+@pytest.mark.req("REQ-SCHEMA-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_get_phase_display_without_name():
+    """Test get_phase_display shows just 'Phase N' when not defined."""
+    config = RTMXConfig(phases={1: "Foundation"})
+
+    assert config.get_phase_display(1) == "Phase 1 (Foundation)"
+    assert config.get_phase_display(5) == "Phase 5"
+    assert config.get_phase_display(None) == "N/A"
+
+
+@pytest.mark.req("REQ-SCHEMA-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_resolve_phase_with_int():
+    """Test resolve_phase handles integer input."""
+    config = RTMXConfig(phases={1: "Foundation"})
+
+    assert config.resolve_phase(1) == 1
+    assert config.resolve_phase(5) == 5
+    assert config.resolve_phase(None) is None
+
+
+@pytest.mark.req("REQ-SCHEMA-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_resolve_phase_with_string_number():
+    """Test resolve_phase handles string number input."""
+    config = RTMXConfig(phases={1: "Foundation"})
+
+    assert config.resolve_phase("1") == 1
+    assert config.resolve_phase("5") == 5
+
+
+@pytest.mark.req("REQ-SCHEMA-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_resolve_phase_with_name():
+    """Test resolve_phase resolves phase by name."""
+    config = RTMXConfig(phases={1: "Foundation", 2: "Core Features", 5: "CLI UX"})
+
+    assert config.resolve_phase("Foundation") == 1
+    assert config.resolve_phase("Core Features") == 2
+    assert config.resolve_phase("CLI UX") == 5
+
+
+@pytest.mark.req("REQ-SCHEMA-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_resolve_phase_case_insensitive():
+    """Test resolve_phase is case insensitive for names."""
+    config = RTMXConfig(phases={1: "Foundation", 2: "Core Features"})
+
+    assert config.resolve_phase("foundation") == 1
+    assert config.resolve_phase("FOUNDATION") == 1
+    assert config.resolve_phase("core features") == 2
+
+
+@pytest.mark.req("REQ-SCHEMA-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_resolve_phase_unknown_name():
+    """Test resolve_phase returns None for unknown names."""
+    config = RTMXConfig(phases={1: "Foundation"})
+
+    assert config.resolve_phase("Unknown") is None
+    assert config.resolve_phase("Not a Phase") is None
+
+
+@pytest.mark.req("REQ-SCHEMA-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_phases_roundtrip(tmp_path):
+    """Test phases can be saved and loaded without loss."""
+    original = RTMXConfig(phases={1: "Foundation", 2: "Core", 5: "CLI UX", 10: "Collaboration"})
+
+    save_path = tmp_path / "config.yaml"
+    save_config(original, save_path)
+    loaded = load_config(save_path)
+
+    assert loaded.phases == original.phases
