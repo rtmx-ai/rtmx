@@ -108,7 +108,8 @@ const { title = "Terminal", command } = Astro.props;
   }
 
   .terminal-content {
-    white-space: pre;
+    white-space: pre-wrap;
+    word-break: break-word;
     overflow-x: auto;
   }
 

@@ -1,35 +1,37 @@
 ---
 // Custom Hero component for RTMX landing page
-// Overrides Starlight default hero for marketing content
+// Large hero illustration at top with closed-loop agent workflow
 import Terminal from './Terminal.astro';
 ---
 
-<div class="hero-section">
-  <div class="hero-content">
-    <h1 class="hero-title">Requirements That Trace Themselves</h1>
-    <p class="hero-subtitle">
-      Python-native requirements traceability for AI-driven development.
-      Connect your tests to requirements. Let agents discover your progress.
-    </p>
-
-    <div class="hero-buttons">
-      <a href="https://github.com/iotactical/rtmx" class="early-access-button" target="_blank" rel="noopener">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
-        </svg>
-        Star on GitHub
-      </a>
-      <a href="/rtmx/docs" class="hero-button primary">
-        Get Started
-      </a>
-      <a href="/rtmx/docs/quickstart" class="hero-button secondary">
-        Quickstart
-      </a>
-    </div>
+<!-- Full-width Hero Illustration -->
+<section class="hero-illustration-section">
+  <div class="hero-illustration-container">
+    <img src="/rtmx/hero-illustration.svg" alt="RTMX closed-loop workflow: AI Agent creates requirements, links to tests, reports status, agent queries via MCP" />
   </div>
+</section>
 
-  <div class="hero-illustration">
-    <img src="/rtmx/hero-illustration.svg" alt="RTMX traceability flow: Requirements to Tests to Status" />
+<!-- Hero Text Content -->
+<div class="hero-section">
+  <h1 class="hero-title">Requirements That Trace Themselves</h1>
+  <p class="hero-subtitle">
+    Python-native requirements traceability for AI-driven development.
+    Connect your tests to requirements. Let agents discover your progress.
+  </p>
+
+  <div class="hero-buttons">
+    <a href="https://github.com/iotactical/rtmx" class="early-access-button" target="_blank" rel="noopener">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+      </svg>
+      Star on GitHub
+    </a>
+    <a href="/rtmx/" class="hero-button primary">
+      Get Started
+    </a>
+    <a href="/rtmx/quickstart" class="hero-button secondary">
+      Quickstart
+    </a>
   </div>
 </div>
 
@@ -110,122 +112,215 @@ import Terminal from './Terminal.astro';
   </div>
 </section>
 
-<section style="padding: 3rem 2rem; text-align: center;">
-  <h2 style="color: var(--sl-color-white); margin-bottom: 1.5rem;">Quick Install</h2>
-  <Terminal title="Terminal" command="pip install rtmx && rtmx init && rtmx status">
-    <span style="color: #6b7280;">Installing rtmx...</span>
-<span style="color: #22c55e;">Successfully installed rtmx-0.0.2</span>
+<section class="install-section">
+  <h2>Quick Install</h2>
+  <div class="terminal-wrapper">
+    <Terminal title="Terminal" command="pip install rtmx">
+      <div class="terminal-output">
+<span class="dim">Installing rtmx...</span>
+<span class="success">Successfully installed rtmx-0.0.2</span>
+      </div>
+    </Terminal>
+  </div>
 
-<span style="color: #6b7280;">Initializing RTMX project...</span>
-<span style="color: #22c55e;">Created rtmx.yaml</span>
-<span style="color: #22c55e;">Created docs/rtm_database.csv</span>
-
-<span style="color: #10b981;">Ready! Run 'rtmx status' to see your requirements.</span>
-  </Terminal>
+  <div class="terminal-wrapper">
+    <Terminal title="Terminal" command="rtmx init">
+      <div class="terminal-output">
+<span class="dim">Initializing RTMX project...</span>
+<span class="success">Created rtmx.yaml</span>
+<span class="success">Created docs/rtm_database.csv</span>
+<span class="accent">Ready! Run 'rtmx status' to see your requirements.</span>
+      </div>
+    </Terminal>
+  </div>
 </section>
 
-<section style="padding: 3rem 2rem;">
-  <h2 style="color: var(--sl-color-white); text-align: center; margin-bottom: 2rem;">Why RTMX?</h2>
-  <table class="comparison-table">
-    <thead>
-      <tr>
-        <th>Feature</th>
-        <th>RTMX</th>
-        <th>Jira</th>
-        <th>Linear</th>
-        <th>Manual</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Test traceability</td>
-        <td class="check">Built-in</td>
-        <td class="cross">Plugin</td>
-        <td class="cross">No</td>
-        <td class="cross">Manual</td>
-      </tr>
-      <tr>
-        <td>pytest integration</td>
-        <td class="check">Native</td>
-        <td class="cross">No</td>
-        <td class="cross">No</td>
-        <td class="cross">No</td>
-      </tr>
-      <tr>
-        <td>AI agent support</td>
-        <td class="check">MCP</td>
-        <td class="cross">API only</td>
-        <td class="cross">API only</td>
-        <td class="cross">No</td>
-      </tr>
-      <tr>
-        <td>Git-friendly</td>
-        <td class="check">CSV</td>
-        <td class="cross">SaaS</td>
-        <td class="cross">SaaS</td>
-        <td class="check">Varies</td>
-      </tr>
-      <tr>
-        <td>Self-hosted</td>
-        <td class="check">Yes</td>
-        <td class="cross">$$$</td>
-        <td class="cross">No</td>
-        <td class="check">Yes</td>
-      </tr>
-      <tr>
-        <td>Open source</td>
-        <td class="check">MIT</td>
-        <td class="cross">No</td>
-        <td class="cross">No</td>
-        <td class="check">Varies</td>
-      </tr>
-    </tbody>
-  </table>
+<section class="comparison-section">
+  <h2>Why RTMX?</h2>
+  <div class="table-wrapper">
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>RTMX</th>
+          <th>Jira</th>
+          <th>Linear</th>
+          <th>Manual</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Test traceability</td>
+          <td class="check">Built-in</td>
+          <td class="cross">Plugin</td>
+          <td class="cross">No</td>
+          <td class="cross">Manual</td>
+        </tr>
+        <tr>
+          <td>pytest integration</td>
+          <td class="check">Native</td>
+          <td class="cross">No</td>
+          <td class="cross">No</td>
+          <td class="cross">No</td>
+        </tr>
+        <tr>
+          <td>AI agent support</td>
+          <td class="check">MCP</td>
+          <td class="cross">API only</td>
+          <td class="cross">API only</td>
+          <td class="cross">No</td>
+        </tr>
+        <tr>
+          <td>Git-friendly</td>
+          <td class="check">CSV</td>
+          <td class="cross">SaaS</td>
+          <td class="cross">SaaS</td>
+          <td class="check">Varies</td>
+        </tr>
+        <tr>
+          <td>Self-hosted</td>
+          <td class="check">Yes</td>
+          <td class="cross">$$$</td>
+          <td class="cross">No</td>
+          <td class="check">Yes</td>
+        </tr>
+        <tr>
+          <td>Open source</td>
+          <td class="check">MIT</td>
+          <td class="cross">No</td>
+          <td class="cross">No</td>
+          <td class="check">Varies</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </section>
 
-<footer style="padding: 2rem; text-align: center; border-top: 1px solid var(--sl-color-hairline-light);">
-  <p style="color: var(--sl-color-gray-4); font-size: 0.9rem;">
-    Built by <a href="https://iotactical.co" style="color: var(--sl-color-accent);">ioTACTICAL Engineering</a> |
-    <a href="mailto:engineering@iotactical.co" style="color: var(--sl-color-accent);">engineering@iotactical.co</a>
+<footer class="site-footer">
+  <p>
+    Built by <a href="https://iotactical.co">ioTACTICAL Engineering</a> |
+    <a href="mailto:engineering@iotactical.co">engineering@iotactical.co</a>
   </p>
 </footer>
 
 <style>
-  .hero-section {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    padding: 4rem 2rem;
+  /* Hero Illustration - Full width, large */
+  .hero-illustration-section {
+    width: 100%;
+    background: linear-gradient(180deg, #0a0a0a 0%, #0f0f0f 100%);
+    padding: 2rem 1rem 0;
+    overflow: hidden;
+  }
+
+  .hero-illustration-container {
     max-width: 1400px;
     margin: 0 auto;
-    align-items: center;
   }
 
-  .hero-content {
-    text-align: left;
-  }
-
-  .hero-illustration img {
+  .hero-illustration-container img {
     width: 100%;
-    max-width: 700px;
     height: auto;
+    display: block;
   }
 
+  /* Hero Text Section */
+  .hero-section {
+    text-align: center;
+    padding: 3rem 2rem 4rem;
+    background: linear-gradient(180deg, #0f0f0f 0%, #0a0a0a 100%);
+  }
+
+  .hero-title {
+    font-size: 3.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    background: linear-gradient(135deg, #10b981 0%, #6ee7b7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-subtitle {
+    font-size: 1.25rem;
+    color: #9ca3af;
+    margin-bottom: 2rem;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.6;
+  }
+
+  .hero-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .hero-button {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .hero-button.primary {
+    background: #10b981;
+    color: #0a0a0a;
+  }
+
+  .hero-button.primary:hover {
+    background: #6ee7b7;
+  }
+
+  .hero-button.secondary {
+    background: transparent;
+    color: #10b981;
+    border: 2px solid #10b981;
+  }
+
+  .hero-button.secondary:hover {
+    background: #10b981;
+    color: #0a0a0a;
+  }
+
+  .early-access-button {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: white;
+    font-weight: 700;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .early-access-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
+  }
+
+  /* Screenshot Section */
   .screenshot-section {
     padding: 4rem 2rem;
-    background: #0f0f0f;
+    background: #0a0a0a;
   }
 
   .screenshot-section h2 {
-    color: var(--sl-color-white);
+    color: #f9fafb;
     text-align: center;
-    margin-bottom: 2rem;
+    margin-bottom: 2.5rem;
     font-size: 2rem;
   }
 
   .screenshot-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 2rem;
     max-width: 1400px;
     margin: 0 auto;
@@ -238,27 +333,202 @@ import Terminal from './Terminal.astro';
   }
 
   .screenshot-caption {
-    color: var(--sl-color-gray-4);
+    color: #6b7280;
     text-align: center;
     font-size: 0.9rem;
   }
 
-  @media (max-width: 900px) {
-    .hero-section {
-      grid-template-columns: 1fr;
-      text-align: center;
-    }
+  /* Feature Grid */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    padding: 4rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #0f0f0f;
+  }
 
-    .hero-content {
-      text-align: center;
-    }
+  .feature-card {
+    background: #171717;
+    border: 1px solid #262626;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    transition: border-color 0.2s ease;
+  }
 
-    .hero-illustration {
-      order: -1;
-    }
+  .feature-card:hover {
+    border-color: #10b981;
+  }
 
+  .feature-card h3 {
+    color: #f9fafb;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+  }
+
+  .feature-card p {
+    color: #9ca3af;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  .feature-card code {
+    background: #262626;
+    color: #e5e7eb;
+    padding: 0.15em 0.4em;
+    border-radius: 0.25rem;
+    font-size: 0.85em;
+  }
+
+  /* Install Section */
+  .install-section {
+    padding: 4rem 2rem;
+    background: #0a0a0a;
+    text-align: center;
+  }
+
+  .install-section h2 {
+    color: #f9fafb;
+    margin-bottom: 2rem;
+    font-size: 2rem;
+  }
+
+  .terminal-wrapper {
+    max-width: 600px;
+    margin: 0 auto 1.5rem;
+  }
+
+  .terminal-output {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    text-align: left;
+  }
+
+  .terminal-output .dim {
+    color: #6b7280;
+  }
+
+  .terminal-output .success {
+    color: #22c55e;
+  }
+
+  .terminal-output .accent {
+    color: #10b981;
+  }
+
+  /* Comparison Section */
+  .comparison-section {
+    padding: 4rem 2rem;
+    background: #0f0f0f;
+  }
+
+  .comparison-section h2 {
+    color: #f9fafb;
+    text-align: center;
+    margin-bottom: 2rem;
+    font-size: 2rem;
+  }
+
+  .table-wrapper {
+    max-width: 900px;
+    margin: 0 auto;
+    overflow-x: auto;
+  }
+
+  .comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #171717;
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .comparison-table th,
+  .comparison-table td {
+    padding: 1rem 1.25rem;
+    text-align: left;
+    border-bottom: 1px solid #262626;
+  }
+
+  .comparison-table th {
+    background: #0f0f0f;
+    color: #f9fafb;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .comparison-table td {
+    color: #d1d5db;
+  }
+
+  .comparison-table .check {
+    color: #22c55e;
+    font-weight: 500;
+  }
+
+  .comparison-table .cross {
+    color: #6b7280;
+  }
+
+  /* Footer */
+  .site-footer {
+    padding: 2rem;
+    text-align: center;
+    border-top: 1px solid #262626;
+    background: #0a0a0a;
+  }
+
+  .site-footer p {
+    color: #6b7280;
+    font-size: 0.9rem;
+  }
+
+  .site-footer a {
+    color: #10b981;
+    text-decoration: none;
+  }
+
+  .site-footer a:hover {
+    text-decoration: underline;
+  }
+
+  /* Responsive */
+  @media (max-width: 1024px) {
     .screenshot-grid {
       grid-template-columns: 1fr;
+      max-width: 500px;
+    }
+
+    .feature-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .hero-title {
+      font-size: 2.25rem;
+    }
+
+    .hero-subtitle {
+      font-size: 1rem;
+    }
+
+    .hero-buttons {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .feature-grid {
+      grid-template-columns: 1fr;
+      padding: 2rem 1rem;
+    }
+
+    .comparison-table th,
+    .comparison-table td {
+      padding: 0.75rem;
+      font-size: 0.85rem;
     }
   }
 </style>
