@@ -447,9 +447,15 @@ import Terminal from './Terminal.astro';
 
   .comparison-table th,
   .comparison-table td {
-    padding: 1rem 1.25rem;
-    text-align: left;
+    padding: 0.75rem 1rem;
+    text-align: center;
     border-bottom: 1px solid #262626;
+    font-size: 0.9rem;
+  }
+
+  .comparison-table th:first-child,
+  .comparison-table td:first-child {
+    text-align: left;
   }
 
   .comparison-table th {
@@ -457,6 +463,9 @@ import Terminal from './Terminal.astro';
     color: #f9fafb;
     font-weight: 600;
     white-space: nowrap;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 
   .comparison-table td {
