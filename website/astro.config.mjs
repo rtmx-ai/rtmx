@@ -10,6 +10,9 @@ export default defineConfig({
 		starlight({
 			title: 'RTMX',
 			description: 'Requirements Traceability Matrix for Python - AI-native test traceability',
+			expressiveCode: {
+				frames: false,
+			},
 			social: [
 				{ icon: 'github', label: 'GitHub', href: 'https://github.com/iotactical/rtmx' },
 			],

@@ -1,25 +1,16 @@
 ---
 // Custom Hero component for RTMX landing page
 // Large hero illustration at top with closed-loop agent workflow
-import Terminal from './Terminal.astro';
 import TerminalCarousel from './TerminalCarousel.astro';
 ---
 
-<!-- Full-width Hero Illustration -->
-<section class="hero-illustration-section">
-  <div class="hero-illustration-container">
-    <img src="/rtmx/hero-illustration.svg" alt="RTMX closed-loop workflow: AI Agent creates requirements, links to tests, reports status, agent queries via MCP" />
-  </div>
-</section>
-
-<!-- Hero Text Content -->
-<div class="hero-section">
+<!-- Hero Title at Very Top -->
+<div class="hero-header">
   <h1 class="hero-title">Requirements That Trace Themselves</h1>
   <p class="hero-subtitle">
     Python-native requirements traceability for AI-driven development.
     Connect your tests to requirements. Let agents discover your progress.
   </p>
-
   <div class="hero-buttons">
     <a href="https://github.com/iotactical/rtmx" class="early-access-button" target="_blank" rel="noopener">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -35,6 +26,13 @@ import TerminalCarousel from './TerminalCarousel.astro';
     </a>
   </div>
 </div>
+
+<!-- Full-width Hero Illustration -->
+<section class="hero-illustration-section">
+  <div class="hero-illustration-container">
+    <img src="/rtmx/hero-illustration.svg" alt="RTMX closed-loop workflow: AI Agent creates requirements, links to tests, reports status, agent queries via MCP" />
+  </div>
+</section>
 
 <!-- Animated Terminal Carousel -->
 <TerminalCarousel />
@@ -87,29 +85,6 @@ import TerminalCarousel from './TerminalCarousel.astro';
       extend for your domain.
     </p>
   </a>
-</section>
-
-<section class="install-section">
-  <h2>Quick Install</h2>
-  <div class="terminal-wrapper">
-    <Terminal title="Terminal" command="pip install rtmx">
-      <div class="terminal-output">
-<span class="dim">Installing rtmx...</span>
-<span class="success">Successfully installed rtmx-0.0.2</span>
-      </div>
-    </Terminal>
-  </div>
-
-  <div class="terminal-wrapper">
-    <Terminal title="Terminal" command="rtmx init">
-      <div class="terminal-output">
-<span class="dim">Initializing RTMX project...</span>
-<span class="success">Created rtmx.yaml</span>
-<span class="success">Created docs/rtm_database.csv</span>
-<span class="accent">Ready! Run 'rtmx status' to see your requirements.</span>
-      </div>
-    </Terminal>
-  </div>
 </section>
 
 <section class="comparison-section">
@@ -181,30 +156,11 @@ import TerminalCarousel from './TerminalCarousel.astro';
 </footer>
 
 <style>
-  /* Hero Illustration - Full width, large */
-  .hero-illustration-section {
-    width: 100%;
-    background: linear-gradient(180deg, #0a0a0a 0%, #0f0f0f 100%);
-    padding: 2rem 1rem 0;
-    overflow: hidden;
-  }
-
-  .hero-illustration-container {
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-
-  .hero-illustration-container img {
-    width: 100%;
-    height: auto;
-    display: block;
-  }
-
-  /* Hero Text Section */
-  .hero-section {
+  /* Hero Header - Title at very top */
+  .hero-header {
     text-align: center;
-    padding: 3rem 2rem 4rem;
-    background: linear-gradient(180deg, #0f0f0f 0%, #0a0a0a 100%);
+    padding: 4rem 2rem 2rem;
+    background: linear-gradient(180deg, #0a0a0a 0%, #0f0f0f 100%);
   }
 
   .hero-title {
@@ -282,6 +238,25 @@ import TerminalCarousel from './TerminalCarousel.astro';
     box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
   }
 
+  /* Hero Illustration - Full width */
+  .hero-illustration-section {
+    width: 100%;
+    background: #0f0f0f;
+    padding: 2rem 1rem;
+    overflow: hidden;
+  }
+
+  .hero-illustration-container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .hero-illustration-container img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
   /* Feature Grid */
   .feature-grid {
     display: grid;
@@ -328,47 +303,10 @@ import TerminalCarousel from './TerminalCarousel.astro';
     font-size: 0.85em;
   }
 
-  /* Install Section */
-  .install-section {
-    padding: 4rem 2rem;
-    background: #0a0a0a;
-    text-align: center;
-  }
-
-  .install-section h2 {
-    color: #f9fafb;
-    margin-bottom: 2rem;
-    font-size: 2rem;
-  }
-
-  .terminal-wrapper {
-    max-width: 600px;
-    margin: 0 auto 1.5rem;
-  }
-
-  .terminal-output {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    text-align: left;
-  }
-
-  .terminal-output .dim {
-    color: #6b7280;
-  }
-
-  .terminal-output .success {
-    color: #22c55e;
-  }
-
-  .terminal-output .accent {
-    color: #10b981;
-  }
-
   /* Comparison Section */
   .comparison-section {
     padding: 4rem 2rem;
-    background: #0f0f0f;
+    background: #0a0a0a;
   }
 
   .comparison-section h2 {
@@ -379,7 +317,7 @@ import TerminalCarousel from './TerminalCarousel.astro';
   }
 
   .table-wrapper {
-    max-width: 900px;
+    max-width: 800px;
     margin: 0 auto;
     overflow-x: auto;
   }
@@ -390,26 +328,33 @@ import TerminalCarousel from './TerminalCarousel.astro';
     background: #171717;
     border-radius: 0.5rem;
     overflow: hidden;
+    table-layout: fixed;
   }
 
   .comparison-table th,
   .comparison-table td {
-    padding: 0.75rem 1rem;
+    padding: 1rem;
     text-align: center;
     border-bottom: 1px solid #262626;
     font-size: 0.9rem;
+    vertical-align: middle;
   }
 
   .comparison-table th:first-child,
   .comparison-table td:first-child {
     text-align: left;
+    width: 35%;
+  }
+
+  .comparison-table th:not(:first-child),
+  .comparison-table td:not(:first-child) {
+    width: 16.25%;
   }
 
   .comparison-table th {
     background: #0f0f0f;
     color: #f9fafb;
     font-weight: 600;
-    white-space: nowrap;
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -421,7 +366,7 @@ import TerminalCarousel from './TerminalCarousel.astro';
 
   .comparison-table .check {
     color: #22c55e;
-    font-weight: 500;
+    font-weight: 600;
   }
 
   .comparison-table .cross {
@@ -452,17 +397,16 @@ import TerminalCarousel from './TerminalCarousel.astro';
 
   /* Responsive */
   @media (max-width: 1024px) {
-    .screenshot-grid {
-      grid-template-columns: 1fr;
-      max-width: 500px;
-    }
-
     .feature-grid {
       grid-template-columns: repeat(2, 1fr);
     }
   }
 
   @media (max-width: 768px) {
+    .hero-header {
+      padding: 2rem 1rem;
+    }
+
     .hero-title {
       font-size: 2.25rem;
     }
@@ -481,10 +425,24 @@ import TerminalCarousel from './TerminalCarousel.astro';
       padding: 2rem 1rem;
     }
 
+    .comparison-table {
+      table-layout: auto;
+    }
+
     .comparison-table th,
     .comparison-table td {
-      padding: 0.75rem;
-      font-size: 0.85rem;
+      padding: 0.75rem 0.5rem;
+      font-size: 0.8rem;
+    }
+
+    .comparison-table th:first-child,
+    .comparison-table td:first-child {
+      width: auto;
+    }
+
+    .comparison-table th:not(:first-child),
+    .comparison-table td:not(:first-child) {
+      width: auto;
     }
   }
 </style>
