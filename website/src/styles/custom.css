@@ -1,27 +1,50 @@
 /* RTMX Custom Styles */
 
-/* Color palette - developer-focused dark aesthetic */
+/* Color palette - high-contrast dark with emerald accent */
 :root {
-  --sl-color-accent-low: #1e3a5f;
-  --sl-color-accent: #0ea5e9;
-  --sl-color-accent-high: #7dd3fc;
-  --sl-color-white: #ffffff;
-  --sl-color-gray-1: #f8fafc;
-  --sl-color-gray-2: #e2e8f0;
-  --sl-color-gray-3: #cbd5e1;
-  --sl-color-gray-4: #94a3b8;
-  --sl-color-gray-5: #64748b;
-  --sl-color-gray-6: #334155;
-  --sl-color-black: #0f172a;
+  --sl-color-accent-low: #064e3b;
+  --sl-color-accent: #10b981;
+  --sl-color-accent-high: #6ee7b7;
+  --sl-color-white: #f9fafb;
+  --sl-color-gray-1: #f3f4f6;
+  --sl-color-gray-2: #e5e7eb;
+  --sl-color-gray-3: #d1d5db;
+  --sl-color-gray-4: #9ca3af;
+  --sl-color-gray-5: #6b7280;
+  --sl-color-gray-6: #374151;
+  --sl-color-black: #111111;
 }
 
-/* Dark mode by default */
+/* Dark mode by default - true dark for contrast */
 :root {
-  --sl-color-bg: var(--sl-color-black);
-  --sl-color-bg-nav: #1e293b;
-  --sl-color-bg-sidebar: #1e293b;
-  --sl-color-hairline-light: #334155;
-  --sl-color-hairline: #475569;
+  --sl-color-bg: #0a0a0a;
+  --sl-color-bg-nav: #171717;
+  --sl-color-bg-sidebar: #171717;
+  --sl-color-hairline-light: #262626;
+  --sl-color-hairline: #404040;
+}
+
+/* Light mode overrides */
+:root[data-theme='light'] {
+  --sl-color-bg: #ffffff;
+  --sl-color-bg-nav: #f9fafb;
+  --sl-color-bg-sidebar: #f9fafb;
+  --sl-color-hairline-light: #e5e7eb;
+  --sl-color-hairline: #d1d5db;
+}
+
+/* Inline code - high contrast pill style */
+.sl-markdown-content :not(pre) > code {
+  background: #262626;
+  color: #e5e7eb;
+  padding: 0.2em 0.4em;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+:root[data-theme='light'] .sl-markdown-content :not(pre) > code {
+  background: #f3f4f6;
+  color: #1f2937;
 }
 
 /* Monospace typography for code-heavy content */
@@ -34,7 +57,7 @@
 .hero-section {
   text-align: center;
   padding: 4rem 2rem;
-  background: linear-gradient(135deg, var(--sl-color-black) 0%, #1e293b 100%);
+  background: linear-gradient(135deg, #0a0a0a 0%, #171717 100%);
   border-bottom: 1px solid var(--sl-color-hairline-light);
 }
 
@@ -42,7 +65,7 @@
   font-size: 3rem;
   font-weight: 700;
   margin-bottom: 1rem;
-  background: linear-gradient(135deg, #0ea5e9 0%, #22c55e 100%);
+  background: linear-gradient(135deg, #10b981 0%, #6ee7b7 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -124,15 +147,16 @@
 }
 
 .feature-card {
-  background: var(--sl-color-bg-nav);
-  border: 1px solid var(--sl-color-hairline-light);
+  background: #171717;
+  border: 1px solid #262626;
   border-radius: 0.75rem;
   padding: 1.5rem;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .feature-card:hover {
   border-color: var(--sl-color-accent);
+  background: #1f1f1f;
 }
 
 .feature-card h3 {
@@ -147,7 +171,7 @@
 
 /* Code blocks */
 .code-block {
-  background: #1e293b;
+  background: #171717;
   border: 1px solid var(--sl-color-hairline-light);
   border-radius: 0.5rem;
   padding: 1.5rem;
