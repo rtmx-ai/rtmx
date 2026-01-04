@@ -8,6 +8,9 @@ from rtmx.pytest.plugin import RequirementCoverage, RTMXPlugin, get_plugin
 class TestRequirementCoverage:
     """Tests for RequirementCoverage dataclass."""
 
+    @pytest.mark.scope_unit
+    @pytest.mark.technique_nominal
+    @pytest.mark.env_simulation
     def test_total(self):
         """Test total property calculation."""
         cov = RequirementCoverage(
@@ -18,11 +21,17 @@ class TestRequirementCoverage:
         )
         assert cov.total == 6
 
+    @pytest.mark.scope_unit
+    @pytest.mark.technique_nominal
+    @pytest.mark.env_simulation
     def test_status_missing(self):
         """Test status when no tests run."""
         cov = RequirementCoverage(req_id="REQ-TEST-001")
         assert cov.status == "MISSING"
 
+    @pytest.mark.scope_unit
+    @pytest.mark.technique_nominal
+    @pytest.mark.env_simulation
     def test_status_passing(self):
         """Test status when all tests pass."""
         cov = RequirementCoverage(
@@ -33,6 +42,9 @@ class TestRequirementCoverage:
         )
         assert cov.status == "PASSING"
 
+    @pytest.mark.scope_unit
+    @pytest.mark.technique_nominal
+    @pytest.mark.env_simulation
     def test_status_failing(self):
         """Test status when any test fails."""
         cov = RequirementCoverage(
@@ -43,6 +55,9 @@ class TestRequirementCoverage:
         )
         assert cov.status == "FAILING"
 
+    @pytest.mark.scope_unit
+    @pytest.mark.technique_nominal
+    @pytest.mark.env_simulation
     def test_status_skipped_only(self):
         """Test status when all tests skipped."""
         cov = RequirementCoverage(
@@ -57,11 +72,17 @@ class TestRequirementCoverage:
 class TestRTMXPlugin:
     """Tests for RTMXPlugin class."""
 
+    @pytest.mark.scope_unit
+    @pytest.mark.technique_nominal
+    @pytest.mark.env_simulation
     def test_init(self):
         """Test plugin initialization."""
         plugin = RTMXPlugin()
         assert len(plugin.coverage) == 0
 
+    @pytest.mark.scope_unit
+    @pytest.mark.technique_nominal
+    @pytest.mark.env_simulation
     def test_get_coverage_report_empty(self):
         """Test coverage report when empty."""
         plugin = RTMXPlugin()
@@ -76,6 +97,9 @@ class TestRTMXPlugin:
 class TestGetPlugin:
     """Tests for get_plugin function."""
 
+    @pytest.mark.scope_unit
+    @pytest.mark.technique_nominal
+    @pytest.mark.env_simulation
     def test_get_plugin_returns_instance(self):
         """Test that get_plugin returns the global instance."""
         plugin = get_plugin()
@@ -86,6 +110,9 @@ class TestGetPlugin:
 
 # Test with actual markers
 @pytest.mark.req("REQ-PLUGIN-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 def test_marker_registration():
     """Test that req marker is registered and usable."""
     assert True
@@ -104,10 +131,16 @@ def test_multiple_markers():
 class TestMarkerOnClass:
     """Test that markers work on test classes."""
 
+    @pytest.mark.scope_unit
+    @pytest.mark.technique_nominal
+    @pytest.mark.env_simulation
     def test_method_one(self):
         """First test method."""
         assert True
 
+    @pytest.mark.scope_unit
+    @pytest.mark.technique_nominal
+    @pytest.mark.env_simulation
     def test_method_two(self):
         """Second test method."""
         assert True

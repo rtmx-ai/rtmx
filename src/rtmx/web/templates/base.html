@@ -28,26 +28,69 @@
     </footer>
 
     <script>
-        // Handle WebSocket updates - refresh relevant sections
-        document.body.addEventListener('htmx:wsAfterMessage', function(evt) {
-            try {
-                const data = JSON.parse(evt.detail.message);
-                if (data.event === 'rtm-update') {
-                    // Trigger HTMX refresh on elements listening for rtm-update
-                    htmx.trigger(document.body, 'rtm-update');
-                }
-            } catch (e) {
-                // Ignore non-JSON messages (like pong)
-            }
-        });
+        // WebSocket reconnection with exponential backoff
+        (function() {
+            let reconnectDelay = 1000;  // Start with 1 second
+            const maxDelay = 5000;      // Max 5 seconds
+            let reconnectAttempts = 0;
 
-        // Ping to keep WebSocket alive
-        setInterval(function() {
-            const ws = htmx.find('[ws-connect]');
-            if (ws && ws.__htmx_websocket) {
-                ws.__htmx_websocket.send('ping');
+            function setupWebSocket() {
+                const wsUrl = (window.location.protocol === 'https:' ? 'wss://' : 'ws://')
+                    + window.location.host + '/ws';
+
+                const ws = new WebSocket(wsUrl);
+
+                ws.onopen = function() {
+                    console.log('WebSocket connected');
+                    reconnectDelay = 1000;  // Reset delay on successful connection
+                    reconnectAttempts = 0;
+                };
+
+                ws.onmessage = function(evt) {
+                    try {
+                        const data = JSON.parse(evt.data);
+                        if (data.event === 'rtm-update') {
+                            // Trigger HTMX refresh on elements listening for rtm-update
+                            htmx.trigger(document.body, 'rtm-update');
+                        }
+                    } catch (e) {
+                        // Ignore non-JSON messages (like pong)
+                    }
+                };
+
+                ws.onclose = function(evt) {
+                    console.log('WebSocket closed, reconnecting in ' + reconnectDelay + 'ms');
+                    setTimeout(function() {
+                        reconnectAttempts++;
+                        // Exponential backoff: 1s, 2s, 4s, 5s (capped)
+                        reconnectDelay = Math.min(reconnectDelay * 2, maxDelay);
+                        setupWebSocket();
+                    }, reconnectDelay);
+                };
+
+                ws.onerror = function(err) {
+                    console.error('WebSocket error:', err);
+                    ws.close();
+                };
+
+                // Store reference for ping
+                window._rtmxWebSocket = ws;
             }
-        }, 30000);
+
+            // Initialize WebSocket
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', setupWebSocket);
+            } else {
+                setupWebSocket();
+            }
+
+            // Ping to keep WebSocket alive
+            setInterval(function() {
+                if (window._rtmxWebSocket && window._rtmxWebSocket.readyState === WebSocket.OPEN) {
+                    window._rtmxWebSocket.send('ping');
+                }
+            }, 30000);
+        })();
     </script>
 </body>
 </html>

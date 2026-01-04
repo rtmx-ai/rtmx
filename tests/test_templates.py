@@ -76,7 +76,7 @@ def project_with_rtm(tmp_path: Path, sample_rtm_database: Path) -> Path:
 @pytest.mark.scope_unit
 @pytest.mark.technique_nominal
 @pytest.mark.env_simulation
-def test_default_template_exists():
+def test_default_template_exists() -> None:
     """Test that DEFAULT_TEMPLATE constant exists."""
     from rtmx.templates import DEFAULT_TEMPLATE
 

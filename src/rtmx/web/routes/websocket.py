@@ -73,3 +73,15 @@ async def notify_update() -> None:
     Called by the file watcher when the CSV changes.
     """
     await manager.broadcast({"event": "rtm-update"})
+
+
+async def notify_update_with_delta(delta: dict) -> None:
+    """Notify all connected clients with delta information.
+
+    Called by the file watcher when the CSV changes, providing
+    details about what specifically changed.
+
+    Args:
+        delta: Dictionary with 'changed', 'added', 'removed' lists
+    """
+    await manager.broadcast({"event": "rtm-update", "delta": delta})

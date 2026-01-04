@@ -17,6 +17,9 @@ import pytest
 from click.testing import CliRunner
 
 
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestRichProgressBars:
     """Tests for REQ-UX-001: Rich progress bars."""
 
@@ -127,6 +130,9 @@ REQ-004,FEATURE,UI,Feature requirement,Target,tests/test.py,test_func,Unit Test,
         assert "0.0%" in result  # Phase 2 is 0% complete
 
 
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestRichFallback:
     """Tests for REQ-UX-006: Graceful fallback without rich."""
 
@@ -198,6 +204,9 @@ REQ-002,CORE,API,Core requirement 2,Target,tests/test.py,test_func,Unit Test,MIS
         assert "╭" in result.output or "┌" in result.output
 
 
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestRichDetection:
     """Tests for rich library detection."""
 
@@ -225,6 +234,9 @@ class TestRichDetection:
             assert formatting.is_rich_available() is False
 
 
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestBacklogListView:
     """Tests for REQ-UX-007: Backlog list view."""
 
@@ -284,6 +296,9 @@ REQ-003,CORE,API,Core requirement 3,Target,tests/test.py,test_func,Unit Test,MIS
         assert "REQ-002" in result.output
 
 
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestTUI:
     """Tests for REQ-UX-004: Interactive TUI dashboard."""
 
@@ -361,6 +376,9 @@ REQ-002,CORE,API,Core requirement 2,Target,tests/test.py,test_func,Unit Test,MIS
             tui._TEXTUAL_AVAILABLE = original_available
 
 
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestLiveRefresh:
     """Tests for REQ-UX-003: Live auto-refresh."""
 
@@ -425,6 +443,9 @@ REQ-002,CORE,API,Core requirement 2,Target,tests/test.py,test_func,Unit Test,MIS
         assert "\033[" in result or result == ""
 
 
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
 class TestAlignedTables:
     """Tests for REQ-UX-002: Aligned fixed-width columns."""
 
