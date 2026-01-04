@@ -63,53 +63,53 @@ import Terminal from './Terminal.astro';
 </section>
 
 <section class="feature-grid">
-  <div class="feature-card">
+  <a href="/rtmx/reference/cli" class="feature-card">
     <h3>CLI-First</h3>
     <p>
       <code>rtmx status</code>, <code>rtmx backlog</code>, <code>rtmx health</code> -
       all your requirements management from the terminal.
     </p>
-  </div>
+  </a>
 
-  <div class="feature-card">
+  <a href="/rtmx/guides/pytest-markers" class="feature-card">
     <h3>Test Markers</h3>
     <p>
       Native pytest integration. Mark tests with <code>@pytest.mark.req("REQ-001")</code>
       and automatically trace coverage.
     </p>
-  </div>
+  </a>
 
-  <div class="feature-card">
+  <a href="/rtmx/adapters/mcp" class="feature-card">
     <h3>MCP Server</h3>
     <p>
       Let AI agents query your requirements. Claude, GPT, and any MCP-compatible
       client can discover project status.
     </p>
-  </div>
+  </a>
 
-  <div class="feature-card">
+  <a href="/rtmx/adapters" class="feature-card">
     <h3>Adapters</h3>
     <p>
       Sync to GitHub Issues, Jira, or keep it local. CSV is the canonical store -
       git-friendly and AI-parseable.
     </p>
-  </div>
+  </a>
 
-  <div class="feature-card">
+  <a href="/rtmx/guides/dependency-graph" class="feature-card">
     <h3>Dependency Graph</h3>
     <p>
       Detect cycles, find critical paths, analyze blockers.
       Tarjan's algorithm finds what's holding you back.
     </p>
-  </div>
+  </a>
 
-  <div class="feature-card">
+  <a href="/rtmx/reference/schema" class="feature-card">
     <h3>Schema Validation</h3>
     <p>
       Core schema with extensible fields. Phoenix, aerospace, medical -
       extend for your domain.
     </p>
-  </div>
+  </a>
 </section>
 
 <section class="install-section">
@@ -354,11 +354,14 @@ import Terminal from './Terminal.astro';
     border: 1px solid #262626;
     border-radius: 0.75rem;
     padding: 1.5rem;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+    text-decoration: none;
+    display: block;
   }
 
   .feature-card:hover {
     border-color: #10b981;
+    transform: translateY(-2px);
   }
 
   .feature-card h3 {
