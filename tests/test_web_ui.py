@@ -313,14 +313,122 @@ class TestWebSocket:
             assert data == "pong"
 
 
+class TestWebSocketConcurrent:
+    """Tests for concurrent WebSocket connections - Phase 7 readiness."""
+
+    @pytest.mark.req("REQ-WEB-007")
+    @pytest.mark.scope_integration
+    def test_multiple_connections(self, sample_rtm_csv):
+        """Multiple WebSocket clients can connect simultaneously."""
+        from fastapi.testclient import TestClient
+
+        from rtmx.web.app import create_app
+        from rtmx.web.routes.websocket import manager
+
+        app = create_app(sample_rtm_csv)
+        client = TestClient(app)
+
+        # Clear any existing connections
+        manager.active_connections.clear()
+
+        # Connect first client
+        with client.websocket_connect("/ws") as ws1:
+            assert len(manager.active_connections) == 1
+
+            # Connect second client
+            with client.websocket_connect("/ws") as ws2:
+                assert len(manager.active_connections) == 2
+
+                # Both can ping/pong independently
+                ws1.send_text("ping")
+                assert ws1.receive_text() == "pong"
+
+                ws2.send_text("ping")
+                assert ws2.receive_text() == "pong"
+
+            # Second disconnected
+            assert len(manager.active_connections) == 1
+
+        # Both disconnected
+        assert len(manager.active_connections) == 0
+
+    @pytest.mark.req("REQ-WEB-007")
+    @pytest.mark.scope_unit
+    async def test_broadcast_to_all_clients(self):
+        """Broadcast sends message to all connected clients."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from rtmx.web.routes.websocket import ConnectionManager
+
+        manager = ConnectionManager()
+
+        # Create mock websockets
+        ws1 = MagicMock()
+        ws1.send_json = AsyncMock()
+        ws2 = MagicMock()
+        ws2.send_json = AsyncMock()
+
+        # Manually add to connections (simulating accepted connections)
+        manager.active_connections = [ws1, ws2]
+
+        # Broadcast message
+        await manager.broadcast({"event": "rtm-update"})
+
+        # Both should receive the message
+        ws1.send_json.assert_called_once_with({"event": "rtm-update"})
+        ws2.send_json.assert_called_once_with({"event": "rtm-update"})
+
+    @pytest.mark.req("REQ-WEB-007")
+    @pytest.mark.scope_unit
+    async def test_broadcast_removes_disconnected_clients(self):
+        """Broadcast cleans up clients that fail to receive."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from rtmx.web.routes.websocket import ConnectionManager
+
+        manager = ConnectionManager()
+
+        # Create mock websockets - one fails
+        ws_good = MagicMock()
+        ws_good.send_json = AsyncMock()
+        ws_bad = MagicMock()
+        ws_bad.send_json = AsyncMock(side_effect=Exception("Connection closed"))
+
+        manager.active_connections = [ws_good, ws_bad]
+
+        # Broadcast - bad client should be removed
+        await manager.broadcast({"event": "test"})
+
+        # Good client received message
+        ws_good.send_json.assert_called_once()
+        # Bad client was removed
+        assert ws_bad not in manager.active_connections
+        assert len(manager.active_connections) == 1
+
+    @pytest.mark.req("REQ-WEB-007")
+    @pytest.mark.scope_unit
+    async def test_notify_update_broadcasts(self):
+        """notify_update() broadcasts rtm-update event."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from rtmx.web.routes import websocket
+
+        mock_manager = MagicMock()
+        mock_manager.broadcast = AsyncMock()
+
+        with patch.object(websocket, "manager", mock_manager):
+            await websocket.notify_update()
+
+        mock_manager.broadcast.assert_called_once_with({"event": "rtm-update"})
+
+
 class TestFileWatcher:
     """Tests for file watcher functionality."""
 
     @pytest.mark.req("REQ-WEB-007")
     @pytest.mark.scope_unit
-    def test_poll_watch_detects_changes(self, tmp_path):
+    async def test_poll_watch_detects_changes(self, tmp_path):
         """Polling watcher detects file changes."""
-
         from rtmx.web.watcher import _poll_watch
 
         test_file = tmp_path / "test.csv"
@@ -331,11 +439,169 @@ class TestFileWatcher:
         async def on_change():
             changes_detected.append(True)
 
-        async def run_test():
-            # Start watcher
-            watcher_task = asyncio.create_task(_poll_watch(test_file, on_change, 50))
+        # Start watcher
+        watcher_task = asyncio.create_task(_poll_watch(test_file, on_change, 50))
 
-            # Wait a bit for watcher to start
+        # Wait a bit for watcher to start
+        await asyncio.sleep(0.1)
+
+        # Modify file
+        test_file.write_text("modified")
+
+        # Wait for detection
+        await asyncio.sleep(0.2)
+
+        # Cancel watcher
+        watcher_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await watcher_task
+
+        # Should have detected the change
+        assert len(changes_detected) >= 1
+
+    @pytest.mark.req("REQ-WEB-007")
+    @pytest.mark.scope_unit
+    async def test_poll_watch_handles_missing_file(self, tmp_path):
+        """Polling watcher handles missing file gracefully."""
+        from rtmx.web.watcher import _poll_watch
+
+        test_file = tmp_path / "nonexistent.csv"
+
+        changes_detected = []
+
+        async def on_change():
+            changes_detected.append(True)
+
+        # Start watcher on non-existent file
+        watcher_task = asyncio.create_task(_poll_watch(test_file, on_change, 50))
+
+        # Wait a bit
+        await asyncio.sleep(0.1)
+
+        # Create the file
+        test_file.write_text("created")
+
+        # Wait for first poll to register the file
+        await asyncio.sleep(0.1)
+
+        # Modify it - this should trigger change detection
+        test_file.write_text("modified")
+
+        # Wait for detection
+        await asyncio.sleep(0.2)
+
+        # Cancel watcher
+        watcher_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await watcher_task
+
+        # Should have detected the change
+        assert len(changes_detected) >= 1
+
+    @pytest.mark.req("REQ-WEB-007")
+    @pytest.mark.scope_unit
+    async def test_poll_watch_multiple_changes(self, tmp_path):
+        """Polling watcher detects multiple sequential changes."""
+        from rtmx.web.watcher import _poll_watch
+
+        test_file = tmp_path / "test.csv"
+        test_file.write_text("v1")
+
+        changes_detected = []
+
+        async def on_change():
+            changes_detected.append(True)
+
+        # Start watcher with fast polling
+        watcher_task = asyncio.create_task(_poll_watch(test_file, on_change, 30))
+
+        # Wait for watcher to start
+        await asyncio.sleep(0.05)
+
+        # Make multiple changes
+        for i in range(3):
+            test_file.write_text(f"v{i+2}")
+            await asyncio.sleep(0.1)
+
+        # Cancel watcher
+        watcher_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await watcher_task
+
+        # Should have detected multiple changes
+        assert len(changes_detected) >= 2
+
+    @pytest.mark.req("REQ-WEB-007")
+    @pytest.mark.scope_integration
+    async def test_watch_rtm_file_with_watchfiles(self, tmp_path):
+        """watch_rtm_file uses watchfiles when available."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        test_file = tmp_path / "test.csv"
+        test_file.write_text("initial")
+
+        on_change = AsyncMock()
+
+        # Mock watchfiles.awatch to yield one change then stop
+        async def mock_awatch(*args, **kwargs):
+            yield [("modified", str(test_file))]
+
+        mock_watchfiles = MagicMock()
+        mock_watchfiles.awatch = mock_awatch
+
+        # Patch the import inside watch_rtm_file
+        with patch.dict("sys.modules", {"watchfiles": mock_watchfiles}):
+            # Need to reload the module to pick up the mock
+            import importlib
+
+            import rtmx.web.watcher
+
+            importlib.reload(rtmx.web.watcher)
+
+            # Run with timeout
+            with contextlib.suppress(asyncio.TimeoutError):
+                await asyncio.wait_for(
+                    rtmx.web.watcher.watch_rtm_file(test_file, on_change, debounce_ms=10),
+                    timeout=0.5,
+                )
+
+            # Reload to restore original
+            importlib.reload(rtmx.web.watcher)
+
+        # on_change should have been called
+        on_change.assert_called()
+
+    @pytest.mark.req("REQ-WEB-007")
+    @pytest.mark.scope_integration
+    async def test_watch_rtm_file_falls_back_to_polling(self, tmp_path):
+        """watch_rtm_file falls back to polling when watchfiles unavailable."""
+        import importlib
+
+        test_file = tmp_path / "test.csv"
+        test_file.write_text("initial")
+
+        changes_detected = []
+
+        async def on_change():
+            changes_detected.append(True)
+
+        # Make watchfiles import fail by removing it from sys.modules
+        import sys
+
+        original_watchfiles = sys.modules.get("watchfiles")
+        sys.modules["watchfiles"] = None  # This will cause ImportError
+
+        try:
+            # Reload to pick up the "missing" watchfiles
+            import rtmx.web.watcher
+
+            importlib.reload(rtmx.web.watcher)
+
+            watcher_task = asyncio.create_task(
+                rtmx.web.watcher.watch_rtm_file(test_file, on_change, debounce_ms=50)
+            )
+
+            # Wait for watcher
             await asyncio.sleep(0.1)
 
             # Modify file
@@ -344,14 +610,22 @@ class TestFileWatcher:
             # Wait for detection
             await asyncio.sleep(0.2)
 
-            # Cancel watcher
+            # Cancel
             watcher_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await watcher_task
+        finally:
+            # Restore original
+            if original_watchfiles is not None:
+                sys.modules["watchfiles"] = original_watchfiles
+            elif "watchfiles" in sys.modules:
+                del sys.modules["watchfiles"]
 
-        asyncio.run(run_test())
+            import rtmx.web.watcher
 
-        # Should have detected the change
+            importlib.reload(rtmx.web.watcher)
+
+        # Fallback should have worked
         assert len(changes_detected) >= 1
 
 

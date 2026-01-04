@@ -1,6 +1,6 @@
 # REQ-RT-005: Backlog view shall show agent activity in real-time
 
-## Status: MISSING
+## Status: COMPLETE
 ## Priority: HIGH
 ## Phase: 7
 

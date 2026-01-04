@@ -1,0 +1,231 @@
+/* RTMX Custom Styles */
+
+/* Color palette - developer-focused dark aesthetic */
+:root {
+  --sl-color-accent-low: #1e3a5f;
+  --sl-color-accent: #0ea5e9;
+  --sl-color-accent-high: #7dd3fc;
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #f8fafc;
+  --sl-color-gray-2: #e2e8f0;
+  --sl-color-gray-3: #cbd5e1;
+  --sl-color-gray-4: #94a3b8;
+  --sl-color-gray-5: #64748b;
+  --sl-color-gray-6: #334155;
+  --sl-color-black: #0f172a;
+}
+
+/* Dark mode by default */
+:root {
+  --sl-color-bg: var(--sl-color-black);
+  --sl-color-bg-nav: #1e293b;
+  --sl-color-bg-sidebar: #1e293b;
+  --sl-color-hairline-light: #334155;
+  --sl-color-hairline: #475569;
+}
+
+/* Monospace typography for code-heavy content */
+.sl-markdown-content code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', monospace;
+  font-size: 0.9em;
+}
+
+/* Hero section styling */
+.hero-section {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: linear-gradient(135deg, var(--sl-color-black) 0%, #1e293b 100%);
+  border-bottom: 1px solid var(--sl-color-hairline-light);
+}
+
+.hero-title {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #0ea5e9 0%, #22c55e 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  color: var(--sl-color-gray-3);
+  margin-bottom: 2rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.hero-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.hero-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.hero-button.primary {
+  background: var(--sl-color-accent);
+  color: var(--sl-color-black);
+}
+
+.hero-button.primary:hover {
+  background: var(--sl-color-accent-high);
+}
+
+.hero-button.secondary {
+  background: transparent;
+  color: var(--sl-color-accent);
+  border: 2px solid var(--sl-color-accent);
+}
+
+.hero-button.secondary:hover {
+  background: var(--sl-color-accent);
+  color: var(--sl-color-black);
+}
+
+/* Early Access button - prominent CTA */
+.early-access-button {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  font-weight: 700;
+  padding: 1rem 2rem;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.early-access-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
+}
+
+/* Feature grid */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  padding: 3rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.feature-card {
+  background: var(--sl-color-bg-nav);
+  border: 1px solid var(--sl-color-hairline-light);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  transition: border-color 0.2s ease;
+}
+
+.feature-card:hover {
+  border-color: var(--sl-color-accent);
+}
+
+.feature-card h3 {
+  color: var(--sl-color-white);
+  margin-bottom: 0.5rem;
+}
+
+.feature-card p {
+  color: var(--sl-color-gray-4);
+  font-size: 0.95rem;
+}
+
+/* Code blocks */
+.code-block {
+  background: #1e293b;
+  border: 1px solid var(--sl-color-hairline-light);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  overflow-x: auto;
+  max-width: 800px;
+  margin: 2rem auto;
+}
+
+.code-block pre {
+  margin: 0;
+  color: var(--sl-color-gray-2);
+}
+
+/* Comparison table */
+.comparison-table {
+  width: 100%;
+  max-width: 900px;
+  margin: 2rem auto;
+  border-collapse: collapse;
+  background: var(--sl-color-bg-nav);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.comparison-table th,
+.comparison-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--sl-color-hairline-light);
+}
+
+.comparison-table th {
+  background: var(--sl-color-black);
+  color: var(--sl-color-white);
+  font-weight: 600;
+}
+
+.comparison-table td {
+  color: var(--sl-color-gray-3);
+}
+
+.comparison-table .check {
+  color: #22c55e;
+}
+
+.comparison-table .cross {
+  color: var(--sl-color-gray-5);
+}
+
+/* Status badge colors */
+.status-complete {
+  color: #22c55e;
+}
+
+.status-wip {
+  color: #f59e0b;
+}
+
+.status-pending {
+  color: var(--sl-color-gray-5);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1rem;
+  }
+
+  .hero-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .feature-grid {
+    padding: 2rem 1rem;
+  }
+}

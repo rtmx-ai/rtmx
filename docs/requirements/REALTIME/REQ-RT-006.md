@@ -1,6 +1,6 @@
 # REQ-RT-006: WebSocket shall auto-reconnect on disconnect
 
-## Status: MISSING
+## Status: COMPLETE
 ## Priority: MEDIUM
 ## Phase: 7
 

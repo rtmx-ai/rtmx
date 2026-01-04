@@ -1,6 +1,6 @@
 # REQ-RT-001: Server shall watch RTM database for changes
 
-## Status: MISSING
+## Status: COMPLETE
 ## Priority: HIGH
 ## Phase: 7
 

@@ -1,0 +1,152 @@
+---
+// Custom Hero component for RTMX landing page
+// Overrides Starlight default hero for marketing content
+---
+
+<div class="hero-section">
+  <h1 class="hero-title">Requirements That Trace Themselves</h1>
+  <p class="hero-subtitle">
+    Python-native requirements traceability for AI-driven development.
+    Connect your tests to requirements. Let agents discover your progress.
+  </p>
+
+  <div class="hero-buttons">
+    <a href="https://github.com/iotactical/rtmx" class="early-access-button" target="_blank" rel="noopener">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+      </svg>
+      Star on GitHub
+    </a>
+    <a href="/rtmx/docs" class="hero-button primary">
+      Get Started
+    </a>
+    <a href="/rtmx/docs/quickstart" class="hero-button secondary">
+      Quickstart
+    </a>
+  </div>
+</div>
+
+<section class="feature-grid">
+  <div class="feature-card">
+    <h3>CLI-First</h3>
+    <p>
+      <code>rtmx status</code>, <code>rtmx backlog</code>, <code>rtmx health</code> -
+      all your requirements management from the terminal.
+    </p>
+  </div>
+
+  <div class="feature-card">
+    <h3>Test Markers</h3>
+    <p>
+      Native pytest integration. Mark tests with <code>@pytest.mark.req("REQ-001")</code>
+      and automatically trace coverage.
+    </p>
+  </div>
+
+  <div class="feature-card">
+    <h3>MCP Server</h3>
+    <p>
+      Let AI agents query your requirements. Claude, GPT, and any MCP-compatible
+      client can discover project status.
+    </p>
+  </div>
+
+  <div class="feature-card">
+    <h3>Adapters</h3>
+    <p>
+      Sync to GitHub Issues, Jira, or keep it local. CSV is the canonical store -
+      git-friendly and AI-parseable.
+    </p>
+  </div>
+
+  <div class="feature-card">
+    <h3>Dependency Graph</h3>
+    <p>
+      Detect cycles, find critical paths, analyze blockers.
+      Tarjan's algorithm finds what's holding you back.
+    </p>
+  </div>
+
+  <div class="feature-card">
+    <h3>Schema Validation</h3>
+    <p>
+      Core schema with extensible fields. Phoenix, aerospace, medical -
+      extend for your domain.
+    </p>
+  </div>
+</section>
+
+<section style="padding: 3rem 2rem; text-align: center;">
+  <h2 style="color: var(--sl-color-white); margin-bottom: 1.5rem;">Quick Install</h2>
+  <div class="code-block">
+    <pre><code>pip install rtmx
+rtmx init
+rtmx status</code></pre>
+  </div>
+</section>
+
+<section style="padding: 3rem 2rem;">
+  <h2 style="color: var(--sl-color-white); text-align: center; margin-bottom: 2rem;">Why RTMX?</h2>
+  <table class="comparison-table">
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>RTMX</th>
+        <th>Jira</th>
+        <th>Linear</th>
+        <th>Manual</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Test traceability</td>
+        <td class="check">Built-in</td>
+        <td class="cross">Plugin</td>
+        <td class="cross">No</td>
+        <td class="cross">Manual</td>
+      </tr>
+      <tr>
+        <td>pytest integration</td>
+        <td class="check">Native</td>
+        <td class="cross">No</td>
+        <td class="cross">No</td>
+        <td class="cross">No</td>
+      </tr>
+      <tr>
+        <td>AI agent support</td>
+        <td class="check">MCP</td>
+        <td class="cross">API only</td>
+        <td class="cross">API only</td>
+        <td class="cross">No</td>
+      </tr>
+      <tr>
+        <td>Git-friendly</td>
+        <td class="check">CSV</td>
+        <td class="cross">SaaS</td>
+        <td class="cross">SaaS</td>
+        <td class="check">Varies</td>
+      </tr>
+      <tr>
+        <td>Self-hosted</td>
+        <td class="check">Yes</td>
+        <td class="cross">$$$</td>
+        <td class="cross">No</td>
+        <td class="check">Yes</td>
+      </tr>
+      <tr>
+        <td>Open source</td>
+        <td class="check">MIT</td>
+        <td class="cross">No</td>
+        <td class="cross">No</td>
+        <td class="check">Varies</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<footer style="padding: 2rem; text-align: center; border-top: 1px solid var(--sl-color-hairline-light);">
+  <p style="color: var(--sl-color-gray-4); font-size: 0.9rem;">
+    Built by <a href="https://iotactical.co" style="color: var(--sl-color-accent);">ioTACTICAL Engineering</a> |
+    <a href="mailto:engineering@iotactical.co" style="color: var(--sl-color-accent);">engineering@iotactical.co</a>
+  </p>
+</footer>
