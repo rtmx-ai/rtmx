@@ -1,0 +1,331 @@
+---
+import AnimatedTerminal from './AnimatedTerminal.astro';
+
+const terminals = [
+  {
+    id: 'status',
+    title: 'rtmx status',
+    command: 'rtmx status',
+    caption: 'Track completion across all requirements and phases',
+    lines: [
+      { text: '', delay: 0 },
+      { text: '═══════════════════════════════ RTM Status Check ═══════════════════════════════', color: '#6b7280' },
+      { text: '' },
+      { text: 'Requirements: [████████████████░░░░░░░░████████░░░░░░░░░░░░] 54.2%', color: '#e5e7eb' },
+      { text: '' },
+      { text: '✓ 5 complete   ', color: '#22c55e' },
+      { text: '△ 3 partial    ', color: '#f59e0b' },
+      { text: '✗ 4 missing', color: '#ef4444' },
+      { text: '(12 total)', color: '#6b7280' },
+      { text: '' },
+      { text: '═══════════════════════════════ Phase Status ════════════════════════════════════', color: '#6b7280' },
+      { text: '' },
+      { text: 'Phase 1:  91.7%  ▲ In Progress   (5✓ 1△ 0✗)', color: '#e5e7eb' },
+      { text: 'Phase 2:  25.0%  ▲ In Progress   (0✓ 2△ 2✗)', color: '#e5e7eb' },
+      { text: 'Phase 3:   0.0%  ○ Not Started   (0✓ 0△ 2✗)', color: '#6b7280' },
+      { text: '' },
+      { text: '════════════════ 5 complete, 3 partial, 4 missing (54.2%) ════════════════════════', color: '#6b7280' },
+    ]
+  },
+  {
+    id: 'backlog',
+    title: 'rtmx backlog',
+    command: 'rtmx backlog',
+    caption: 'Prioritized backlog with blockers and dependencies',
+    lines: [
+      { text: '' },
+      { text: '════════════════════════════════════ Backlog ═════════════════════════════════════', color: '#6b7280' },
+      { text: '' },
+      { text: '  #  │     Requirement     │          Description           │ Priority │ Blocks │ Phase', color: '#9ca3af' },
+      { text: '─────┼─────────────────────┼────────────────────────────────┼──────────┼────────┼───────', color: '#404040' },
+      { text: '  1  │ ✗ REQ-DATA-003      │ System shall perform auto...   │   HIGH   │   1    │  P2', color: '#ef4444' },
+      { text: '  2  │ △ REQ-DATA-002      │ System shall cache freque...   │   HIGH   │   -    │  P1', color: '#f59e0b' },
+      { text: '  3  │ △ REQ-AUTH-003      │ System shall support TOTP...   │   HIGH   │   -    │  P2', color: '#f59e0b' },
+      { text: '  4  │ ○ REQ-DATA-004      │ System shall support poin...   │   HIGH   │   -    │  P3', color: '#6b7280' },
+      { text: '  5  │ ✗ REQ-API-002       │ System shall support Grap...   │  MEDIUM  │   -    │  P2', color: '#ef4444' },
+      { text: '  6  │ △ REQ-UI-002        │ System shall support resp...   │  MEDIUM  │   -    │  P2', color: '#f59e0b' },
+      { text: '  7  │ ✗ REQ-API-003       │ System shall deliver webh...   │  MEDIUM  │   -    │  P3', color: '#ef4444' },
+      { text: '' },
+      { text: 'Total: 7 incomplete requirements', color: '#e5e7eb' },
+      { text: '  4 HIGH/P0 priority', color: '#f59e0b' },
+      { text: '  1 blocking other requirements', color: '#ef4444' },
+      { text: '  16.5 weeks estimated effort', color: '#6b7280' },
+    ]
+  },
+  {
+    id: 'health',
+    title: 'rtmx health',
+    command: 'rtmx health',
+    caption: 'Validate schema, detect cycles, check test coverage',
+    lines: [
+      { text: '' },
+      { text: '═══════════════════════════════ RTMX Health Check ═══════════════════════════════', color: '#6b7280' },
+      { text: '' },
+      { text: '[PASS] config_valid: Config valid: rtmx.yaml', color: '#22c55e' },
+      { text: '[PASS] rtm_exists: RTM database found: docs/rtm_database.csv', color: '#22c55e' },
+      { text: '[PASS] rtm_loads: RTM database loaded: 12 requirements', color: '#22c55e' },
+      { text: '[PASS] schema_valid: Schema validation passed', color: '#22c55e' },
+      { text: '[WARN] reciprocity: Reciprocity violations: 10', color: '#f59e0b' },
+      { text: '[PASS] cycles: No circular dependencies', color: '#22c55e' },
+      { text: '[SKIP] test_markers: No tests directory found', color: '#6b7280' },
+      { text: '[SKIP] agent_configs: No agent config files detected', color: '#6b7280' },
+      { text: '' },
+      { text: '════════════════════════════════════════════════════════════════════════════════', color: '#6b7280' },
+      { text: 'Status: DEGRADED (warnings present)', color: '#f59e0b' },
+      { text: 'Summary: 5 passed, 1 warnings, 0 failed, 2 skipped', color: '#e5e7eb' },
+    ]
+  }
+];
+---
+
+<section class="carousel-section">
+  <h2>See It In Action</h2>
+
+  <div class="carousel-container">
+    <button class="carousel-nav prev" aria-label="Previous">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M15 19l-7-7 7-7"/>
+      </svg>
+    </button>
+
+    <div class="carousel-track">
+      {terminals.map((term, index) => (
+        <div class="carousel-slide" data-index={index}>
+          <AnimatedTerminal
+            id={term.id}
+            title={term.title}
+            command={term.command}
+            lines={term.lines}
+          />
+          <p class="slide-caption">{term.caption}</p>
+        </div>
+      ))}
+    </div>
+
+    <button class="carousel-nav next" aria-label="Next">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 5l7 7-7 7"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="carousel-dots">
+    {terminals.map((term, index) => (
+      <button
+        class={`dot ${index === 0 ? 'active' : ''}`}
+        data-index={index}
+        aria-label={`Go to ${term.title}`}
+      />
+    ))}
+  </div>
+</section>
+
+<style>
+  .carousel-section {
+    padding: 5rem 2rem;
+    background: #0a0a0a;
+  }
+
+  .carousel-section h2 {
+    color: #f9fafb;
+    text-align: center;
+    margin-bottom: 3rem;
+    font-size: 2.25rem;
+  }
+
+  .carousel-container {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  .carousel-nav {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #171717;
+    border: 1px solid #262626;
+    color: #9ca3af;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+
+  .carousel-nav:hover {
+    background: #262626;
+    color: #10b981;
+    border-color: #10b981;
+  }
+
+  .carousel-nav svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .carousel-track {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .carousel-slide {
+    display: none;
+    animation: fadeIn 0.4s ease;
+  }
+
+  .carousel-slide.active {
+    display: block;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.98); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .slide-caption {
+    text-align: center;
+    color: #6b7280;
+    margin-top: 1.5rem;
+    font-size: 1rem;
+  }
+
+  .carousel-dots {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 2rem;
+  }
+
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #262626;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .dot:hover {
+    background: #404040;
+  }
+
+  .dot.active {
+    background: #10b981;
+    transform: scale(1.2);
+  }
+
+  @media (max-width: 768px) {
+    .carousel-nav {
+      display: none;
+    }
+
+    .carousel-section {
+      padding: 3rem 1rem;
+    }
+
+    .carousel-section h2 {
+      font-size: 1.75rem;
+    }
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const slides = document.querySelectorAll('.carousel-slide');
+    const dots = document.querySelectorAll('.carousel-dots .dot');
+    const prevBtn = document.querySelector('.carousel-nav.prev');
+    const nextBtn = document.querySelector('.carousel-nav.next');
+
+    let currentIndex = 0;
+    let autoplayInterval;
+
+    function showSlide(index) {
+      // Wrap around
+      if (index < 0) index = slides.length - 1;
+      if (index >= slides.length) index = 0;
+
+      currentIndex = index;
+
+      // Update slides
+      slides.forEach((slide, i) => {
+        slide.classList.toggle('active', i === currentIndex);
+      });
+
+      // Update dots
+      dots.forEach((dot, i) => {
+        dot.classList.toggle('active', i === currentIndex);
+      });
+
+      // Trigger animation restart for the active terminal
+      const activeTerminal = slides[currentIndex].querySelector('.animated-terminal');
+      if (activeTerminal) {
+        activeTerminal.dispatchEvent(new Event('restart'));
+      }
+    }
+
+    function nextSlide() {
+      showSlide(currentIndex + 1);
+    }
+
+    function prevSlide() {
+      showSlide(currentIndex - 1);
+    }
+
+    // Event listeners
+    prevBtn?.addEventListener('click', () => {
+      prevSlide();
+      resetAutoplay();
+    });
+
+    nextBtn?.addEventListener('click', () => {
+      nextSlide();
+      resetAutoplay();
+    });
+
+    dots.forEach((dot, index) => {
+      dot.addEventListener('click', () => {
+        showSlide(index);
+        resetAutoplay();
+      });
+    });
+
+    // Autoplay
+    function startAutoplay() {
+      autoplayInterval = setInterval(nextSlide, 12000);
+    }
+
+    function resetAutoplay() {
+      clearInterval(autoplayInterval);
+      startAutoplay();
+    }
+
+    // Touch/swipe support
+    let touchStartX = 0;
+    const track = document.querySelector('.carousel-track');
+
+    track?.addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX;
+    });
+
+    track?.addEventListener('touchend', (e) => {
+      const touchEndX = e.changedTouches[0].clientX;
+      const diff = touchStartX - touchEndX;
+
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) nextSlide();
+        else prevSlide();
+        resetAutoplay();
+      }
+    });
+
+    // Initialize
+    showSlide(0);
+    startAutoplay();
+  });
+</script>
