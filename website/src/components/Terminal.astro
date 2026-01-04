@@ -1,0 +1,125 @@
+---
+interface Props {
+  title?: string;
+  command?: string;
+}
+
+const { title = "Terminal", command } = Astro.props;
+---
+
+<div class="terminal-window">
+  <div class="terminal-header">
+    <div class="terminal-buttons">
+      <span class="terminal-btn close"></span>
+      <span class="terminal-btn minimize"></span>
+      <span class="terminal-btn maximize"></span>
+    </div>
+    <span class="terminal-title">{title}</span>
+    <div class="terminal-spacer"></div>
+  </div>
+  <div class="terminal-body">
+    {command && (
+      <div class="terminal-prompt">
+        <span class="prompt-symbol">$</span>
+        <span class="prompt-command">{command}</span>
+      </div>
+    )}
+    <div class="terminal-content">
+      <slot />
+    </div>
+  </div>
+</div>
+
+<style>
+  .terminal-window {
+    background: #1a1a1a;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    max-width: 100%;
+    margin: 0 auto;
+  }
+
+  .terminal-header {
+    background: linear-gradient(180deg, #3d3d3d 0%, #2d2d2d 100%);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .terminal-buttons {
+    display: flex;
+    gap: 6px;
+  }
+
+  .terminal-btn {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .terminal-btn.close {
+    background: #ff5f56;
+  }
+
+  .terminal-btn.minimize {
+    background: #ffbd2e;
+  }
+
+  .terminal-btn.maximize {
+    background: #27ca40;
+  }
+
+  .terminal-title {
+    flex: 1;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 0.8rem;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+
+  .terminal-spacer {
+    width: 54px; /* Balance the buttons */
+  }
+
+  .terminal-body {
+    padding: 16px;
+    font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #e5e7eb;
+    overflow-x: auto;
+  }
+
+  .terminal-prompt {
+    margin-bottom: 8px;
+    display: flex;
+    gap: 8px;
+  }
+
+  .prompt-symbol {
+    color: #10b981;
+    font-weight: bold;
+  }
+
+  .prompt-command {
+    color: #60a5fa;
+  }
+
+  .terminal-content {
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  .terminal-content :global(img) {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* Dark terminal theme for screenshots */
+  .terminal-content :global(.terminal-output) {
+    background: transparent;
+  }
+</style>
