@@ -89,10 +89,18 @@ const { id, title, command, lines } = Astro.props;
   .terminal-body {
     padding: 16px 20px 20px;
     font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Consolas', monospace;
-    font-size: 13px;
-    line-height: 1;
-    height: 510px;
-    overflow: hidden;
+    font-size: 14px;
+    line-height: 1.25;
+    height: 450px;
+    overflow-y: hidden;
+    overflow-x: auto;
+    /* Hide scrollbar but keep functionality */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+
+  .terminal-body::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
   }
 
   .terminal-prompt {
@@ -135,14 +143,56 @@ const { id, title, command, lines } = Astro.props;
 
   .output-line {
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateY(2px);
     transition: opacity 0.15s ease, transform 0.15s ease;
     white-space: pre;
+    line-height: 1.25;
+    padding: 0;
+    margin: 0;
   }
 
   .output-line.visible {
     opacity: 1;
     transform: translateY(0);
+  }
+
+  /* Mobile styles */
+  @media (max-width: 768px) {
+    .animated-terminal {
+      border-radius: 8px;
+    }
+
+    .terminal-header {
+      padding: 10px 12px;
+    }
+
+    .terminal-btn {
+      width: 12px;
+      height: 12px;
+    }
+
+    .terminal-title {
+      font-size: 0.75rem;
+    }
+
+    .terminal-body {
+      padding: 12px 16px 16px;
+      font-size: 12px;
+      height: 380px;
+    }
+
+    .terminal-prompt {
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .terminal-body {
+      font-size: 11px;
+      height: 340px;
+      padding: 10px 12px 14px;
+    }
   }
 </style>
 

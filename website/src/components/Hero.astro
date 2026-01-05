@@ -6,10 +6,10 @@ import TerminalCarousel from './TerminalCarousel.astro';
 
 <!-- Hero Title at Very Top -->
 <div class="hero-header">
-  <h1 class="hero-title">Requirements That Trace Themselves</h1>
+  <h1 class="hero-title">Keep AI On Task</h1>
   <p class="hero-subtitle">
-    Python-native requirements traceability for AI-driven development.
-    Connect your tests to requirements. Let agents discover your progress.
+    AI writes code fast—but does it meet your requirements?
+    RTMX connects every change to a spec and its tests, so your AI always knows what you're shipping and why.
   </p>
   <div class="hero-buttons">
     <a href="https://github.com/iotactical/rtmx" class="github-button" target="_blank" rel="noopener">
@@ -34,83 +34,108 @@ import TerminalCarousel from './TerminalCarousel.astro';
 <!-- Animated Terminal Carousel -->
 <TerminalCarousel />
 
+<!-- Statistics Section -->
+<section class="stats-section">
+  <div class="stat-card">
+    <span class="stat-number">$199B</span>
+    <span class="stat-label">Agentic AI market by 2034</span>
+    <a href="https://www.precedenceresearch.com/agentic-ai-market" target="_blank" rel="noopener">Precedence Research</a>
+  </div>
+  <div class="stat-card">
+    <span class="stat-number">66%</span>
+    <span class="stat-label">of developers frustrated with "almost right" AI code</span>
+    <a href="https://survey.stackoverflow.co/2025/ai" target="_blank" rel="noopener">Stack Overflow 2025</a>
+  </div>
+  <div class="stat-card">
+    <span class="stat-number">39%</span>
+    <span class="stat-label">of project failures due to requirements issues</span>
+    <a href="https://zipdo.co/statistics/software-project-failure/" target="_blank" rel="noopener">Zipdo Statistics</a>
+  </div>
+  <div class="stat-card">
+    <span class="stat-number">48%</span>
+    <span class="stat-label">of AI-generated code contains security vulnerabilities</span>
+    <a href="https://www.qodo.ai/reports/state-of-ai-code-quality/" target="_blank" rel="noopener">Qodo 2025</a>
+  </div>
+</section>
+
 <section class="feature-grid">
   <a href="/rtmx/guides/cli-reference" class="feature-card">
-    <h3>CLI-First</h3>
+    <h3>One Command to See Everything</h3>
     <p>
-      <code>rtmx status</code>, <code>rtmx backlog</code>, <code>rtmx health</code> -
-      all your requirements management from the terminal.
+      Know exactly where your project stands. <code>rtmx status</code> shows
+      what's done, what's blocked, and what needs tests.
     </p>
   </a>
 
   <a href="/rtmx/guides/markers" class="feature-card">
-    <h3>Test Markers</h3>
+    <h3>Proof, Not Promises</h3>
     <p>
-      Native pytest integration. Mark tests with <code>@pytest.mark.req("REQ-001")</code>
-      and automatically trace coverage.
+      Every feature links to a test that proves it works.
+      No more "I think it's covered."
     </p>
   </a>
 
   <a href="/rtmx/adapters/mcp" class="feature-card">
-    <h3>MCP Server</h3>
+    <h3>AI That Knows Your Project</h3>
     <p>
-      Let AI agents query your requirements. Claude, GPT, and any MCP-compatible
-      client can discover project status.
+      Claude, GPT, and other agents can query your requirements in real-time.
+      They know what to build next.
     </p>
   </a>
 
   <a href="/rtmx/adapters" class="feature-card">
-    <h3>Adapters</h3>
+    <h3>Works With Your Tools</h3>
     <p>
-      Sync to GitHub Issues, Jira, or keep it local. CSV is the canonical store -
-      git-friendly and AI-parseable.
+      Sync to GitHub Issues, Jira, or keep everything local in version control.
+      Your data, your choice.
     </p>
   </a>
 
   <a href="/rtmx/guides/dependencies" class="feature-card">
-    <h3>Dependency Graph</h3>
+    <h3>See What's Blocking You</h3>
     <p>
-      Detect cycles, find critical paths, analyze blockers.
-      Tarjan's algorithm finds what's holding you back.
+      Visualize dependencies and find the critical path to done.
+      Stop guessing what to work on next.
     </p>
   </a>
 
   <a href="/rtmx/guides/schema" class="feature-card">
-    <h3>Schema Validation</h3>
+    <h3>Catch Mistakes Before They Ship</h3>
     <p>
-      Core schema with extensible fields. Phoenix, aerospace, medical -
-      extend for your domain.
+      Validate requirements against your team's standards automatically.
+      Extensible for aerospace, medical, and defense.
     </p>
   </a>
 
   <a href="/rtmx/pricing" class="feature-card">
-    <h3>Local-First Security</h3>
+    <h3>Your Data Stays Yours</h3>
     <p>
-      Your data stays on your machine. No cloud required. Open source and auditable.
-      E2E encryption for sync.
+      No cloud required. Open source and auditable.
+      Git-native audit trail for compliance.
     </p>
   </a>
 
   <a href="/rtmx/reference/architecture" class="feature-card">
-    <h3>Python API</h3>
+    <h3>Programmable Requirements</h3>
     <p>
-      Full programmatic access. Load, query, filter, and modify your RTM database
-      from any Python script or notebook.
+      Full Python API. Query, filter, and automate from any script or notebook.
+      Build custom workflows.
     </p>
   </a>
 
   <a href="/rtmx/pricing" class="feature-card coming-soon">
     <span class="badge">Coming Soon</span>
-    <h3>Real-Time Sync</h3>
+    <h3>Team Sync</h3>
     <p>
-      CRDT-based collaboration. Multiple users editing the same RTM simultaneously
-      with automatic conflict resolution.
+      CRDT-based collaboration with automatic conflict resolution.
+      Multiple users, one source of truth.
     </p>
   </a>
 </section>
 
 <section class="comparison-section">
-  <h2>Why RTMX?</h2>
+  <h2>AI writes code fast. But does it match your requirements?</h2>
+  <p class="comparison-subtitle">Most tools track tasks. RTMX tracks whether the code actually does what you asked.</p>
   <div class="table-wrapper">
     <table class="comparison-table">
       <thead>
@@ -184,12 +209,101 @@ import TerminalCarousel from './TerminalCarousel.astro';
   </div>
 </section>
 
+<!-- "Why You Shouldn't Use RTMX" - Reverse Psychology Section -->
+<section class="dont-use-section" id="dont-use">
+  <h2><span class="strikethrough">DON'T</span> Use RTMX</h2>
+  <p class="dont-use-intro">Seriously. It's not for everyone. Here's why you should probably stay away:</p>
+
+  <div class="dont-use-grid">
+    <div class="dont-use-card">
+      <h3>You already have a spreadsheet.</h3>
+      <p>
+        Look, your <code>requirements.xlsx</code> file is working great. Sure, it's three tabs deep
+        and nobody remembers which column means "done." But it's <em>free</em>. And you've been using it since 2019. Why change now?
+      </p>
+    </div>
+
+    <div class="dont-use-card">
+      <h3>Your team doesn't use AI yet.</h3>
+      <p>
+        If you're not using Copilot, Claude Code, or Cursor, then RTMX won't help you. We're built for
+        teams where AI writes half the code and humans need to keep it honest. If you're still typing every character yourself, godspeed.
+      </p>
+    </div>
+
+    <div class="dont-use-card">
+      <h3>You love Jira.</h3>
+      <p>
+        Really, you do. The 47 custom fields. The 12 workflow states. The satisfying click when you close
+        a ticket that was open for 18 months. RTMX is just a CSV file and a CLI. Boring.
+      </p>
+    </div>
+
+    <div class="dont-use-card">
+      <h3>You don't want to pay $9.</h3>
+      <p>
+        The open-source version is free. Forever. Use that. If you don't need real-time sync across
+        a team, you don't need to pay us anything. We mean it. Go ahead.
+      </p>
+    </div>
+
+    <div class="dont-use-card">
+      <h3>Budget approval sounds exhausting.</h3>
+      <p>
+        $9/user/month times 50 people is $5,400/year. That's a meeting. Maybe two meetings.
+        And a Slack thread. And a Notion doc comparing alternatives. You know what? Just use the spreadsheet.
+      </p>
+    </div>
+
+    <div class="dont-use-card">
+      <h3>You ship fast and fix later.</h3>
+      <p>
+        Requirements traceability is for nerds who care about audits, compliance, and "knowing what the code does."
+        If your philosophy is "we'll document it after Series B," RTMX will only slow you down.
+      </p>
+    </div>
+
+    <div class="dont-use-card">
+      <h3>You're worried we'll disappear.</h3>
+      <p>
+        Fair. We're small. We might get acqui-hired or pivot into oblivion. But here's the thing: your data is a CSV file.
+        MIT license. You can <code>git log</code> your requirements forever. Zero lock-in. But yeah, maybe stick with the spreadsheet.
+      </p>
+    </div>
+
+    <div class="dont-use-card">
+      <h3>You don't get what it does.</h3>
+      <p>
+        "Requirements traceability matrix" sounds like something from a 1997 ISO handbook. And honestly? It kind of is.
+        But if your AI is writing code that doesn't match your specs, and your tests don't prove you shipped what you promised... maybe that's fine?
+      </p>
+    </div>
+  </div>
+
+  <div class="still-reading">
+    <p><strong>Still reading?</strong> Sounds like you might actually need RTMX.</p>
+    <a href="/rtmx/quickstart" class="hero-button primary">Get Started</a>
+  </div>
+</section>
+
 <footer class="site-footer">
   <p>
     Built by <a href="https://iotactical.co">ioTACTICAL Engineering</a> |
     <a href="mailto:engineering@iotactical.co">engineering@iotactical.co</a>
   </p>
 </footer>
+
+<style is:global>
+  /* Hide Starlight's default hero/title on homepage */
+  .hero,
+  main > header,
+  .content-panel > header,
+  [aria-label="Main"] > header,
+  .main-pane > h1:first-child,
+  .sl-markdown-content > h1:first-child {
+    display: none !important;
+  }
+</style>
 
 <style>
   /* Hero Header - Title at very top */
@@ -213,7 +327,7 @@ import TerminalCarousel from './TerminalCarousel.astro';
     font-size: 1.25rem;
     color: #9ca3af;
     margin-bottom: 2rem;
-    max-width: 700px;
+    max-width: 850px;
     margin-left: auto;
     margin-right: auto;
     line-height: 1.6;
@@ -312,7 +426,9 @@ import TerminalCarousel from './TerminalCarousel.astro';
     padding: 1.5rem;
     transition: border-color 0.2s ease, transform 0.2s ease;
     text-decoration: none;
-    display: block;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
   }
 
   .feature-card:hover {
@@ -322,7 +438,7 @@ import TerminalCarousel from './TerminalCarousel.astro';
 
   .feature-card h3 {
     color: #f9fafb;
-    margin-bottom: 0.5rem;
+    margin: 0 0 0.5rem 0;
     font-size: 1.1rem;
   }
 
@@ -330,6 +446,7 @@ import TerminalCarousel from './TerminalCarousel.astro';
     color: #9ca3af;
     font-size: 0.9rem;
     line-height: 1.5;
+    margin: 0;
   }
 
   .feature-card code {
@@ -363,6 +480,60 @@ import TerminalCarousel from './TerminalCarousel.astro';
     letter-spacing: 0.05em;
   }
 
+  /* Statistics Section */
+  .stats-section {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+    padding: 3rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #0a0a0a;
+    border-top: 1px solid #262626;
+    border-bottom: 1px solid #262626;
+  }
+
+  .stat-card {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .stat-number {
+    display: block;
+    font-size: 3rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #10b981 0%, #6ee7b7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+  }
+
+  .stat-label {
+    display: block;
+    color: #9ca3af;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    line-height: 1.4;
+    flex: 1;
+  }
+
+  .stat-card a {
+    display: inline-block;
+    color: #6b7280;
+    font-size: 0.75rem;
+    text-decoration: none;
+    margin-top: 0.5rem;
+    transition: color 0.2s ease;
+  }
+
+  .stat-card a:hover {
+    color: #10b981;
+  }
+
   /* Comparison Section */
   .comparison-section {
     padding: 4rem 2rem;
@@ -372,8 +543,15 @@ import TerminalCarousel from './TerminalCarousel.astro';
   .comparison-section h2 {
     color: #f9fafb;
     text-align: center;
+    margin-bottom: 0.75rem;
+    font-size: 1.75rem;
+  }
+
+  .comparison-subtitle {
+    color: #9ca3af;
+    text-align: center;
     margin-bottom: 2rem;
-    font-size: 2rem;
+    font-size: 1.1rem;
   }
 
   .table-wrapper {
@@ -461,9 +639,106 @@ import TerminalCarousel from './TerminalCarousel.astro';
     text-decoration: underline;
   }
 
+  /* "DON'T Use RTMX" Section */
+  .dont-use-section {
+    background: #070707;
+    padding: 4rem 2rem;
+    border-top: 1px solid #262626;
+  }
+
+  .dont-use-section h2 {
+    color: #f9fafb;
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .dont-use-section h2 .strikethrough {
+    text-decoration: line-through;
+    text-decoration-color: #ef4444;
+    text-decoration-thickness: 3px;
+  }
+
+  .dont-use-intro {
+    color: #9ca3af;
+    text-align: center;
+    font-size: 1.1rem;
+    margin-bottom: 3rem;
+  }
+
+  .dont-use-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  .dont-use-card {
+    background: #0d0d0d;
+    border: 1px solid #1f1f1f;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+  }
+
+  .dont-use-card h3 {
+    color: #e5e7eb;
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.75rem 0;
+  }
+
+  .dont-use-card p {
+    color: #6b7280;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .dont-use-card code {
+    background: #1a1a1a;
+    color: #9ca3af;
+    padding: 0.15em 0.4em;
+    border-radius: 0.25rem;
+    font-size: 0.85em;
+  }
+
+  .dont-use-card em {
+    color: #9ca3af;
+    font-style: italic;
+  }
+
+  .still-reading {
+    text-align: center;
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid #1f1f1f;
+  }
+
+  .still-reading p {
+    color: #d1d5db;
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .still-reading .hero-button.primary {
+    background: #10b981;
+    color: #0a0a0a;
+    padding: 0.875rem 2rem;
+    font-size: 1rem;
+  }
+
+  .still-reading .hero-button.primary:hover {
+    background: #6ee7b7;
+  }
+
   /* Responsive */
   @media (max-width: 1024px) {
     .feature-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .stats-section {
       grid-template-columns: repeat(2, 1fr);
     }
   }
@@ -474,7 +749,7 @@ import TerminalCarousel from './TerminalCarousel.astro';
     }
 
     .hero-title {
-      font-size: 2.25rem;
+      font-size: 1.75rem;
     }
 
     .hero-subtitle {
@@ -486,9 +761,26 @@ import TerminalCarousel from './TerminalCarousel.astro';
       align-items: center;
     }
 
+    .stats-section {
+      grid-template-columns: 1fr;
+      padding: 2rem 1rem;
+    }
+
+    .stat-number {
+      font-size: 2.5rem;
+    }
+
     .feature-grid {
       grid-template-columns: 1fr;
       padding: 2rem 1rem;
+    }
+
+    .comparison-section h2 {
+      font-size: 1.25rem;
+    }
+
+    .comparison-subtitle {
+      font-size: 0.95rem;
     }
 
     .comparison-table {
@@ -509,6 +801,22 @@ import TerminalCarousel from './TerminalCarousel.astro';
     .comparison-table th:not(:first-child),
     .comparison-table td:not(:first-child) {
       width: auto;
+    }
+
+    .dont-use-section {
+      padding: 3rem 1rem;
+    }
+
+    .dont-use-section h2 {
+      font-size: 1.75rem;
+    }
+
+    .dont-use-intro {
+      font-size: 1rem;
+    }
+
+    .dont-use-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style>

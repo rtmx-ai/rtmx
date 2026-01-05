@@ -253,6 +253,86 @@
   color: var(--sl-color-gray-5);
 }
 
+/* Header layout - full width */
+header.header {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 2rem !important;
+  padding-right: 2rem !important;
+  box-sizing: border-box !important;
+}
+
+header.header > .header-content,
+header.header > nav,
+header.header > div {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.header .sl-container {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* Three-column header layout */
+header.header .sl-flex {
+  display: grid !important;
+  grid-template-columns: 1fr auto 1fr !important;
+  align-items: center !important;
+  width: 100% !important;
+  gap: 1rem;
+}
+
+/* Left side - logo/title stays left */
+header.header .sl-flex .title-wrapper,
+header.header .sl-flex > a:first-child {
+  justify-self: start;
+}
+
+/* Center - search */
+header.header site-search,
+header.header starlight-search {
+  justify-self: center !important;
+  grid-column: 2 !important;
+}
+
+/* Right side - buttons and icons */
+header.header .social-icons,
+header.header .right-group-end {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Custom buttons go to the right */
+.buy-sync-button,
+.dont-use-link {
+  grid-column: 3;
+}
+
+/* "Don't Use RTMX" Header Link */
+.dont-use-link {
+  display: inline-flex;
+  align-items: center;
+  color: #f3f4f6 !important;
+  font-size: 1.125rem;
+  font-weight: 600;
+  text-decoration: none !important;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+
+.dont-use-link:hover {
+  color: #f9fafb !important;
+}
+
+.dont-use-link .strikethrough {
+  text-decoration: line-through;
+  text-decoration-color: #ef4444;
+  text-decoration-thickness: 2px;
+}
+
 /* Buy Sync Header Button */
 .buy-sync-button {
   display: inline-flex;
@@ -266,7 +346,7 @@
   border-radius: 0.375rem;
   text-decoration: none !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  margin-right: 0.5rem;
+  white-space: nowrap;
 }
 
 .buy-sync-button:hover {

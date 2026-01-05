@@ -43,11 +43,30 @@ export default defineConfig({
 							if (!header) return;
 							const rightGroup = header.querySelector('.right-group, .sl-flex');
 							if (!rightGroup) return;
+
+							// Find the social icons container (GitHub link)
+							const socialIcons = header.querySelector('.social-icons') ||
+								header.querySelector('a[href*="github.com"]')?.parentElement;
+
+							// "Don't Use RTMX" link - insert before GitHub icon
+							const dontUseLink = document.createElement('a');
+							dontUseLink.href = '/rtmx/#dont-use';
+							dontUseLink.className = 'dont-use-link';
+							dontUseLink.innerHTML = "<span class='strikethrough'>Don't</span>&nbsp;Use RTMX";
+
+							// Sync button - insert before "Don't Use RTMX"
 							const buySyncButton = document.createElement('a');
 							buySyncButton.href = '/rtmx/pricing';
 							buySyncButton.className = 'buy-sync-button';
 							buySyncButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Sync';
-							rightGroup.insertBefore(buySyncButton, rightGroup.firstChild);
+
+							if (socialIcons) {
+								socialIcons.parentElement.insertBefore(dontUseLink, socialIcons);
+								socialIcons.parentElement.insertBefore(buySyncButton, dontUseLink);
+							} else {
+								rightGroup.appendChild(buySyncButton);
+								rightGroup.appendChild(dontUseLink);
+							}
 						});
 					`,
 				},
