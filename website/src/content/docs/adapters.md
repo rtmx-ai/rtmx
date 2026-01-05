@@ -19,9 +19,9 @@ RTMX adapters synchronize your requirements database with external services like
 flowchart TB
     CSV[("RTM Database (CSV)<br/>Canonical Source of Truth")]
 
-    CSV --> GitHub["GitHub<br/>Issues"]
-    CSV --> Jira["Jira<br/>Tickets"]
-    CSV --> MCP["MCP<br/>Server"]
+    CSV -->|sync| GitHub["GitHub<br/>Issues"]
+    CSV -->|sync| Jira["Jira<br/>Tickets"]
+    MCP["MCP<br/>Server"] -->|query| CSV
 
     style CSV fill:#22c55e,color:#fff
 ```
