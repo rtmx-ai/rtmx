@@ -74,6 +74,29 @@ const terminals = [
       { text: 'Status: DEGRADED (warnings present)', color: '#eab308' },
       { text: 'Summary: 5 passed, 3 warnings, 0 failed, 0 skipped', color: '#e5e7eb' },
     ]
+  },
+  {
+    id: 'deps',
+    title: 'rtmx deps',
+    command: 'rtmx deps',
+    caption: 'Find what\'s blocking your progress.',
+    lines: [
+      { text: '================================= Dependencies =================================', color: '#6b7280' },
+      { text: 'ID                 Deps   Blocks   Description', color: '#9ca3af' },
+      { text: '-------------------------------------------------------------------------------------', color: '#6b7280' },
+      { text: 'REQ-WEB-001        0      23       rtmx serve command shall start FastAPI...', color: '#e5e7eb' },
+      { text: 'REQ-WEB-007        1      12       Server shall support WebSocket connections', color: '#e5e7eb' },
+      { text: 'REQ-CRDT-001       0      11       CRDT layer shall use y-py library', color: '#ef4444' },
+      { text: 'REQ-WEB-002        1      8        REST API shall expose /api/status endpoint', color: '#e5e7eb' },
+      { text: 'REQ-RT-001         1      6        Server shall watch RTM database for changes', color: '#e5e7eb' },
+      { text: 'REQ-UX-001         0      5        rtmx status shall display rich progress bars', color: '#e5e7eb' },
+      { text: 'REQ-RT-002         1      5        Server shall push updates to WebSocket...', color: '#e5e7eb' },
+      { text: 'REQ-SITE-001       0      5        Website shall use Astro with Starlight theme', color: '#e5e7eb' },
+      { text: 'REQ-COLLAB-001     2      5        CRDT sync server shall use y-websocket...', color: '#ef4444' },
+      { text: 'REQ-DX-001         0      4        All rtmx artifacts shall be in .rtmx/...', color: '#e5e7eb' },
+      { text: '-------------------------------------------------------------------------------------', color: '#6b7280' },
+      { text: '✓ No circular dependencies detected', color: '#22c55e' },
+    ]
   }
 ];
 ---

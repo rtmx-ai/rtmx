@@ -50,6 +50,7 @@ export default defineConfig({
 					items: [
 						{ label: 'CLI Reference', slug: 'guides/cli-reference' },
 						{ label: 'Test Markers', slug: 'guides/markers' },
+						{ label: 'Dependencies', slug: 'guides/dependencies' },
 						{ label: 'Schema', slug: 'guides/schema' },
 						{ label: 'Configuration', slug: 'guides/configuration' },
 					],
