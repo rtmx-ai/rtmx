@@ -82,6 +82,31 @@ import TerminalCarousel from './TerminalCarousel.astro';
       extend for your domain.
     </p>
   </a>
+
+  <a href="/rtmx/pricing" class="feature-card">
+    <h3>Local-First Security</h3>
+    <p>
+      Your data stays on your machine. No cloud required. Open source and auditable.
+      E2E encryption for sync.
+    </p>
+  </a>
+
+  <a href="/rtmx/reference/architecture" class="feature-card">
+    <h3>Python API</h3>
+    <p>
+      Full programmatic access. Load, query, filter, and modify your RTM database
+      from any Python script or notebook.
+    </p>
+  </a>
+
+  <a href="/rtmx/pricing" class="feature-card coming-soon">
+    <span class="badge">Coming Soon</span>
+    <h3>Real-Time Sync</h3>
+    <p>
+      CRDT-based collaboration. Multiple users editing the same RTM simultaneously
+      with automatic conflict resolution.
+    </p>
+  </a>
 </section>
 
 <section class="comparison-section">
@@ -139,6 +164,20 @@ import TerminalCarousel from './TerminalCarousel.astro';
           <td class="cross">No</td>
           <td class="cross">No</td>
           <td class="check">Varies</td>
+        </tr>
+        <tr>
+          <td>Real-time sync</td>
+          <td class="coming-soon">Coming soon</td>
+          <td class="cross">No</td>
+          <td class="cross">No</td>
+          <td class="cross">No</td>
+        </tr>
+        <tr>
+          <td>E2E encryption</td>
+          <td class="coming-soon">Coming soon</td>
+          <td class="cross">No</td>
+          <td class="cross">No</td>
+          <td class="cross">No</td>
         </tr>
       </tbody>
     </table>
@@ -301,6 +340,29 @@ import TerminalCarousel from './TerminalCarousel.astro';
     font-size: 0.85em;
   }
 
+  .feature-card.coming-soon {
+    position: relative;
+    border-color: #f59e0b40;
+  }
+
+  .feature-card.coming-soon:hover {
+    border-color: #f59e0b;
+  }
+
+  .feature-card .badge {
+    position: absolute;
+    top: -10px;
+    right: 1rem;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #0a0a0a;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
   /* Comparison Section */
   .comparison-section {
     padding: 4rem 2rem;
@@ -315,7 +377,7 @@ import TerminalCarousel from './TerminalCarousel.astro';
   }
 
   .table-wrapper {
-    max-width: 800px;
+    max-width: 1000px;
     margin: 0 auto;
     overflow-x: auto;
   }
@@ -369,6 +431,12 @@ import TerminalCarousel from './TerminalCarousel.astro';
 
   .comparison-table .cross {
     color: #6b7280;
+  }
+
+  .comparison-table .coming-soon {
+    color: #f59e0b;
+    font-weight: 600;
+    font-style: italic;
   }
 
   /* Footer */

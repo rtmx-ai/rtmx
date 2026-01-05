@@ -12,6 +12,8 @@
 
 RTMX brings **requirements traceability** to modern software development. Track what you're building, why you're building it, and prove it works—all from your terminal.
 
+**[Documentation](https://iotactical.github.io/rtmx/)** · **[Quickstart](https://iotactical.github.io/rtmx/quickstart)** · **[RTMX Sync](https://iotactical.github.io/rtmx/pricing)**
+
 ![rtmx status](docs/assets/rtmx-status.png)
 
 ## Why RTMX?
@@ -20,6 +22,7 @@ RTMX brings **requirements traceability** to modern software development. Track 
 - Token-efficient CSV format that fits in context windows
 - Clear requirement IDs for precise references (`REQ-AUTH-001`)
 - Dependency graphs that show what to build next
+- MCP server for real-time AI agent integration
 
 **For teams**, RTMX brings clarity:
 - One command to see project progress: `make rtm`
@@ -30,6 +33,20 @@ RTMX brings **requirements traceability** to modern software development. Track 
 - Every requirement linked to its test
 - Audit-ready CSV database (version-controlled, diff-friendly)
 - Validation that catches gaps before reviewers do
+
+## Security
+
+RTMX is designed with security-first principles:
+
+| Property | Description |
+|----------|-------------|
+| **Local-first** | Your data stays on your machine—no cloud required |
+| **Git-native** | Full version history and audit trail via git |
+| **Human-readable** | CSV format is auditable, no opaque databases |
+| **Open source** | MIT license, fully auditable codebase |
+| **No telemetry** | Zero data collection in the core tool |
+
+**RTMX Sync** (coming soon) adds real-time collaboration with end-to-end encryption, SSO/SAML, and on-premises deployment options for defense and regulated industries.
 
 ## Installation
 
@@ -74,6 +91,32 @@ rtmx status -vvv  # Maximum detail
 ### 4. Run health checks
 
 ![rtmx health](docs/assets/rtmx-health.png)
+
+## AI Agent Integration
+
+RTMX provides an MCP (Model Context Protocol) server for seamless AI agent integration:
+
+```bash
+rtmx mcp-server
+```
+
+This allows AI assistants like Claude to:
+- Query project status and requirements
+- Understand what to build next
+- Check dependencies and blockers
+- Validate changes against requirements
+
+Configure in your MCP client:
+```json
+{
+  "mcpServers": {
+    "rtmx": {
+      "command": "rtmx",
+      "args": ["mcp-server"]
+    }
+  }
+}
+```
 
 ## Pytest Integration
 
@@ -198,7 +241,7 @@ The CSV database includes these columns:
 | `test_module` | No | Test file path |
 | `test_function` | No | Test function name |
 
-See the [schema documentation](docs/schema.md) for the complete 20-column schema.
+See the [schema documentation](https://iotactical.github.io/rtmx/guides/schema) for the complete schema.
 
 ## CI/CD Integration
 
@@ -229,7 +272,7 @@ make lint     # Run linter
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
@@ -238,6 +281,6 @@ Contributions welcome! Please read our contributing guidelines before submitting
 ---
 
 <p align="center">
-  <strong>Built by <a href="https://iotactical.co">ioTACTICAL</a></strong><br>
-  <em>Engineering teams building what matters.</em>
+  <strong>Built by <a href="https://iotactical.co">ioTACTICAL Engineering</a></strong><br>
+  <a href="mailto:engineering@iotactical.co">engineering@iotactical.co</a>
 </p>
