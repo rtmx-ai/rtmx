@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import starlightClientMermaid from '@pasqal-io/starlight-client-mermaid';
 
 // https://astro.build/config
 export default defineConfig({
@@ -8,6 +9,7 @@ export default defineConfig({
 	base: '/rtmx',
 	integrations: [
 		starlight({
+			plugins: [starlightClientMermaid()],
 			title: 'RTMX',
 			description: 'Requirements Traceability Matrix for Python - AI-native test traceability',
 			expressiveCode: {

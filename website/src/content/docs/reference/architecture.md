@@ -5,29 +5,25 @@ description: RTMX system architecture and design
 
 ## System Overview
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                    Developer/Agent                        │
-├──────────────────────────────────────────────────────────┤
-│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────────┐ │
-│  │  CLI    │  │ pytest  │  │  MCP    │  │  Web UI     │ │
-│  │ rtmx    │  │ plugin  │  │ server  │  │ dashboard   │ │
-│  └────┬────┘  └────┬────┘  └────┬────┘  └──────┬──────┘ │
-│       │            │            │               │        │
-│       └────────────┴────────────┴───────────────┘        │
-│                           │                              │
-│                    ┌──────┴──────┐                       │
-│                    │  RTM Core   │                       │
-│                    │  (Python)   │                       │
-│                    └──────┬──────┘                       │
-│                           │                              │
-│       ┌───────────────────┼───────────────────┐          │
-│       │                   │                   │          │
-│  ┌────┴────┐        ┌─────┴─────┐       ┌────┴────┐     │
-│  │ GitHub  │        │   CSV     │       │  Jira   │     │
-│  │ Adapter │        │ Database  │       │ Adapter │     │
-│  └─────────┘        └───────────┘       └─────────┘     │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph clients["Developer / Agent"]
+        CLI["CLI<br/>rtmx"]
+        pytest["pytest<br/>plugin"]
+        MCP["MCP<br/>server"]
+        WebUI["Web UI<br/>dashboard"]
+    end
+
+    CLI --> Core
+    pytest --> Core
+    MCP --> Core
+    WebUI --> Core
+
+    Core["RTM Core<br/>(Python)"]
+
+    Core --> GitHub["GitHub<br/>Adapter"]
+    Core --> CSV[("CSV<br/>Database")]
+    Core --> Jira["Jira<br/>Adapter"]
 ```
 
 ## Core Components
