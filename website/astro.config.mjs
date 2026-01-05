@@ -35,6 +35,22 @@ export default defineConfig({
 						content: '#0f172a',
 					},
 				},
+				{
+					tag: 'script',
+					content: `
+						document.addEventListener('DOMContentLoaded', () => {
+							const header = document.querySelector('header.header');
+							if (!header) return;
+							const rightGroup = header.querySelector('.right-group, .sl-flex');
+							if (!rightGroup) return;
+							const buySyncButton = document.createElement('a');
+							buySyncButton.href = '/rtmx/pricing';
+							buySyncButton.className = 'buy-sync-button';
+							buySyncButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>Sync';
+							rightGroup.insertBefore(buySyncButton, rightGroup.firstChild);
+						});
+					`,
+				},
 			],
 			sidebar: [
 				{
