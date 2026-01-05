@@ -142,22 +142,25 @@ import TerminalCarousel from './TerminalCarousel.astro';
         <tr>
           <th>Feature</th>
           <th>RTMX</th>
+          <th>GitHub</th>
+          <th>GitLab</th>
           <th>Jira</th>
           <th>Linear</th>
-          <th>Manual</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td>Test traceability</td>
           <td class="check">Built-in</td>
+          <td class="cross">No</td>
+          <td class="partial">Basic</td>
           <td class="cross">Plugin</td>
           <td class="cross">No</td>
-          <td class="cross">Manual</td>
         </tr>
         <tr>
-          <td>pytest integration</td>
+          <td>pytest markers</td>
           <td class="check">Native</td>
+          <td class="cross">No</td>
           <td class="cross">No</td>
           <td class="cross">No</td>
           <td class="cross">No</td>
@@ -165,42 +168,48 @@ import TerminalCarousel from './TerminalCarousel.astro';
         <tr>
           <td>AI agent support</td>
           <td class="check">MCP</td>
+          <td class="partial">Copilot</td>
+          <td class="partial">Duo</td>
           <td class="cross">API only</td>
           <td class="cross">API only</td>
+        </tr>
+        <tr>
+          <td>Requirements spec</td>
+          <td class="check">CSV + Markdown</td>
+          <td class="cross">Issues only</td>
+          <td class="partial">Epics</td>
+          <td class="check">Yes</td>
           <td class="cross">No</td>
         </tr>
         <tr>
-          <td>Git-friendly</td>
-          <td class="check">CSV</td>
+          <td>Git-native storage</td>
+          <td class="check">Yes</td>
+          <td class="cross">Database</td>
+          <td class="cross">Database</td>
           <td class="cross">SaaS</td>
           <td class="cross">SaaS</td>
-          <td class="check">Varies</td>
         </tr>
         <tr>
           <td>Self-hosted</td>
-          <td class="check">Yes</td>
+          <td class="check">Free</td>
+          <td class="cross">Enterprise</td>
+          <td class="check">Free</td>
           <td class="cross">$$$</td>
           <td class="cross">No</td>
-          <td class="check">Yes</td>
         </tr>
         <tr>
           <td>Open source</td>
           <td class="check">MIT</td>
           <td class="cross">No</td>
-          <td class="cross">No</td>
-          <td class="check">Varies</td>
-        </tr>
-        <tr>
-          <td>Real-time sync</td>
-          <td class="coming-soon">Coming soon</td>
-          <td class="cross">No</td>
+          <td class="partial">Core only</td>
           <td class="cross">No</td>
           <td class="cross">No</td>
         </tr>
         <tr>
-          <td>E2E encryption</td>
-          <td class="coming-soon">Coming soon</td>
-          <td class="cross">No</td>
+          <td>CLI-first workflow</td>
+          <td class="check">Yes</td>
+          <td class="partial">gh CLI</td>
+          <td class="partial">glab CLI</td>
           <td class="cross">No</td>
           <td class="cross">No</td>
         </tr>
@@ -460,6 +469,14 @@ import TerminalCarousel from './TerminalCarousel.astro';
   .feature-card.coming-soon {
     position: relative;
     border-color: #f59e0b40;
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+
+  .feature-card.coming-soon h3,
+  .feature-card.coming-soon p {
+    width: 100%;
+    text-align: left;
   }
 
   .feature-card.coming-soon:hover {
@@ -491,6 +508,7 @@ import TerminalCarousel from './TerminalCarousel.astro';
     background: #0a0a0a;
     border-top: 1px solid #262626;
     border-bottom: 1px solid #262626;
+    align-items: stretch;
   }
 
   .stat-card {
@@ -499,17 +517,22 @@ import TerminalCarousel from './TerminalCarousel.astro';
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: flex-start;
   }
 
   .stat-number {
-    display: block;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
     font-size: 3rem;
     font-weight: 700;
     background: linear-gradient(135deg, #10b981 0%, #6ee7b7 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    line-height: 1.1;
+    line-height: 1;
+    height: 3.5rem;
+    margin: 0;
   }
 
   .stat-label {
@@ -518,7 +541,6 @@ import TerminalCarousel from './TerminalCarousel.astro';
     font-size: 0.9rem;
     margin-top: 0.5rem;
     line-height: 1.4;
-    flex: 1;
   }
 
   .stat-card a {
@@ -581,12 +603,12 @@ import TerminalCarousel from './TerminalCarousel.astro';
   .comparison-table th:first-child,
   .comparison-table td:first-child {
     text-align: left;
-    width: 35%;
+    width: 25%;
   }
 
   .comparison-table th:not(:first-child),
   .comparison-table td:not(:first-child) {
-    width: 16.25%;
+    width: 15%;
   }
 
   .comparison-table th {
@@ -609,6 +631,10 @@ import TerminalCarousel from './TerminalCarousel.astro';
 
   .comparison-table .cross {
     color: #6b7280;
+  }
+
+  .comparison-table .partial {
+    color: #f59e0b;
   }
 
   .comparison-table .coming-soon {
@@ -669,6 +695,7 @@ import TerminalCarousel from './TerminalCarousel.astro';
   .dont-use-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: 1fr;
     gap: 1.5rem;
     max-width: 1000px;
     margin: 0 auto;
@@ -679,6 +706,10 @@ import TerminalCarousel from './TerminalCarousel.astro';
     border: 1px solid #1f1f1f;
     border-radius: 0.75rem;
     padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    height: 100%;
   }
 
   .dont-use-card h3 {
@@ -768,6 +799,7 @@ import TerminalCarousel from './TerminalCarousel.astro';
 
     .stat-number {
       font-size: 2.5rem;
+      height: 3rem;
     }
 
     .feature-grid {
