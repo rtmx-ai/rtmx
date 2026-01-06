@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-01-06
+
+### Fixed
+- MCP server API compatibility with mcp SDK 1.x
+  - Updated `create_server` to return `(server, init_options)` tuple
+  - Updated `run_server` to use new `stdio_server()` async context manager pattern
+  - Fixed `Server.run()` call signature: `(read_stream, write_stream, init_options)`
+  - Fixes "unhandled errors in a TaskGroup" error when running MCP server
+
+### Added
+- MCP server API compatibility tests in `test_mcp_coverage.py`
+
 ## [0.0.4] - 2026-01-03
 
 ### Added

@@ -19,14 +19,14 @@ def create_server(config: RTMXConfig | None = None):
         config: RTMX configuration
 
     Returns:
-        MCP server instance
+        Tuple of (server, initialization_options)
 
     Raises:
         ImportError: If mcp package is not installed
     """
     try:
         from mcp.server import Server
-        from mcp.server.stdio import stdio_server
+        from mcp.server.models import InitializationOptions
         from mcp.types import TextContent, Tool
     except ImportError as e:
         raise ImportError(
@@ -40,6 +40,16 @@ def create_server(config: RTMXConfig | None = None):
 
     # Create MCP server
     server = Server("rtmx")
+
+    # Create initialization options
+    init_options = InitializationOptions(
+        server_name="rtmx",
+        server_version="0.0.5",
+        capabilities=server.get_capabilities(
+            notification_options=None,
+            experimental_capabilities={},
+        ),
+    )
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
@@ -183,7 +193,7 @@ def create_server(config: RTMXConfig | None = None):
         else:
             return [TextContent(type="text", text=f"Error: {result.error}")]
 
-    return server, stdio_server
+    return server, init_options
 
 
 async def run_server(config: RTMXConfig | None = None) -> None:
@@ -192,7 +202,14 @@ async def run_server(config: RTMXConfig | None = None) -> None:
     Args:
         config: RTMX configuration
     """
-    server, stdio = create_server(config)
+    try:
+        from mcp.server.stdio import stdio_server
+    except ImportError as e:
+        raise ImportError(
+            "MCP package is required for MCP server. Install with: pip install rtmx[mcp]"
+        ) from e
 
-    async with stdio(server.run):
-        pass
+    server, init_options = create_server(config)
+
+    async with stdio_server() as (read_stream, write_stream):
+        await server.run(read_stream, write_stream, init_options)

@@ -32,26 +32,6 @@ def run_mcp_server(
         pidfile: PID file path for daemon management
         config: RTMX configuration
     """
-    print("=== RTMX MCP Server ===")
-    print()
-
-    print(f"{Colors.BOLD}Server Configuration:{Colors.RESET}")
-    print(f"  Host: {host}")
-    print(f"  Port: {port}")
-    print(f"  Daemon mode: {daemon}")
-    if pidfile:
-        print(f"  PID file: {pidfile}")
-    print()
-
-    print(f"{Colors.BOLD}Available Tools:{Colors.RESET}")
-    print("  rtmx_status           - Get completion status")
-    print("  rtmx_backlog          - Get prioritized backlog")
-    print("  rtmx_get_requirement  - Get requirement details")
-    print("  rtmx_update_status    - Update requirement status")
-    print("  rtmx_deps             - Get dependencies")
-    print("  rtmx_search           - Search requirements")
-    print()
-
     # Check if mcp package is available
     try:
         import mcp  # noqa: F401
@@ -60,24 +40,63 @@ def run_mcp_server(
         print("Install with: pip install rtmx[mcp]")
         sys.exit(1)
 
+    # Check if stdin is a TTY (interactive terminal)
+    # MCP servers communicate over stdin/stdout with JSON-RPC, not for interactive use
+    if sys.stdin.isatty() and not daemon:
+        print("=== RTMX MCP Server ===")
+        print()
+        print(f"{Colors.BOLD}Server Configuration:{Colors.RESET}")
+        print(f"  Host: {host}")
+        print(f"  Port: {port}")
+        print()
+        print(f"{Colors.BOLD}Available Tools:{Colors.RESET}")
+        print("  rtmx_status           - Get completion status")
+        print("  rtmx_backlog          - Get prioritized backlog")
+        print("  rtmx_get_requirement  - Get requirement details")
+        print("  rtmx_update_status    - Update requirement status")
+        print("  rtmx_deps             - Get dependencies")
+        print("  rtmx_search           - Search requirements")
+        print()
+        print(
+            f"{Colors.YELLOW}Note: MCP server is designed to be run by an MCP client,{Colors.RESET}"
+        )
+        print(f"{Colors.YELLOW}not directly from a terminal.{Colors.RESET}")
+        print()
+        print("To use the MCP server:")
+        print("  1. Configure your MCP client (e.g., Claude Desktop) to run:")
+        print(f"     {sys.executable} -m rtmx mcp-server")
+        print("  2. Or pipe commands for testing:")
+        print("     echo '{}' | rtmx mcp-server")
+        print()
+        print("See https://iotactical.github.io/rtmx/adapters/mcp for setup instructions.")
+        sys.exit(0)
+
     # Handle daemon mode
     if daemon:
         _daemonize(pidfile)
 
     # Run the server
-    print(f"{Colors.GREEN}Starting MCP server...{Colors.RESET}")
-    print("Press Ctrl+C to stop")
-    print()
+    print(f"{Colors.GREEN}Starting MCP server...{Colors.RESET}", file=sys.stderr)
 
     try:
         from rtmx.adapters.mcp.server import run_server
 
         asyncio.run(run_server(config))
     except KeyboardInterrupt:
-        print()
-        print(f"{Colors.YELLOW}Server stopped{Colors.RESET}")
+        print(f"{Colors.YELLOW}Server stopped{Colors.RESET}", file=sys.stderr)
+    except (EOFError, ConnectionError, BrokenPipeError):
+        # Client disconnected - normal shutdown
+        print(f"{Colors.YELLOW}Client disconnected{Colors.RESET}", file=sys.stderr)
+        sys.exit(0)
     except Exception as e:
-        print(f"{Colors.RED}Server error: {e}{Colors.RESET}")
+        # Handle asyncio TaskGroup errors gracefully (Python 3.11+ ExceptionGroup)
+        # This typically happens when the MCP client disconnects
+        if type(e).__name__ == "ExceptionGroup" and hasattr(e, "exceptions"):
+            for exc in e.exceptions:
+                if isinstance(exc, EOFError | ConnectionError | BrokenPipeError):
+                    print(f"{Colors.YELLOW}Client disconnected{Colors.RESET}", file=sys.stderr)
+                    sys.exit(0)
+        print(f"{Colors.RED}Server error: {e}{Colors.RESET}", file=sys.stderr)
         sys.exit(1)
 
 

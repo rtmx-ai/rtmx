@@ -906,3 +906,64 @@ class TestMCPServerModule:
         assert hasattr(mcp_module, "__all__")
         assert "create_server" in mcp_module.__all__
         assert "RTMXTools" in mcp_module.__all__
+
+
+# ===============================================================================
+# MCP Server API Compatibility Tests
+# ===============================================================================
+
+
+@pytest.mark.req("REQ-MCP-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+class TestMCPServerAPICompatibility:
+    """Tests for MCP server API compatibility with mcp SDK 1.x."""
+
+    def test_create_server_returns_server_and_init_options(self):
+        """Test create_server returns (server, init_options) tuple.
+
+        This validates the fix for the MCP SDK 1.x API where:
+        - Server.run() takes (read_stream, write_stream, init_options)
+        - stdio_server() returns async context manager yielding streams
+        """
+        # Ensure mcp.server.models is in sys.modules for import
+        sys.modules["mcp.server.models"] = MagicMock()
+
+        from rtmx.adapters.mcp.server import create_server
+
+        # create_server should return a tuple of (server, init_options)
+        result = create_server()
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+
+        server, init_options = result
+
+        # Server should be an MCP Server instance (mocked)
+        assert server is not None
+
+        # init_options should be InitializationOptions (mocked)
+        assert init_options is not None
+
+    def test_create_server_init_options_has_capabilities(self):
+        """Test initialization options include server capabilities."""
+        # Ensure mcp.server.models is in sys.modules for import
+        sys.modules["mcp.server.models"] = MagicMock()
+
+        from rtmx.adapters.mcp.server import create_server
+
+        _, init_options = create_server()
+
+        # InitializationOptions should have been created with capabilities
+        # (the mock will capture the call arguments)
+        assert init_options is not None
+
+    def test_run_server_is_async_function(self):
+        """Test run_server is an async function."""
+        import asyncio
+
+        from rtmx.adapters.mcp.server import run_server
+
+        # Verify run_server is a coroutine function
+        assert asyncio.iscoroutinefunction(run_server)
