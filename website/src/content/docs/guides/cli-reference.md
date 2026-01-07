@@ -14,6 +14,13 @@ description: Complete command reference for RTMX CLI
 | `rtmx health` | Run integration health checks |
 | `rtmx config` | Show or validate configuration |
 
+## Dashboard Commands
+
+| Command | Description |
+|---------|-------------|
+| `rtmx serve` | Start web dashboard with REST API |
+| `rtmx tui` | Launch interactive terminal dashboard |
+
 ## Analysis Commands
 
 | Command | Description |
@@ -34,6 +41,7 @@ description: Complete command reference for RTMX CLI
 | `rtmx install` | Install prompts into AI agent configs |
 | `rtmx makefile` | Generate Makefile targets |
 | `rtmx mcp-server` | Start MCP server for AI agent integration |
+| `rtmx docs` | Generate schema and config documentation |
 
 ## Command Details
 
@@ -105,13 +113,57 @@ rtmx sync jira            # Sync to Jira
 rtmx sync --dry-run       # Preview changes without applying
 ```
 
-### rtmx mcp-server
+### rtmx serve
 
-Start MCP server for AI agent integration:
+Start web dashboard with REST API:
 
 ```bash
-rtmx mcp-server                    # Start on stdio
-rtmx mcp-server --port 8080        # Start on HTTP
+rtmx serve                         # Start on localhost:8080
+rtmx serve --host 0.0.0.0          # Bind to all interfaces
+rtmx serve --port 3000             # Custom port
+rtmx serve --reload                # Auto-reload on changes
+```
+
+### rtmx tui
+
+Launch interactive terminal dashboard:
+
+```bash
+rtmx tui                           # Start interactive TUI
+```
+
+Requires `rtmx[tui]` extra: `pip install rtmx[tui]`
+
+### rtmx mcp-server
+
+Start MCP server for AI agent integration (stdio transport):
+
+```bash
+rtmx mcp-server                    # Start on stdio (for MCP clients)
+rtmx mcp-server --daemon           # Run as background daemon
+rtmx mcp-server --pidfile mcp.pid  # Specify PID file for daemon
+```
+
+The MCP server uses JSON-RPC over stdin/stdout. Configure your MCP client (e.g., Claude Desktop) to launch it:
+
+```json
+{
+  "mcpServers": {
+    "rtmx": {
+      "command": "rtmx",
+      "args": ["mcp-server"]
+    }
+  }
+}
+```
+
+### rtmx docs
+
+Generate documentation:
+
+```bash
+rtmx docs schema                   # Show schema documentation
+rtmx docs config                   # Show configuration documentation
 ```
 
 ## Global Options

@@ -21,7 +21,7 @@ from rtmx.models import (
     Status,
 )
 
-__version__ = "0.0.3"
+__version__ = "0.0.5"
 __all__ = [
     "RTMDatabase",
     "Requirement",
