@@ -24,13 +24,24 @@
   --sl-color-hairline: #404040;
 }
 
-/* Light mode overrides */
+/* Force dark mode always - override light mode to use dark colors */
 :root[data-theme='light'] {
-  --sl-color-bg: #ffffff;
-  --sl-color-bg-nav: #f9fafb;
-  --sl-color-bg-sidebar: #f9fafb;
-  --sl-color-hairline-light: #e5e7eb;
-  --sl-color-hairline: #d1d5db;
+  --sl-color-bg: #0a0a0a;
+  --sl-color-bg-nav: #171717;
+  --sl-color-bg-sidebar: #171717;
+  --sl-color-hairline-light: #262626;
+  --sl-color-hairline: #404040;
+  /* Force dark text colors in "light" mode */
+  --sl-color-text: #e5e7eb;
+  --sl-color-text-accent: #6ee7b7;
+  --sl-color-white: #f9fafb;
+  --sl-color-gray-1: #f3f4f6;
+  --sl-color-gray-2: #e5e7eb;
+  --sl-color-gray-3: #d1d5db;
+  --sl-color-gray-4: #9ca3af;
+  --sl-color-gray-5: #6b7280;
+  --sl-color-gray-6: #374151;
+  --sl-color-black: #111111;
 }
 
 /* Inline code - high contrast pill style */
@@ -42,9 +53,10 @@
   font-size: 0.875em;
 }
 
+/* Force dark inline code even in "light" mode */
 :root[data-theme='light'] .sl-markdown-content :not(pre) > code {
-  background: #f3f4f6;
-  color: #1f2937;
+  background: #262626;
+  color: #e5e7eb;
 }
 
 /* Monospace typography for code-heavy content */
