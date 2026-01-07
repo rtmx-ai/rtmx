@@ -49,8 +49,17 @@ pip install rtmx[github]
 # Jira integration
 pip install rtmx[jira]
 
-# Web UI
+# Web UI dashboard (rtmx serve)
 pip install rtmx[web]
+
+# Terminal UI (rtmx tui)
+pip install rtmx[tui]
+
+# Rich formatting for status output
+pip install rtmx[rich]
+
+# MCP server for AI agent integration
+pip install rtmx[mcp]
 
 # All optional dependencies
 pip install rtmx[all]

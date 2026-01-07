@@ -43,7 +43,7 @@ RTMX is designed with security-first principles:
 | **Local-first** | Your data stays on your machine—no cloud required |
 | **Git-native** | Full version history and audit trail via git |
 | **Human-readable** | CSV format is auditable, no opaque databases |
-| **Open source** | MIT license, fully auditable codebase |
+| **Open source** | Apache-2.0 license, fully auditable codebase |
 | **No telemetry** | Zero data collection in the core tool |
 
 **RTMX Sync** (coming soon) adds real-time collaboration with end-to-end encryption, SSO/SAML, and on-premises deployment options for defense and regulated industries.
@@ -166,6 +166,13 @@ RTMX automatically tracks which requirements have tests and which don't.
 | `rtmx analyze` | Discover requirements from project artifacts |
 | `rtmx diff` | Compare RTM versions (for PRs) |
 
+### Dashboard Commands
+
+| Command | Description |
+|---------|-------------|
+| `rtmx serve` | Start web dashboard with REST API |
+| `rtmx tui` | Launch interactive terminal dashboard |
+
 ### Integration Commands
 
 | Command | Description |
@@ -176,6 +183,7 @@ RTMX automatically tracks which requirements have tests and which don't.
 | `rtmx install` | Install prompts into AI agent configs |
 | `rtmx makefile` | Generate Makefile targets |
 | `rtmx mcp-server` | Start MCP server for AI agent integration |
+| `rtmx docs` | Generate schema and config documentation |
 
 ## Makefile Integration
 
@@ -272,7 +280,7 @@ make lint     # Run linter
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
