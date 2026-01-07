@@ -227,64 +227,64 @@ import TerminalCarousel from './TerminalCarousel.astro';
     <div class="dont-use-card">
       <h3>You already have a spreadsheet.</h3>
       <p>
-        Look, your <code>requirements.xlsx</code> file is working great. Sure, it's three tabs deep
-        and nobody remembers which column means "done." But it's <em>free</em>. And you've been using it since 2019. Why change now?
+        And you definitely don't spend 2 hours every sprint reconciling it with what actually shipped.
+        That's just part of the process, right?
       </p>
     </div>
 
     <div class="dont-use-card">
-      <h3>Your team doesn't use AI yet.</h3>
+      <h3>AI-generated code always works.</h3>
       <p>
-        If you're not using Copilot, Claude Code, or Cursor, then RTMX won't help you. We're built for
-        teams where AI writes half the code and humans need to keep it honest. If you're still typing every character yourself, godspeed.
+        Your agent never confidently implements the wrong feature or quietly breaks something three files away.
+        No need to trace what it changed back to what you actually asked for.
       </p>
     </div>
 
     <div class="dont-use-card">
       <h3>You love Jira.</h3>
       <p>
-        Really, you do. The 47 custom fields. The 12 workflow states. The satisfying click when you close
-        a ticket that was open for 18 months. RTMX is just a CSV file and a CLI. Boring.
+        RTMX is distributed and version-controlled with your code. Way worse than managing requirements
+        in a GUI that's definitely not loading right now.
       </p>
     </div>
 
     <div class="dont-use-card">
       <h3>You don't want to pay $9.</h3>
       <p>
-        The open-source version is free. Forever. Use that. If you don't need real-time sync across
-        a team, you don't need to pay us anything. We mean it. Go ahead.
+        You'd rather spend 9 hours every week fixing the tech debt slop that AI creates for your team.
+        Time is money, but it's <em>your</em> time.
       </p>
     </div>
 
     <div class="dont-use-card">
-      <h3>Budget approval sounds exhausting.</h3>
+      <h3>Tests prove nothing.</h3>
       <p>
-        $9/user/month times 50 people is $5,400/year. That's a meeting. Maybe two meetings.
-        And a Slack thread. And a Notion doc comparing alternatives. You know what? Just use the spreadsheet.
+        You trust your test suite, even if nobody can remember which features it actually covers.
+        "I think auth is tested somewhere" is basically the same as traceability.
       </p>
     </div>
 
     <div class="dont-use-card">
-      <h3>You ship fast and fix later.</h3>
+      <h3>Dependencies are obvious.</h3>
       <p>
-        Requirements traceability is for nerds who care about audits, compliance, and "knowing what the code does."
-        If your philosophy is "we'll document it after Series B," RTMX will only slow you down.
+        Your team instinctively knows that REQ-47 blocks REQ-12 which blocks REQ-89.
+        Why would you need a graph for that?
       </p>
     </div>
 
     <div class="dont-use-card">
-      <h3>You're worried we'll disappear.</h3>
+      <h3>Your AI knows the codebase.</h3>
       <p>
-        Fair. We're small. We might get acqui-hired or pivot into oblivion. But here's the thing: your data is a CSV file.
-        MIT license. You can <code>git log</code> your requirements forever. Zero lock-in. But yeah, maybe stick with the spreadsheet.
+        Context windows are unlimited now. Your agent never forgets the requirement
+        it was working on or what tests need to pass. Refresh the chat? No problem.
       </p>
     </div>
 
     <div class="dont-use-card">
-      <h3>You don't get what it does.</h3>
+      <h3>Audits are fine.</h3>
       <p>
-        "Requirements traceability matrix" sounds like something from a 1997 ISO handbook. And honestly? It kind of is.
-        But if your AI is writing code that doesn't match your specs, and your tests don't prove you shipped what you promised... maybe that's fine?
+        "Show me every requirement and its test" is a reasonable ask and you can answer it in 5 minutes.
+        You've definitely done the drill and it went great.
       </p>
     </div>
   </div>
@@ -712,9 +712,9 @@ import TerminalCarousel from './TerminalCarousel.astro';
   }
 
   .dont-use-card p {
-    color: #6b7280;
-    font-size: 0.9rem;
-    line-height: 1.6;
+    color: #9ca3af;
+    font-size: 1rem;
+    line-height: 1.7;
     margin: 0;
   }
 
