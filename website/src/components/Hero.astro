@@ -687,10 +687,10 @@ import TerminalCarousel from './TerminalCarousel.astro';
   .dont-use-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    grid-auto-rows: 1fr;
     gap: 1.5rem;
     max-width: 1000px;
     margin: 0 auto;
+    align-items: start;
   }
 
   .dont-use-card {
@@ -698,10 +698,6 @@ import TerminalCarousel from './TerminalCarousel.astro';
     border: 1px solid #1f1f1f;
     border-radius: 0.75rem;
     padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    height: 100%;
   }
 
   .dont-use-card h3 {
