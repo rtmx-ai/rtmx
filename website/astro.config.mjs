@@ -32,13 +32,20 @@ export default defineConfig({
 					tag: 'meta',
 					attrs: {
 						name: 'theme-color',
-						content: '#0f172a',
+						content: '#0a0a0a',
 					},
+				},
+				{
+					// Force dark mode immediately before page renders
+					tag: 'script',
+					content: `document.documentElement.dataset.theme = 'dark';`,
 				},
 				{
 					tag: 'script',
 					content: `
 						document.addEventListener('DOMContentLoaded', () => {
+							// Ensure dark mode stays forced
+							document.documentElement.dataset.theme = 'dark';
 							const header = document.querySelector('header.header');
 							if (!header) return;
 
