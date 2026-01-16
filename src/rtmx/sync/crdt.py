@@ -148,7 +148,8 @@ def ymap_to_requirement(ymap: Map | dict[str, Any]) -> Requirement:
     from rtmx.models import Priority, Requirement, Status
 
     # Handle both Y.Map and dict
-    data = ymap.to_py() if hasattr(ymap, "to_py") else dict(ymap)
+    raw_data = ymap.to_py() if hasattr(ymap, "to_py") else dict(ymap)
+    data: dict[str, Any] = raw_data if isinstance(raw_data, dict) else {}
 
     # Parse dependencies and blocks from pipe-delimited strings
     deps_str = str(data.get("dependencies", ""))
@@ -237,14 +238,18 @@ class RTMDocument:
         self._doc = doc if doc is not None else Doc()
 
         # Initialize shared data structures
-        if "requirements" not in self._doc:
-            self._doc["requirements"] = Map()
-        if "metadata" not in self._doc:
-            self._doc["metadata"] = Map()
-            self._doc["metadata"]["schema_version"] = CRDT_SCHEMA_VERSION
-            self._doc["metadata"]["created_at"] = time.time()
-        if "claims" not in self._doc:
-            self._doc["claims"] = Map()
+        # pycrdt.Doc doesn't have full typing support, use getattr pattern
+        requirements_key = "requirements"
+        if requirements_key not in list(self._doc.keys()):
+            self._doc[requirements_key] = Map()
+        metadata_key = "metadata"
+        if metadata_key not in list(self._doc.keys()):
+            self._doc[metadata_key] = Map()
+            self._doc[metadata_key]["schema_version"] = CRDT_SCHEMA_VERSION
+            self._doc[metadata_key]["created_at"] = time.time()
+        claims_key = "claims"
+        if claims_key not in list(self._doc.keys()):
+            self._doc[claims_key] = Map()
 
     @property
     def doc(self) -> Doc:
@@ -325,7 +330,10 @@ class RTMDocument:
         Returns:
             List of all requirements
         """
-        return [ymap_to_requirement(self.requirements[req_id]) for req_id in self.requirements]
+        return [
+            ymap_to_requirement(self.requirements[req_id])
+            for req_id in list(self.requirements.keys())
+        ]
 
     # -------------------------------------------------------------------------
     # Database Conversion

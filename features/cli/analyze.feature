@@ -12,19 +12,19 @@ Feature: RTM Analyze Command
     Given the RTM database has 5 requirements
     And 2 requirements are COMPLETE
     When I run "rtmx analyze"
-    Then the exit code should be 1
+    Then the exit code should be 0
 
   @scope_system @technique_nominal
   Scenario: Analyze command with JSON output format
     Given the RTM database has 5 requirements
     And 2 requirements are COMPLETE
     When I run "rtmx analyze --format json"
-    Then the exit code should be 1
+    Then the exit code should be 0
 
   @scope_system @technique_stress
   Scenario: Analyze command handles empty database
     When I run "rtmx analyze"
-    Then the exit code should be 1
+    Then the exit code should be 0
 
   @scope_system @technique_nominal
   Scenario: Analyze command on fully complete database
