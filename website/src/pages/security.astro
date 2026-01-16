@@ -1,16 +1,16 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 
-const currentSecurityFeatures = [
+const plannedSecurityFeatures = [
   {
     icon: 'lock',
     title: 'TLS 1.3 Transport Encryption',
-    description: 'All data in transit is protected with the latest TLS 1.3 protocol, ensuring forward secrecy and strong encryption.',
+    description: 'All data in transit will be protected with TLS 1.3, ensuring forward secrecy and strong encryption.',
   },
   {
     icon: 'shield',
     title: 'AES-256-GCM End-to-End Encryption',
-    description: 'Your requirements data is encrypted at rest using AES-256-GCM. The server only sees ciphertext.',
+    description: 'Requirements data will be encrypted at rest using AES-256-GCM. The server only sees ciphertext.',
   },
   {
     icon: 'key',
@@ -20,12 +20,12 @@ const currentSecurityFeatures = [
   {
     icon: 'users',
     title: 'Role-Based Access Control',
-    description: 'Fine-grained permissions control who can view, edit, or manage requirements and configurations.',
+    description: 'Fine-grained permissions will control who can view, edit, or manage requirements and configurations.',
   },
   {
     icon: 'clipboard',
     title: 'Immutable Audit Logging',
-    description: 'Every action is logged with cryptographic integrity. Audit trails cannot be modified or deleted.',
+    description: 'Every action will be logged with cryptographic integrity. Audit trails cannot be modified or deleted.',
   },
 ];
 
@@ -157,19 +157,19 @@ const supplyChainFeatures = [
     <!-- Hero Section -->
     <section class="security-hero">
       <span class="security-badge">Security</span>
-      <h1>Enterprise-Grade Security for Defense Contractors</h1>
+      <h1>Enterprise-Grade Security Built In</h1>
       <p class="hero-subtitle">
-        RTMX is built from the ground up with defense-grade security. From end-to-end encryption
+        RTMX is built from the ground up with security as a core principle. From end-to-end encryption
         to post-quantum cryptography readiness, we protect your most sensitive requirements data.
       </p>
     </section>
 
-    <!-- Current Security Section -->
+    <!-- Planned Security Section -->
     <section class="security-section">
-      <h2>Current Security Capabilities</h2>
-      <p class="section-subtitle">Production-ready security features available today.</p>
+      <h2>Security Roadmap</h2>
+      <p class="section-subtitle">Enterprise security features planned for the RTMX Sync service.</p>
       <div class="features-grid not-content">
-        {currentSecurityFeatures.map((feature) => (
+        {plannedSecurityFeatures.map((feature) => (
           <div class="feature-card">
             <div class="feature-icon" data-icon={feature.icon}>
               {feature.icon === 'lock' && (
@@ -454,6 +454,7 @@ const supplyChainFeatures = [
   .security-section {
     background: #0f0f0f;
     max-width: 100%;
+    padding: 4rem 2rem;
   }
 
   .security-section > h2,
