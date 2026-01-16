@@ -6,10 +6,12 @@ This module provides consistent terminal output formatting:
 - Status indicators
 - Table formatting
 - Rich library integration (optional)
+- Width-adaptive output (REQ-UX-008)
 """
 
 from __future__ import annotations
 
+import shutil
 import sys
 from typing import IO, TYPE_CHECKING
 
@@ -34,6 +36,34 @@ def is_rich_available() -> bool:
         True if rich is installed and importable
     """
     return _RICH_AVAILABLE
+
+
+# Default terminal width when detection fails
+DEFAULT_TERMINAL_WIDTH = 80
+# Minimum width to ensure readability
+MIN_TERMINAL_WIDTH = 40
+
+
+def get_terminal_width(override: int | None = None) -> int:
+    """Get the current terminal width.
+
+    Args:
+        override: Optional explicit width to use instead of detection
+
+    Returns:
+        Terminal width in columns, defaults to 80 if detection fails
+    """
+    if override is not None:
+        return override
+
+    try:
+        size = shutil.get_terminal_size()
+        width = size.columns
+        if width <= 0:
+            return DEFAULT_TERMINAL_WIDTH
+        return max(width, MIN_TERMINAL_WIDTH)
+    except (ValueError, OSError):
+        return DEFAULT_TERMINAL_WIDTH
 
 
 def format_table(
@@ -237,6 +267,136 @@ def progress_bar(
     )
 
     return f"[{bar}]"
+
+
+def progress_bar_adaptive(
+    complete: int,
+    partial: int,
+    missing: int,
+) -> str:
+    """Create a colored progress bar that adapts to terminal width.
+
+    Args:
+        complete: Number of complete items
+        partial: Number of partial items
+        missing: Number of missing items
+
+    Returns:
+        Colored progress bar string sized for current terminal
+    """
+    terminal_width = get_terminal_width()
+    # Reserve space for label and percentage: "Requirements: [...] XX.X%"
+    # Typically 20-25 chars for surrounding text
+    bar_width = max(20, terminal_width - 30)
+    return progress_bar(complete, partial, missing, width=bar_width)
+
+
+def format_table_adaptive(
+    data: list[list],
+    headers: list[str],
+    max_width: int | None = None,
+) -> str:
+    """Format tabular data with width-adaptive columns.
+
+    Truncates long text columns to fit within the specified or detected
+    terminal width while preserving readability.
+
+    Args:
+        data: List of rows, each row is a list of cell values
+        headers: List of column header strings
+        max_width: Maximum table width (defaults to terminal width)
+
+    Returns:
+        Formatted table string
+    """
+    if max_width is None:
+        max_width = get_terminal_width()
+
+    # Calculate available width for content (accounting for borders)
+    # Grid format: |col|col|col| has len(headers)+1 pipes + 2 spaces per col
+    num_cols = len(headers)
+    border_overhead = num_cols + 1 + (num_cols * 2)
+    available_content_width = max_width - border_overhead
+
+    if available_content_width < 20:
+        # Fall back to standard formatting if too narrow
+        return format_table(data, headers)
+
+    # Calculate column widths based on content
+    col_widths = []
+    for i, hdr in enumerate(headers):
+        # Get max width needed for this column
+        max_col_width = len(str(hdr))
+        for row in data:
+            if i < len(row):
+                cell_text = _get_plain_text(row[i])
+                max_col_width = max(max_col_width, len(cell_text))
+        col_widths.append(max_col_width)
+
+    total_content_width = sum(col_widths)
+
+    # If content fits, use standard formatting
+    if total_content_width <= available_content_width:
+        return format_table(data, headers)
+
+    # Need to truncate - prioritize shorter columns, truncate longer ones
+    # Identify "description" type columns (usually the longest)
+    avg_width = available_content_width // num_cols
+    min_col_width = 8  # Minimum width for any column
+
+    # Allocate widths - give priority to ID columns, truncate description columns
+    allocated_widths = []
+    for width in col_widths:
+        # Shorter columns get their full width (up to avg + 5)
+        if width <= avg_width + 5:
+            allocated_widths.append(min(width, avg_width + 5))
+        else:
+            # Longer columns get truncated
+            allocated_widths.append(max(min_col_width, avg_width))
+
+    # Adjust if we're still over budget
+    total_allocated = sum(allocated_widths)
+    while total_allocated > available_content_width:
+        # Find the longest column and reduce it
+        max_idx = allocated_widths.index(max(allocated_widths))
+        if allocated_widths[max_idx] > min_col_width:
+            allocated_widths[max_idx] -= 1
+            total_allocated -= 1
+        else:
+            break
+
+    # Truncate data to fit allocated widths
+    truncated_data = []
+    for row in data:
+        new_row = []
+        for i, cell in enumerate(row):
+            if i < len(allocated_widths):
+                cell_text = _get_plain_text(cell)
+                if len(cell_text) > allocated_widths[i]:
+                    cell_text = truncate(cell_text, allocated_widths[i])
+                new_row.append(cell_text)
+            else:
+                new_row.append(cell)
+        truncated_data.append(new_row)
+
+    return format_table(truncated_data, headers)
+
+
+def _get_plain_text(value: object) -> str:
+    """Extract plain text from a value, handling Rich Text objects.
+
+    Args:
+        value: Any value, possibly a Rich Text object
+
+    Returns:
+        Plain string representation
+    """
+    if isinstance(value, str):
+        return value
+    if hasattr(value, "plain"):
+        # Rich Text object
+        return str(value.plain)
+    return str(value) if value is not None else ""
 
 
 def percentage_color(pct: float) -> str:

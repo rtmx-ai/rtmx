@@ -20,6 +20,12 @@ rtmx:
     10: "Collaboration"
     11: "IDE Integration"
     12: "Distribution"
+    13: "Security/Compliance"
+    14: "Language Support"
+    15: "Git-Native Sync"
+    16: "Agent Orchestration"
+    17: "PM Features"
+    18: "BDD Support"
 
   pytest:
     marker_prefix: "req"
