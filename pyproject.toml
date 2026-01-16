@@ -72,13 +72,23 @@ web = [
     "jinja2>=3.0",
     "watchfiles>=0.21.0",
 ]
+sync = [
+    "pycrdt>=0.10.0",
+    "websockets>=12.0",
+]
+bdd = [
+    "pytest-bdd>=7.0",
+    "gherkin-official>=24.0",
+]
 all = [
-    "rtmx[rich,agents,github,jira,mcp,tui,web]",
+    "rtmx[rich,agents,github,jira,mcp,tui,web,sync,bdd]",
 ]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "pytest-asyncio>=0.23.0",  # Async test support
+    "pytest-bdd>=7.0",  # BDD with Gherkin
+    "gherkin-official>=24.0",  # Gherkin parser
     "ruff>=0.8.0,<0.9.0",  # Pin to match pre-commit config
     "mypy>=1.0",
     "pandas-stubs>=2.0",
@@ -93,6 +103,8 @@ dev = [
     "uvicorn[standard]>=0.27.0",
     "watchfiles>=0.21.0",
     "httpx>=0.27.0",  # For testing FastAPI
+    "pycrdt>=0.10.0",  # CRDT for sync
+    "websockets>=12.0",  # WebSocket client for sync
 ]
 test-browser = [
     "playwright>=1.40.0",
@@ -173,6 +185,10 @@ markers = [
     "env_anechoic: RF characterization",
     "env_static_field: Outdoor stationary targets",
     "env_dynamic_field: Outdoor moving targets",
+    # BDD component markers
+    "cli: CLI command tests",
+    "sync: Sync/collaboration tests",
+    "web: Web UI tests",
 ]
 
 [tool.coverage.run]

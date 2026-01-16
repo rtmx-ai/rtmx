@@ -149,6 +149,112 @@ Write minimal code to pass the test, then refactor.
 rtmx from-tests --update  # Sync test info to RTM
 ```
 
+## Gherkin Feature Specifications
+
+RTMX uses pytest-bdd for executable Gherkin specifications. Feature files live in `features/` and are language-agnostic.
+
+### Directory Structure
+
+```
+features/                    # Gherkin feature files (portable)
+├── cli/                     # CLI command features
+│   ├── status.feature
+│   └── backlog.feature
+└── sync/                    # Collaboration features
+    ├── collaboration.feature
+    └── offline.feature
+
+tests/bdd/                   # Python step definitions
+├── conftest.py              # BDD fixtures
+├── steps/
+│   ├── common_steps.py      # Shared Given/When/Then
+│   └── cli_steps.py         # CLI-specific steps
+└── scenarios/               # pytest-bdd test modules
+    └── test_cli_status.py
+```
+
+### Writing Feature Files
+
+Every feature file MUST:
+1. Link to requirements via `@REQ-XXX` tags
+2. Include test scope and technique tags
+3. Follow Gherkin best practices (Background for setup, Scenario Outline for data-driven)
+
+```gherkin
+@REQ-CLI-001 @REQ-UX-001 @cli
+Feature: RTM Status Display
+  As a developer using RTMX
+  I want to see the current RTM completion status
+  So that I can track project progress
+
+  Background:
+    Given an initialized RTMX project
+
+  @scope_system @technique_nominal
+  Scenario: Display status summary
+    Given the RTM database has 10 requirements
+    And 5 requirements are COMPLETE
+    When I run "rtmx status"
+    Then the command should succeed
+    And I should see "50%" in the output
+```
+
+### Tag Conventions
+
+| Tag Pattern | Purpose | Example |
+|-------------|---------|---------|
+| `@REQ-XXX-NNN` | Link to requirement | `@REQ-CLI-001` |
+| `@scope_*` | Test scope | `@scope_system` |
+| `@technique_*` | Test technique | `@technique_nominal` |
+| `@cli/@sync/@web` | Component | `@cli` |
+| `@phase-N` | Development phase | `@phase-10` |
+
+### Step Definition Patterns
+
+Use universal patterns that translate across languages:
+
+```python
+# tests/bdd/steps/common_steps.py
+from pytest_bdd import given, when, then, parsers
+
+@given("an initialized RTMX project")
+def initialized_project(tmp_path):
+    """Create project with rtmx.yaml and database."""
+    ...
+
+@when(parsers.parse('I run "{command}"'))
+def run_command(context, command):
+    """Execute CLI command. Universal pattern for any language."""
+    ...
+
+@then("the command should succeed")
+def command_succeeds(context):
+    assert context["result"].returncode == 0
+```
+
+### Running BDD Tests
+
+```bash
+pytest tests/bdd/ -v                      # Run BDD tests only
+pytest tests/ -v                          # Run all tests (unit + BDD)
+pytest tests/bdd/ -v --gherkin-terminal-reporter  # Verbose Gherkin output
+```
+
+### BDD Workflow for New Features
+
+1. **Write Feature Spec First**: Create `.feature` file with scenarios
+2. **Add Requirement Tags**: Link to existing or new requirements
+3. **Write Step Definitions**: Implement Given/When/Then in Python
+4. **Create Scenario Runner**: Add `tests/bdd/scenarios/test_*.py`
+5. **Run and Iterate**: Use failing scenarios to drive implementation
+
+### Multi-Language Portability
+
+Feature files are portable across languages. When adding SDKs in other languages:
+- Keep same `.feature` files
+- Write new step definitions in target language
+- Use language-appropriate BDD runner (cucumber-js, godog, etc.)
+
 ## Code Style
 
 - **Formatter**: ruff format

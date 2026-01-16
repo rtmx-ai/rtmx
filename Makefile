@@ -88,11 +88,19 @@ rtm-vv: ## Show RTM status (subcategories)
 rtm-vvv: ## Show RTM status (all requirements)
 	@$(VENV)/bin/rtmx status -vvv || true
 
-backlog: ## Show backlog (use PHASE=N to filter)
+backlog: ## Show backlog (use PHASE=N to filter, DEPTH=N for more items)
 ifdef PHASE
+ifdef DEPTH
+	$(VENV)/bin/rtmx backlog --phase $(PHASE) --limit $(DEPTH)
+else
 	$(VENV)/bin/rtmx backlog --phase $(PHASE)
+endif
+else
+ifdef DEPTH
+	$(VENV)/bin/rtmx backlog --limit $(DEPTH)
 else
 	$(VENV)/bin/rtmx backlog
+endif
 endif
 
 cycles: ## Check for dependency cycles

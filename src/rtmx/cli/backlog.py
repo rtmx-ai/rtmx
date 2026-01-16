@@ -210,7 +210,7 @@ def _show_all(
     print()
 
     # Remaining Requirements section
-    _show_remaining_section(incomplete, blocking_counts)
+    _show_remaining_section(incomplete, blocking_counts, limit)
 
 
 def _show_critical_path_section(
@@ -305,9 +305,19 @@ def _show_quick_wins_section(
 
 def _show_remaining_section(
     incomplete: list,
-    _blocking_counts: dict[str, tuple[int, int]],
+    blocking_counts: dict[str, tuple[int, int]],
+    limit: int | None = None,
 ) -> None:
-    """Show all remaining incomplete requirements."""
+    """Show remaining incomplete requirements.
+
+    Sorts by actionability (unblocked first), then blocking impact, then priority.
+
+    Args:
+        incomplete: List of incomplete requirements
+        blocking_counts: Dict mapping req_id to (transitive, direct) blocking counts
+        limit: Maximum items to show. If None, shows all.
+    """
+    total_count = len(incomplete)
     print(f"{Colors.BOLD}REMAINING REQUIREMENTS{Colors.RESET}")
     print()
 
@@ -315,16 +325,51 @@ def _show_remaining_section(
         print(f"{Colors.GREEN}✓ No remaining requirements!{Colors.RESET}")
         return
 
-    # Sort by phase, then priority, then ID
+    # Build set of incomplete IDs to check actionability
+    incomplete_ids = {r.req_id for r in incomplete}
+
+    def is_actionable(req) -> bool:
+        """Check if all dependencies are satisfied (not incomplete)."""
+        if not req.dependencies:
+            return True
+        return not any(dep in incomplete_ids for dep in req.dependencies)
+
+    # Sort by:
+    # 1. Actionable first (unblocked items)
+    # 2. Blocking count (items that unblock others)
+    # 3. Priority (P0 > HIGH > MEDIUM > LOW)
+    # 4. Phase (earlier phases first)
+    # 5. Requirement ID (alphabetical tiebreaker)
     priority_order = {Priority.P0: 0, Priority.HIGH: 1, Priority.MEDIUM: 2, Priority.LOW: 3}
-    sorted_reqs = sorted(
-        incomplete,
-        key=lambda r: (r.phase or 99, priority_order.get(r.priority, 4), r.req_id),
-    )
+
+    def sort_key(req):
+        actionable = 0 if is_actionable(req) else 1
+        trans_blocks, _ = blocking_counts.get(req.req_id, (0, 0))
+        return (
+            actionable,
+            -trans_blocks,  # Higher blocking count first
+            priority_order.get(req.priority, 4),
+            req.phase or 99,
+            req.req_id,
+        )
+
+    sorted_reqs = sorted(incomplete, key=sort_key)
+
+    # Apply limit if specified
+    display_reqs = sorted_reqs[:limit] if limit else sorted_reqs
+    showing_partial = limit is not None and total_count > limit
+
+    # Count actionable for display
+    actionable_count = sum(1 for r in incomplete if is_actionable(r))
 
     # Build table
     table_data = []
-    for i, req in enumerate(sorted_reqs, 1):
+    for i, req in enumerate(display_reqs, 1):
+        # Show blocked indicator
+        blocked_marker = "" if is_actionable(req) else f"{Colors.DIM}⊘{Colors.RESET}"
+        trans, _ = blocking_counts.get(req.req_id, (0, 0))
+        blocks_str = f"{trans}" if trans > 0 else f"{Colors.DIM}-{Colors.RESET}"
+
         table_data.append(
             [
                 i,
@@ -332,13 +377,29 @@ def _show_remaining_section(
                 req.req_id,
                 _truncate(req.requirement_text),
                 _format_priority(req.priority),
-                _format_effort(req.effort_weeks),
+                blocks_str,
+                blocked_marker,
                 _format_phase(req.phase),
             ]
         )
 
-    headers = ["#", "Status", "Requirement", "Description", "Priority", "Effort", "Phase"]
+    headers = ["#", "Status", "Requirement", "Description", "Priority", "Blocks", "⊘", "Phase"]
     print(format_table(table_data, headers))
+
+    # Show legend and truncation message
+    print()
+    print(f"{Colors.DIM}⊘ = blocked by incomplete dependencies{Colors.RESET}")
+    print(
+        f"{Colors.GREEN}{actionable_count} actionable{Colors.RESET}, {total_count - actionable_count} blocked"
+    )
+
+    if showing_partial and limit is not None:
+        remaining = total_count - limit
+        print()
+        print(
+            f"{Colors.DIM}*** + {remaining} more requirements ({total_count} total) ***{Colors.RESET}"
+        )
+        print(f"{Colors.DIM}Use --limit N or DEPTH=N to see more{Colors.RESET}")
 
 
 def _show_critical_path(

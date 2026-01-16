@@ -42,6 +42,43 @@ Audit logs are essential for compliance (SOC 2, ISO 27001), incident investigati
 - Consider write-once storage (S3 Object Lock, Azure Immutable Blob)
 - Separate audit log from operational database
 
+## Crypto-Agility Integration
+
+The audit log integrity mechanism must integrate with the crypto-agility architecture (REQ-SEC-002):
+
+### Hash Chain Algorithm Selection
+The hash chain algorithm is selected based on the active crypto profile:
+
+| Profile | Hash Algorithm | Signature Algorithm |
+|---------|---------------|---------------------|
+| `classic` | SHA-256 | Ed25519 (optional) |
+| `pqc-hybrid` | SHA-256 | Ed25519 + ML-DSA-65 |
+| `fips` | SHA-256 (FIPS validated) | ECDSA P-384 |
+| `pqc-only` | SHA-256 | ML-DSA-65 |
+
+### Signed Audit Entries
+When `crypto.sign_audit_log: true`:
+- Each audit entry includes a cryptographic signature
+- Signature algorithm follows the active crypto profile
+- ML-DSA signatures provide quantum-resistant audit integrity
+- Enables third-party verification of log authenticity
+
+### Entry Schema Extension
+```json
+{
+  "hash": "sha256:def456...",
+  "signature": "base64-encoded-signature",
+  "signature_algorithm": "ml-dsa-65",  // or ed25519, ecdsa-p384
+  "signer_key_id": "audit-signing-key-001"
+}
+```
+
+### Algorithm Migration
+When crypto profile changes:
+- New entries use new algorithm
+- Old entries remain verifiable with original algorithm
+- Migration log entry records algorithm change event
+
 ## Test Cases
 1. Create operation is logged
 2. Update operation is logged
