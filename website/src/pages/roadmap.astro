@@ -1,0 +1,483 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
+// Phase data - updated from RTM database
+const phases = [
+  { phase: 1, name: 'Foundation', complete: 8, total: 8, status: 'complete' },
+  { phase: 2, name: 'Core Features', complete: 6, total: 6, status: 'complete' },
+  { phase: 3, name: 'Testing', complete: 3, total: 3, status: 'complete' },
+  { phase: 4, name: 'Developer Experience', complete: 11, total: 11, status: 'complete' },
+  { phase: 5, name: 'CLI UX', complete: 7, total: 8, status: 'in-progress' },
+  { phase: 6, name: 'Web UI', complete: 8, total: 8, status: 'complete' },
+  { phase: 7, name: 'Real-Time', complete: 6, total: 6, status: 'complete' },
+  { phase: 8, name: 'Website', complete: 5, total: 6, status: 'in-progress' },
+  { phase: 9, name: 'CRDT', complete: 0, total: 8, status: 'planned' },
+  { phase: 10, name: 'Collaboration', complete: 0, total: 9, status: 'planned' },
+  { phase: 11, name: 'IDE Integration', complete: 0, total: 5, status: 'planned' },
+  { phase: 12, name: 'Distribution', complete: 0, total: 1, status: 'planned' },
+  { phase: 13, name: 'Compliance', complete: 0, total: 2, status: 'planned' },
+];
+
+// Calculate overall progress
+const totalComplete = phases.reduce((sum, p) => sum + p.complete, 0);
+const totalReqs = phases.reduce((sum, p) => sum + p.total, 0);
+const overallPct = Math.round((totalComplete / totalReqs) * 100);
+
+function getPct(complete: number, total: number): number {
+  return total > 0 ? Math.round((complete / total) * 100) : 0;
+}
+
+function getStatusClass(status: string): string {
+  switch (status) {
+    case 'complete': return 'status-complete';
+    case 'in-progress': return 'status-progress';
+    default: return 'status-planned';
+  }
+}
+
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case 'complete': return 'Complete';
+    case 'in-progress': return 'In Progress';
+    default: return 'Planned';
+  }
+}
+---
+
+<StarlightPage frontmatter={{ title: 'Roadmap', template: 'splash', hero: { tagline: '' } }}>
+  <div class="roadmap-page">
+    <section class="roadmap-header">
+      <h1>Project Roadmap</h1>
+      <p class="roadmap-subtitle">
+        Track our progress as we build the complete requirements traceability platform.
+      </p>
+
+      <div class="overall-progress">
+        <div class="progress-stats">
+          <span class="progress-number">{overallPct}%</span>
+          <span class="progress-label">Complete</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" style={`width: ${overallPct}%`}></div>
+        </div>
+        <div class="progress-counts">
+          <span>{totalComplete} of {totalReqs} requirements</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="phases-section not-content">
+      <div class="phases-grid">
+        {phases.map((phase) => (
+          <div class={`phase-card ${getStatusClass(phase.status)}`}>
+            <div class="phase-header">
+              <span class="phase-number">Phase {phase.phase}</span>
+              <span class={`status-badge ${getStatusClass(phase.status)}`}>
+                {getStatusLabel(phase.status)}
+              </span>
+            </div>
+            <h3 class="phase-name">{phase.name}</h3>
+            <div class="phase-progress">
+              <div class="phase-bar-container">
+                <div
+                  class="phase-bar-fill"
+                  style={`width: ${getPct(phase.complete, phase.total)}%`}
+                ></div>
+              </div>
+              <span class="phase-stats">
+                {phase.complete}/{phase.total} ({getPct(phase.complete, phase.total)}%)
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="legend-section">
+      <div class="legend">
+        <div class="legend-item">
+          <span class="legend-dot status-complete"></span>
+          <span>Complete</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot status-progress"></span>
+          <span>In Progress</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot status-planned"></span>
+          <span>Planned</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <h2>Want to contribute?</h2>
+      <p>RTMX is open source. Check out our GitHub repository to see detailed requirements and contribute.</p>
+      <div class="cta-buttons">
+        <a href="https://github.com/iotactical/rtmx" class="cta-button primary">
+          View on GitHub
+        </a>
+        <a href="/getting-started" class="cta-button secondary">
+          Get Started
+        </a>
+      </div>
+    </section>
+
+    <footer class="roadmap-footer">
+      <p>
+        Built by <a href="https://iotactical.co">ioTACTICAL Engineering</a> |
+        <a href="mailto:engineering@iotactical.co">engineering@iotactical.co</a>
+      </p>
+    </footer>
+  </div>
+</StarlightPage>
+
+<style is:global>
+  /* Hide Starlight's default hero/title for roadmap page */
+  .hero,
+  main > header,
+  .content-panel > header,
+  [aria-label="Main"] > header {
+    display: none !important;
+  }
+
+  .main-pane,
+  .content-panel {
+    padding: 0 !important;
+    padding-block: 0 !important;
+  }
+
+  .sl-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  .roadmap-page {
+    background: #0a0a0a;
+    min-height: 100vh;
+    width: 100%;
+  }
+
+  .roadmap-header {
+    text-align: center;
+    padding: 3rem 2rem 2rem;
+  }
+
+  .roadmap-header h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 0 0 1rem 0;
+    background: linear-gradient(135deg, #10b981 0%, #6ee7b7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .roadmap-subtitle {
+    font-size: 1.25rem;
+    color: #9ca3af;
+    max-width: 600px;
+    margin: 0 auto 2rem;
+    line-height: 1.6;
+  }
+
+  .overall-progress {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    background: #171717;
+    border: 1px solid #262626;
+    border-radius: 1rem;
+  }
+
+  .progress-stats {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .progress-number {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #10b981;
+  }
+
+  .progress-label {
+    font-size: 1.25rem;
+    color: #9ca3af;
+  }
+
+  .progress-bar-container {
+    height: 12px;
+    background: #262626;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981 0%, #6ee7b7 100%);
+    border-radius: 6px;
+    transition: width 0.3s ease;
+  }
+
+  .progress-counts {
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.9rem;
+  }
+
+  .phases-section {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .phases-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .phase-card {
+    background: #171717;
+    border: 1px solid #262626;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+
+  .phase-card:hover {
+    border-color: #404040;
+    transform: translateY(-2px);
+  }
+
+  .phase-card.status-complete {
+    border-left: 3px solid #10b981;
+  }
+
+  .phase-card.status-progress {
+    border-left: 3px solid #f59e0b;
+  }
+
+  .phase-card.status-planned {
+    border-left: 3px solid #6b7280;
+  }
+
+  .phase-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .phase-number {
+    font-size: 0.8rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .status-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .status-badge.status-complete {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+  }
+
+  .status-badge.status-progress {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+  }
+
+  .status-badge.status-planned {
+    background: rgba(107, 114, 128, 0.2);
+    color: #9ca3af;
+  }
+
+  .phase-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #f9fafb;
+    margin: 0 0 1rem 0;
+  }
+
+  .phase-progress {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .phase-bar-container {
+    flex: 1;
+    height: 6px;
+    background: #262626;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .phase-bar-fill {
+    height: 100%;
+    background: #10b981;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+
+  .phase-stats {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    white-space: nowrap;
+  }
+
+  .legend-section {
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: center;
+  }
+
+  .legend {
+    display: flex;
+    gap: 2rem;
+    padding: 1rem 2rem;
+    background: #171717;
+    border: 1px solid #262626;
+    border-radius: 0.5rem;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #9ca3af;
+    font-size: 0.9rem;
+  }
+
+  .legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .legend-dot.status-complete {
+    background: #10b981;
+  }
+
+  .legend-dot.status-progress {
+    background: #f59e0b;
+  }
+
+  .legend-dot.status-planned {
+    background: #6b7280;
+  }
+
+  .cta-section {
+    text-align: center;
+    padding: 3rem 2rem;
+    background: #0f0f0f;
+    border-top: 1px solid #262626;
+    margin-top: 2rem;
+  }
+
+  .cta-section h2 {
+    font-size: 1.75rem;
+    color: #f9fafb;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .cta-section > p {
+    color: #9ca3af;
+    margin: 0 0 1.5rem 0;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .cta-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .cta-button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .cta-button.primary {
+    background: #10b981;
+    color: #0a0a0a;
+  }
+
+  .cta-button.primary:hover {
+    background: #6ee7b7;
+  }
+
+  .cta-button.secondary {
+    background: transparent;
+    color: #10b981;
+    border: 1px solid #10b981;
+  }
+
+  .cta-button.secondary:hover {
+    background: rgba(16, 185, 129, 0.1);
+  }
+
+  .roadmap-footer {
+    padding: 2rem;
+    text-align: center;
+    border-top: 1px solid #262626;
+  }
+
+  .roadmap-footer p {
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  .roadmap-footer a {
+    color: #10b981;
+    text-decoration: none;
+  }
+
+  .roadmap-footer a:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 600px) {
+    .roadmap-header h1 {
+      font-size: 2.25rem;
+    }
+
+    .roadmap-subtitle {
+      font-size: 1rem;
+    }
+
+    .progress-number {
+      font-size: 2.5rem;
+    }
+
+    .legend {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+  }
+</style>

@@ -1,9 +1,21 @@
 ---
+interface Segment {
+  text: string;
+  color?: string;
+}
+
+interface Line {
+  text?: string;
+  segments?: Segment[];
+  color?: string;
+  delay?: number;
+}
+
 interface Props {
   id: string;
   title: string;
   command: string;
-  lines: { text: string; color?: string; delay?: number }[];
+  lines: Line[];
 }
 
 const { id, title, command, lines } = Astro.props;
@@ -31,9 +43,15 @@ const { id, title, command, lines } = Astro.props;
           class="output-line"
           data-line-index={i}
           data-delay={line.delay || i * 80}
-          style={`color: ${line.color || '#e5e7eb'}`}
+          style={line.segments ? undefined : `color: ${line.color || '#e5e7eb'}`}
         >
-          {line.text}
+          {line.segments ? (
+            line.segments.map((seg) => (
+              <span style={`color: ${seg.color || '#e5e7eb'}`}>{seg.text}</span>
+            ))
+          ) : (
+            line.text
+          )}
         </div>
       ))}
     </div>

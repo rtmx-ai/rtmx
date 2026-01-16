@@ -1,34 +1,44 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 550" fill="none">
   <defs>
-    <!-- Gradients -->
-    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#10b981"/>
-      <stop offset="100%" stop-color="#6ee7b7"/>
-    </linearGradient>
-
-    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+    <!-- Stage connection gradients -->
+    <linearGradient id="purpleToYellowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#8b5cf6"/>
-      <stop offset="100%" stop-color="#c4b5fd"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
     </linearGradient>
 
-    <!-- Glow effect -->
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-      <feMerge>
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+    <linearGradient id="yellowToGreenGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+
+    <linearGradient id="greenToCyanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+
+    <!-- Feedback loop gradient: cyan (Status) to purple (Agent) -->
+    <linearGradient id="feedbackGrad" x1="100%" y1="0%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+
+    <!-- Arrow markers for each transition (with visible stems) -->
+    <marker id="arrowYellow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,6 L7,6 M4,2 L10,6 L4,10" stroke="#f59e0b" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+
+    <marker id="arrowGreen" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,6 L7,6 M4,2 L10,6 L4,10" stroke="#10b981" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+
+    <marker id="arrowCyan" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,6 L7,6 M4,2 L10,6 L4,10" stroke="#06b6d4" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
 
     <!-- Card shadow -->
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#000" flood-opacity="0.4"/>
     </filter>
-
-    <!-- Line draw animation mask -->
-    <mask id="lineMask">
-      <rect x="0" y="0" width="1200" height="550" fill="white"/>
-    </mask>
   </defs>
 
   <!-- Background grid -->
@@ -37,132 +47,114 @@
   </pattern>
   <rect width="1200" height="550" fill="url(#grid)" opacity="0.6"/>
 
-  <!-- ============ STAGE 1: AGENT (appears first) ============ -->
+  <!-- ============ STAGE 1: AGENT (purple) - center at 140 ============ -->
   <g class="stage-1" opacity="0">
+    <text x="140" y="70" fill="#8b5cf6" font-size="28" text-anchor="middle" font-family="system-ui" font-weight="700">Agent</text>
     <g filter="url(#shadow)">
-      <rect x="60" y="150" width="140" height="140" rx="12" fill="#171717" stroke="#8b5cf6" stroke-width="2"/>
-      <circle cx="130" cy="195" r="28" fill="#1e1e1e" stroke="#8b5cf6" stroke-width="2"/>
-      <text x="130" y="203" fill="#c4b5fd" font-size="22" text-anchor="middle" font-family="system-ui" font-weight="600">AI</text>
-      <text x="130" y="245" fill="#e5e7eb" font-size="13" text-anchor="middle" font-family="system-ui" font-weight="600">Claude / MCP</text>
-      <text x="130" y="268" fill="#6b7280" font-size="10" text-anchor="middle" font-family="monospace">Creates specs</text>
-      <text x="130" y="282" fill="#6b7280" font-size="10" text-anchor="middle" font-family="monospace">Queries status</text>
+      <rect x="60" y="130" width="160" height="160" rx="12" fill="#171717" stroke="#8b5cf6" stroke-width="2"/>
+      <circle cx="140" cy="180" r="32" fill="#1e1e1e" stroke="#8b5cf6" stroke-width="2"/>
+      <text x="140" y="190" fill="#c4b5fd" font-size="28" text-anchor="middle" font-family="system-ui" font-weight="600">AI</text>
+      <text x="140" y="235" fill="#e5e7eb" font-size="16" text-anchor="middle" font-family="system-ui" font-weight="600">Claude / MCP</text>
+      <text x="140" y="258" fill="#6b7280" font-size="12" text-anchor="middle" font-family="monospace">Creates specs</text>
+      <text x="140" y="275" fill="#6b7280" font-size="12" text-anchor="middle" font-family="monospace">Queries status</text>
     </g>
-    <text x="130" y="120" fill="#8b5cf6" font-size="13" text-anchor="middle" font-family="system-ui" font-weight="600">Agent</text>
   </g>
 
-  <!-- ============ STAGE 2: CONNECTIONS TO REQUIREMENTS ============ -->
+  <!-- ============ STAGE 2: CONNECTIONS TO REQUIREMENTS (purple→yellow with arrows) ============ -->
   <g class="stage-2" opacity="0">
-    <path d="M 200 195 C 280 160, 320 155, 380 150" stroke="url(#purpleGrad)" stroke-width="2.5" fill="none" stroke-dasharray="300" stroke-dashoffset="300">
-      <animate attributeName="stroke-dashoffset" to="0" dur="0.6s" fill="freeze" begin="stage2.begin"/>
-    </path>
-    <path d="M 200 220 C 280 220, 320 220, 380 220" stroke="url(#purpleGrad)" stroke-width="2.5" fill="none" stroke-dasharray="300" stroke-dashoffset="300">
-      <animate attributeName="stroke-dashoffset" to="0" dur="0.6s" fill="freeze" begin="stage2.begin+0.15s"/>
-    </path>
-    <path d="M 200 245 C 280 280, 320 290, 380 290" stroke="url(#purpleGrad)" stroke-width="2.5" fill="none" stroke-dasharray="300" stroke-dashoffset="300">
-      <animate attributeName="stroke-dashoffset" to="0" dur="0.6s" fill="freeze" begin="stage2.begin+0.3s"/>
-    </path>
+    <path d="M 220 175 C 260 155, 300 143, 340 143" stroke="#f59e0b" stroke-width="2.5" fill="none" marker-end="url(#arrowYellow)"/>
+    <path d="M 220 210 L 340 210" stroke="#f59e0b" stroke-width="2.5" fill="none" marker-end="url(#arrowYellow)"/>
+    <path d="M 220 245 C 260 265, 300 277, 340 277" stroke="#f59e0b" stroke-width="2.5" fill="none" marker-end="url(#arrowYellow)"/>
   </g>
 
-  <!-- ============ STAGE 3: REQUIREMENTS ============ -->
+  <!-- ============ STAGE 3: REQUIREMENTS (yellow) - center at 420 ============ -->
   <g class="stage-3" opacity="0">
+    <text x="420" y="70" fill="#f59e0b" font-size="28" text-anchor="middle" font-family="system-ui" font-weight="700">Requirements</text>
     <g filter="url(#shadow)">
-      <rect x="380" y="115" width="140" height="55" rx="6" fill="#171717" stroke="#262626"/>
-      <text x="450" y="138" fill="#9ca3af" font-size="11" text-anchor="middle" font-family="monospace">REQ-AUTH-001</text>
-      <text x="450" y="158" fill="#10b981" font-size="10" text-anchor="middle" font-family="system-ui">OAuth Login</text>
+      <rect x="340" y="115" width="160" height="55" rx="8" fill="#171717" stroke="#f59e0b" stroke-width="2"/>
+      <text x="420" y="140" fill="#fbbf24" font-size="14" text-anchor="middle" font-family="monospace" font-weight="600">REQ-AUTH-001</text>
+      <text x="420" y="160" fill="#f59e0b" font-size="12" text-anchor="middle" font-family="system-ui">OAuth Login</text>
     </g>
     <g filter="url(#shadow)">
-      <rect x="380" y="185" width="140" height="55" rx="6" fill="#171717" stroke="#262626"/>
-      <text x="450" y="208" fill="#9ca3af" font-size="11" text-anchor="middle" font-family="monospace">REQ-API-001</text>
-      <text x="450" y="228" fill="#10b981" font-size="10" text-anchor="middle" font-family="system-ui">REST API</text>
+      <rect x="340" y="182" width="160" height="55" rx="8" fill="#171717" stroke="#f59e0b" stroke-width="2"/>
+      <text x="420" y="207" fill="#fbbf24" font-size="14" text-anchor="middle" font-family="monospace" font-weight="600">REQ-API-001</text>
+      <text x="420" y="227" fill="#f59e0b" font-size="12" text-anchor="middle" font-family="system-ui">REST API</text>
     </g>
     <g filter="url(#shadow)">
-      <rect x="380" y="255" width="140" height="55" rx="6" fill="#171717" stroke="#262626"/>
-      <text x="450" y="278" fill="#9ca3af" font-size="11" text-anchor="middle" font-family="monospace">REQ-DATA-001</text>
-      <text x="450" y="298" fill="#10b981" font-size="10" text-anchor="middle" font-family="system-ui">Database</text>
+      <rect x="340" y="249" width="160" height="55" rx="8" fill="#171717" stroke="#f59e0b" stroke-width="2"/>
+      <text x="420" y="274" fill="#fbbf24" font-size="14" text-anchor="middle" font-family="monospace" font-weight="600">REQ-DATA-001</text>
+      <text x="420" y="294" fill="#f59e0b" font-size="12" text-anchor="middle" font-family="system-ui">Database</text>
     </g>
-    <text x="450" y="90" fill="#6b7280" font-size="13" text-anchor="middle" font-family="system-ui" font-weight="600">Requirements</text>
   </g>
 
-  <!-- ============ STAGE 4: CONNECTIONS TO TESTS ============ -->
+  <!-- ============ STAGE 4: CONNECTIONS TO TESTS (yellow→green with arrows) ============ -->
   <g class="stage-4" opacity="0">
-    <path d="M 520 145 Q 570 145, 620 185" stroke="url(#lineGrad)" stroke-width="2.5" fill="none" stroke-dasharray="200" stroke-dashoffset="200">
-      <animate attributeName="stroke-dashoffset" to="0" dur="0.5s" fill="freeze" begin="stage4.begin"/>
-    </path>
-    <path d="M 520 215 Q 570 215, 620 215" stroke="url(#lineGrad)" stroke-width="2.5" fill="none" stroke-dasharray="200" stroke-dashoffset="200">
-      <animate attributeName="stroke-dashoffset" to="0" dur="0.5s" fill="freeze" begin="stage4.begin+0.1s"/>
-    </path>
-    <path d="M 520 285 Q 570 285, 620 245" stroke="url(#lineGrad)" stroke-width="2.5" fill="none" stroke-dasharray="200" stroke-dashoffset="200">
-      <animate attributeName="stroke-dashoffset" to="0" dur="0.5s" fill="freeze" begin="stage4.begin+0.2s"/>
-    </path>
+    <path d="M 500 143 C 540 143, 575 165, 610 180" stroke="#10b981" stroke-width="2.5" fill="none" marker-end="url(#arrowGreen)"/>
+    <path d="M 500 210 L 610 210" stroke="#10b981" stroke-width="2.5" fill="none" marker-end="url(#arrowGreen)"/>
+    <path d="M 500 277 C 540 277, 575 255, 610 240" stroke="#10b981" stroke-width="2.5" fill="none" marker-end="url(#arrowGreen)"/>
   </g>
 
-  <!-- ============ STAGE 5: TESTS ============ -->
+  <!-- ============ STAGE 5: TESTS (green) - center at 700 ============ -->
   <g class="stage-5" opacity="0">
+    <text x="700" y="70" fill="#10b981" font-size="28" text-anchor="middle" font-family="system-ui" font-weight="700">Tests</text>
     <g filter="url(#shadow)">
-      <rect x="620" y="145" width="160" height="160" rx="10" fill="#171717" stroke="#10b981" stroke-width="2"/>
-      <text x="700" y="175" fill="#e5e7eb" font-size="14" text-anchor="middle" font-family="system-ui" font-weight="600">pytest</text>
-      <text x="700" y="197" fill="#6b7280" font-size="10" text-anchor="middle" font-family="monospace">@pytest.mark.req</text>
-      <rect x="640" y="212" width="120" height="24" rx="4" fill="#1e1e1e"/>
-      <text x="700" y="229" fill="#22c55e" font-size="12" text-anchor="middle" font-family="monospace">✓ 12 passed</text>
-      <rect x="640" y="241" width="120" height="24" rx="4" fill="#1e1e1e"/>
-      <text x="700" y="258" fill="#f59e0b" font-size="12" text-anchor="middle" font-family="monospace">△ 2 partial</text>
-      <rect x="640" y="270" width="120" height="24" rx="4" fill="#1e1e1e"/>
-      <text x="700" y="287" fill="#ef4444" font-size="12" text-anchor="middle" font-family="monospace">✗ 4 missing</text>
+      <rect x="610" y="130" width="180" height="180" rx="12" fill="#171717" stroke="#10b981" stroke-width="2"/>
+      <text x="700" y="165" fill="#e5e7eb" font-size="18" text-anchor="middle" font-family="system-ui" font-weight="600">pytest</text>
+      <text x="700" y="188" fill="#6b7280" font-size="12" text-anchor="middle" font-family="monospace">@pytest.mark.req</text>
+      <rect x="630" y="200" width="140" height="26" rx="4" fill="#1e1e1e"/>
+      <text x="700" y="218" fill="#22c55e" font-size="14" text-anchor="middle" font-family="monospace">✓ 12 passed</text>
+      <rect x="630" y="231" width="140" height="26" rx="4" fill="#1e1e1e"/>
+      <text x="700" y="249" fill="#f59e0b" font-size="14" text-anchor="middle" font-family="monospace">△ 2 partial</text>
+      <rect x="630" y="262" width="140" height="26" rx="4" fill="#1e1e1e"/>
+      <text x="700" y="280" fill="#ef4444" font-size="14" text-anchor="middle" font-family="monospace">✗ 4 missing</text>
     </g>
-    <text x="700" y="125" fill="#10b981" font-size="13" text-anchor="middle" font-family="system-ui" font-weight="600">Tests</text>
   </g>
 
-  <!-- ============ STAGE 6: CONNECTIONS TO STATUS ============ -->
+  <!-- ============ STAGE 6: CONNECTIONS TO STATUS (green→cyan with arrow) - single line ============ -->
   <g class="stage-6" opacity="0">
-    <path d="M 780 190 Q 830 160, 880 155" stroke="url(#lineGrad)" stroke-width="2.5" fill="none" stroke-dasharray="200" stroke-dashoffset="200">
-      <animate attributeName="stroke-dashoffset" to="0" dur="0.5s" fill="freeze" begin="stage6.begin"/>
-    </path>
-    <path d="M 780 225 Q 830 225, 880 225" stroke="url(#lineGrad)" stroke-width="2.5" fill="none" stroke-dasharray="200" stroke-dashoffset="200">
-      <animate attributeName="stroke-dashoffset" to="0" dur="0.5s" fill="freeze" begin="stage6.begin+0.1s"/>
-    </path>
-    <path d="M 780 260 Q 830 290, 880 295" stroke="url(#lineGrad)" stroke-width="2.5" fill="none" stroke-dasharray="200" stroke-dashoffset="200">
-      <animate attributeName="stroke-dashoffset" to="0" dur="0.5s" fill="freeze" begin="stage6.begin+0.2s"/>
-    </path>
+    <path d="M 790 210 L 890 210" stroke="#06b6d4" stroke-width="2.5" fill="none" marker-end="url(#arrowCyan)"/>
   </g>
 
-  <!-- ============ STAGE 7: STATUS ============ -->
+  <!-- ============ STAGE 7: STATUS (cyan) - center at 990 ============ -->
   <g class="stage-7" opacity="0">
+    <text x="990" y="70" fill="#06b6d4" font-size="28" text-anchor="middle" font-family="system-ui" font-weight="700">Status</text>
     <g filter="url(#shadow)">
-      <rect x="880" y="105" width="180" height="240" rx="10" fill="#171717" stroke="#262626"/>
-      <rect x="880" y="105" width="180" height="28" rx="10" fill="#2d2d2d"/>
-      <circle cx="898" cy="119" r="5" fill="#ff5f56"/>
-      <circle cx="914" cy="119" r="5" fill="#ffbd2e"/>
-      <circle cx="930" cy="119" r="5" fill="#27ca40"/>
-      <text x="980" y="123" fill="#6b7280" font-size="9" text-anchor="middle" font-family="system-ui">rtmx status</text>
-      <text x="900" y="158" fill="#9ca3af" font-size="10" font-family="monospace">Requirements:</text>
-      <rect x="900" y="166" width="140" height="14" rx="2" fill="#262626"/>
-      <rect x="900" y="166" width="0" height="14" rx="2" fill="#22c55e">
-        <animate attributeName="width" to="77" dur="0.8s" fill="freeze" begin="stage7.begin+0.3s"/>
-      </rect>
-      <rect x="977" y="166" width="0" height="14" fill="#f59e0b">
-        <animate attributeName="width" to="22" dur="0.3s" fill="freeze" begin="stage7.begin+0.6s"/>
-      </rect>
-      <rect x="999" y="166" width="0" height="14" rx="2" fill="#ef4444">
-        <animate attributeName="width" to="41" dur="0.4s" fill="freeze" begin="stage7.begin+0.8s"/>
-      </rect>
-      <text x="1050" y="177" fill="#9ca3af" font-size="10" font-family="monospace">54%</text>
-      <text x="910" y="210" fill="#22c55e" font-size="11" font-family="monospace">✓ 5 complete</text>
-      <text x="910" y="230" fill="#f59e0b" font-size="11" font-family="monospace">△ 3 partial</text>
-      <text x="910" y="250" fill="#ef4444" font-size="11" font-family="monospace">✗ 4 missing</text>
-      <text x="910" y="275" fill="#6b7280" font-size="10" font-family="monospace">(12 total)</text>
-      <text x="910" y="305" fill="#9ca3af" font-size="9" font-family="monospace">Phase 1: 91.7% ▲</text>
-      <text x="910" y="320" fill="#9ca3af" font-size="9" font-family="monospace">Phase 2: 25.0% ▲</text>
-      <text x="910" y="335" fill="#6b7280" font-size="9" font-family="monospace">Phase 3: 0.0% ○</text>
+      <rect x="890" y="105" width="200" height="260" rx="12" fill="#171717" stroke="#06b6d4" stroke-width="2"/>
+      <rect x="890" y="105" width="200" height="32" rx="12" fill="#2d2d2d"/>
+      <circle cx="910" cy="121" r="6" fill="#ff5f56"/>
+      <circle cx="928" cy="121" r="6" fill="#ffbd2e"/>
+      <circle cx="946" cy="121" r="6" fill="#27ca40"/>
+      <text x="1000" y="126" fill="#67e8f9" font-size="12" text-anchor="middle" font-family="system-ui" font-weight="600">rtmx status</text>
+      <!-- Requirements label and percentage on same line -->
+      <text x="905" y="160" fill="#9ca3af" font-size="11" font-family="monospace">Requirements: 54%</text>
+      <!-- Progress bar: 120px wide, segmented green/yellow/red -->
+      <rect x="905" y="168" width="120" height="14" rx="2" fill="#262626"/>
+      <rect x="905" y="168" width="50" height="14" rx="2" fill="#22c55e"/>
+      <rect x="955" y="168" width="30" height="14" fill="#f59e0b"/>
+      <rect x="985" y="168" width="40" height="14" rx="2" fill="#ef4444"/>
+      <!-- Status counts -->
+      <text x="905" y="205" fill="#22c55e" font-size="12" font-family="monospace">✓ 5 complete</text>
+      <text x="905" y="223" fill="#f59e0b" font-size="12" font-family="monospace">△ 3 partial</text>
+      <text x="905" y="241" fill="#ef4444" font-size="12" font-family="monospace">✗ 4 missing</text>
+      <text x="905" y="262" fill="#6b7280" font-size="11" font-family="monospace">(12 total)</text>
+      <!-- Phase status -->
+      <text x="905" y="288" fill="#9ca3af" font-size="10" font-family="monospace">Phase 1: 91.7% ▲</text>
+      <text x="905" y="304" fill="#9ca3af" font-size="10" font-family="monospace">Phase 2: 25.0% ▲</text>
+      <text x="905" y="320" fill="#6b7280" font-size="10" font-family="monospace">Phase 3:  0.0% ○</text>
+      <text x="905" y="336" fill="#6b7280" font-size="10" font-family="monospace">Phase 4:  0.0% ○</text>
+      <text x="905" y="352" fill="#6b7280" font-size="10" font-family="monospace">Phase 5:  0.0% ○</text>
     </g>
-    <text x="970" y="85" fill="#6b7280" font-size="13" text-anchor="middle" font-family="system-ui" font-weight="600">Status</text>
   </g>
 
-  <!-- ============ STAGE 8: CLOSED LOOP ============ -->
+  <!-- ============ STAGE 8: RECTANGULAR FEEDBACK LOOP (bottom) ============ -->
   <g class="stage-8" opacity="0">
-    <path d="M 1020 225 C 1100 225, 1150 80, 600 30 C 150 -20, 50 100, 60 220"
-          stroke="#8b5cf6" stroke-width="2.5" stroke-dasharray="1500" stroke-dashoffset="1500" fill="none" opacity="0.7">
-      <animate attributeName="stroke-dashoffset" to="0" dur="2s" fill="freeze" begin="stage8.begin"/>
-    </path>
+    <!-- Rectangular loop path along the bottom, gradient from cyan (Status) to purple (Agent) -->
+    <path d="M 990 370
+             Q 990 400, 960 400
+             L 170 400
+             Q 140 400, 140 370
+             L 140 295"
+          stroke="url(#feedbackGrad)" stroke-width="3" fill="none" opacity="0.8" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 
   <!-- ============ FOOTER: WORKFLOW LEGEND ============ -->
@@ -170,51 +162,44 @@
   <line x1="0" y1="420" x2="1200" y2="420" stroke="#262626" stroke-width="1"/>
 
   <!-- Main tagline -->
-  <text x="600" y="460" fill="#f9fafb" font-size="22" text-anchor="middle" font-family="system-ui" font-weight="700">
+  <text x="600" y="465" fill="#f9fafb" font-size="26" text-anchor="middle" font-family="system-ui" font-weight="700">
     Distributed Closed-Loop Verification
   </text>
 
-  <!-- Workflow steps - these highlight as animation progresses -->
+  <!-- Workflow steps -->
   <g class="step step-1" opacity="0.3">
-    <g transform="translate(100, 490)">
-      <circle cx="0" cy="12" r="16" fill="#8b5cf6" opacity="0.2"/>
-      <text x="0" y="17" fill="#8b5cf6" font-size="14" text-anchor="middle" font-family="system-ui" font-weight="700">1</text>
-      <text x="40" y="10" fill="#c4b5fd" font-size="11" font-family="system-ui" font-weight="600">WRITE</text>
-      <text x="40" y="26" fill="#6b7280" font-size="10" font-family="system-ui">Agent creates specs</text>
+    <g transform="translate(120, 495)">
+      <circle cx="0" cy="12" r="20" fill="#8b5cf6" opacity="0.2"/>
+      <text x="0" y="18" fill="#8b5cf6" font-size="18" text-anchor="middle" font-family="system-ui" font-weight="700">1</text>
+      <text x="50" y="8" fill="#c4b5fd" font-size="15" font-family="system-ui" font-weight="600">WRITE</text>
+      <text x="50" y="28" fill="#6b7280" font-size="13" font-family="system-ui">Agent creates specs</text>
     </g>
   </g>
 
   <g class="step step-2" opacity="0.3">
-    <g transform="translate(320, 490)">
-      <circle cx="0" cy="12" r="16" fill="#10b981" opacity="0.2"/>
-      <text x="0" y="17" fill="#10b981" font-size="14" text-anchor="middle" font-family="system-ui" font-weight="700">2</text>
-      <text x="40" y="10" fill="#6ee7b7" font-size="11" font-family="system-ui" font-weight="600">LINK</text>
-      <text x="40" y="26" fill="#6b7280" font-size="10" font-family="system-ui">Tests trace to requirements</text>
+    <g transform="translate(370, 495)">
+      <circle cx="0" cy="12" r="20" fill="#f59e0b" opacity="0.2"/>
+      <text x="0" y="18" fill="#f59e0b" font-size="18" text-anchor="middle" font-family="system-ui" font-weight="700">2</text>
+      <text x="50" y="8" fill="#fbbf24" font-size="15" font-family="system-ui" font-weight="600">LINK</text>
+      <text x="50" y="28" fill="#6b7280" font-size="13" font-family="system-ui">Tests trace to requirements</text>
     </g>
   </g>
 
   <g class="step step-3" opacity="0.3">
-    <g transform="translate(560, 490)">
-      <circle cx="0" cy="12" r="16" fill="#10b981" opacity="0.2"/>
-      <text x="0" y="17" fill="#10b981" font-size="14" text-anchor="middle" font-family="system-ui" font-weight="700">3</text>
-      <text x="40" y="10" fill="#6ee7b7" font-size="11" font-family="system-ui" font-weight="600">REPORT</text>
-      <text x="40" y="26" fill="#6b7280" font-size="10" font-family="system-ui">Status updates in real-time</text>
+    <g transform="translate(620, 495)">
+      <circle cx="0" cy="12" r="20" fill="#10b981" opacity="0.2"/>
+      <text x="0" y="18" fill="#10b981" font-size="18" text-anchor="middle" font-family="system-ui" font-weight="700">3</text>
+      <text x="50" y="8" fill="#6ee7b7" font-size="15" font-family="system-ui" font-weight="600">REPORT</text>
+      <text x="50" y="28" fill="#6b7280" font-size="13" font-family="system-ui">Status updates in real-time</text>
     </g>
   </g>
 
   <g class="step step-4" opacity="0.3">
-    <g transform="translate(800, 490)">
-      <circle cx="0" cy="12" r="16" fill="#8b5cf6" opacity="0.2"/>
-      <text x="0" y="17" fill="#8b5cf6" font-size="14" text-anchor="middle" font-family="system-ui" font-weight="700">4</text>
-      <text x="40" y="10" fill="#c4b5fd" font-size="11" font-family="system-ui" font-weight="600">VERIFY</text>
-      <text x="40" y="26" fill="#6b7280" font-size="10" font-family="system-ui">Agent queries via MCP</text>
-    </g>
-  </g>
-
-  <g class="step step-loop" opacity="0.3">
-    <g transform="translate(1020, 490)">
-      <path d="M 0 12 C 30 -10, 60 -10, 60 12 C 60 34, 30 34, 0 12" stroke="#8b5cf6" stroke-width="2" fill="none"/>
-      <text x="30" y="17" fill="#8b5cf6" font-size="9" text-anchor="middle" font-family="system-ui" font-weight="600">LOOP</text>
+    <g transform="translate(870, 495)">
+      <circle cx="0" cy="12" r="20" fill="#06b6d4" opacity="0.2"/>
+      <text x="0" y="18" fill="#06b6d4" font-size="18" text-anchor="middle" font-family="system-ui" font-weight="700">4</text>
+      <text x="50" y="8" fill="#67e8f9" font-size="15" font-family="system-ui" font-weight="600">VERIFY</text>
+      <text x="50" y="28" fill="#6b7280" font-size="13" font-family="system-ui">Agent queries via MCP</text>
     </g>
   </g>
 
@@ -238,7 +223,6 @@
     .step-2 { animation: highlight 0.3s 2.5s forwards; }
     .step-3 { animation: highlight 0.3s 3.7s forwards; }
     .step-4 { animation: highlight 0.3s 5.5s forwards; }
-    .step-loop { animation: highlight 0.3s 6s forwards; }
 
     @keyframes fadeIn {
       to { opacity: 1; }
@@ -248,11 +232,4 @@
       to { opacity: 1; }
     }
   </style>
-
-  <!-- Named animation begin triggers -->
-  <set attributeName="visibility" begin="1.2s" id="stage2"/>
-  <set attributeName="visibility" begin="2.5s" id="stage4"/>
-  <set attributeName="visibility" begin="3.7s" id="stage6"/>
-  <set attributeName="visibility" begin="4.2s" id="stage7"/>
-  <set attributeName="visibility" begin="5.5s" id="stage8"/>
 </svg>

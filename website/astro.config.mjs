@@ -5,8 +5,8 @@ import starlightClientMermaid from '@pasqal-io/starlight-client-mermaid';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://iotactical.github.io',
-	base: '/rtmx',
+	site: 'https://rtmx.ai',
+	base: '/',
 	integrations: [
 		starlight({
 			plugins: [starlightClientMermaid()],
@@ -60,8 +60,11 @@ export default defineConfig({
 							const nav = document.createElement('nav');
 							nav.className = 'header-nav';
 							nav.innerHTML = \`
-								<a href="/rtmx/quickstart" class="header-nav-link">Docs</a>
-								<a href="/rtmx/pricing" class="header-nav-link">Pricing</a>
+								<a href="/quickstart" class="header-nav-link">Docs</a>
+								<a href="/roadmap" class="header-nav-link">Roadmap</a>
+								<a href="/security" class="header-nav-link">Security</a>
+								<a href="/enterprise" class="header-nav-link">Enterprise</a>
+								<a href="/pricing" class="header-nav-link">Pricing</a>
 							\`;
 
 							// Append nav inside the title wrapper

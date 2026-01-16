@@ -9,9 +9,14 @@ const terminals = [
     caption: 'See your progress at a glance.',
     lines: [
       { text: '=============================== RTM Status Check ===============================', color: '#6b7280' },
-      { text: 'Requirements: [█████████████████████████████████████░░░░░░░░░░░░░]  74.0%', color: '#22c55e' },
-      { text: '✓ 54 complete  ⚠ 0 partial  ✗ 19 missing', color: '#e5e7eb' },
-      { text: '(73 total)', color: '#6b7280' },
+      { text: 'Requirements:                                                                 74.0%', color: '#e5e7eb' },
+      { segments: [
+        { text: '  [', color: '#e5e7eb' },
+        { text: '████████████████████████████████████████████████████████', color: '#22c55e' },
+        { text: '████████████████████', color: '#ef4444' },
+        { text: ']', color: '#e5e7eb' }
+      ]},
+      { text: '  ✓ 54 COMPLETE  △ 0 PARTIAL  ✗ 19 MISSING  (73 total)', color: '#9ca3af' },
       { text: '================================= Phase Status =================================', color: '#6b7280' },
       { text: 'Phase 1 (Foundation):    100.0%  ✓ Complete     (8✓ 0⚠ 0✗)', color: '#22c55e' },
       { text: 'Phase 2 (Core Features): 100.0%  ✓ Complete     (6✓ 0⚠ 0✗)', color: '#22c55e' },

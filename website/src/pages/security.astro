@@ -1,0 +1,1017 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
+const currentSecurityFeatures = [
+  {
+    icon: 'lock',
+    title: 'TLS 1.3 Transport Encryption',
+    description: 'All data in transit is protected with the latest TLS 1.3 protocol, ensuring forward secrecy and strong encryption.',
+  },
+  {
+    icon: 'shield',
+    title: 'AES-256-GCM End-to-End Encryption',
+    description: 'Your requirements data is encrypted at rest using AES-256-GCM. The server only sees ciphertext.',
+  },
+  {
+    icon: 'key',
+    title: 'OAuth2/SAML SSO Support',
+    description: 'Enterprise single sign-on integration with your existing identity provider. Support for Okta, Azure AD, and more.',
+  },
+  {
+    icon: 'users',
+    title: 'Role-Based Access Control',
+    description: 'Fine-grained permissions control who can view, edit, or manage requirements and configurations.',
+  },
+  {
+    icon: 'clipboard',
+    title: 'Immutable Audit Logging',
+    description: 'Every action is logged with cryptographic integrity. Audit trails cannot be modified or deleted.',
+  },
+];
+
+const fipsFeatures = [
+  {
+    title: 'OpenSSL FIPS Provider',
+    description: 'Native integration with OpenSSL 3.x FIPS provider for FIPS 140-3 validated cryptographic operations.',
+  },
+  {
+    title: 'AWS-LC FIPS Alternative',
+    description: 'Support for AWS-LC (libcrypto) as an alternative FIPS-validated cryptographic library for AWS deployments.',
+  },
+  {
+    title: 'Air-Gap Deployment Ready',
+    description: 'Deploy in fully disconnected environments using Zarf packages. No external network dependencies required.',
+  },
+];
+
+const pqcTimeline = [
+  {
+    year: '2025',
+    status: 'current',
+    title: 'Classical Cryptography',
+    items: [
+      'X25519 key exchange',
+      'Ed25519 signatures',
+      'AES-256-GCM encryption',
+      'SHA-3 / SHA-256 hashing',
+    ],
+  },
+  {
+    year: '2026',
+    status: 'planned',
+    title: 'Hybrid Mode Available',
+    items: [
+      'X25519 + ML-KEM (Kyber) key exchange',
+      'Ed25519 + ML-DSA (Dilithium) signatures',
+      'Backward compatible with classical',
+      'Opt-in via configuration',
+    ],
+  },
+  {
+    year: '2027',
+    status: 'planned',
+    title: 'CNSA 2.0 Profile for NSS',
+    items: [
+      'Required for new DoD contracts',
+      'ML-KEM-1024 key encapsulation',
+      'ML-DSA-87 digital signatures',
+      'AES-256 symmetric encryption',
+    ],
+  },
+  {
+    year: '2030',
+    status: 'planned',
+    title: 'Full PQC Migration',
+    items: [
+      'Classical algorithms deprecated',
+      'Pure post-quantum by default',
+      'Legacy compatibility mode',
+      'Complete CNSA 2.0 compliance',
+    ],
+  },
+];
+
+const complianceStandards = [
+  {
+    name: 'FIPS 140-3',
+    status: 'supported',
+    description: 'Federal Information Processing Standard for cryptographic modules.',
+  },
+  {
+    name: 'CNSA 2.0',
+    status: 'roadmap',
+    description: 'Commercial National Security Algorithm Suite 2.0 for post-quantum readiness.',
+  },
+  {
+    name: 'SOC 2 Type II',
+    status: 'planned',
+    description: 'Service Organization Control audit for security, availability, and confidentiality.',
+  },
+];
+
+const authorizationRoadmap = [
+  {
+    name: 'FedRAMP Moderate',
+    status: 'in-progress',
+    description: 'Federal Risk and Authorization Management Program via FedRAMP 20x pilot.',
+    timeline: 'Q4 2026',
+  },
+  {
+    name: 'DoD IL4/IL5',
+    status: 'planned',
+    description: 'Department of Defense Impact Level 4/5 via GovCloud partners.',
+    timeline: '2027',
+  },
+  {
+    name: 'CMMC 2.0 Level 2',
+    status: 'supported',
+    description: 'Cybersecurity Maturity Model Certification for defense contractors.',
+    timeline: 'Available',
+  },
+  {
+    name: 'NIST 800-53 Rev 5',
+    status: 'supported',
+    description: 'Security and Privacy Controls for Information Systems and Organizations.',
+    timeline: 'Available',
+  },
+];
+
+const supplyChainFeatures = [
+  {
+    title: 'SBOM Generation',
+    description: 'Automated Software Bill of Materials in SPDX and CycloneDX formats for supply chain transparency.',
+  },
+  {
+    title: 'Dependency Verification',
+    description: 'Cryptographic verification of all dependencies with vulnerability scanning and CVE monitoring.',
+  },
+  {
+    title: 'Signed Artifacts',
+    description: 'All releases are signed with Sigstore for tamper-evident software distribution.',
+  },
+];
+---
+
+<StarlightPage frontmatter={{ title: 'Security', template: 'splash', hero: { tagline: '' } }}>
+  <div class="security-page">
+    <!-- Hero Section -->
+    <section class="security-hero">
+      <span class="security-badge">Security</span>
+      <h1>Enterprise-Grade Security for Defense Contractors</h1>
+      <p class="hero-subtitle">
+        RTMX is built from the ground up with defense-grade security. From end-to-end encryption
+        to post-quantum cryptography readiness, we protect your most sensitive requirements data.
+      </p>
+    </section>
+
+    <!-- Current Security Section -->
+    <section class="security-section">
+      <h2>Current Security Capabilities</h2>
+      <p class="section-subtitle">Production-ready security features available today.</p>
+      <div class="features-grid not-content">
+        {currentSecurityFeatures.map((feature) => (
+          <div class="feature-card">
+            <div class="feature-icon" data-icon={feature.icon}>
+              {feature.icon === 'lock' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              )}
+              {feature.icon === 'shield' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+              )}
+              {feature.icon === 'key' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+              )}
+              {feature.icon === 'users' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              )}
+              {feature.icon === 'clipboard' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+              )}
+            </div>
+            <h3>{feature.title}</h3>
+            <p>{feature.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- FIPS 140-3 Section -->
+    <section class="fips-section">
+      <h2>FIPS 140-3 Compliance</h2>
+      <p class="section-subtitle">
+        Deploy with confidence in regulated environments requiring FIPS-validated cryptography.
+      </p>
+      <div class="fips-grid not-content">
+        {fipsFeatures.map((feature) => (
+          <div class="fips-card">
+            <h3>{feature.title}</h3>
+            <p>{feature.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- PQC Roadmap Section -->
+    <section class="pqc-section">
+      <h2>Post-Quantum Cryptography Roadmap</h2>
+      <p class="section-subtitle">
+        Preparing for the quantum computing era with NIST-standardized post-quantum algorithms.
+      </p>
+      <div class="timeline not-content">
+        {pqcTimeline.map((phase, index) => (
+          <div class={`timeline-item ${phase.status}`}>
+            <div class="timeline-marker">
+              <span class="timeline-year">{phase.year}</span>
+              {phase.status === 'current' && (
+                <span class="timeline-badge">Current</span>
+              )}
+            </div>
+            <div class="timeline-content">
+              <h3>{phase.title}</h3>
+              <ul>
+                {phase.items.map((item) => (
+                  <li>{item}</li>
+                ))}
+              </ul>
+            </div>
+            {index < pqcTimeline.length - 1 && <div class="timeline-connector"></div>}
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Crypto Agility Section -->
+    <section class="agility-section">
+      <h2>Crypto Agility</h2>
+      <p class="section-subtitle">
+        Future-proof your security with algorithm flexibility built into the architecture.
+      </p>
+      <div class="agility-grid not-content">
+        <div class="agility-card">
+          <div class="agility-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </div>
+          <h3>Algorithm Selection via Configuration</h3>
+          <p>
+            Choose your cryptographic algorithms through simple configuration. Switch between
+            classical, hybrid, or pure post-quantum modes without code changes.
+          </p>
+        </div>
+        <div class="agility-card">
+          <div class="agility-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+          </div>
+          <h3>Encrypt New, Decrypt Any</h3>
+          <p>
+            Our "encrypt with new, decrypt with any" pattern ensures seamless migration.
+            New data uses the latest algorithms while older data remains accessible.
+          </p>
+        </div>
+        <div class="agility-card">
+          <div class="agility-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>
+          </div>
+          <h3>Seamless Migration Path</h3>
+          <p>
+            Gradual migration from classical to post-quantum cryptography. No big-bang
+            migrations required. Transition at your own pace with full backward compatibility.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Compliance Section -->
+    <section class="compliance-section">
+      <h2>Compliance Standards</h2>
+      <p class="section-subtitle">
+        Meeting the security requirements of defense and regulated industries.
+      </p>
+      <div class="compliance-grid not-content">
+        {complianceStandards.map((standard) => (
+          <div class="compliance-card">
+            <div class="compliance-header">
+              <h3>{standard.name}</h3>
+              <span class={`compliance-status ${standard.status}`}>
+                {standard.status === 'supported' && 'Supported'}
+                {standard.status === 'roadmap' && 'Roadmap'}
+                {standard.status === 'planned' && 'Planned'}
+              </span>
+            </div>
+            <p>{standard.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Authorization & ATO Section -->
+    <section class="authorization-section">
+      <h2>Compliance & Authorization</h2>
+      <p class="section-subtitle">
+        RTMX is pursuing federal authorization to serve defense and government customers with confidence.
+      </p>
+      <div class="authorization-grid not-content">
+        {authorizationRoadmap.map((item) => (
+          <div class="authorization-card">
+            <div class="authorization-header">
+              <h3>{item.name}</h3>
+              <div class="authorization-meta">
+                <span class={`authorization-status ${item.status}`}>
+                  {item.status === 'supported' && 'Available'}
+                  {item.status === 'in-progress' && 'In Progress'}
+                  {item.status === 'planned' && 'Planned'}
+                </span>
+                <span class="authorization-timeline">{item.timeline}</span>
+              </div>
+            </div>
+            <p>{item.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Supply Chain Security Section -->
+    <section class="supply-chain-section">
+      <h2>Supply Chain Security</h2>
+      <p class="section-subtitle">
+        Transparent software provenance and vulnerability management for secure supply chains.
+      </p>
+      <div class="supply-chain-grid not-content">
+        {supplyChainFeatures.map((feature) => (
+          <div class="supply-chain-card">
+            <h3>{feature.title}</h3>
+            <p>{feature.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+      <h2>Enterprise Security Requirements?</h2>
+      <p>
+        Contact our engineering team to discuss your specific security, compliance,
+        and deployment requirements.
+      </p>
+      <div class="cta-buttons">
+        <a href="/enterprise" class="cta-button primary">
+          Enterprise Solutions
+        </a>
+        <a href="mailto:engineering@iotactical.co?subject=RTMX%20Enterprise%20Security%20Inquiry" class="cta-button secondary">
+          Contact Sales
+        </a>
+      </div>
+    </section>
+
+    <footer class="security-footer">
+      <p>
+        Built by <a href="https://iotactical.co">ioTACTICAL Engineering</a> |
+        <a href="mailto:engineering@iotactical.co">engineering@iotactical.co</a>
+      </p>
+    </footer>
+  </div>
+</StarlightPage>
+
+<style is:global>
+  /* Hide Starlight's default hero/title for security page */
+  .hero,
+  main > header,
+  .content-panel > header,
+  [aria-label="Main"] > header {
+    display: none !important;
+  }
+
+  .main-pane,
+  .content-panel {
+    padding: 0 !important;
+    padding-block: 0 !important;
+  }
+
+  .sl-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  .security-page {
+    background: #0a0a0a;
+    min-height: 100vh;
+    width: 100%;
+  }
+
+  /* Hero Section */
+  .security-hero {
+    text-align: center;
+    padding: 3rem 2rem 4rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .security-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #0a0a0a;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.375rem 1rem;
+    border-radius: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+  }
+
+  .security-hero h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 0 0 1.5rem 0;
+    background: linear-gradient(135deg, #10b981 0%, #6ee7b7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+  }
+
+  .hero-subtitle {
+    font-size: 1.25rem;
+    color: #9ca3af;
+    line-height: 1.7;
+    margin: 0;
+  }
+
+  /* Section Styles */
+  .security-section,
+  .fips-section,
+  .pqc-section,
+  .agility-section,
+  .compliance-section {
+    padding: 4rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .security-section {
+    background: #0f0f0f;
+    max-width: 100%;
+  }
+
+  .security-section > h2,
+  .security-section > p,
+  .security-section > .features-grid {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .fips-section {
+    border-top: 1px solid #262626;
+    border-bottom: 1px solid #262626;
+  }
+
+  .pqc-section {
+    background: #0f0f0f;
+    max-width: 100%;
+  }
+
+  .pqc-section > h2,
+  .pqc-section > p,
+  .pqc-section > .timeline {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .security-section h2,
+  .fips-section h2,
+  .pqc-section h2,
+  .agility-section h2,
+  .compliance-section h2 {
+    font-size: 2rem;
+    color: #f9fafb;
+    text-align: center;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .section-subtitle {
+    font-size: 1.1rem;
+    color: #9ca3af;
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto 2.5rem;
+    line-height: 1.6;
+  }
+
+  /* Features Grid */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .feature-card {
+    background: #171717;
+    border: 1px solid #262626;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+
+  .feature-card:hover {
+    border-color: #10b981;
+    transform: translateY(-2px);
+  }
+
+  .feature-icon {
+    width: 48px;
+    height: 48px;
+    background: rgba(16, 185, 129, 0.15);
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    color: #10b981;
+  }
+
+  .feature-card h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #f9fafb;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .feature-card p {
+    font-size: 0.95rem;
+    color: #9ca3af;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* FIPS Grid */
+  .fips-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+
+  .fips-card {
+    background: #171717;
+    border: 1px solid #262626;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    border-left: 3px solid #10b981;
+  }
+
+  .fips-card h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #f9fafb;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .fips-card p {
+    font-size: 0.95rem;
+    color: #9ca3af;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* Timeline */
+  .timeline {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    position: relative;
+  }
+
+  .timeline-item {
+    background: #171717;
+    border: 1px solid #262626;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    position: relative;
+  }
+
+  .timeline-item.current {
+    border-color: #10b981;
+    background: linear-gradient(180deg, rgba(16, 185, 129, 0.1) 0%, #171717 100%);
+  }
+
+  .timeline-marker {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .timeline-year {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #10b981;
+  }
+
+  .timeline-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .timeline-content h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #f9fafb;
+    margin: 0 0 0.75rem 0;
+  }
+
+  .timeline-content ul {
+    margin: 0;
+    padding: 0 0 0 1.25rem;
+  }
+
+  .timeline-content li {
+    font-size: 0.85rem;
+    color: #9ca3af;
+    line-height: 1.6;
+    margin-bottom: 0.25rem;
+  }
+
+  .timeline-content li:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Agility Grid */
+  .agility-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+
+  .agility-card {
+    background: #171717;
+    border: 1px solid #262626;
+    border-radius: 0.75rem;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .agility-icon {
+    width: 64px;
+    height: 64px;
+    background: rgba(16, 185, 129, 0.15);
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+    color: #10b981;
+  }
+
+  .agility-card h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #f9fafb;
+    margin: 0 0 0.75rem 0;
+  }
+
+  .agility-card p {
+    font-size: 0.95rem;
+    color: #9ca3af;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* Compliance Grid */
+  .compliance-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+
+  .compliance-card {
+    background: #171717;
+    border: 1px solid #262626;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+  }
+
+  .compliance-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .compliance-card h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #f9fafb;
+    margin: 0;
+  }
+
+  .compliance-status {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .compliance-status.supported {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+  }
+
+  .compliance-status.roadmap {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+  }
+
+  .compliance-status.planned {
+    background: rgba(107, 114, 128, 0.2);
+    color: #9ca3af;
+  }
+
+  .compliance-card p {
+    font-size: 0.95rem;
+    color: #9ca3af;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* Authorization Section */
+  .authorization-section {
+    padding: 4rem 2rem;
+    background: #0f0f0f;
+    max-width: 100%;
+    border-top: 1px solid #262626;
+  }
+
+  .authorization-section > h2,
+  .authorization-section > p,
+  .authorization-section > .authorization-grid {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .authorization-section h2 {
+    font-size: 2rem;
+    color: #f9fafb;
+    text-align: center;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .authorization-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+
+  .authorization-card {
+    background: #171717;
+    border: 1px solid #262626;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    border-left: 3px solid #3b82f6;
+  }
+
+  .authorization-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .authorization-card h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #f9fafb;
+    margin: 0;
+  }
+
+  .authorization-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .authorization-status {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .authorization-status.supported {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+  }
+
+  .authorization-status.in-progress {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+  }
+
+  .authorization-status.planned {
+    background: rgba(107, 114, 128, 0.2);
+    color: #9ca3af;
+  }
+
+  .authorization-timeline {
+    font-size: 0.8rem;
+    color: #6b7280;
+    font-weight: 500;
+  }
+
+  .authorization-card p {
+    font-size: 0.95rem;
+    color: #9ca3af;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* Supply Chain Section */
+  .supply-chain-section {
+    padding: 4rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    border-top: 1px solid #262626;
+  }
+
+  .supply-chain-section h2 {
+    font-size: 2rem;
+    color: #f9fafb;
+    text-align: center;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .supply-chain-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+
+  .supply-chain-card {
+    background: #171717;
+    border: 1px solid #262626;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    border-left: 3px solid #10b981;
+  }
+
+  .supply-chain-card h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #f9fafb;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .supply-chain-card p {
+    font-size: 0.95rem;
+    color: #9ca3af;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* CTA Section */
+  .cta-section {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: #0f0f0f;
+    border-top: 1px solid #262626;
+  }
+
+  .cta-section h2 {
+    font-size: 2rem;
+    color: #f9fafb;
+    margin: 0 0 0.75rem 0;
+  }
+
+  .cta-section > p {
+    color: #9ca3af;
+    margin: 0 0 2rem 0;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 1.1rem;
+    line-height: 1.6;
+  }
+
+  .cta-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .cta-button {
+    padding: 0.875rem 2rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .cta-button.primary {
+    background: #10b981;
+    color: #0a0a0a;
+  }
+
+  .cta-button.primary:hover {
+    background: #6ee7b7;
+  }
+
+  .cta-button.secondary {
+    background: transparent;
+    color: #10b981;
+    border: 1px solid #10b981;
+  }
+
+  .cta-button.secondary:hover {
+    background: rgba(16, 185, 129, 0.1);
+  }
+
+  /* Footer */
+  .security-footer {
+    padding: 2rem;
+    text-align: center;
+    border-top: 1px solid #262626;
+  }
+
+  .security-footer p {
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin: 0;
+  }
+
+  .security-footer a {
+    color: #10b981;
+    text-decoration: none;
+  }
+
+  .security-footer a:hover {
+    text-decoration: underline;
+  }
+
+  /* Responsive */
+  @media (max-width: 1000px) {
+    .timeline {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 900px) {
+    .fips-grid,
+    .agility-grid,
+    .compliance-grid,
+    .authorization-grid,
+    .supply-chain-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .security-hero h1 {
+      font-size: 2rem;
+    }
+
+    .hero-subtitle {
+      font-size: 1rem;
+    }
+
+    .timeline {
+      grid-template-columns: 1fr;
+    }
+
+    .features-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .security-section h2,
+    .fips-section h2,
+    .pqc-section h2,
+    .agility-section h2,
+    .compliance-section h2,
+    .authorization-section h2,
+    .supply-chain-section h2,
+    .cta-section h2 {
+      font-size: 1.5rem;
+    }
+
+    .section-subtitle {
+      font-size: 1rem;
+    }
+  }
+</style>
