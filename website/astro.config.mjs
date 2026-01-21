@@ -10,7 +10,7 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			plugins: [starlightClientMermaid()],
-			title: 'RTMX | Build It Right',
+			title: 'RTMX',
 			description: 'Requirements Traceability Matrix for Python - AI-native test traceability',
 			expressiveCode: {
 				frames: false,
@@ -37,8 +37,12 @@ export default defineConfig({
 				},
 				{
 					// Force dark mode immediately before page renders
+					// Also append slogan to browser tab title (not visible header)
 					tag: 'script',
-					content: `document.documentElement.dataset.theme = 'dark';`,
+					content: `document.documentElement.dataset.theme = 'dark';
+						if (!document.title.includes('Build It Right')) {
+							document.title = document.title.replace(/RTMX/, 'RTMX | Build It Right');
+						}`,
 				},
 				{
 					tag: 'script',
