@@ -10,7 +10,7 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			plugins: [starlightClientMermaid()],
-			title: 'RTMX',
+			title: 'RTMX | Build It Right',
 			description: 'Requirements Traceability Matrix for Python - AI-native test traceability',
 			expressiveCode: {
 				frames: false,
