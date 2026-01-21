@@ -350,8 +350,11 @@ function getStatusLabel(status: string): string {
   }
 
   .legend {
-    display: flex;
-    gap: 2rem;
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
     padding: 1rem 2rem;
     background: #171717;
     border: 1px solid #262626;
@@ -359,11 +362,12 @@ function getStatusLabel(status: string): string {
   }
 
   .legend-item {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     color: #9ca3af;
     font-size: 0.9rem;
+    white-space: nowrap;
   }
 
   .legend-dot {
