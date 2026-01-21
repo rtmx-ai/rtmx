@@ -1,5 +1,5 @@
 # RTMX Configuration
-# See https://github.com/iotactical/rtmx for documentation
+# See https://rtmx.ai for documentation
 
 rtmx:
   database: docs/rtm_database.csv
@@ -46,7 +46,7 @@ rtmx:
   adapters:
     github:
       enabled: false
-      repo: "iotactical/rtmx"
+      repo: "rtmx-ai/rtmx"
       token_env: "GITHUB_TOKEN"
       labels:
         - "requirement"

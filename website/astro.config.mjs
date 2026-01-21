@@ -16,7 +16,7 @@ export default defineConfig({
 				frames: false,
 			},
 			social: [
-				{ icon: 'github', label: 'GitHub', href: 'https://github.com/iotactical/rtmx' },
+				{ icon: 'github', label: 'GitHub', href: 'https://github.com/rtmx-ai/rtmx' },
 			],
 			logo: {
 				light: './src/assets/rtmx-logo-light.svg',

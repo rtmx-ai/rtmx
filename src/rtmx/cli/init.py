@@ -116,7 +116,7 @@ This is a sample requirement. Replace with your actual requirements.
 
     # Create config file
     config_content = """# RTMX Configuration
-# See https://github.com/iotactical/rtmx for documentation
+# See https://rtmx.ai for documentation
 
 rtmx:
   database: .rtmx/database.csv
@@ -220,7 +220,7 @@ This is a sample requirement. Replace with your actual requirements.
 
     # Create config file
     config_content = """# RTMX Configuration
-# See https://github.com/iotactical/rtmx for documentation
+# See https://rtmx.ai for documentation
 
 rtmx:
   database: docs/rtm_database.csv

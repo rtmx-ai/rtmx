@@ -265,7 +265,7 @@ def run_setup(
         result.steps_skipped.append("create_config")
     else:
         config_content = """# RTMX Configuration
-# See https://github.com/iotactical/rtmx for documentation
+# See https://rtmx.ai for documentation
 
 rtmx:
   database: docs/rtm_database.csv

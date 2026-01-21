@@ -28,7 +28,7 @@ Many enterprise customers require on-premises deployment due to data sovereignty
 rtmx:
   replicaCount: 3
   image:
-    repository: ghcr.io/iotactical/rtmx
+    repository: ghcr.io/rtmx-ai/rtmx
     tag: "v1.0.0"
   database:
     external: true
@@ -48,7 +48,7 @@ rtmx:
 # docker-compose.yml structure
 services:
   rtmx-server:
-    image: ghcr.io/iotactical/rtmx:latest
+    image: ghcr.io/rtmx-ai/rtmx:latest
     environment:
       - DATABASE_URL
       - RTMX_LICENSE_KEY

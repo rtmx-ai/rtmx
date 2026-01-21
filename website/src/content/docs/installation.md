@@ -31,7 +31,7 @@ rtmx --version
 For contributing to RTMX:
 
 ```bash
-git clone https://github.com/iotactical/rtmx.git
+git clone https://github.com/rtmx-ai/rtmx.git
 cd rtmx
 make dev      # Install with dev dependencies
 make test     # Run tests

@@ -10,7 +10,7 @@ readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
 authors = [
-    { name = "ioTACTICAL LLC", email = "engineering@iotactical.co" }
+    { name = "ioTACTICAL LLC", email = "dev@rtmx.ai" }
 ]
 keywords = [
     "requirements",
@@ -118,10 +118,10 @@ rtmx = "rtmx.cli.main:main"
 rtmx = "rtmx.pytest.plugin"
 
 [project.urls]
-Homepage = "https://github.com/iotactical/rtmx"
-Documentation = "https://github.com/iotactical/rtmx#readme"
-Repository = "https://github.com/iotactical/rtmx"
-Issues = "https://github.com/iotactical/rtmx/issues"
+Homepage = "https://rtmx.ai"
+Documentation = "https://rtmx.ai/quickstart"
+Repository = "https://github.com/rtmx-ai/rtmx"
+Issues = "https://github.com/rtmx-ai/rtmx/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rtmx"]

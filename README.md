@@ -2,17 +2,17 @@
 
 **Requirements Traceability Matrix toolkit for AI-driven development.**
 
-[![CI](https://github.com/iotactical/rtmx/actions/workflows/ci.yml/badge.svg)](https://github.com/iotactical/rtmx/actions/workflows/ci.yml)
-[![Coverage Status](https://coveralls.io/repos/github/iotactical/rtmx/badge.svg?branch=main&v=2)](https://coveralls.io/github/iotactical/rtmx?branch=main)
+[![CI](https://github.com/rtmx-ai/rtmx/actions/workflows/ci.yml/badge.svg)](https://github.com/rtmx-ai/rtmx/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/rtmx-ai/rtmx/badge.svg?branch=main&v=2)](https://coveralls.io/github/rtmx-ai/rtmx?branch=main)
 [![PyPI version](https://img.shields.io/pypi/v/rtmx.svg)](https://pypi.org/project/rtmx/)
 [![Python versions](https://img.shields.io/pypi/pyversions/rtmx.svg)](https://pypi.org/project/rtmx/)
-[![License](https://img.shields.io/github/license/iotactical/rtmx.svg)](https://github.com/iotactical/rtmx/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/rtmx-ai/rtmx.svg)](https://github.com/rtmx-ai/rtmx/blob/main/LICENSE)
 
 ---
 
 RTMX brings **requirements traceability** to modern software development. Track what you're building, why you're building it, and prove it works—all from your terminal.
 
-**[Documentation](https://iotactical.github.io/rtmx/)** · **[Quickstart](https://iotactical.github.io/rtmx/quickstart)** · **[RTMX Sync](https://iotactical.github.io/rtmx/pricing)**
+**[Documentation](https://rtmx.ai)** · **[Quickstart](https://rtmx.ai/quickstart)** · **[RTMX Sync](https://rtmx.ai/pricing)**
 
 ![rtmx status](docs/assets/rtmx-status.png)
 
@@ -249,7 +249,7 @@ The CSV database includes these columns:
 | `test_module` | No | Test file path |
 | `test_function` | No | Test function name |
 
-See the [schema documentation](https://iotactical.github.io/rtmx/guides/schema) for the complete schema.
+See the [schema documentation](https://rtmx.ai/guides/schema) for the complete schema.
 
 ## CI/CD Integration
 
@@ -271,7 +271,7 @@ RTMX provides GitHub Actions workflows:
 ## Development
 
 ```bash
-git clone https://github.com/iotactical/rtmx.git
+git clone https://github.com/rtmx-ai/rtmx.git
 cd rtmx
 make dev      # Install with dev dependencies
 make test     # Run tests
@@ -290,5 +290,5 @@ Contributions welcome! Please read our contributing guidelines before submitting
 
 <p align="center">
   <strong>Built by <a href="https://iotactical.co">ioTACTICAL Engineering</a></strong><br>
-  <a href="mailto:engineering@iotactical.co">engineering@iotactical.co</a>
+  <a href="mailto:dev@rtmx.ai">dev@rtmx.ai</a>
 </p>

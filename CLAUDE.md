@@ -319,7 +319,7 @@ pytest -v -s --tb=long         # Verbose test output
 - **Pydantic-style validation**: Type safety without runtime overhead
 - **Lazy imports in CLI**: Fast startup time
 - When you push, always monitor CI in a background process. Fix pipeline errors immediately. A broken pipeline always becomes the team's highest priority.
-- The contact information for the rtmx project is ioTACTICAL Engineering, engineering@iotactical.co.
-- The company name is ioTACTICAL LLC. The contact information is "ioTACTICAL Engineering" reachable at engineering@iotactical.co.
+- The contact information for the rtmx project is RTMX Engineering, dev@rtmx.ai.
+- The company name is ioTACTICAL LLC (owner of RTMX). Technical support: dev@rtmx.ai, Sales: sales@rtmx.ai, Help: help@rtmx.ai.
 - Never use --no-verify or SKIP= when we run a commit. Pre-commit checks exist to fully verify what we are pushing to main. Catching an error in main that should have been caught locally is a quality escape, and we should always minimize or eliminate quality escapes. Quality lives as far left as possible, and for this project, that's in the local development environment.
 - Every tag for release to pypi should be accompanied with a thorough documentation review and update.

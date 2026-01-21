@@ -322,7 +322,7 @@ import { parse } from 'csv-parse/sync';
 
 1. **Documentation**: Provide clear Python installation guides for Node.js developers
 2. **GitHub Actions**: Publish action that sets up Python and RTMX for Node-based workflows
-3. **Docker image**: Provide `ghcr.io/iotactical/rtmx:latest` for containerized usage
+3. **Docker image**: Provide `ghcr.io/rtmx-ai/rtmx:latest` for containerized usage
 4. **MCP Server**: Leverage existing MCP adapter for AI assistant integration (language-agnostic)
 
 ## Future Reconsideration Triggers

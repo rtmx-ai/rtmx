@@ -4,7 +4,7 @@
 # Usage in other repos:
 #   jobs:
 #     rtm-check:
-#       uses: iotactical/rtmx/.github/workflows/rtmx-validate.yml@main
+#       uses: rtmx-ai/rtmx/.github/workflows/rtmx-validate.yml@main
 #       with:
 #         rtm-csv: docs/rtm_database.csv
 #         fail-on-warnings: false

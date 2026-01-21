@@ -8,7 +8,7 @@
 System shall provide Go testing integration that enables requirement traceability through comment markers, with support for standard `go test` workflow and subtest patterns.
 
 ## Acceptance Criteria
-- [ ] Go module `github.com/iotactical/rtmx-go` published and importable
+- [ ] Go module `github.com/rtmx-ai/rtmx-go` published and importable
 - [ ] Comment marker format: `// rtmx:req=REQ-XXX-NNN` parsed before test functions
 - [ ] Extended markers support: `// rtmx:req=REQ-XXX-NNN,scope=unit,technique=nominal,env=simulation`
 - [ ] `t.Run()` subtest support with inherited and overridden requirement markers

@@ -86,7 +86,7 @@ Developers expect modern authentication UX similar to `gcloud auth login`, `gh a
 ```yaml
 # rtmx.yaml (versioned)
 sync:
-  endpoint: wss://sync.rtmx.io/github/iotactical/rtmx
+  endpoint: wss://sync.rtmx.io/github/rtmx-ai/rtmx
   # Optional overrides
   provider: cloud  # cloud | self-hosted
   auto_connect: true
@@ -99,7 +99,7 @@ tokens:
     access_token: eyJ...
     refresh_token: eyJ...
     expires_at: 2026-01-17T00:00:00Z
-    issuer: https://auth.iotactical.co
+    issuer: https://auth.rtmx.ai
     user: ryan@iotactical.co
     org: iotactical
 ```
@@ -122,8 +122,8 @@ Waiting for authentication... ✓
 ```python
 def derive_endpoint(git_remote: str) -> str:
     """
-    git@github.com:iotactical/rtmx.git
-    → wss://sync.rtmx.io/github/iotactical/rtmx
+    git@github.com:rtmx-ai/rtmx.git
+    → wss://sync.rtmx.io/github/rtmx-ai/rtmx
 
     https://gitlab.com/org/project.git
     → wss://sync.rtmx.io/gitlab/org/project

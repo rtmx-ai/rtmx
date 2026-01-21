@@ -8,7 +8,7 @@
 TypeScript port shall provide npm package with core rtmx functionality for JavaScript/TypeScript ecosystems.
 
 ## Acceptance Criteria
-- [ ] Package published to npm as `@iotactical/rtmx`
+- [ ] Package published to npm as `@rtmx-ai/rtmx`
 - [ ] TypeScript interfaces match Python Requirement model
 - [ ] Zod schemas provide runtime validation
 - [ ] CSV parser reads/writes rtm_database.csv
@@ -21,7 +21,7 @@ TypeScript port shall provide npm package with core rtmx functionality for JavaS
 ## Architecture
 
 ```
-@iotactical/rtmx/
+@rtmx-ai/rtmx/
 ├── src/
 │   ├── models/
 │   │   ├── requirement.ts      # Requirement interface + Zod schema
