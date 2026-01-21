@@ -297,7 +297,29 @@ header.header starlight-theme-select {
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .header-nav {
-    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin-left: 0;
+    background: #171717;
+    border-top: 1px solid #262626;
+    padding: 0.5rem;
+    justify-content: center;
+    gap: 0;
+    z-index: 100;
+  }
+
+  .header-nav-link {
+    flex: 1;
+    text-align: center;
+    padding: 0.75rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  /* Add padding to body so content doesn't get hidden behind fixed nav */
+  body {
+    padding-bottom: 60px;
   }
 
   .hero-title {
