@@ -81,7 +81,7 @@ make health    # Run health checks
 
 ## Next Steps
 
-- [CLI Reference](/docs/guides/cli-reference) — All available commands
-- [Test Markers](/docs/guides/markers) — pytest integration
-- [Schema](/docs/guides/schema) — RTM database schema
-- [MCP Server](/docs/adapters/mcp) — AI agent integration
+- [CLI Reference](/guides/cli-reference) — All available commands
+- [Test Markers](/guides/markers) — pytest integration
+- [Schema](/guides/schema) — RTM database schema
+- [MCP Server](/adapters/mcp) — AI agent integration

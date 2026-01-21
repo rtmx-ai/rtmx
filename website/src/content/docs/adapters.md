@@ -9,9 +9,9 @@ RTMX adapters synchronize your requirements database with external services like
 
 | Adapter | Description |
 |---------|-------------|
-| [GitHub](/docs/adapters/github) | Sync with GitHub Issues |
-| [Jira](/docs/adapters/jira) | Sync with Jira tickets |
-| [MCP](/docs/adapters/mcp) | AI agent integration via Model Context Protocol |
+| [GitHub](/adapters/github) | Sync with GitHub Issues |
+| [Jira](/adapters/jira) | Sync with Jira tickets |
+| [MCP](/adapters/mcp) | AI agent integration via Model Context Protocol |
 
 ## Architecture
 
