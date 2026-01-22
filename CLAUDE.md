@@ -2,6 +2,21 @@
 
 This file provides guidance to Claude Code when working with the RTMX codebase.
 
+## Repository Ecosystem
+
+This is the core RTMX CLI client, part of the multi-repo system:
+
+| Repo | Purpose | Relationship |
+|------|---------|--------------|
+| rtmx.ai | Website & docs | Has rtmx as submodule |
+| **rtmx** (this) | CLI client | Core library |
+| rtmx-sync | Real-time coordination | Imports rtmx>=0.0.5 |
+
+When working across repos:
+- API changes here → update rtmx-sync dependency
+- Doc changes here → update rtmx.ai submodule
+- Breaking changes → coordinate across all repos
+
 ## Quick Commands
 
 ```bash
