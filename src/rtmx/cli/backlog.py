@@ -10,7 +10,7 @@ import sys
 from enum import Enum
 from pathlib import Path
 
-from rtmx.formatting import Colors, format_table, header
+from rtmx.formatting import Colors, format_table, header, status_color, status_icon
 from rtmx.models import Priority, RTMDatabase, RTMError, Status
 
 
@@ -102,14 +102,10 @@ def _format_blocks(transitive: int, direct: int) -> str:
 
 
 def _format_status(status: Status) -> str:
-    """Format status icon."""
-    icons = {
-        Status.COMPLETE: f"{Colors.GREEN}✓{Colors.RESET}",
-        Status.PARTIAL: f"{Colors.YELLOW}△{Colors.RESET}",
-        Status.MISSING: f"{Colors.RED}✗{Colors.RESET}",
-        Status.NOT_STARTED: f"{Colors.DIM}○{Colors.RESET}",
-    }
-    return icons.get(status, "?")
+    """Format status icon using centralized design system."""
+    color = status_color(status)
+    icon = status_icon(status)
+    return f"{color}{icon}{Colors.RESET}"
 
 
 def _format_priority(priority: Priority) -> str:
@@ -183,7 +179,7 @@ def _print_summary_header(all_reqs: list, incomplete: list, phase: int | None) -
     # Print summary stats
     print(f"Total Requirements: {total}")
     print(f"  {Colors.RED}✗ MISSING: {missing} ({missing_pct:.1f}%){Colors.RESET}")
-    print(f"  {Colors.YELLOW}△ PARTIAL: {partial} ({partial_pct:.1f}%){Colors.RESET}")
+    print(f"  {Colors.YELLOW}⚠ PARTIAL: {partial} ({partial_pct:.1f}%){Colors.RESET}")
     print(f"Estimated Effort: {total_effort:.1f} weeks")
     print()
 

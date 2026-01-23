@@ -55,8 +55,8 @@ REQ-004,FEATURE,UI,Feature requirement,Target,tests/test.py,test_func,Unit Test,
             total=4,
             completion_pct=50.0,
             phase_stats=[
-                (1, 2, 0, 0, 100.0),  # Phase 1: 2 complete
-                (2, 0, 0, 2, 0.0),  # Phase 2: 2 missing
+                ("Phase 1 (Foundation)", 2, 0, 0, 100.0),  # Phase 1: 2 complete
+                ("Phase 2 (Core)", 0, 0, 2, 0.0),  # Phase 2: 2 missing
             ],
             file=output,
         )
@@ -115,17 +115,17 @@ REQ-004,FEATURE,UI,Feature requirement,Target,tests/test.py,test_func,Unit Test,
             total=4,
             completion_pct=50.0,
             phase_stats=[
-                (1, 2, 0, 0, 100.0),  # Phase 1: 100% complete
-                (2, 0, 0, 2, 0.0),  # Phase 2: 0% complete
+                ("Phase 1 (Foundation)", 2, 0, 0, 100.0),  # Phase 1: 100% complete
+                ("Phase 2 (Core)", 0, 0, 2, 0.0),  # Phase 2: 0% complete
             ],
             file=output,
         )
 
         result = output.getvalue()
 
-        # Should show both phases with percentages
-        assert "Phase  1:" in result or "Phase 1:" in result
-        assert "Phase  2:" in result or "Phase 2:" in result
+        # Should show both phases with percentages (with their names)
+        assert "Phase 1 (Foundation)" in result
+        assert "Phase 2 (Core)" in result
         assert "100.0%" in result  # Phase 1 is 100% complete
         assert "0.0%" in result  # Phase 2 is 0% complete
 
