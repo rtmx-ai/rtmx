@@ -155,7 +155,7 @@ jobs:
         uses: github/codeql-action/analyze@v4
 
   # Update terminal screenshots when CLI formatting changes
-  # Only runs on main branch, commits directly (auto-generated assets)
+  # Only runs on main branch, creates PR with updated assets
   update-screenshots:
     name: Update Screenshots
     runs-on: ubuntu-latest
@@ -163,6 +163,7 @@ jobs:
     needs: [test, lint]  # Only run after tests pass
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@v6
@@ -222,7 +223,9 @@ jobs:
           script -q -c "rtmx health" /dev/null | grep -v "^Script " > /tmp/health.txt
           ansi2image /tmp/health.txt -o $GITHUB_WORKSPACE/docs/assets/rtmx-health.png
 
-      - name: Commit updated screenshots
+      - name: Create PR with updated screenshots
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -230,6 +233,13 @@ jobs:
           if git diff --staged --quiet; then
             echo "No screenshot changes to commit"
           else
-            git commit -m "docs: Auto-update terminal screenshots [skip ci]"
-            git push
+            BRANCH="auto/update-screenshots-$(date +%Y%m%d-%H%M%S)"
+            git checkout -b "$BRANCH"
+            git commit -m "docs: Auto-update terminal screenshots"
+            git push origin "$BRANCH"
+            gh pr create \
+              --title "docs: Auto-update terminal screenshots" \
+              --body "Automated PR to update CLI terminal screenshots in docs/assets/." \
+              --base main \
+              --head "$BRANCH"
           fi
