@@ -237,9 +237,17 @@ jobs:
             git checkout -b "$BRANCH"
             git commit -m "docs: Auto-update terminal screenshots"
             git push origin "$BRANCH"
-            gh pr create \
+
+            # Try to create PR, but don't fail if permissions don't allow it
+            if gh pr create \
               --title "docs: Auto-update terminal screenshots" \
               --body "Automated PR to update CLI terminal screenshots in docs/assets/." \
               --base main \
-              --head "$BRANCH"
+              --head "$BRANCH"; then
+              echo "PR created successfully"
+            else
+              echo "::warning::Could not create PR automatically. Please create a PR from branch: $BRANCH"
+              echo "Branch pushed: $BRANCH"
+              echo "Create PR at: https://github.com/${{ github.repository }}/compare/main...$BRANCH"
+            fi
           fi
