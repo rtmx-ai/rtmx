@@ -158,6 +158,20 @@ def create_server(config: RTMXConfig | None = None):
                     "required": ["query"],
                 },
             ),
+            Tool(
+                name="rtmx_get_spec",
+                description="Get full specification file content for a requirement. Returns the complete markdown spec with acceptance criteria, test cases, and technical notes.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "req_id": {
+                            "type": "string",
+                            "description": "Requirement ID (e.g., REQ-MCP-001)",
+                        },
+                    },
+                    "required": ["req_id"],
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -184,6 +198,8 @@ def create_server(config: RTMXConfig | None = None):
                 arguments["query"],
                 limit=arguments.get("limit", 10),
             )
+        elif name == "rtmx_get_spec":
+            result = tools.get_spec(arguments["req_id"])
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
 

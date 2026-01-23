@@ -294,6 +294,61 @@ make pre-commit-run      # Run manually
 6. Update CHANGELOG.md
 7. Submit PR
 
+## Parallel Development with Git Worktrees
+
+When multiple requirements are **mutually exclusive** (no shared file dependencies, no blocking relationships), use parallel Claude Code agents on separate Git worktrees to accelerate development.
+
+### When to Parallelize
+
+Requirements are safe to parallelize when:
+- They touch **different files** (check spec's "Files to Modify" section)
+- Neither **blocks** the other (check `Blocks` / `Dependencies` in specs)
+- They belong to **different components** (e.g., CLI vs adapters vs tests)
+
+### Worktree Setup
+
+```bash
+# Create worktrees for parallel work
+git worktree add ../rtmx-feat-a -b feat/REQ-XXX-001
+git worktree add ../rtmx-feat-b -b feat/REQ-YYY-001
+
+# Each agent works in its own worktree
+cd ../rtmx-feat-a  # Agent 1
+cd ../rtmx-feat-b  # Agent 2
+```
+
+### Workflow
+
+1. **Identify candidates**: Run `make backlog` and find unblocked requirements
+2. **Verify independence**: Read specs to confirm no file overlap
+3. **Create worktrees**: One per requirement, with feature branches
+4. **Spawn agents**: Each agent implements one requirement in its worktree
+5. **Merge sequentially**: After agents complete, merge branches to main one at a time
+6. **Clean up**: `git worktree remove ../rtmx-feat-a`
+
+### Example: Parallel Phase Work
+
+```bash
+# REQ-MCP-001 (adapters/mcp/) and REQ-GIT-002 (git hooks) are independent
+git worktree add ../rtmx-mcp -b feat/REQ-MCP-001
+git worktree add ../rtmx-git -b feat/REQ-GIT-002
+
+# Agent 1: Implement MCP spec reading in ../rtmx-mcp
+# Agent 2: Implement pre-commit hooks in ../rtmx-git
+
+# After both complete:
+git merge feat/REQ-MCP-001
+git merge feat/REQ-GIT-002
+git worktree remove ../rtmx-mcp
+git worktree remove ../rtmx-git
+```
+
+### Caution
+
+- **Never parallelize blocking requirements** - check `blockedBy` fields
+- **Avoid shared files** - if two reqs modify `models.py`, work sequentially
+- **Sync database changes** - `docs/rtm_database.csv` edits should be coordinated
+
 ## CLI Development
 
 Commands are in `src/rtmx/cli/`. Each command:

@@ -869,6 +869,110 @@ class TestRTMXToolsSearchRequirements:
 
 
 # ===============================================================================
+# RTMXTools Tests - get_spec
+# ===============================================================================
+
+
+@pytest.mark.req("REQ-MCP-001")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+class TestRTMXToolsGetSpec:
+    """Tests for RTMXTools.get_spec method."""
+
+    def test_get_spec_success(self, tmp_path):
+        """Test get_spec returns specification file content."""
+        # Create a mock spec file
+        spec_content = "# REQ-SW-001: Test Requirement\n\n## Description\nTest spec content."
+        spec_file = tmp_path / "docs" / "requirements" / "REQ-SW-001.md"
+        spec_file.parent.mkdir(parents=True)
+        spec_file.write_text(spec_content)
+
+        # Create database in same directory structure
+        db_file = tmp_path / "docs" / "rtm_database.csv"
+        db_file.touch()
+
+        req = create_test_requirement(
+            "REQ-SW-001",
+            requirement_file="requirements/REQ-SW-001.md",
+        )
+        mock_db = create_mock_database([req])
+
+        config = RTMXConfig(database=str(db_file))
+        tools = RTMXTools(config)
+        tools._db = mock_db
+
+        result = tools.get_spec("REQ-SW-001")
+
+        assert result.success is True
+        assert result.data["id"] == "REQ-SW-001"
+        assert result.data["spec_file"] == "requirements/REQ-SW-001.md"
+        assert "Test spec content" in result.data["content"]
+
+    def test_get_spec_no_spec_file_defined(self):
+        """Test get_spec handles requirement with no spec file."""
+        req = create_test_requirement("REQ-SW-001", requirement_file="")
+        mock_db = create_mock_database([req])
+
+        config = RTMXConfig(database="/tmp/docs/test.csv")
+        tools = RTMXTools(config)
+        tools._db = mock_db
+
+        result = tools.get_spec("REQ-SW-001")
+
+        assert result.success is False
+        assert result.data is None
+        assert "no specification file" in result.error.lower()
+
+    def test_get_spec_file_not_found(self, tmp_path):
+        """Test get_spec handles missing spec file gracefully."""
+        db_file = tmp_path / "docs" / "rtm_database.csv"
+        db_file.parent.mkdir(parents=True)
+        db_file.touch()
+
+        req = create_test_requirement(
+            "REQ-SW-001",
+            requirement_file="requirements/MISSING.md",
+        )
+        mock_db = create_mock_database([req])
+
+        config = RTMXConfig(database=str(db_file))
+        tools = RTMXTools(config)
+        tools._db = mock_db
+
+        result = tools.get_spec("REQ-SW-001")
+
+        assert result.success is False
+        assert result.data is None
+        assert "not found" in result.error.lower()
+
+    def test_get_spec_requirement_not_found(self):
+        """Test get_spec handles non-existent requirement."""
+        mock_db = create_mock_database()
+        config = RTMXConfig(database="/tmp/test.csv")
+        tools = RTMXTools(config)
+        tools._db = mock_db
+
+        result = tools.get_spec("REQ-INVALID-999")
+
+        assert result.success is False
+        assert result.data is None
+        assert "not found" in result.error.lower()
+
+    def test_get_spec_error_handling(self):
+        """Test get_spec handles exceptions gracefully."""
+        config = RTMXConfig(database="/tmp/test.csv")
+        tools = RTMXTools(config)
+        tools._get_db = Mock(side_effect=Exception("Database error"))
+
+        result = tools.get_spec("REQ-SW-001")
+
+        assert result.success is False
+        assert result.data is None
+        assert "Database error" in result.error
+
+
+# ===============================================================================
 # MCP Server Tests - Module and Function Imports
 # ===============================================================================
 

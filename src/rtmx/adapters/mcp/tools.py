@@ -358,3 +358,50 @@ class RTMXTools:
 
         except Exception as e:
             return ToolResult(success=False, data=None, error=str(e))
+
+    def get_spec(self, req_id: str) -> ToolResult:
+        """Get the full specification file content for a requirement.
+
+        Args:
+            req_id: Requirement ID (e.g., REQ-MCP-001)
+
+        Returns:
+            ToolResult with specification markdown content
+        """
+        try:
+            db = self._get_db()
+            req = db.get(req_id)
+
+            # Check if requirement has a spec file
+            if not req.requirement_file:
+                return ToolResult(
+                    success=False,
+                    data=None,
+                    error=f"Requirement {req_id} has no specification file defined",
+                )
+
+            # Resolve the spec file path relative to the database location
+            db_path = Path(self._config.database)
+            spec_path = db_path.parent / req.requirement_file
+
+            if not spec_path.exists():
+                return ToolResult(
+                    success=False,
+                    data=None,
+                    error=f"Specification file not found: {spec_path}",
+                )
+
+            # Read the spec file content
+            content = spec_path.read_text(encoding="utf-8")
+
+            return ToolResult(
+                success=True,
+                data={
+                    "id": req_id,
+                    "spec_file": str(req.requirement_file),
+                    "content": content,
+                },
+            )
+
+        except Exception as e:
+            return ToolResult(success=False, data=None, error=str(e))
