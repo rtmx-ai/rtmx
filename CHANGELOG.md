@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-01-23
+
+### Added
+- `rtmx_get_spec` MCP tool for reading requirement specification files
+- REQ-UX-009: CLI Design System specification documenting icons, colors, and formatting standards
+- Strategic roadmap expansion with Phases 14-18 (Language Support, Git-Native Sync, PM Features, BDD Support)
+
+### Changed
+- Rich status output now displays phase names (e.g., "Phase 1 (Foundation)" instead of "Phase 1:")
+- Standardized status icons across all CLI commands using centralized `formatting.py` module
+- Repository migrated to `rtmx-ai` organization
+- Website migrated to separate `rtmx.ai` repository
+
+### Fixed
+- Inconsistent partial status icon: changed from `△` to `⚠` in backlog command to match status command
+
 ## [0.0.5] - 2026-01-06
 
 ### Fixed
