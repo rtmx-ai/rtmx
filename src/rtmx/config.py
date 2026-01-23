@@ -145,17 +145,70 @@ class MCPConfig:
 
 
 @dataclass
+class RemoteConfig:
+    """Configuration for a remote repository.
+
+    Remotes allow cross-repo dependencies like 'sync:REQ-SYNC-001'.
+    """
+
+    alias: str
+    repo: str  # Full repo path like 'sync-server'
+    path: str | None = None  # Local filesystem path for local access
+    database: str = ".rtmx/database.csv"  # Path to database within remote
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> RemoteConfig:
+        """Create RemoteConfig from dictionary."""
+        return cls(
+            alias=data.get("alias", ""),
+            repo=data.get("repo", ""),
+            path=data.get("path"),
+            database=data.get("database", ".rtmx/database.csv"),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        result: dict[str, Any] = {
+            "repo": self.repo,
+            "database": self.database,
+        }
+        if self.path is not None:
+            result["path"] = self.path
+        return result
+
+
+@dataclass
 class SyncConfig:
     """Configuration for synchronization behavior."""
 
     conflict_resolution: str = "manual"  # manual, prefer-local, prefer-remote
+    remotes: dict[str, RemoteConfig] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> SyncConfig:
         """Create SyncConfig from dictionary."""
+        remotes: dict[str, RemoteConfig] = {}
+        remotes_data = data.get("remotes", {})
+        for alias, remote_data in remotes_data.items():
+            # Add alias to the data for RemoteConfig
+            remote_data_with_alias = {"alias": alias, **remote_data}
+            remotes[alias] = RemoteConfig.from_dict(remote_data_with_alias)
+
         return cls(
             conflict_resolution=data.get("conflict_resolution", "manual"),
+            remotes=remotes,
         )
+
+    def get_remote(self, alias: str) -> RemoteConfig | None:
+        """Get remote configuration by alias.
+
+        Args:
+            alias: Remote alias
+
+        Returns:
+            RemoteConfig if found, None otherwise
+        """
+        return self.remotes.get(alias)
 
 
 @dataclass
@@ -345,6 +398,9 @@ class RTMXConfig:
                 },
                 "sync": {
                     "conflict_resolution": self.sync.conflict_resolution,
+                    "remotes": {
+                        alias: remote.to_dict() for alias, remote in self.sync.remotes.items()
+                    },
                 },
             }
         }

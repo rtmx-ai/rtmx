@@ -23,6 +23,7 @@ else:
     from typing_extensions import Self
 
 if TYPE_CHECKING:
+    from rtmx.config import RTMXConfig
     from rtmx.graph import DependencyGraph
 
 
@@ -143,15 +144,64 @@ class Requirement:
         """Check if requirement is fully complete."""
         return self.status == Status.COMPLETE
 
-    def is_blocked(self, db: RTMDatabase) -> bool:
-        """Check if requirement is blocked by incomplete dependencies."""
-        for dep_id in self.dependencies:
-            try:
-                dep = db.get(dep_id)
-                if dep.status != Status.COMPLETE:
-                    return True
-            except RequirementNotFoundError:
-                pass
+    def is_blocked(self, db: RTMDatabase, config: RTMXConfig | None = None) -> bool:
+        """Check if requirement is blocked by incomplete dependencies.
+
+        Args:
+            db: Local RTM database
+            config: Optional RTMX config for cross-repo dependency checking
+
+        Returns:
+            True if any dependency is incomplete, False otherwise
+        """
+        from rtmx.parser import parse_requirement_ref
+
+        for dep_str in self.dependencies:
+            ref = parse_requirement_ref(dep_str)
+
+            if ref.is_local:
+                # Local dependency - check local database
+                try:
+                    dep = db.get(ref.req_id)
+                    if dep.status != Status.COMPLETE:
+                        return True
+                except RequirementNotFoundError:
+                    pass
+            elif config is not None:
+                # Cross-repo dependency - check remote database
+                alias = ref.remote_alias
+                if alias is None and ref.full_repo:
+                    # Try to find matching alias
+                    for a, r in config.sync.remotes.items():
+                        if r.repo == ref.full_repo:
+                            alias = a
+                            break
+
+                if alias is None:
+                    # Unknown remote - can't verify, assume not blocked
+                    continue
+
+                remote_config = config.sync.get_remote(alias)
+                if remote_config is None or remote_config.path is None:
+                    # Remote not accessible - can't verify, assume not blocked
+                    continue
+
+                # Try to load remote database
+                remote_db_path = Path(remote_config.path) / remote_config.database
+                if not remote_db_path.exists():
+                    # Remote unavailable - can't verify, assume not blocked
+                    continue
+
+                try:
+                    remote_db = RTMDatabase.load(remote_db_path)
+                    if remote_db.exists(ref.req_id):
+                        remote_req = remote_db.get(ref.req_id)
+                        if remote_req.status != Status.COMPLETE:
+                            return True
+                except RTMError:
+                    # Can't load remote - assume not blocked
+                    pass
+
         return False
 
     # Convenience aliases for adapters

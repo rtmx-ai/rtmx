@@ -587,6 +587,86 @@ def mcp_server(
 
 
 # =============================================================================
+# Remote Management Commands (Cross-Repo Dependencies)
+# =============================================================================
+
+
+@main.group()
+def remote() -> None:
+    """Manage cross-repository remote configurations.
+
+    Remotes allow dependencies on requirements in other repositories.
+    Use 'sync:REQ-001' format to reference requirements from the 'sync' remote.
+
+    \b
+    Examples:
+        rtmx remote list                              # Show configured remotes
+        rtmx remote add sync --repo sync-server # Add remote
+        rtmx remote add sync --repo sync-server --path ../rtmx-sync
+        rtmx remote remove sync                       # Remove remote
+    """
+    pass
+
+
+@remote.command("list")
+@click.pass_context
+def remote_list(ctx: click.Context) -> None:
+    """List configured remotes."""
+    from rtmx.cli.remote import run_remote_list
+
+    config: RTMXConfig = ctx.obj["config"]
+    run_remote_list(config._config_path)
+
+
+@remote.command("add")
+@click.argument("alias")
+@click.option(
+    "--repo",
+    required=True,
+    help="Full repository path (e.g., 'sync-server')",
+)
+@click.option(
+    "--path",
+    help="Local filesystem path for offline access",
+)
+@click.option(
+    "--database",
+    default=".rtmx/database.csv",
+    help="Path to database within remote (default: .rtmx/database.csv)",
+)
+@click.pass_context
+def remote_add(
+    ctx: click.Context,
+    alias: str,
+    repo: str,
+    path: str | None,
+    database: str,
+) -> None:
+    """Add a new remote repository.
+
+    ALIAS is the short name to use in references (e.g., 'sync' for 'sync:REQ-001').
+    """
+    from rtmx.cli.remote import run_remote_add
+
+    config: RTMXConfig = ctx.obj["config"]
+    run_remote_add(alias, repo, path, database, config._config_path)
+
+
+@remote.command("remove")
+@click.argument("alias")
+@click.pass_context
+def remote_remove(ctx: click.Context, alias: str) -> None:
+    """Remove a remote repository.
+
+    ALIAS is the name of the remote to remove.
+    """
+    from rtmx.cli.remote import run_remote_remove
+
+    config: RTMXConfig = ctx.obj["config"]
+    run_remote_remove(alias, config._config_path)
+
+
+# =============================================================================
 # Integration Commands (E2E Production Integration)
 # =============================================================================
 

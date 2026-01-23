@@ -2,11 +2,14 @@
 
 This module handles loading and saving RTM data from CSV files,
 with support for multiple column naming conventions and dependency formats.
+Also provides cross-repo requirement reference parsing.
 """
 
 from __future__ import annotations
 
 import csv
+import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -14,6 +17,108 @@ from rtmx.models import Requirement, RTMError
 
 if TYPE_CHECKING:
     pass
+
+
+# =============================================================================
+# Cross-Repo Requirement Reference Parsing
+# =============================================================================
+
+
+@dataclass
+class RequirementRef:
+    """Reference to a requirement, either local or cross-repo.
+
+    Formats:
+        - Local: "REQ-SW-001"
+        - Aliased: "sync:REQ-SYNC-001"
+        - Full repo: "sync-server:REQ-SYNC-001"
+
+    Attributes:
+        req_id: The requirement ID (e.g., "REQ-SYNC-001")
+        remote_alias: Short alias if using aliased format (e.g., "sync")
+        full_repo: Full repository path if using full format (e.g., "sync-server")
+    """
+
+    req_id: str
+    remote_alias: str | None = None
+    full_repo: str | None = None
+
+    @property
+    def is_local(self) -> bool:
+        """Check if this is a local requirement reference."""
+        return self.remote_alias is None and self.full_repo is None
+
+    @property
+    def is_cross_repo(self) -> bool:
+        """Check if this is a cross-repo requirement reference."""
+        return not self.is_local
+
+    def __str__(self) -> str:
+        """Return string representation of the reference."""
+        if self.full_repo:
+            return f"{self.full_repo}:{self.req_id}"
+        elif self.remote_alias:
+            return f"{self.remote_alias}:{self.req_id}"
+        return self.req_id
+
+
+# Pattern to match full repo format: org/repo:REQ-ID
+_FULL_REPO_PATTERN = re.compile(r"^([a-zA-Z0-9_-]+/[a-zA-Z0-9._-]+):(.+)$")
+
+# Pattern to match aliased format: alias:REQ-ID (alias is simple identifier)
+_ALIAS_PATTERN = re.compile(r"^([a-zA-Z][a-zA-Z0-9_-]*):(.+)$")
+
+
+def parse_requirement_ref(ref_str: str) -> RequirementRef:
+    """Parse a requirement reference string.
+
+    Args:
+        ref_str: Reference string in one of these formats:
+            - "REQ-SW-001" (local)
+            - "sync:REQ-SYNC-001" (aliased remote)
+            - "sync-server:REQ-SYNC-001" (full repo)
+
+    Returns:
+        RequirementRef with parsed components
+
+    Raises:
+        ValueError: If the format is invalid or empty
+    """
+    ref_str = ref_str.strip()
+
+    if not ref_str:
+        raise ValueError("Requirement reference cannot be empty")
+
+    # Count colons to detect format
+    colon_count = ref_str.count(":")
+
+    if colon_count == 0:
+        # Local reference
+        return RequirementRef(req_id=ref_str)
+
+    if colon_count == 1:
+        # Could be aliased or full repo
+        # Check for full repo pattern first (contains /)
+        full_match = _FULL_REPO_PATTERN.match(ref_str)
+        if full_match:
+            return RequirementRef(
+                req_id=full_match.group(2),
+                full_repo=full_match.group(1),
+            )
+
+        # Try aliased pattern
+        alias_match = _ALIAS_PATTERN.match(ref_str)
+        if alias_match:
+            return RequirementRef(
+                req_id=alias_match.group(2),
+                remote_alias=alias_match.group(1),
+            )
+
+        # Fallback: treat as local with colon in name (unusual but possible)
+        return RequirementRef(req_id=ref_str)
+
+    # Multiple colons - invalid format
+    raise ValueError(f"Invalid requirement reference format: {ref_str}")
 
 
 # Directory and file name constants

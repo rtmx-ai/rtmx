@@ -4,15 +4,18 @@ This module provides validation functions for RTM databases:
 - Schema validation (required fields, valid values)
 - Reciprocity validation (dependency/blocks consistency)
 - Cycle detection warnings
+- Cross-repo dependency validation
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from rtmx.models import Priority, Status
 
 if TYPE_CHECKING:
+    from rtmx.config import RTMXConfig
     from rtmx.models import RTMDatabase
 
 
@@ -216,3 +219,124 @@ def validate_all(db: RTMDatabase) -> dict[str, list[str]]:
         "warnings": validate_cycles(db),
         "reciprocity": [f"{a} <-> {b}: {issue}" for a, b, issue in check_reciprocity(db)],
     }
+
+
+def validate_cross_repo_deps(db: RTMDatabase, config: RTMXConfig) -> tuple[list[str], list[str]]:
+    """Validate cross-repository dependencies.
+
+    Checks:
+    - Remote aliases are configured
+    - Remote repositories are accessible (if path configured)
+    - Referenced requirements exist in remote databases
+
+    Graceful degradation: When a remote is unavailable, warnings are issued
+    instead of errors to allow offline work.
+
+    Args:
+        db: Local RTM database to validate
+        config: RTMX configuration with remote definitions
+
+    Returns:
+        Tuple of (errors, warnings) lists
+    """
+    from rtmx.parser import parse_requirement_ref
+
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    # Cache of loaded remote databases
+    remote_dbs: dict[str, RTMDatabase | None] = {}
+
+    def get_remote_db(alias: str) -> RTMDatabase | None:
+        """Load and cache remote database."""
+        if alias in remote_dbs:
+            return remote_dbs[alias]
+
+        remote_config = config.sync.get_remote(alias)
+        if remote_config is None:
+            return None
+
+        if remote_config.path is None:
+            # No local path configured - can't validate
+            remote_dbs[alias] = None
+            return None
+
+        remote_path = Path(remote_config.path)
+        db_path = remote_path / remote_config.database
+
+        if not db_path.exists():
+            remote_dbs[alias] = None
+            return None
+
+        try:
+            from rtmx.models import RTMDatabase as DB
+
+            remote_dbs[alias] = DB.load(db_path)
+            return remote_dbs[alias]
+        except Exception:
+            remote_dbs[alias] = None
+            return None
+
+    # Scan all requirements for cross-repo dependencies
+    for req in db:
+        for dep_str in req.dependencies:
+            ref = parse_requirement_ref(dep_str)
+
+            if ref.is_local:
+                continue  # Skip local dependencies
+
+            alias = ref.remote_alias
+            if alias is None and ref.full_repo:
+                # Full repo format - try to find matching alias
+                for a, r in config.sync.remotes.items():
+                    if r.repo == ref.full_repo:
+                        alias = a
+                        break
+
+            if alias is None:
+                # Unknown alias or unmatched full repo
+                if ref.remote_alias:
+                    errors.append(
+                        f"{req.req_id}: Unknown remote alias '{ref.remote_alias}' "
+                        f"in dependency '{dep_str}'"
+                    )
+                else:
+                    errors.append(
+                        f"{req.req_id}: No remote configured for repository "
+                        f"'{ref.full_repo}' in dependency '{dep_str}'"
+                    )
+                continue
+
+            # Check if the alias actually exists in config
+            remote_config = config.sync.get_remote(alias)
+            if remote_config is None:
+                errors.append(
+                    f"{req.req_id}: Unknown remote alias '{alias}' " f"in dependency '{dep_str}'"
+                )
+                continue
+
+            # Try to load remote database
+            remote_db = get_remote_db(alias)
+
+            if remote_db is None:
+                # Remote unavailable - graceful degradation
+                remote_config = config.sync.get_remote(alias)
+                if remote_config and remote_config.path:
+                    warnings.append(
+                        f"{req.req_id}: Remote '{alias}' unavailable or not found "
+                        f"at '{remote_config.path}' - cannot verify '{dep_str}'"
+                    )
+                else:
+                    warnings.append(
+                        f"{req.req_id}: Remote '{alias}' has no local path configured "
+                        f"- cannot verify '{dep_str}'"
+                    )
+                continue
+
+            # Verify requirement exists in remote
+            if not remote_db.exists(ref.req_id):
+                errors.append(
+                    f"{req.req_id}: Dependency '{ref.req_id}' not found in " f"remote '{alias}'"
+                )
+
+    return errors, warnings
