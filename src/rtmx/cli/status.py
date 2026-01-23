@@ -103,6 +103,10 @@ def run_status(
 
     # Use rich output if available and requested
     if should_use_rich and is_rich_available() and verbosity == 0:
+        from rtmx.config import load_config
+
+        config = load_config()
+
         # Calculate phase stats
         by_phase: dict[int, dict[Status, int]] = {}
         for req in db:
@@ -123,7 +127,8 @@ def run_status(
             )
             p_total = p_complete + p_partial + p_missing
             p_pct = ((p_complete + p_partial * 0.5) / p_total * 100) if p_total else 0
-            phase_stats.append((phase, p_complete, p_partial, p_missing, p_pct))
+            phase_display = config.get_phase_display(phase)
+            phase_stats.append((phase_display, p_complete, p_partial, p_missing, p_pct))
 
         render_rich_status(complete, partial, missing, total, completion_pct, phase_stats)
 

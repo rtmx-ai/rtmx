@@ -525,7 +525,7 @@ def render_rich_status(
     missing: int,
     total: int,
     completion_pct: float,
-    phase_stats: list[tuple[int, int, int, int, float]],
+    phase_stats: list[tuple[str, int, int, int, float]],
     file: IO[str] | None = None,
     width: int = 70,
 ) -> None:
@@ -537,7 +537,7 @@ def render_rich_status(
         missing: Number of missing requirements
         total: Total requirements
         completion_pct: Overall completion percentage
-        phase_stats: List of (phase, complete, partial, missing, pct) tuples
+        phase_stats: List of (phase_display, complete, partial, missing, pct) tuples
         file: Optional file to write to (for testing)
         width: Panel width in characters (default 70 for 80-column terminals)
     """
@@ -570,11 +570,14 @@ def render_rich_status(
 
     # Phase progress panel
     if phase_stats:
-        # Bar width for phase: leaves room for "Phase XX: " (10) + " XXX.X% X  (Xc Xp Xm)" (~25)
-        phase_bar_width = width - 40
+        # Find the longest phase display name for alignment
+        max_phase_len = max(len(pd) for pd, _, _, _, _ in phase_stats) if phase_stats else 10
+
+        # Bar width: leaves room for phase name + ": " + " XXX.X% X  (Xc Xp Xm)" (~25)
+        phase_bar_width = width - max_phase_len - 30
 
         phase_lines = []
-        for phase_num, p_complete, p_partial, p_missing, p_pct in phase_stats:
+        for phase_display, p_complete, p_partial, p_missing, p_pct in phase_stats:
             p_total = p_complete + p_partial + p_missing
             bar = _rich_progress_bar(p_complete, p_partial, p_missing, p_total, phase_bar_width)
 
@@ -590,7 +593,7 @@ def render_rich_status(
                 style = "red"
 
             line = Text()
-            line.append(f"Phase {phase_num:2d}: ", style="bold")
+            line.append(f"{phase_display}: ".ljust(max_phase_len + 2), style="bold")
             line.append(bar)
             line.append(f" {p_pct:5.1f}% ")
             line.append(status, style=style)
