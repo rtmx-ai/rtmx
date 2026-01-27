@@ -84,6 +84,287 @@ class Priority(str, Enum):
         return cls.MEDIUM
 
 
+class Visibility(str, Enum):
+    """Visibility level for cross-repo requirements."""
+
+    FULL = "full"  # Full access to requirement details
+    SHADOW = "shadow"  # Limited access: status, hash, dependencies only
+    HASH_ONLY = "hash_only"  # Minimal: only hash for verification
+
+
+@dataclass
+class ShadowRequirement:
+    """Representation of a requirement from an external repository with partial visibility.
+
+    When a user depends on a requirement in a repository they don't have full access to,
+    RTMX provides a shadow view with limited information. This enables cross-repo dependency
+    tracking across trust boundaries without exposing sensitive requirement details.
+
+    Attributes:
+        req_id: Requirement identifier in the external repository
+        external_repo: Full repository path (e.g., "rtmx-ai/rtmx-sync")
+        shadow_hash: SHA-256 hash of the requirement content for verification
+        status: Current completion status (if visible)
+        visibility: Level of access (full, shadow, hash_only)
+        verified_at: ISO timestamp of last verification
+        cached_dependencies: Visible dependency IDs (may be empty for hash_only)
+    """
+
+    req_id: str
+    external_repo: str
+    shadow_hash: str
+    status: Status = Status.MISSING
+    visibility: Visibility = Visibility.SHADOW
+    verified_at: str = ""
+    cached_dependencies: set[str] = field(default_factory=set)
+
+    @property
+    def is_accessible(self) -> bool:
+        """Check if requirement details are accessible."""
+        return self.visibility == Visibility.FULL
+
+    @property
+    def is_verifiable(self) -> bool:
+        """Check if requirement can be verified via hash."""
+        return bool(self.shadow_hash)
+
+    @property
+    def full_ref(self) -> str:
+        """Get full cross-repo reference string."""
+        return f"{self.external_repo}:{self.req_id}"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert shadow requirement to dictionary for serialization."""
+        return {
+            "req_id": self.req_id,
+            "external_repo": self.external_repo,
+            "shadow_hash": self.shadow_hash,
+            "status": self.status.value,
+            "visibility": self.visibility.value,
+            "verified_at": self.verified_at,
+            "cached_dependencies": sorted(self.cached_dependencies),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ShadowRequirement:
+        """Create shadow requirement from dictionary."""
+        return cls(
+            req_id=str(data.get("req_id", "")),
+            external_repo=str(data.get("external_repo", "")),
+            shadow_hash=str(data.get("shadow_hash", "")),
+            status=Status.from_string(str(data.get("status", "MISSING"))),
+            visibility=Visibility(data.get("visibility", "shadow")),
+            verified_at=str(data.get("verified_at", "")),
+            cached_dependencies=set(data.get("cached_dependencies", [])),
+        )
+
+    @classmethod
+    def from_requirement(
+        cls,
+        req: Requirement,
+        external_repo: str,
+        visibility: Visibility = Visibility.SHADOW,
+    ) -> ShadowRequirement:
+        """Create shadow requirement from a full requirement.
+
+        Used when creating a shadow view for sharing across trust boundaries.
+
+        Args:
+            req: Full requirement to create shadow from
+            external_repo: Repository path for this requirement
+            visibility: Access level for the shadow
+
+        Returns:
+            ShadowRequirement with appropriate visibility restrictions
+        """
+        import hashlib
+        from datetime import datetime
+
+        # Create content hash from key fields
+        content = f"{req.req_id}:{req.status.value}:{req.requirement_text}"
+        shadow_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
+
+        return cls(
+            req_id=req.req_id,
+            external_repo=external_repo,
+            shadow_hash=shadow_hash,
+            status=req.status,
+            visibility=visibility,
+            verified_at=datetime.now().isoformat(),
+            cached_dependencies=req.dependencies if visibility != Visibility.HASH_ONLY else set(),
+        )
+
+
+class DelegationRole(str, Enum):
+    """Roles that can be delegated between repositories."""
+
+    DEPENDENCY_VIEWER = "dependency_viewer"  # Can see deps and status
+    REQUIREMENT_READER = "requirement_reader"  # Can read requirement details
+    REQUIREMENT_EDITOR = "requirement_editor"  # Can modify requirements
+    SHADOW_VIEWER = "shadow_viewer"  # Can only see shadow/hash
+
+
+@dataclass
+class GrantConstraint:
+    """Constraints on a grant delegation.
+
+    Limits what requirements or categories a delegation applies to.
+
+    Attributes:
+        categories: Limit to specific requirement categories
+        requirement_ids: Limit to specific requirement IDs
+        exclude_categories: Explicitly excluded categories
+        expires_at: Optional expiration timestamp (ISO format)
+    """
+
+    categories: set[str] = field(default_factory=set)
+    requirement_ids: set[str] = field(default_factory=set)
+    exclude_categories: set[str] = field(default_factory=set)
+    expires_at: str = ""
+
+    @property
+    def is_expired(self) -> bool:
+        """Check if constraint has expired."""
+        if not self.expires_at:
+            return False
+        from datetime import datetime
+
+        try:
+            expiry = datetime.fromisoformat(self.expires_at)
+            return datetime.now() >= expiry
+        except ValueError:
+            return False
+
+    def allows_requirement(self, req_id: str, category: str) -> bool:
+        """Check if constraint allows access to a requirement.
+
+        Args:
+            req_id: Requirement identifier
+            category: Requirement category
+
+        Returns:
+            True if access is allowed under this constraint
+        """
+        if self.is_expired:
+            return False
+
+        # Check exclusions first
+        if category in self.exclude_categories:
+            return False
+
+        # If specific IDs listed, must match
+        if self.requirement_ids and req_id not in self.requirement_ids:
+            return False
+
+        # If specific categories listed, must match
+        return not (self.categories and category not in self.categories)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "categories": sorted(self.categories),
+            "requirement_ids": sorted(self.requirement_ids),
+            "exclude_categories": sorted(self.exclude_categories),
+            "expires_at": self.expires_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> GrantConstraint:
+        """Create from dictionary."""
+        return cls(
+            categories=set(data.get("categories", [])),
+            requirement_ids=set(data.get("requirement_ids", [])),
+            exclude_categories=set(data.get("exclude_categories", [])),
+            expires_at=data.get("expires_at", ""),
+        )
+
+
+@dataclass
+class GrantDelegation:
+    """Delegation of access from one repository to another.
+
+    Enables controlled sharing of requirements across trust boundaries.
+    Follows the Zitadel project grant pattern.
+
+    Attributes:
+        grantor: Repository granting access (e.g., "rtmx-ai/rtmx")
+        grantee: Repository receiving access (e.g., "rtmx-ai/rtmx-sync")
+        roles_delegated: Set of roles being delegated
+        constraints: Optional constraints on the delegation
+        created_at: When delegation was created (ISO format)
+        created_by: User who created the delegation
+        active: Whether delegation is currently active
+    """
+
+    grantor: str
+    grantee: str
+    roles_delegated: set[DelegationRole] = field(default_factory=set)
+    constraints: GrantConstraint = field(default_factory=GrantConstraint)
+    created_at: str = ""
+    created_by: str = ""
+    active: bool = True
+
+    def __post_init__(self) -> None:
+        """Set creation timestamp if not provided."""
+        if not self.created_at:
+            from datetime import datetime
+
+            self.created_at = datetime.now().isoformat()
+
+    @property
+    def is_valid(self) -> bool:
+        """Check if delegation is currently valid."""
+        return self.active and not self.constraints.is_expired
+
+    def has_role(self, role: DelegationRole) -> bool:
+        """Check if delegation includes a specific role."""
+        return role in self.roles_delegated
+
+    def allows_access(self, req_id: str, category: str, role: DelegationRole) -> bool:
+        """Check if delegation allows access to a requirement with given role.
+
+        Args:
+            req_id: Requirement identifier
+            category: Requirement category
+            role: Required role for access
+
+        Returns:
+            True if access is allowed
+        """
+        if not self.is_valid:
+            return False
+        if not self.has_role(role):
+            return False
+        return self.constraints.allows_requirement(req_id, category)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "grantor": self.grantor,
+            "grantee": self.grantee,
+            "roles_delegated": [r.value for r in self.roles_delegated],
+            "constraints": self.constraints.to_dict(),
+            "created_at": self.created_at,
+            "created_by": self.created_by,
+            "active": self.active,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> GrantDelegation:
+        """Create from dictionary."""
+        roles = {DelegationRole(r) for r in data.get("roles_delegated", [])}
+        constraints = GrantConstraint.from_dict(data.get("constraints", {}))
+        return cls(
+            grantor=data.get("grantor", ""),
+            grantee=data.get("grantee", ""),
+            roles_delegated=roles,
+            constraints=constraints,
+            created_at=data.get("created_at", ""),
+            created_by=data.get("created_by", ""),
+            active=data.get("active", True),
+        )
+
+
 @dataclass
 class Requirement:
     """Single requirement in the RTM.

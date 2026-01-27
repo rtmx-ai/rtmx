@@ -212,6 +212,80 @@ class SyncConfig:
 
 
 @dataclass
+class AuthConfig:
+    """Configuration for zero-trust authentication (Zitadel OIDC).
+
+    Attributes:
+        provider: Identity provider name (e.g., "zitadel")
+        issuer: OIDC issuer URL
+        client_id: Public client ID for CLI
+        scopes: Requested OAuth scopes
+        callback_port: Local port for PKCE callback
+    """
+
+    provider: str = "zitadel"
+    issuer: str = "https://auth.rtmx.ai"
+    client_id: str = "rtmx-cli"
+    scopes: list[str] = field(
+        default_factory=lambda: ["openid", "profile", "email", "offline_access"]
+    )
+    callback_port: int = 8765
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> AuthConfig:
+        """Create AuthConfig from dictionary."""
+        return cls(
+            provider=data.get("provider", "zitadel"),
+            issuer=data.get("issuer", "https://auth.rtmx.ai"),
+            client_id=data.get("client_id", "rtmx-cli"),
+            scopes=data.get("scopes", ["openid", "profile", "email", "offline_access"]),
+            callback_port=data.get("callback_port", 8765),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "provider": self.provider,
+            "issuer": self.issuer,
+            "client_id": self.client_id,
+            "scopes": self.scopes,
+            "callback_port": self.callback_port,
+        }
+
+
+@dataclass
+class ZitiConfig:
+    """Configuration for OpenZiti zero-trust network overlay.
+
+    Attributes:
+        controller: Ziti controller URL
+        identity_dir: Directory for storing identities
+        services: Map of service names to Ziti service identifiers
+    """
+
+    controller: str = "https://ziti.rtmx.ai"
+    identity_dir: str = "~/.rtmx/ziti"
+    services: dict[str, str] = field(default_factory=lambda: {"rtmx-sync": "rtmx-sync-service"})
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ZitiConfig:
+        """Create ZitiConfig from dictionary."""
+        return cls(
+            controller=data.get("controller", "https://ziti.rtmx.ai"),
+            identity_dir=data.get("identity_dir", "~/.rtmx/ziti"),
+            services=data.get("services", {"rtmx-sync": "rtmx-sync-service"}),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "controller": self.controller,
+            "identity_dir": self.identity_dir,
+            "services": self.services,
+        }
+
+
+@dataclass
 class PytestConfig:
     """Configuration for pytest integration."""
 
@@ -240,6 +314,8 @@ class RTMXConfig:
     adapters: AdaptersConfig = field(default_factory=AdaptersConfig)
     mcp: MCPConfig = field(default_factory=MCPConfig)
     sync: SyncConfig = field(default_factory=SyncConfig)
+    auth: AuthConfig = field(default_factory=AuthConfig)
+    ziti: ZitiConfig = field(default_factory=ZitiConfig)
 
     # Path where config was loaded from (if any)
     _config_path: Path | None = None
@@ -344,6 +420,10 @@ class RTMXConfig:
             config.mcp = MCPConfig.from_dict(rtmx_data["mcp"])
         if "sync" in rtmx_data:
             config.sync = SyncConfig.from_dict(rtmx_data["sync"])
+        if "auth" in rtmx_data:
+            config.auth = AuthConfig.from_dict(rtmx_data["auth"])
+        if "ziti" in rtmx_data:
+            config.ziti = ZitiConfig.from_dict(rtmx_data["ziti"])
 
         config._config_path = config_path
         return config
@@ -402,6 +482,8 @@ class RTMXConfig:
                         alias: remote.to_dict() for alias, remote in self.sync.remotes.items()
                     },
                 },
+                "auth": self.auth.to_dict(),
+                "ziti": self.ziti.to_dict(),
             }
         }
         # Only include phases if defined

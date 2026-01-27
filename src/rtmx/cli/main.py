@@ -439,6 +439,39 @@ def from_tests(
     )
 
 
+@main.command()
+@click.argument("test_path", required=False)
+@click.option("--update", is_flag=True, help="Update RTM database with results")
+@click.option("--dry-run", is_flag=True, help="Show changes without updating")
+@click.option("-v", "--verbose", is_flag=True, help="Verbose output")
+def verify(
+    test_path: str | None,
+    update: bool,
+    dry_run: bool,
+    verbose: bool,
+) -> None:
+    """Verify requirements by running tests and updating status.
+
+    This is closed-loop verification: tests are run, and RTM status
+    is automatically updated based on pass/fail results.
+
+    \b
+    Examples:
+        rtmx verify                    # Run all tests, show results
+        rtmx verify --update           # Run tests and update RTM
+        rtmx verify tests/unit/ --update  # Verify specific tests
+        rtmx verify --dry-run          # Show what would change
+    """
+    from rtmx.cli.verify import run_verify
+
+    run_verify(
+        test_path=test_path,
+        update=update,
+        dry_run=dry_run,
+        verbose=verbose,
+    )
+
+
 # =============================================================================
 # Agent Integration Commands (Phase 6+)
 # =============================================================================
@@ -1052,6 +1085,95 @@ def docs_config(output: Path | None) -> None:
     from rtmx.cli.docs import run_docs_config
 
     run_docs_config(output)
+
+
+# =============================================================================
+# Authentication Commands (REQ-ZT-001)
+# =============================================================================
+
+
+@main.group()
+def auth() -> None:
+    """Manage RTMX authentication.
+
+    Authenticate with RTMX sync services using Zitadel OIDC.
+
+    \b
+    Examples:
+        rtmx auth login     # Login via browser
+        rtmx auth logout    # Clear stored credentials
+        rtmx auth status    # Show current auth status
+    """
+    pass
+
+
+@auth.command("login")
+@click.option(
+    "--no-browser",
+    is_flag=True,
+    help="Print URL instead of opening browser",
+)
+def auth_login(no_browser: bool) -> None:
+    """Login to RTMX sync services.
+
+    Opens browser for Zitadel OIDC authentication.
+    Uses PKCE flow for secure CLI authentication.
+    """
+    import asyncio
+
+    from rtmx.auth import login
+    from rtmx.formatting import Colors
+
+    try:
+        print(f"{Colors.CYAN}Starting authentication...{Colors.RESET}")
+        tokens = asyncio.run(login(open_browser=not no_browser))
+        print(f"{Colors.GREEN}✓ Authentication successful{Colors.RESET}")
+        if tokens.id_token:
+            print(f"{Colors.DIM}Token expires: {tokens.expires_at}{Colors.RESET}")
+    except Exception as e:
+        print(f"{Colors.RED}✗ Authentication failed: {e}{Colors.RESET}")
+        raise SystemExit(1) from e
+
+
+@auth.command("logout")
+def auth_logout() -> None:
+    """Logout and clear stored credentials.
+
+    Removes all stored tokens from keychain/file storage.
+    """
+    from rtmx.auth import logout
+    from rtmx.formatting import Colors
+
+    logout()
+    print(f"{Colors.GREEN}✓ Logged out successfully{Colors.RESET}")
+
+
+@auth.command("status")
+def auth_status() -> None:
+    """Show current authentication status.
+
+    Displays whether authenticated and token expiration.
+    """
+    from rtmx.auth import get_access_token, get_config, is_authenticated
+    from rtmx.formatting import Colors
+
+    config = get_config()
+
+    print(f"{Colors.BOLD}Authentication Status{Colors.RESET}")
+    print(f"Provider: {config.provider}")
+    print(f"Issuer: {config.issuer}")
+    print()
+
+    if is_authenticated():
+        token = get_access_token()
+        if token:
+            print(f"{Colors.GREEN}✓ Authenticated{Colors.RESET}")
+            print(f"{Colors.DIM}Token: {token[:20]}...{Colors.RESET}")
+        else:
+            print(f"{Colors.YELLOW}⚠ Token expired, refresh required{Colors.RESET}")
+    else:
+        print(f"{Colors.RED}✗ Not authenticated{Colors.RESET}")
+        print(f"{Colors.DIM}Run 'rtmx auth login' to authenticate{Colors.RESET}")
 
 
 if __name__ == "__main__":

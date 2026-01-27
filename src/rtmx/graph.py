@@ -4,15 +4,82 @@ This module provides graph algorithms for analyzing requirement dependencies:
 - Cycle detection using Tarjan's strongly connected components algorithm
 - Transitive closure for blocking analysis
 - Critical path identification
+- Cross-repository edge tracking for federated requirements
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
+from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from rtmx.models import RTMDatabase
+
+
+class EdgeType(str, Enum):
+    """Type of dependency edge."""
+
+    LOCAL = "local"  # Both endpoints in same repository
+    CROSS_REPO = "cross_repo"  # Endpoints in different repositories
+    SHADOW = "shadow"  # Destination is a shadow requirement
+
+
+@dataclass
+class CrossRepoEdge:
+    """Represents a dependency edge that spans repository boundaries.
+
+    Cross-repo edges track dependencies between requirements in different
+    repositories, enabling federated requirements traceability across
+    trust boundaries.
+
+    Attributes:
+        from_id: Source requirement ID (full format: repo:req_id or just req_id)
+        to_id: Destination requirement ID (full format: repo:req_id or just req_id)
+        from_repo: Source repository path (empty string for local)
+        to_repo: Destination repository path (empty string for local)
+        edge_type: Classification of the edge
+        verified: Whether the destination has been verified accessible
+        shadow_hash: Hash of shadow requirement if edge_type is SHADOW
+    """
+
+    from_id: str
+    to_id: str
+    from_repo: str = ""
+    to_repo: str = ""
+    edge_type: EdgeType = EdgeType.LOCAL
+    verified: bool = False
+    shadow_hash: str = ""
+
+    @property
+    def is_cross_repo(self) -> bool:
+        """Check if edge crosses repository boundaries."""
+        return self.edge_type in (EdgeType.CROSS_REPO, EdgeType.SHADOW)
+
+    @property
+    def from_full_id(self) -> str:
+        """Get fully qualified source ID."""
+        if self.from_repo:
+            return f"{self.from_repo}:{self.from_id}"
+        return self.from_id
+
+    @property
+    def to_full_id(self) -> str:
+        """Get fully qualified destination ID."""
+        if self.to_repo:
+            return f"{self.to_repo}:{self.to_id}"
+        return self.to_id
+
+    def __hash__(self) -> int:
+        """Enable use in sets and as dict keys."""
+        return hash((self.from_full_id, self.to_full_id))
+
+    def __eq__(self, other: object) -> bool:
+        """Check equality based on full IDs."""
+        if not isinstance(other, CrossRepoEdge):
+            return NotImplemented
+        return self.from_full_id == other.from_full_id and self.to_full_id == other.to_full_id
 
 
 class DependencyGraph:
@@ -20,6 +87,7 @@ class DependencyGraph:
 
     The graph supports both forward edges (dependencies) and reverse edges (blocks).
     Provides algorithms for cycle detection and transitive analysis.
+    Tracks cross-repository edges for federated requirements.
     """
 
     def __init__(self) -> None:
@@ -30,32 +98,102 @@ class DependencyGraph:
         self._reverse: dict[str, set[str]] = defaultdict(set)
         # All known nodes
         self._nodes: set[str] = set()
+        # Cross-repo edges for federated tracking
+        self._cross_repo_edges: set[CrossRepoEdge] = set()
+        # Repository for this graph (empty string for local-only)
+        self._repo: str = ""
 
     @classmethod
-    def from_database(cls, db: RTMDatabase) -> DependencyGraph:
+    def from_database(cls, db: RTMDatabase, repo: str = "") -> DependencyGraph:
         """Create dependency graph from RTM database.
 
         Args:
             db: RTM database
+            repo: Repository identifier for this database (empty for local)
 
         Returns:
             DependencyGraph instance
         """
+        from rtmx.parser import parse_requirement_ref
+
         graph = cls()
+        graph._repo = repo
 
         for req in db:
             graph._nodes.add(req.req_id)
 
             # Add forward edges (dependencies)
-            for dep_id in req.dependencies:
-                graph._forward[req.req_id].add(dep_id)
-                graph._reverse[dep_id].add(req.req_id)
-                graph._nodes.add(dep_id)
+            for dep_str in req.dependencies:
+                ref = parse_requirement_ref(dep_str)
+
+                if ref.is_local:
+                    # Local dependency
+                    graph._forward[req.req_id].add(ref.req_id)
+                    graph._reverse[ref.req_id].add(req.req_id)
+                    graph._nodes.add(ref.req_id)
+                else:
+                    # Cross-repo dependency
+                    to_repo = ref.full_repo or ""
+                    edge = CrossRepoEdge(
+                        from_id=req.req_id,
+                        to_id=ref.req_id,
+                        from_repo=repo,
+                        to_repo=to_repo,
+                        edge_type=EdgeType.CROSS_REPO,
+                    )
+                    graph._cross_repo_edges.add(edge)
+                    # Also add to forward/reverse for graph algorithms
+                    full_to_id = dep_str  # Keep original reference format
+                    graph._forward[req.req_id].add(full_to_id)
+                    graph._reverse[full_to_id].add(req.req_id)
+                    graph._nodes.add(full_to_id)
 
             # Note: we don't add blocks as edges since they should be
             # reciprocal to dependencies. If A blocks B, then B depends on A.
 
         return graph
+
+    def add_cross_repo_edge(self, edge: CrossRepoEdge) -> None:
+        """Add a cross-repository dependency edge.
+
+        Args:
+            edge: CrossRepoEdge to add
+        """
+        self._cross_repo_edges.add(edge)
+        self._nodes.add(edge.from_full_id)
+        self._nodes.add(edge.to_full_id)
+        self._forward[edge.from_full_id].add(edge.to_full_id)
+        self._reverse[edge.to_full_id].add(edge.from_full_id)
+
+    def get_cross_repo_edges(self) -> set[CrossRepoEdge]:
+        """Get all cross-repository edges.
+
+        Returns:
+            Set of CrossRepoEdge instances
+        """
+        return self._cross_repo_edges.copy()
+
+    def cross_repo_dependencies(self, req_id: str) -> list[CrossRepoEdge]:
+        """Get cross-repo dependencies for a requirement.
+
+        Args:
+            req_id: Requirement identifier
+
+        Returns:
+            List of CrossRepoEdge instances for this requirement's cross-repo deps
+        """
+        return [e for e in self._cross_repo_edges if e.from_id == req_id]
+
+    def cross_repo_dependents(self, req_id: str) -> list[CrossRepoEdge]:
+        """Get requirements from other repos that depend on this one.
+
+        Args:
+            req_id: Requirement identifier
+
+        Returns:
+            List of CrossRepoEdge instances where this requirement is the target
+        """
+        return [e for e in self._cross_repo_edges if e.to_id == req_id]
 
     def add_edge(self, from_id: str, to_id: str) -> None:
         """Add a dependency edge.
@@ -323,9 +461,16 @@ class DependencyGraph:
         Returns:
             Dictionary with graph statistics
         """
+        cross_repo_count = len(self._cross_repo_edges)
         return {
             "nodes": self.node_count,
             "edges": self.edge_count,
+            "cross_repo_edges": cross_repo_count,
             "avg_dependencies": self.edge_count / self.node_count if self.node_count else 0,
             "cycles": len(self.find_cycles()),
         }
+
+    @property
+    def cross_repo_edge_count(self) -> int:
+        """Get number of cross-repository edges."""
+        return len(self._cross_repo_edges)
