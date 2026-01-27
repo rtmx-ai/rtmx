@@ -145,6 +145,84 @@ def _truncate(text: str, max_len: int = 35) -> str:
     return text[: max_len - 3] + "..."
 
 
+def _format_dependencies(deps: set[str], max_display: int = 2) -> str:
+    """Format dependencies with cross-repo indicators.
+
+    Cross-repo dependencies are shown with a special indicator:
+    - Local deps: REQ-SW-001
+    - Cross-repo deps: [→] sync:REQ-SYNC-001
+
+    Args:
+        deps: Set of dependency strings
+        max_display: Maximum dependencies to show before truncating
+
+    Returns:
+        Formatted dependency string with indicators
+    """
+    from rtmx.parser import parse_requirement_ref
+
+    if not deps:
+        return f"{Colors.DIM}-{Colors.RESET}"
+
+    formatted = []
+    local_count = 0
+    cross_repo_count = 0
+
+    for dep in sorted(deps):
+        ref = parse_requirement_ref(dep)
+        if ref.is_cross_repo:
+            cross_repo_count += 1
+            # Format with arrow indicator for cross-repo
+            formatted.append(f"{Colors.CYAN}→{dep}{Colors.RESET}")
+        else:
+            local_count += 1
+            formatted.append(dep)
+
+    # Build display string
+    if len(formatted) <= max_display:
+        return ", ".join(formatted)
+    else:
+        shown = ", ".join(formatted[:max_display])
+        remaining = len(formatted) - max_display
+        return f"{shown} +{remaining}"
+
+
+def _count_cross_repo_deps(db: RTMDatabase) -> tuple[int, int]:
+    """Count cross-repo dependencies in database.
+
+    Args:
+        db: RTM database
+
+    Returns:
+        Tuple of (cross_repo_count, total_deps_count)
+    """
+    return _count_cross_repo_deps_in_list(list(db))
+
+
+def _count_cross_repo_deps_in_list(requirements: list) -> tuple[int, int]:
+    """Count cross-repo dependencies in a list of requirements.
+
+    Args:
+        requirements: List of requirements
+
+    Returns:
+        Tuple of (cross_repo_count, total_deps_count)
+    """
+    from rtmx.parser import parse_requirement_ref
+
+    cross_repo = 0
+    total = 0
+
+    for req in requirements:
+        for dep in req.dependencies:
+            total += 1
+            ref = parse_requirement_ref(dep)
+            if ref.is_cross_repo:
+                cross_repo += 1
+
+    return cross_repo, total
+
+
 def _sort_by_blocking(incomplete: list, blocking_counts: dict[str, tuple[int, int]]) -> list:
     """Sort requirements by blocking count (highest first)."""
 
@@ -169,6 +247,9 @@ def _print_summary_header(all_reqs: list, incomplete: list, phase: int | None) -
     # Total effort
     total_effort = sum(req.effort_weeks or 0 for req in incomplete)
 
+    # Count cross-repo dependencies
+    cross_repo, total_deps = _count_cross_repo_deps_in_list(all_reqs)
+
     # Print title
     title = "Prioritized Backlog"
     if phase:
@@ -180,6 +261,8 @@ def _print_summary_header(all_reqs: list, incomplete: list, phase: int | None) -
     print(f"Total Requirements: {total}")
     print(f"  {Colors.RED}✗ MISSING: {missing} ({missing_pct:.1f}%){Colors.RESET}")
     print(f"  {Colors.YELLOW}⚠ PARTIAL: {partial} ({partial_pct:.1f}%){Colors.RESET}")
+    if cross_repo > 0:
+        print(f"  {Colors.CYAN}→ Cross-repo deps: {cross_repo}{Colors.RESET}")
     print(f"Estimated Effort: {total_effort:.1f} weeks")
     print()
 
@@ -532,14 +615,20 @@ def _show_list(
 
     sorted_reqs = sorted(requirements, key=sort_key)
 
+    # Count cross-repo deps for summary
+    cross_repo, total_deps = _count_cross_repo_deps_in_list(requirements)
+    if cross_repo > 0:
+        print(
+            f"{Colors.CYAN}→ {cross_repo} cross-repo dependencies{Colors.RESET} "
+            f"{Colors.DIM}(of {total_deps} total){Colors.RESET}"
+        )
+        print()
+
     # Build table
     table_data = []
     for i, req in enumerate(sorted_reqs, 1):
-        # Format dependencies (convert set to sorted list)
-        deps = sorted(req.dependencies) if req.dependencies else []
-        deps_str = ", ".join(deps[:2]) if deps else "-"
-        if len(deps) > 2:
-            deps_str += f" +{len(deps) - 2}"
+        # Format dependencies with cross-repo indicators
+        deps_str = _format_dependencies(req.dependencies)
 
         table_data.append(
             [

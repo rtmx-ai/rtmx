@@ -106,6 +106,17 @@ endif
 cycles: ## Check for dependency cycles
 	$(VENV)/bin/rtmx cycles
 
+# Verification targets (closed-loop requirement verification)
+
+verify: ## Verify requirements (run tests, show status changes)
+	$(VENV)/bin/rtmx verify
+
+verify-update: ## Verify and update RTM status based on test results
+	$(VENV)/bin/rtmx verify --update
+
+verify-dry: ## Show what status changes would be made (dry run)
+	$(VENV)/bin/rtmx verify --dry-run
+
 # Pre-commit targets
 
 pre-commit-install: ## Install pre-commit hooks
