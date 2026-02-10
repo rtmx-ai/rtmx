@@ -107,6 +107,12 @@ def main(
     default=False,
     help="Watch file and auto-refresh on changes",
 )
+@click.option(
+    "--fail-under",
+    type=float,
+    default=None,
+    help="Exit with code 1 if completion percentage is below this threshold (e.g., 80.0)",
+)
 @click.pass_context
 def status(
     ctx: click.Context,
@@ -114,17 +120,19 @@ def status(
     json_output: Path | None,
     use_rich: bool | None,
     live: bool,
+    fail_under: float | None,
 ) -> None:
     """Show RTM status.
 
     Displays completion status with pytest-style verbosity levels.
     Use --rich for enhanced terminal output with progress bars (requires rich library).
     Use --live to watch for file changes and auto-refresh.
+    Use --fail-under to exit with code 1 if completion is below a threshold.
     """
     from rtmx.cli.status import run_status
 
     rtm_csv = ctx.obj.get("rtm_csv")
-    run_status(rtm_csv, verbose, json_output, use_rich, live)
+    run_status(rtm_csv, verbose, json_output, use_rich, live, fail_under)
 
 
 @main.command()

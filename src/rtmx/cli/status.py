@@ -56,6 +56,7 @@ def run_status(
     json_output: Path | None,
     use_rich: bool | None = None,
     live: bool = False,
+    fail_under: float | None = None,
 ) -> None:
     """Run status command.
 
@@ -65,6 +66,8 @@ def run_status(
         json_output: Optional path for JSON export
         use_rich: Force rich output (True), plain output (False), or auto-detect (None)
         live: Watch file and auto-refresh on changes
+        fail_under: Exit with code 1 if completion percentage is below this threshold.
+                    If None (default), always exit 0 on successful execution.
     """
     from rtmx.formatting import is_rich_available, render_rich_status
 
@@ -136,7 +139,9 @@ def run_status(
         if json_output:
             _export_json(db, json_output, completion_pct)
 
-        sys.exit(0 if completion_pct >= 99 else 1)
+        # Exit based on fail_under threshold (if specified)
+        if fail_under is not None and completion_pct < fail_under:
+            sys.exit(1)
         return
 
     # Plain output (original implementation)
@@ -162,8 +167,9 @@ def run_status(
     if json_output:
         _export_json(db, json_output, completion_pct)
 
-    # Exit code based on completion
-    sys.exit(0 if completion_pct >= 99 else 1)
+    # Exit based on fail_under threshold (if specified)
+    if fail_under is not None and completion_pct < fail_under:
+        sys.exit(1)
 
 
 def _print_summary(
