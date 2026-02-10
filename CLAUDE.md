@@ -382,6 +382,41 @@ python -m rtmx status          # Run as module
 pytest -v -s --tb=long         # Verbose test output
 ```
 
+## Patterns and Anti-Patterns
+
+**Read the full guide**: [docs/patterns.md](docs/patterns.md)
+
+### Critical: Closed-Loop Verification
+
+**Never manually edit the `status` field in rtm_database.csv.**
+
+Status must be derived from test results, not claimed by agents or humans.
+
+```bash
+# RIGHT: Let tests determine status
+rtmx verify --update
+
+# WRONG: Manual status edit
+# Editing status: COMPLETE directly in CSV
+```
+
+### Quick Reference
+
+| Do This | Not This |
+|---------|----------|
+| `rtmx verify --update` | Manual status edits |
+| `@pytest.mark.req()` on tests | Orphan tests |
+| Spec-first development | Code-first, spec-never |
+| Respect `blockedBy` deps | Ignore dependencies |
+
+### Agent Workflow
+
+1. Read requirement spec from `docs/requirements/`
+2. Write/update tests with `@pytest.mark.req()`
+3. Implement code to pass tests
+4. Run `rtmx verify --update`
+5. Commit (status updated by verification)
+
 ## Architecture Decisions
 
 - **CSV over SQLite**: Human-readable, git-friendly, AI-parseable

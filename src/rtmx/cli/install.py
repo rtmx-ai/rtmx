@@ -55,6 +55,29 @@ else
 fi
 """
 
+# Validation pre-commit hook template (REQ-GIT-002)
+VALIDATION_HOOK_TEMPLATE = """#!/bin/sh
+# RTMX pre-commit validation hook
+# Installed by: rtmx install --hooks --validate
+
+# Get list of staged RTM CSV files
+STAGED_RTM=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\\.csv$')
+
+if [ -n "$STAGED_RTM" ]; then
+    echo "Validating staged RTM files..."
+    if command -v rtmx >/dev/null 2>&1; then
+        rtmx validate-staged $STAGED_RTM
+        if [ $? -ne 0 ]; then
+            echo "RTM validation failed. Commit aborted."
+            echo "Fix validation errors above, or commit with --no-verify to skip."
+            exit 1
+        fi
+    else
+        echo "Warning: rtmx not found in PATH, skipping RTM validation"
+    fi
+fi
+"""
+
 # Marker to identify RTMX-installed hooks
 RTMX_HOOK_MARKER = "# RTMX"
 
@@ -64,17 +87,34 @@ CLAUDE_PROMPT = """
 
 This project uses RTMX for requirements traceability management.
 
+**Full patterns guide**: https://rtmx.ai/patterns
+
+### Critical: Closed-Loop Verification
+
+**Never manually edit the `status` field in rtm_database.csv.**
+
+Status must be derived from test results using `rtmx verify --update`.
+
+```bash
+# RIGHT: Let tests determine status
+rtmx verify --update
+
+# WRONG: Manual status edit in CSV or code
+```
+
 ### Quick Commands
 - `rtmx status` - Completion status (-v/-vv/-vvv for detail)
 - `rtmx backlog` - Prioritized incomplete requirements
-- `rtmx backlog --phase N` - Filter by phase
+- `rtmx verify --update` - Run tests and update status from results
+- `rtmx from-tests --update` - Sync test metadata to RTM
 - `make rtm` / `make backlog` - Makefile shortcuts (if available)
 
 ### Development Workflow
-1. Check if requirement exists before implementing (`rtmx status -vvv | grep "feature"`)
-2. Link tests with `@pytest.mark.req("REQ-XX-NNN")`
-3. Update RTM status when completing features
-4. Run `rtmx from-tests --update` to sync test info
+1. Read requirement spec from `docs/requirements/`
+2. Write tests with `@pytest.mark.req("REQ-XX-NNN")`
+3. Implement code to pass tests
+4. Run `rtmx verify --update` (status updated automatically)
+5. Commit changes
 
 ### Test Markers
 | Marker | Purpose |
@@ -84,14 +124,29 @@ This project uses RTMX for requirements traceability management.
 | `@pytest.mark.scope_integration` | Multi-component |
 | `@pytest.mark.technique_nominal` | Happy path |
 | `@pytest.mark.technique_stress` | Edge cases |
+
+### Patterns and Anti-Patterns
+
+| Do This | Not This |
+|---------|----------|
+| `rtmx verify --update` | Manual status edits |
+| `@pytest.mark.req()` on tests | Orphan tests |
+| Respect `blockedBy` deps | Ignore dependencies |
 """
 
 CURSOR_PROMPT = """# RTMX Requirements Traceability
 
+Full patterns guide: https://rtmx.ai/patterns
+
+## Critical Rule
+Never manually edit `status` in rtm_database.csv.
+Use `rtmx verify --update` to derive status from test results.
+
 ## Context Commands
-- rtmx status -v      # Category-level completion
-- rtmx backlog        # What needs work
-- rtmx deps --req ID  # Requirement dependencies
+- rtmx status -v        # Category-level completion
+- rtmx backlog          # What needs work
+- rtmx verify --update  # Run tests, update status
+- rtmx deps --req ID    # Requirement dependencies
 
 ## Test Generation Rules
 When generating tests, add @pytest.mark.req("REQ-XX-NNN") markers.
@@ -102,6 +157,11 @@ Reference: docs/requirements/ for requirement details.
 COPILOT_PROMPT = """# RTMX Requirements Traceability
 
 This project uses RTMX for requirements traceability.
+Full patterns guide: https://rtmx.ai/patterns
+
+## Critical Rule
+Never manually edit `status` in rtm_database.csv.
+Use `rtmx verify --update` to derive status from test results.
 
 ## Test Markers
 - @pytest.mark.req("REQ-XX-NNN") - Links test to requirement
@@ -110,6 +170,7 @@ This project uses RTMX for requirements traceability.
 ## Commands
 - rtmx status - Check completion status
 - rtmx backlog - See incomplete requirements
+- rtmx verify --update - Update status from test results
 """
 
 
@@ -340,6 +401,7 @@ def install_hooks(
     dry_run: bool = False,
     pre_push: bool = False,
     remove: bool = False,
+    validate: bool = False,
 ) -> bool:
     """Install or remove RTMX git hooks.
 
@@ -347,6 +409,7 @@ def install_hooks(
         dry_run: Preview changes without writing
         pre_push: Also install/remove pre-push hook
         remove: Remove hooks instead of installing
+        validate: Install validation hook instead of health check hook
 
     Returns:
         True if operation succeeded, False otherwise
@@ -364,7 +427,9 @@ def install_hooks(
         hooks_dir.mkdir(parents=True, exist_ok=True)
 
     # Define hooks to process
-    hooks: list[tuple[str, str]] = [("pre-commit", PRE_COMMIT_HOOK_TEMPLATE)]
+    # Use validation hook if --validate flag is set, otherwise use health check hook
+    precommit_template = VALIDATION_HOOK_TEMPLATE if validate else PRE_COMMIT_HOOK_TEMPLATE
+    hooks: list[tuple[str, str]] = [("pre-commit", precommit_template)]
     if pre_push:
         hooks.append(("pre-push", PRE_PUSH_HOOK_TEMPLATE))
 
