@@ -11,6 +11,7 @@ from pathlib import Path
 import click
 
 from rtmx import __version__
+from rtmx.cli.markers import markers as markers_group
 from rtmx.config import RTMXConfig, load_config
 from rtmx.formatting import Colors
 
@@ -1212,6 +1213,14 @@ def auth_status() -> None:
     else:
         print(f"{Colors.RED}✗ Not authenticated{Colors.RESET}")
         print(f"{Colors.DIM}Run 'rtmx auth login' to authenticate{Colors.RESET}")
+
+
+# =============================================================================
+# Marker Discovery Commands (REQ-LANG-007)
+# =============================================================================
+
+# Register the markers command group (imported at top of file)
+main.add_command(markers_group, name="markers")
 
 
 if __name__ == "__main__":

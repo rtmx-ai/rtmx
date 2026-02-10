@@ -1,6 +1,6 @@
 # REQ-LANG-007: Language-Agnostic Marker Annotation Specification
 
-## Status: MISSING
+## Status: COMPLETE
 ## Priority: HIGH
 ## Phase: 14
 
@@ -8,14 +8,14 @@
 System shall define a language-agnostic specification for requirement markers that can be consistently parsed across all supported languages, enabling unified RTM tracking regardless of the implementation language.
 
 ## Acceptance Criteria
-- [ ] JSON Schema defines canonical marker format with required fields (req_id, scope, technique, env)
-- [ ] Schema validates marker patterns across all supported languages
-- [ ] Parser registry architecture allows registration of language-specific parsers
-- [ ] Language auto-detection from file extensions and shebang lines
-- [ ] Marker extraction API returns normalized `MarkerInfo` objects
-- [ ] CLI command `rtmx markers discover <path>` scans codebase for markers in all languages
-- [ ] Configuration file (`.rtmx.yaml`) allows custom parser registration
-- [ ] Error reporting identifies invalid markers with file location and fix suggestions
+- [x] JSON Schema defines canonical marker format with required fields (req_id, scope, technique, env)
+- [x] Schema validates marker patterns across all supported languages
+- [x] Parser registry architecture allows registration of language-specific parsers
+- [x] Language auto-detection from file extensions and shebang lines
+- [x] Marker extraction API returns normalized `MarkerInfo` objects
+- [x] CLI command `rtmx markers discover <path>` scans codebase for markers in all languages
+- [x] Configuration file (`.rtmx.yaml`) allows custom parser registration
+- [x] Error reporting identifies invalid markers with file location and fix suggestions
 
 ## Technical Notes
 - JSON Schema v2020-12 for marker format specification
