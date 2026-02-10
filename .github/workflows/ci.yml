@@ -181,10 +181,12 @@ jobs:
 
       - name: Run requirement verification
         run: |
+          set +e  # Don't fail on non-zero exit codes
           # Run verify with update to sync test results to RTM status
-          rtmx verify --update --verbose || true
-          # Show final status (use || true since status exits 1 when incomplete)
-          rtmx status || true
+          rtmx verify --update --verbose
+          # Show final status
+          rtmx status
+          exit 0  # Always succeed - verification is informational
 
       - name: Commit RTM status updates
         run: |
