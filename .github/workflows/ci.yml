@@ -183,8 +183,8 @@ jobs:
         run: |
           # Run verify with update to sync test results to RTM status
           rtmx verify --update --verbose || true
-          # Show final status
-          rtmx status
+          # Show final status (use || true since status exits 1 when incomplete)
+          rtmx status || true
 
       - name: Commit RTM status updates
         run: |
