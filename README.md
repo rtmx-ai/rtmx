@@ -12,7 +12,7 @@
 
 RTMX brings **requirements traceability** to modern software development. Track what you're building, why you're building it, and prove it works—all from your terminal.
 
-**[Documentation](https://rtmx.ai)** · **[Quickstart](https://rtmx.ai/quickstart)** · **[RTMX Sync](https://rtmx.ai/pricing)**
+**[Documentation](https://rtmx.ai/docs)** · **[Quickstart](https://rtmx.ai/quickstart)** · **[RTMX Sync](https://rtmx.ai/pricing)**
 
 ![rtmx status](docs/assets/rtmx-status.png)
 

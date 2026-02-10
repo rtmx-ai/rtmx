@@ -464,6 +464,7 @@ def run_hooks(
     dry_run: bool = False,
     pre_push: bool = False,
     remove: bool = False,
+    validate: bool = False,
 ) -> None:
     """Run git hooks command with user feedback.
 
@@ -471,6 +472,7 @@ def run_hooks(
         dry_run: Preview changes without writing
         pre_push: Also install/remove pre-push hook
         remove: Remove hooks instead of installing
+        validate: Install validation hook instead of health check hook
     """
     print("=== RTMX Git Hooks ===")
     print()
@@ -492,9 +494,10 @@ def run_hooks(
     if remove:
         print(f"{Colors.BOLD}Removing RTMX hooks...{Colors.RESET}")
     else:
-        print(f"{Colors.BOLD}Installing RTMX hooks...{Colors.RESET}")
+        hook_type = "validation" if validate else "health check"
+        print(f"{Colors.BOLD}Installing RTMX {hook_type} hooks...{Colors.RESET}")
 
-    result = install_hooks(dry_run=dry_run, pre_push=pre_push, remove=remove)
+    result = install_hooks(dry_run=dry_run, pre_push=pre_push, remove=remove, validate=validate)
 
     if not result:
         print(f"{Colors.RED}Operation failed{Colors.RESET}")
