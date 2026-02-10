@@ -163,7 +163,7 @@ check_untyped_defs = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["tabulate.*", "click.*", "github.*", "mcp.*", "jira.*", "pytest.*"]
+module = ["tabulate.*", "click.*", "github.*", "mcp.*", "jira.*", "pytest.*", "openziti.*", "aiohttp.*", "hypothesis.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
