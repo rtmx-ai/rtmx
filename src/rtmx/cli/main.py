@@ -932,6 +932,12 @@ def bootstrap(
     is_flag=True,
     help="Remove installed hooks (requires --hooks)",
 )
+@click.option(
+    "--validate",
+    "validate_hook",
+    is_flag=True,
+    help="Install validation hook that checks staged RTM CSV files (requires --hooks)",
+)
 @click.pass_context
 def install(
     ctx: click.Context,
@@ -944,6 +950,7 @@ def install(
     hooks: bool,
     pre_push: bool,
     remove: bool,
+    validate_hook: bool,
 ) -> None:
     """Install RTM-aware prompts into AI agent configs or git hooks.
 
@@ -956,14 +963,15 @@ def install(
         rtmx install --all              # Install to all detected agents
         rtmx install --agents claude    # Install only to Claude
         rtmx install --dry-run          # Preview changes
-        rtmx install --hooks            # Install pre-commit hook
+        rtmx install --hooks            # Install pre-commit hook (health check)
+        rtmx install --hooks --validate # Install validation pre-commit hook
         rtmx install --hooks --pre-push # Install both hooks
         rtmx install --hooks --remove   # Remove rtmx hooks
     """
     if hooks:
         from rtmx.cli.install import run_hooks
 
-        run_hooks(dry_run=dry_run, pre_push=pre_push, remove=remove)
+        run_hooks(dry_run=dry_run, pre_push=pre_push, remove=remove, validate=validate_hook)
     else:
         from rtmx.cli.install import run_install
 
@@ -977,6 +985,28 @@ def install(
             skip_backup,
             config,
         )
+
+
+@main.command("validate-staged")
+@click.argument("files", nargs=-1, type=click.Path(exists=True, path_type=Path))
+@click.option("-v", "--verbose", is_flag=True, help="Show detailed output")
+def validate_staged(files: tuple[Path, ...], verbose: bool) -> None:
+    """Validate staged RTM CSV files (used by pre-commit hook).
+
+    Validates only the specified CSV files. Designed to be called from
+    a pre-commit hook to validate staged RTM database files.
+
+    \b
+    Examples:
+        rtmx validate-staged docs/rtm_database.csv
+        rtmx validate-staged *.csv
+    """
+    import sys
+
+    from rtmx.cli.validate import run_validate_staged_cli
+
+    exit_code = run_validate_staged_cli([str(f) for f in files], verbose)
+    sys.exit(exit_code)
 
 
 @main.command()
