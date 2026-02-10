@@ -414,10 +414,10 @@ class TestRunStatus:
         assert "by_category" in data
         assert "all_requirements" in data
 
-    def test_status_exit_code_incomplete(
+    def test_status_exit_code_default(
         self, sample_rtm_csv: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Test status exits with code 1 when completion < 99%."""
+        """Test status exits 0 by default (even when incomplete)."""
         from rtmx.cli.status import run_status
 
         exit_code = None
@@ -430,8 +430,47 @@ class TestRunStatus:
 
         run_status(sample_rtm_csv, verbosity=0, json_output=None)
 
-        # 1 complete out of 5 = 20% completion
+        # Default behavior: exit 0 (no sys.exit called means exit_code is None)
+        assert exit_code is None
+
+    def test_status_exit_code_fail_under(
+        self, sample_rtm_csv: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test status exits 1 when --fail-under threshold not met."""
+        from rtmx.cli.status import run_status
+
+        exit_code = None
+
+        def mock_exit(code: int) -> None:
+            nonlocal exit_code
+            exit_code = code
+
+        monkeypatch.setattr(sys, "exit", mock_exit)
+
+        # 1 complete out of 5 = 20% completion, fail_under=50 should trigger exit 1
+        run_status(sample_rtm_csv, verbosity=0, json_output=None, fail_under=50.0)
+
         assert exit_code == 1
+
+    def test_status_exit_code_fail_under_passes(
+        self, sample_rtm_csv: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test status exits 0 when --fail-under threshold is met."""
+        from rtmx.cli.status import run_status
+
+        exit_code = None
+
+        def mock_exit(code: int) -> None:
+            nonlocal exit_code
+            exit_code = code
+
+        monkeypatch.setattr(sys, "exit", mock_exit)
+
+        # 1 complete out of 5 = 20% completion, fail_under=10 should pass
+        run_status(sample_rtm_csv, verbosity=0, json_output=None, fail_under=10.0)
+
+        # Threshold met: no exit called
+        assert exit_code is None
 
     def test_status_invalid_csv_path(
         self, tmp_path: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
