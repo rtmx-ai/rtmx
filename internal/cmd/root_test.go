@@ -107,6 +107,25 @@ func newTestVersionCmd() *cobra.Command {
 	}
 }
 
+// newTestInitCmd creates a fresh init command for testing with real behavior.
+func newTestInitCmd() *cobra.Command {
+	var force bool
+	var legacy bool
+
+	cmd := &cobra.Command{
+		Use:   "init",
+		Short: "Initialize RTM structure",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			initForce = force
+			initLegacy = legacy
+			return runInit(cmd, args)
+		},
+	}
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "overwrite existing files")
+	cmd.Flags().BoolVar(&legacy, "legacy", false, "use legacy docs/ directory structure")
+	return cmd
+}
+
 // newTestRootCmd creates a fresh root command for testing.
 // This avoids state pollution between tests.
 func newTestRootCmd() *cobra.Command {
@@ -134,6 +153,7 @@ Source: https://github.com/rtmx-ai/rtmx-go`,
 	cmd.AddCommand(newTestStatusCmd())
 	cmd.AddCommand(newTestBacklogCmd())
 	cmd.AddCommand(newTestHealthCmd())
+	cmd.AddCommand(newTestInitCmd())
 
 	return cmd
 }
