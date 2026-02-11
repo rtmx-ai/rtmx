@@ -1,0 +1,105 @@
+# GoReleaser configuration for RTMX CLI
+# Documentation: https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: rtmx
+    main: ./cmd/rtmx
+    binary: rtmx
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/rtmx-ai/rtmx-go/internal/cmd.Version={{.Version}}
+      - -X github.com/rtmx-ai/rtmx-go/internal/cmd.Commit={{.Commit}}
+      - -X github.com/rtmx-ai/rtmx-go/internal/cmd.Date={{.Date}}
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: rtmx-ai
+    name: rtmx-go
+  draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"
+
+brews:
+  - name: rtmx
+    repository:
+      owner: rtmx-ai
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://rtmx.ai"
+    description: "Requirements Traceability Matrix toolkit"
+    license: "Apache-2.0"
+    test: |
+      system "#{bin}/rtmx", "version"
+    install: |
+      bin.install "rtmx"
+
+scoops:
+  - repository:
+      owner: rtmx-ai
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+    homepage: "https://rtmx.ai"
+    description: "Requirements Traceability Matrix toolkit"
+    license: "Apache-2.0"
+
+nfpms:
+  - id: packages
+    package_name: rtmx
+    vendor: ioTACTICAL LLC
+    homepage: https://rtmx.ai
+    maintainer: RTMX Engineering <dev@rtmx.ai>
+    description: Requirements Traceability Matrix toolkit
+    license: Apache-2.0
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
