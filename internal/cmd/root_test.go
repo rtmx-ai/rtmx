@@ -154,7 +154,31 @@ Source: https://github.com/rtmx-ai/rtmx-go`,
 	cmd.AddCommand(newTestBacklogCmd())
 	cmd.AddCommand(newTestHealthCmd())
 	cmd.AddCommand(newTestInitCmd())
+	cmd.AddCommand(newTestVerifyCmd())
 
+	return cmd
+}
+
+// newTestVerifyCmd creates a fresh verify command for testing with real behavior.
+func newTestVerifyCmd() *cobra.Command {
+	var update, dryRun, verbose bool
+	var command string
+
+	cmd := &cobra.Command{
+		Use:   "verify [test_path]",
+		Short: "Verify requirements by running tests",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			verifyUpdate = update
+			verifyDryRun = dryRun
+			verifyVerbose = verbose
+			verifyCommand = command
+			return runVerify(cmd, args)
+		},
+	}
+	cmd.Flags().BoolVar(&update, "update", false, "update RTM database")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show changes without updating")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
+	cmd.Flags().StringVar(&command, "command", "", "custom test command")
 	return cmd
 }
 
