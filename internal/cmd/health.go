@@ -189,9 +189,9 @@ func outputHealthJSON(cmd *cobra.Command, result *HealthResult) error {
 	}
 	cmd.Println(string(data))
 
-	// Set exit code
+	// Return exit error if needed
 	if result.ExitCode != 0 {
-		os.Exit(result.ExitCode)
+		return NewExitError(result.ExitCode, "")
 	}
 	return nil
 }
@@ -257,9 +257,9 @@ func outputHealthText(cmd *cobra.Command, result *HealthResult) error {
 		cmd.Println(output.Color("All health checks passed!", output.Green))
 	}
 
-	// Set exit code
+	// Return exit error if needed
 	if result.ExitCode != 0 {
-		os.Exit(result.ExitCode)
+		return NewExitError(result.ExitCode, "")
 	}
 	return nil
 }

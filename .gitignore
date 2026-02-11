@@ -6,7 +6,7 @@ dist/
 *.dll
 *.so
 *.dylib
-rtmx
+/rtmx
 rtmx-*
 
 # Test binary, built with `go test -c`

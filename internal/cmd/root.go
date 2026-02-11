@@ -22,6 +22,25 @@ var (
 	noColor bool
 )
 
+// ExitError is an error that carries an exit code.
+// Commands should return this instead of calling os.Exit() directly.
+type ExitError struct {
+	Code    int
+	Message string
+}
+
+func (e *ExitError) Error() string {
+	if e.Message != "" {
+		return e.Message
+	}
+	return fmt.Sprintf("exit code %d", e.Code)
+}
+
+// NewExitError creates a new ExitError with the given code.
+func NewExitError(code int, message string) *ExitError {
+	return &ExitError{Code: code, Message: message}
+}
+
 // rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
 	Use:   "rtmx",
