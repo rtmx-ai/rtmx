@@ -13,6 +13,7 @@ import click
 from rtmx import __version__
 from rtmx.cli.markers import markers as markers_group
 from rtmx.config import RTMXConfig, load_config
+from rtmx.deprecation import show_deprecation_warning
 from rtmx.formatting import Colors
 
 
@@ -52,6 +53,9 @@ def main(
 
     Manage requirements traceability for GenAI-driven development.
     """
+    # Show deprecation warning about Go CLI transition (REQ-DIST-002)
+    show_deprecation_warning()
+
     ctx.ensure_object(dict)
 
     # Store no_migrate flag for later use
@@ -1221,6 +1225,56 @@ def auth_status() -> None:
 
 # Register the markers command group (imported at top of file)
 main.add_command(markers_group, name="markers")
+
+
+# =============================================================================
+# Migration Command (REQ-DIST-002)
+# =============================================================================
+
+
+@main.command()
+@click.option(
+    "--verify-only",
+    is_flag=True,
+    help="Just verify Go CLI installation, don't install",
+)
+@click.option(
+    "--install-dir",
+    type=click.Path(path_type=Path),
+    help="Custom installation directory",
+)
+@click.option(
+    "--alias",
+    is_flag=True,
+    help="Show shell alias instructions",
+)
+def migrate(
+    verify_only: bool,
+    install_dir: Path | None,
+    alias: bool,
+) -> None:
+    """Migrate from Python CLI to Go CLI.
+
+    Downloads and installs the Go CLI binary for your platform.
+    The Go CLI is faster, has no runtime dependencies, and will
+    become the primary implementation.
+
+    \b
+    Examples:
+        rtmx migrate                    # Install Go CLI
+        rtmx migrate --verify-only      # Check installation
+        rtmx migrate --install-dir ~/bin  # Custom location
+        rtmx migrate --alias            # Show alias instructions
+    """
+    from rtmx.cli.migrate import run_migrate
+
+    exit_code = run_migrate(
+        verify_only=verify_only,
+        install_dir=install_dir,
+        alias=alias,
+    )
+    if exit_code != 0:
+        raise SystemExit(exit_code)
 
 
 if __name__ == "__main__":
