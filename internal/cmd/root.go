@@ -43,8 +43,9 @@ func NewExitError(code int, message string) *ExitError {
 
 // rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
-	Use:   "rtmx",
-	Short: "Requirements Traceability Matrix toolkit",
+	Use:     "rtmx",
+	Short:   "Requirements Traceability Matrix toolkit",
+	Version: Version,
 	Long: `RTMX is a CLI tool for managing requirements traceability in GenAI-driven development.
 
 It provides commands to track requirements, run verification tests, manage dependencies,
