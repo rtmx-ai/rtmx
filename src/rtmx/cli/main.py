@@ -943,6 +943,12 @@ def bootstrap(
     is_flag=True,
     help="Install validation hook that checks staged RTM CSV files (requires --hooks)",
 )
+@click.option(
+    "--claude",
+    "claude_hooks",
+    is_flag=True,
+    help="Install Claude Code hooks for automatic context injection (requires --hooks)",
+)
 @click.pass_context
 def install(
     ctx: click.Context,
@@ -956,11 +962,13 @@ def install(
     pre_push: bool,
     remove: bool,
     validate_hook: bool,
+    claude_hooks: bool,
 ) -> None:
     """Install RTM-aware prompts into AI agent configs or git hooks.
 
     Injects RTMX context and commands into Claude, Cursor, or Copilot configs.
     With --hooks, installs git hooks for automated validation.
+    With --hooks --claude, installs Claude Code hooks for context injection.
 
     \b
     Examples:
@@ -971,9 +979,32 @@ def install(
         rtmx install --hooks            # Install pre-commit hook (health check)
         rtmx install --hooks --validate # Install validation pre-commit hook
         rtmx install --hooks --pre-push # Install both hooks
+        rtmx install --hooks --claude   # Install Claude Code hooks
         rtmx install --hooks --remove   # Remove rtmx hooks
     """
     if hooks:
+        if claude_hooks:
+            from rtmx.hooks import install_claude_hooks, uninstall_claude_hooks
+
+            if remove:
+                removed = uninstall_claude_hooks()
+                if removed:
+                    print(f"Removed {len(removed)} Claude Code hooks")
+                    for path in removed:
+                        print(f"  - {path}")
+                else:
+                    print("No RTMX Claude Code hooks found to remove")
+            else:
+                installed = install_claude_hooks(dry_run=dry_run, force=force)
+                if installed:
+                    action = "Would install" if dry_run else "Installed"
+                    print(f"{action} {len(installed)} Claude Code hooks:")
+                    for name, path in installed.items():
+                        print(f"  - {name}: {path}")
+                else:
+                    print("No hooks installed (use --force to overwrite existing)")
+            return
+
         from rtmx.cli.install import run_hooks
 
         run_hooks(dry_run=dry_run, pre_push=pre_push, remove=remove, validate=validate_hook)
@@ -1316,6 +1347,65 @@ def discover_steps(
         str(path),
         output_json=output_json,
         pattern=pattern,
+    )
+    if exit_code != 0:
+        raise SystemExit(exit_code)
+
+
+# =============================================================================
+# Claude Code Integration (REQ-CLAUDE-001)
+# =============================================================================
+
+
+@main.command()
+@click.option(
+    "--format",
+    "format_type",
+    type=click.Choice(["text", "json", "markdown"]),
+    default="text",
+    help="Output format",
+)
+@click.option(
+    "--compact",
+    is_flag=True,
+    help="Minimal token-efficient output",
+)
+@click.option(
+    "--phase",
+    type=int,
+    help="Filter to specific phase",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Include full requirement descriptions",
+)
+def context(
+    format_type: str,
+    compact: bool,
+    phase: int | None,
+    verbose: bool,
+) -> None:
+    """Generate RTM context for AI assistants.
+
+    Produces token-efficient requirements context for use in AI coding sessions.
+    Used by Claude Code hooks for automatic context injection.
+
+    \b
+    Examples:
+        rtmx context                    # Text summary
+        rtmx context --format json      # JSON for hooks
+        rtmx context --compact          # Minimal output
+        rtmx context --phase 10         # Filter to phase
+    """
+    from rtmx.cli.context import run_context
+
+    exit_code = run_context(
+        format_type=format_type,
+        compact=compact,
+        phase=phase,
+        verbose=verbose,
     )
     if exit_code != 0:
         raise SystemExit(exit_code)
