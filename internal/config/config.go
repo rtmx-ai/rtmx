@@ -81,9 +81,17 @@ type GitHubConfig struct {
 	Enabled       bool              `yaml:"enabled"`
 	Repo          string            `yaml:"repo"`
 	TokenEnv      string            `yaml:"token_env"`
-	Labels        []string          `yaml:"labels"`
+	Labels        GitHubLabels      `yaml:"labels"`
 	StatusMapping map[string]string `yaml:"status_mapping"`
 }
+
+// GitHubLabels contains GitHub label configuration.
+type GitHubLabels struct {
+	Requirement string `yaml:"requirement"`
+}
+
+// GitHubAdapterConfig is an alias for GitHubConfig used by the adapter.
+type GitHubAdapterConfig = GitHubConfig
 
 // JiraConfig contains Jira integration settings.
 type JiraConfig struct {
@@ -94,8 +102,12 @@ type JiraConfig struct {
 	EmailEnv      string            `yaml:"email_env"`
 	IssueType     string            `yaml:"issue_type"`
 	JQLFilter     string            `yaml:"jql_filter"`
+	Labels        []string          `yaml:"labels"`
 	StatusMapping map[string]string `yaml:"status_mapping"`
 }
+
+// JiraAdapterConfig is an alias for JiraConfig used by the adapter.
+type JiraAdapterConfig = JiraConfig
 
 // MCPConfig contains Model Context Protocol settings.
 type MCPConfig struct {
@@ -168,7 +180,7 @@ func DefaultConfig() *Config {
 				GitHub: GitHubConfig{
 					Enabled:  false,
 					TokenEnv: "GITHUB_TOKEN",
-					Labels:   []string{"requirement"},
+					Labels:   GitHubLabels{Requirement: "requirement"},
 					StatusMapping: map[string]string{
 						"open":   "MISSING",
 						"closed": "COMPLETE",

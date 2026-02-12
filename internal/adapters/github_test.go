@@ -1,13 +1,15 @@
 package adapters
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/rtmx-ai/rtmx-go/internal/config"
+	"github.com/rtmx-ai/rtmx-go/internal/database"
 )
 
 // TestGitHubAdapter validates the complete GitHub adapter functionality
@@ -16,13 +18,13 @@ func TestGitHubAdapter(t *testing.T) {
 	os.Setenv("TEST_GITHUB_TOKEN", "test-token")
 	defer os.Unsetenv("TEST_GITHUB_TOKEN")
 
-	config := GitHubConfig{
+	cfg := config.GitHubAdapterConfig{
 		Enabled:  true,
 		Repo:     "owner/repo",
 		TokenEnv: "TEST_GITHUB_TOKEN",
 	}
 
-	adapter, err := NewGitHubAdapter(config)
+	adapter, err := NewGitHubAdapter(&cfg)
 	if err != nil {
 		t.Fatalf("Failed to create adapter: %v", err)
 	}
@@ -36,10 +38,10 @@ func TestGitHubAdapter(t *testing.T) {
 	}
 
 	// Test status mapping (RTMX <-> GitHub)
-	if adapter.MapStatusToRTMX("closed") != "COMPLETE" {
+	if adapter.MapStatusToRTMX("closed") != database.StatusComplete {
 		t.Error("Expected 'closed' to map to 'COMPLETE'")
 	}
-	if adapter.MapStatusToGitHub("COMPLETE") != "closed" {
+	if adapter.MapStatusFromRTMX(database.StatusComplete) != "closed" {
 		t.Error("Expected 'COMPLETE' to map to 'closed'")
 	}
 
@@ -48,8 +50,8 @@ func TestGitHubAdapter(t *testing.T) {
 		labels   []string
 		expected string
 	}{
-		{[]string{"P0"}, "CRITICAL"},
-		{[]string{"P1"}, "HIGH"},
+		{[]string{"p0"}, "P0"},
+		{[]string{"p1"}, "HIGH"},
 		{[]string{"priority:medium"}, "MEDIUM"},
 		{[]string{"other"}, ""},
 	}
@@ -78,7 +80,7 @@ func TestGitHubAdapter(t *testing.T) {
 
 func TestNewGitHubAdapter(t *testing.T) {
 	// Test without token
-	config := GitHubConfig{
+	cfg := config.GitHubAdapterConfig{
 		Enabled:  true,
 		Repo:     "owner/repo",
 		TokenEnv: "TEST_GITHUB_TOKEN",
@@ -87,7 +89,7 @@ func TestNewGitHubAdapter(t *testing.T) {
 	// Ensure env var is not set
 	os.Unsetenv("TEST_GITHUB_TOKEN")
 
-	_, err := NewGitHubAdapter(config)
+	_, err := NewGitHubAdapter(&cfg)
 	if err == nil {
 		t.Error("Expected error when token is not set")
 	}
@@ -96,7 +98,7 @@ func TestNewGitHubAdapter(t *testing.T) {
 	os.Setenv("TEST_GITHUB_TOKEN", "test-token")
 	defer os.Unsetenv("TEST_GITHUB_TOKEN")
 
-	adapter, err := NewGitHubAdapter(config)
+	adapter, err := NewGitHubAdapter(&cfg)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -111,12 +113,12 @@ func TestNewGitHubAdapter(t *testing.T) {
 }
 
 func TestGitHubAdapterDisabled(t *testing.T) {
-	config := GitHubConfig{
+	cfg := config.GitHubAdapterConfig{
 		Enabled: false,
 		Repo:    "owner/repo",
 	}
 
-	_, err := NewGitHubAdapter(config)
+	_, err := NewGitHubAdapter(&cfg)
 	if err == nil {
 		t.Error("Expected error when adapter is disabled")
 	}
@@ -126,20 +128,20 @@ func TestExtractPriority(t *testing.T) {
 	os.Setenv("TEST_GITHUB_TOKEN", "test-token")
 	defer os.Unsetenv("TEST_GITHUB_TOKEN")
 
-	config := GitHubConfig{
+	cfg := config.GitHubAdapterConfig{
 		Enabled:  true,
 		Repo:     "owner/repo",
 		TokenEnv: "TEST_GITHUB_TOKEN",
 	}
 
-	adapter, _ := NewGitHubAdapter(config)
+	adapter, _ := NewGitHubAdapter(&cfg)
 
 	tests := []struct {
 		labels   []string
 		expected string
 	}{
-		{[]string{"P0"}, "CRITICAL"},
-		{[]string{"P1"}, "HIGH"},
+		{[]string{"p0"}, "P0"},
+		{[]string{"p1"}, "HIGH"},
 		{[]string{"priority:medium"}, "MEDIUM"},
 		{[]string{"other"}, ""},
 		{[]string{}, ""},
@@ -157,27 +159,27 @@ func TestMapStatus(t *testing.T) {
 	os.Setenv("TEST_GITHUB_TOKEN", "test-token")
 	defer os.Unsetenv("TEST_GITHUB_TOKEN")
 
-	config := GitHubConfig{
+	cfg := config.GitHubAdapterConfig{
 		Enabled:  true,
 		Repo:     "owner/repo",
 		TokenEnv: "TEST_GITHUB_TOKEN",
 	}
 
-	adapter, _ := NewGitHubAdapter(config)
+	adapter, _ := NewGitHubAdapter(&cfg)
 
 	// Test MapStatusToRTMX
-	if adapter.MapStatusToRTMX("closed") != "COMPLETE" {
+	if adapter.MapStatusToRTMX("closed") != database.StatusComplete {
 		t.Error("Expected 'closed' to map to 'COMPLETE'")
 	}
-	if adapter.MapStatusToRTMX("open") != "MISSING" {
+	if adapter.MapStatusToRTMX("open") != database.StatusMissing {
 		t.Error("Expected 'open' to map to 'MISSING'")
 	}
 
-	// Test MapStatusToGitHub
-	if adapter.MapStatusToGitHub("COMPLETE") != "closed" {
+	// Test MapStatusFromRTMX
+	if adapter.MapStatusFromRTMX(database.StatusComplete) != "closed" {
 		t.Error("Expected 'COMPLETE' to map to 'closed'")
 	}
-	if adapter.MapStatusToGitHub("MISSING") != "open" {
+	if adapter.MapStatusFromRTMX(database.StatusMissing) != "open" {
 		t.Error("Expected 'MISSING' to map to 'open'")
 	}
 }
@@ -186,13 +188,13 @@ func TestIssueToItem(t *testing.T) {
 	os.Setenv("TEST_GITHUB_TOKEN", "test-token")
 	defer os.Unsetenv("TEST_GITHUB_TOKEN")
 
-	config := GitHubConfig{
+	cfg := config.GitHubAdapterConfig{
 		Enabled:  true,
 		Repo:     "owner/repo",
 		TokenEnv: "TEST_GITHUB_TOKEN",
 	}
 
-	adapter, _ := NewGitHubAdapter(config)
+	adapter, _ := NewGitHubAdapter(&cfg)
 
 	now := time.Now()
 	issue := GitHubIssue{
@@ -206,7 +208,7 @@ func TestIssueToItem(t *testing.T) {
 		Labels: []struct {
 			Name string `json:"name"`
 		}{
-			{Name: "P1"},
+			{Name: "p1"},
 			{Name: "bug"},
 		},
 		Assignee: &struct {
@@ -247,17 +249,16 @@ func TestTestConnection(t *testing.T) {
 	os.Setenv("TEST_GITHUB_TOKEN", "test-token")
 	defer os.Unsetenv("TEST_GITHUB_TOKEN")
 
-	config := GitHubConfig{
+	cfg := config.GitHubAdapterConfig{
 		Enabled:  true,
 		Repo:     "owner/repo",
 		TokenEnv: "TEST_GITHUB_TOKEN",
 	}
 
-	adapter, _ := NewGitHubAdapter(config)
+	adapter, _ := NewGitHubAdapter(&cfg)
 	// Note: This test would need to mock the HTTP client to fully test
 	// For now, we just test that the method exists and has the right signature
-	ctx := context.Background()
-	ok, msg := adapter.TestConnection(ctx)
+	ok, msg := adapter.TestConnection()
 	// Will fail without real API access, but tests the interface
 	_ = ok
 	_ = msg
