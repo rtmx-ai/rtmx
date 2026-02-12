@@ -8,3 +8,20 @@ rtmx:
   pytest:
     marker_prefix: "req"
     register_markers: true
+
+  phases:
+    1: "Foundation"
+    2: "Core Data Model"
+    3: "Read-Only Commands"
+    4: "Graph Algorithms"
+    5: "Write Commands"
+    6: "GitHub Adapter"
+    7: "Output Parity"
+    8: "Basic Parity"
+    9: "Utility Commands"
+    10: "Integration"
+    11: "Collaboration"
+    12: "Dashboard"
+    13: "Zero-Trust"
+    14: "Distribution"
+    15: "v1.0 Release"

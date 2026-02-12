@@ -32,8 +32,8 @@ func TestBacklogRealCommand(t *testing.T) {
 
 	output := buf.String()
 	expectedPhrases := []string{
-		"Backlog",
-		"items",
+		"Prioritized Backlog",
+		"Total Requirements:",
 	}
 
 	for _, phrase := range expectedPhrases {
@@ -66,7 +66,7 @@ func TestBacklogPhaseFilter(t *testing.T) {
 
 	output := buf.String()
 	// Phase 1 is complete, so backlog should be empty or show no items
-	if !strings.Contains(output, "Backlog") {
+	if !strings.Contains(output, "Prioritized Backlog") {
 		t.Errorf("Expected backlog header, got:\n%s", output)
 	}
 }
@@ -97,10 +97,64 @@ func TestBacklogViewModes(t *testing.T) {
 			}
 
 			output := buf.String()
-			if !strings.Contains(output, "Backlog") && !strings.Contains(output, "backlog") {
+			if !strings.Contains(output, "Prioritized Backlog") {
 				t.Errorf("Expected backlog output for view %s, got:\n%s", view, output)
 			}
 		})
+	}
+}
+
+// TestBacklogTableFormat verifies that backlog uses ASCII table format
+// REQ-GO-048: Go CLI shall use ASCII tables matching Python tabulate output
+func TestBacklogTableFormat(t *testing.T) {
+	cwd, _ := os.Getwd()
+	projectRoot := findProjectRootDir(cwd)
+	if projectRoot == "" {
+		t.Skip("Could not find project root with .rtmx")
+	}
+
+	oldWd, _ := os.Getwd()
+	os.Chdir(projectRoot)
+	defer os.Chdir(oldWd)
+
+	rootCmd := createBacklogTestCmd()
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetArgs([]string{"backlog"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("backlog command failed: %v", err)
+	}
+
+	output := buf.String()
+
+	// Verify ASCII table format markers
+	expectedTableElements := []string{
+		"+---+",      // Column separator
+		"|",          // Row borders
+		"+===+",      // Header separator (with = instead of -)
+		"Status",     // Column header
+		"Requirement", // Column header
+		"Description", // Column header
+	}
+
+	for _, element := range expectedTableElements {
+		if !strings.Contains(output, element) {
+			t.Errorf("Expected table format element %q, got:\n%s", element, output)
+		}
+	}
+
+	// Verify sections exist
+	expectedSections := []string{
+		"Prioritized Backlog",
+		"Total Requirements:",
+	}
+
+	for _, section := range expectedSections {
+		if !strings.Contains(output, section) {
+			t.Errorf("Expected section %q, got:\n%s", section, output)
+		}
 	}
 }
 

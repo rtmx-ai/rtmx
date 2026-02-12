@@ -129,12 +129,19 @@ func displaySummaryStatus(cmd *cobra.Command, db *database.Database, cfg *config
 			}
 
 			phaseDesc := cfg.PhaseDescription(phase)
-			cmd.Printf("Phase %d: %6.1f%%  %s  (%d%s %d%s %d%s)\n",
-				phase, phasePct, statusText,
-				complete, output.Color("✓", output.Green),
-				partial, output.Color("⚠", output.Yellow),
-				missing, output.Color("✗", output.Red))
-			_ = phaseDesc // Suppress unused variable warning
+			if phaseDesc != "" && phaseDesc != fmt.Sprintf("Phase %d", phase) {
+				cmd.Printf("Phase %d (%s): %6.1f%%  %s  (%d%s %d%s %d%s)\n",
+					phase, phaseDesc, phasePct, statusText,
+					complete, output.Color("✓", output.Green),
+					partial, output.Color("⚠", output.Yellow),
+					missing, output.Color("✗", output.Red))
+			} else {
+				cmd.Printf("Phase %d: %6.1f%%  %s  (%d%s %d%s %d%s)\n",
+					phase, phasePct, statusText,
+					complete, output.Color("✓", output.Green),
+					partial, output.Color("⚠", output.Yellow),
+					missing, output.Color("✗", output.Red))
+			}
 		}
 		cmd.Println()
 	}
@@ -149,15 +156,31 @@ func displaySummaryStatus(cmd *cobra.Command, db *database.Database, cfg *config
 func displayCategoryStatus(cmd *cobra.Command, db *database.Database, cfg *config.Config) error {
 	width := 80
 
-	cmd.Println(output.Header("RTM Status by Category", width))
+	cmd.Println(output.Header("RTM Status Check", width))
 	cmd.Println()
 
-	// Overall progress
+	// Progress bar
 	pct := db.CompletionPercentage()
-	cmd.Printf("Overall: %s  %s\n", output.ProgressBar(pct, 50), output.FormatPercent(pct))
+	cmd.Printf("Requirements: %s  %s\n", output.ProgressBar(pct, 50), output.FormatPercent(pct))
 	cmd.Println()
 
-	// Category breakdown
+	// Status counts
+	counts := db.StatusCounts()
+	totalComplete := counts[database.StatusComplete]
+	totalPartial := counts[database.StatusPartial]
+	totalMissing := counts[database.StatusMissing] + counts[database.StatusNotStarted]
+
+	cmd.Printf("%s %d complete  %s %d partial  %s %d missing\n",
+		output.StatusIcon("COMPLETE"), totalComplete,
+		output.StatusIcon("PARTIAL"), totalPartial,
+		output.StatusIcon("MISSING"), totalMissing)
+	cmd.Printf("(%d total)\n", db.Len())
+	cmd.Println()
+
+	// Category breakdown - Python style list
+	cmd.Println("Requirements by Category:")
+	cmd.Println()
+
 	categories := db.Categories()
 	byCategory := db.ByCategory()
 
@@ -180,13 +203,23 @@ func displayCategoryStatus(cmd *cobra.Command, db *database.Database, cfg *confi
 			}
 		}
 
-		cmd.Printf("%s: %s %s (%d%s %d%s %d%s)\n",
-			output.PadRight(cat, 15),
-			output.ProgressBar(catPct, 30),
-			output.FormatPercent(catPct),
-			complete, output.Color("✓", output.Green),
-			partial, output.Color("⚠", output.Yellow),
-			missing, output.Color("✗", output.Red))
+		// Status icon based on completion
+		var icon string
+		switch {
+		case catPct >= 100:
+			icon = output.Color("✓", output.Green)
+		case catPct >= 50:
+			icon = output.Color("⚠", output.Yellow)
+		default:
+			icon = output.Color("✗", output.Red)
+		}
+
+		// Python-style format: "  ✓ CATEGORY        100.0%   N complete   N partial   N missing"
+		cmd.Printf("  %s %s %6.1f%%   %d complete   %d partial   %d missing\n",
+			icon,
+			output.PadRight(cat, 16),
+			catPct,
+			complete, partial, missing)
 	}
 
 	return nil

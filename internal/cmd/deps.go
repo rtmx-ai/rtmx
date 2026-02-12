@@ -179,65 +179,48 @@ func showWorkable(cmd *cobra.Command, db *database.Database, g *graph.Graph) err
 
 func showDepsOverview(cmd *cobra.Command, db *database.Database, g *graph.Graph) error {
 	width := 80
-	cmd.Println(output.Header("Dependency Graph Overview", width))
+	cmd.Println(output.Header("Dependencies", width))
 	cmd.Println()
 
-	stats := g.Statistics()
-	cmd.Printf("Nodes: %d\n", stats["nodes"])
-	cmd.Printf("Edges: %d\n", stats["edges"])
-	cmd.Printf("Roots (no dependencies): %d\n", stats["roots"])
-	cmd.Printf("Leaves (no dependents): %d\n", stats["leaves"])
-	cmd.Printf("Average dependencies: %.2f\n", stats["avg_dependencies"])
-	cmd.Println()
-
-	// Cycles
-	cycles := g.FindCycles()
-	if len(cycles) > 0 {
-		cmd.Printf("%s Found %d cycle(s)!\n", output.Color("!", output.Red), len(cycles))
-		cmd.Println("   Run 'rtmx cycles' for details.")
-	} else {
-		cmd.Printf("%s No cycles detected\n", output.Color("✓", output.Green))
+	// Get all requirements and build dependency info
+	type reqInfo struct {
+		id          string
+		depsCount   int
+		blocksCount int
+		description string
 	}
-	cmd.Println()
 
-	// Blocking analysis
-	analysis := g.BlockingAnalysis()
-	if len(analysis) > 0 {
-		cmd.Println(output.SubHeader("Top Blockers", width))
-		type blocker struct {
-			id    string
-			count int
-		}
-		var blockers []blocker
-		for id, count := range analysis {
-			blockers = append(blockers, blocker{id, count})
-		}
-		// Sort by count descending
-		for i := 0; i < len(blockers)-1; i++ {
-			for j := i + 1; j < len(blockers); j++ {
-				if blockers[i].count < blockers[j].count {
-					blockers[i], blockers[j] = blockers[j], blockers[i]
-				}
+	var reqs []reqInfo
+	for _, r := range db.All() {
+		deps := len(g.Dependencies(r.ReqID))
+		blocks := len(g.Dependents(r.ReqID))
+		reqs = append(reqs, reqInfo{
+			id:          r.ReqID,
+			depsCount:   deps,
+			blocksCount: blocks,
+			description: r.RequirementText,
+		})
+	}
+
+	// Sort by blocks descending (most blockers first)
+	for i := 0; i < len(reqs)-1; i++ {
+		for j := i + 1; j < len(reqs); j++ {
+			if reqs[i].blocksCount < reqs[j].blocksCount {
+				reqs[i], reqs[j] = reqs[j], reqs[i]
 			}
 		}
-		// Show top 5
-		limit := 5
-		if len(blockers) < limit {
-			limit = len(blockers)
-		}
-		for _, b := range blockers[:limit] {
-			req := db.Get(b.id)
-			icon := output.StatusIcon(req.Status.String())
-			cmd.Printf("  %s %s blocks %d requirement(s)\n", icon, b.id, b.count)
-		}
 	}
-	cmd.Println()
 
-	// Workable
-	workable := g.NextWorkable()
-	cmd.Printf("Ready to work on: %d requirement(s)\n", len(workable))
-	if len(workable) > 0 {
-		cmd.Println("   Run 'rtmx deps --workable' for details.")
+	// Print header
+	cmd.Printf("%-18s %5s  %6s   %s\n",
+		"ID", "Deps", "Blocks", "Description")
+	cmd.Println(strings.Repeat("-", width+5))
+
+	// Print rows
+	for _, r := range reqs {
+		desc := output.TruncateCell(r.description, 45)
+		cmd.Printf("%-18s %5d  %6d   %s\n",
+			r.id, r.depsCount, r.blocksCount, desc)
 	}
 
 	return nil

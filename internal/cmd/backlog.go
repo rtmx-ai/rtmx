@@ -206,14 +206,7 @@ func displayBacklog(cmd *cobra.Command, reqs []*database.Requirement, db *databa
 	width := 80
 
 	// Header
-	title := fmt.Sprintf("Backlog (%s)", backlogView)
-	if backlogPhase > 0 {
-		title += fmt.Sprintf(" - Phase %d", backlogPhase)
-	}
-	if backlogCategory != "" {
-		title += fmt.Sprintf(" - %s", backlogCategory)
-	}
-	cmd.Println(output.Header(title, width))
+	cmd.Println(output.Header("Prioritized Backlog", width))
 	cmd.Println()
 
 	if len(reqs) == 0 {
@@ -221,14 +214,40 @@ func displayBacklog(cmd *cobra.Command, reqs []*database.Requirement, db *databa
 		return nil
 	}
 
-	cmd.Printf("Showing %d items\n\n", len(reqs))
-
-	// Display based on view
-	if backlogView == "list" {
-		return displaySimpleList(cmd, reqs)
+	// Summary statistics
+	totalMissing := 0
+	totalPartial := 0
+	totalEffort := 0.0
+	for _, r := range reqs {
+		if r.Status == database.StatusMissing || r.Status == database.StatusNotStarted {
+			totalMissing++
+		} else if r.Status == database.StatusPartial {
+			totalPartial++
+		}
+		totalEffort += r.EffortWeeks
 	}
 
-	return displayDetailedBacklog(cmd, reqs, db, cfg)
+	cmd.Printf("Total Requirements: %d\n", db.Len())
+	cmd.Printf("  %s MISSING: %d (%.1f%%)\n",
+		output.StatusIcon("MISSING"), totalMissing, float64(totalMissing)/float64(db.Len())*100)
+	cmd.Printf("  %s PARTIAL: %d (%.1f%%)\n",
+		output.StatusIcon("PARTIAL"), totalPartial, float64(totalPartial)/float64(db.Len())*100)
+	cmd.Printf("Estimated Effort: %.1f weeks\n", totalEffort)
+	cmd.Println()
+
+	// Display based on view
+	switch backlogView {
+	case "list":
+		return displaySimpleList(cmd, reqs)
+	case "critical":
+		return displayCriticalTable(cmd, reqs, db, cfg)
+	case "quick-wins":
+		return displayQuickWinsTable(cmd, reqs, cfg)
+	case "blockers":
+		return displayBlockersTable(cmd, reqs, db, cfg)
+	default:
+		return displayAllBacklog(cmd, reqs, db, cfg)
+	}
 }
 
 func displaySimpleList(cmd *cobra.Command, reqs []*database.Requirement) error {
@@ -239,47 +258,175 @@ func displaySimpleList(cmd *cobra.Command, reqs []*database.Requirement) error {
 	return nil
 }
 
-func displayDetailedBacklog(cmd *cobra.Command, reqs []*database.Requirement, db *database.Database, cfg *config.Config) error {
-	for i, r := range reqs {
-		if i > 0 {
-			cmd.Println()
-		}
-
-		// Header line with ID and priority
-		icon := output.StatusIcon(r.Status.String())
-		priorityColor := output.PriorityColor(r.Priority.String())
-
-		cmd.Printf("%s %s [%s] Phase %d\n",
-			icon,
-			output.Color(r.ReqID, output.Cyan),
-			output.Color(string(r.Priority), priorityColor),
-			r.Phase)
-
-		// Requirement text
-		cmd.Printf("   %s\n", output.Truncate(r.RequirementText, 70))
-
-		// Blocking info
+func displayAllBacklog(cmd *cobra.Command, reqs []*database.Requirement, db *database.Database, cfg *config.Config) error {
+	// Split into critical, quick wins, and remaining
+	var critical, quickWins, remaining []*database.Requirement
+	for _, r := range reqs {
 		blocked := countBlocked(r, db)
-		if blocked > 0 {
-			cmd.Printf("   %s Blocks %d other requirement(s)\n",
-				output.Color("→", output.Yellow), blocked)
-		}
-
-		// Blocked by info
-		if len(r.Dependencies) > 0 {
-			blockingDeps := r.BlockingDeps(db)
-			if len(blockingDeps) > 0 {
-				cmd.Printf("   %s Blocked by: %s\n",
-					output.Color("←", output.Red),
-					strings.Join(blockingDeps, ", "))
-			}
-		}
-
-		// Effort
-		if r.EffortWeeks > 0 {
-			cmd.Printf("   Effort: %.1f weeks\n", r.EffortWeeks)
+		if r.Priority == database.PriorityP0 || r.Priority == database.PriorityHigh || blocked >= 2 {
+			critical = append(critical, r)
+		} else if r.EffortWeeks > 0 && r.EffortWeeks <= 1.0 {
+			quickWins = append(quickWins, r)
+		} else {
+			remaining = append(remaining, r)
 		}
 	}
+
+	// Display critical path items
+	if len(critical) > 0 {
+		limit := 5
+		if backlogLimit > 0 && backlogLimit < limit {
+			limit = backlogLimit
+		}
+		if len(critical) > limit {
+			critical = critical[:limit]
+		}
+		cmd.Printf("CRITICAL PATH ITEMS (TOP %d)\n\n", len(critical))
+		displayCriticalTable(cmd, critical, db, cfg)
+		cmd.Println()
+	}
+
+	// Display quick wins
+	if len(quickWins) > 0 {
+		cmd.Println("QUICK WINS (<1 week, HIGH priority)")
+		cmd.Println()
+		displayQuickWinsTable(cmd, quickWins, cfg)
+		cmd.Println()
+	}
+
+	// Display remaining
+	if len(remaining) > 0 {
+		cmd.Println("REMAINING REQUIREMENTS")
+		cmd.Println()
+		displayRemainingTable(cmd, remaining, db, cfg)
+	}
+
+	return nil
+}
+
+func displayCriticalTable(cmd *cobra.Command, reqs []*database.Requirement, db *database.Database, cfg *config.Config) error {
+	table := output.NewTable("#", "Status", "Requirement", "Description", "Effort", "Blocks", "Phase")
+
+	for i, r := range reqs {
+		icon := output.StatusIcon(r.Status.String())
+		blocked := countBlocked(r, db)
+		blockingDeps := len(r.BlockingDeps(db))
+		blocksStr := fmt.Sprintf("%d (%d)", blocked, blockingDeps)
+
+		phaseDesc := cfg.PhaseDescription(r.Phase)
+		phaseStr := fmt.Sprintf("Phase %d (%s)", r.Phase, phaseDesc)
+
+		effortStr := ""
+		if r.EffortWeeks > 0 {
+			effortStr = fmt.Sprintf("%.1fw", r.EffortWeeks)
+		}
+
+		table.AddRow(
+			fmt.Sprintf("%d", i+1),
+			icon,
+			r.ReqID,
+			output.TruncateCell(r.RequirementText, 35),
+			effortStr,
+			blocksStr,
+			output.TruncateCell(phaseStr, 30),
+		)
+	}
+
+	cmd.Print(table.Render())
+	return nil
+}
+
+func displayQuickWinsTable(cmd *cobra.Command, reqs []*database.Requirement, cfg *config.Config) error {
+	table := output.NewTable("#", "Status", "Requirement", "Description", "Effort", "Phase")
+
+	for i, r := range reqs {
+		icon := output.StatusIcon(r.Status.String())
+
+		phaseDesc := cfg.PhaseDescription(r.Phase)
+		phaseStr := fmt.Sprintf("Phase %d (%s)", r.Phase, phaseDesc)
+
+		effortStr := ""
+		if r.EffortWeeks > 0 {
+			effortStr = fmt.Sprintf("%.1fw", r.EffortWeeks)
+		}
+
+		table.AddRow(
+			fmt.Sprintf("%d", i+1),
+			icon,
+			r.ReqID,
+			output.TruncateCell(r.RequirementText, 35),
+			effortStr,
+			output.TruncateCell(phaseStr, 14),
+		)
+	}
+
+	cmd.Print(table.Render())
+	return nil
+}
+
+func displayBlockersTable(cmd *cobra.Command, reqs []*database.Requirement, db *database.Database, cfg *config.Config) error {
+	table := output.NewTable("#", "Status", "Requirement", "Description", "Blocks", "Phase")
+
+	for i, r := range reqs {
+		icon := output.StatusIcon(r.Status.String())
+		blocked := countBlocked(r, db)
+
+		phaseDesc := cfg.PhaseDescription(r.Phase)
+		phaseStr := fmt.Sprintf("Phase %d (%s)", r.Phase, phaseDesc)
+
+		table.AddRow(
+			fmt.Sprintf("%d", i+1),
+			icon,
+			r.ReqID,
+			output.TruncateCell(r.RequirementText, 35),
+			fmt.Sprintf("%d", blocked),
+			output.TruncateCell(phaseStr, 20),
+		)
+	}
+
+	cmd.Print(table.Render())
+	return nil
+}
+
+func displayRemainingTable(cmd *cobra.Command, reqs []*database.Requirement, db *database.Database, cfg *config.Config) error {
+	table := output.NewTable("#", "Status", "Requirement", "Description", "Priority", "Blocks", "⊘", "Phase")
+
+	actionable := 0
+	blocked := 0
+
+	for i, r := range reqs {
+		icon := output.StatusIcon(r.Status.String())
+		blockedCount := countBlocked(r, db)
+
+		phaseDesc := cfg.PhaseDescription(r.Phase)
+		phaseStr := fmt.Sprintf("Phase %d (%s)", r.Phase, phaseDesc)
+
+		// Check if blocked by incomplete dependencies
+		blockingDeps := r.BlockingDeps(db)
+		blockedMarker := ""
+		if len(blockingDeps) > 0 {
+			blockedMarker = "⊘"
+			blocked++
+		} else {
+			actionable++
+		}
+
+		table.AddRow(
+			fmt.Sprintf("%d", i+1),
+			icon,
+			r.ReqID,
+			output.TruncateCell(r.RequirementText, 35),
+			string(r.Priority),
+			fmt.Sprintf("%d", blockedCount),
+			blockedMarker,
+			output.TruncateCell(phaseStr, 26),
+		)
+	}
+
+	cmd.Print(table.Render())
+	cmd.Println()
+	cmd.Println("⊘ = blocked by incomplete dependencies")
+	cmd.Printf("%d actionable, %d blocked\n", actionable, blocked)
 
 	return nil
 }

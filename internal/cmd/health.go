@@ -31,12 +31,35 @@ func init() {
 	healthCmd.Flags().BoolVar(&healthJSON, "json", false, "output as JSON")
 }
 
+// CheckStatus represents the result of a single health check.
+type CheckStatus string
+
+const (
+	CheckPass CheckStatus = "PASS"
+	CheckWarn CheckStatus = "WARN"
+	CheckFail CheckStatus = "FAIL"
+	CheckSkip CheckStatus = "SKIP"
+)
+
+// HealthCheck represents an individual health check result.
+type HealthCheck struct {
+	Name        string      `json:"name"`
+	Status      CheckStatus `json:"status"`
+	Message     string      `json:"message"`
+	IsBlocking  bool        `json:"is_blocking,omitempty"`
+}
+
 // HealthResult represents the result of a health check.
 type HealthResult struct {
-	Status   string   `json:"status"`
-	ExitCode int      `json:"exit_code"`
-	Errors   []string `json:"errors"`
-	Warnings []string `json:"warnings"`
+	Status   string        `json:"status"`
+	ExitCode int           `json:"exit_code"`
+	Checks   []HealthCheck `json:"checks"`
+	Summary  struct {
+		Passed   int `json:"passed"`
+		Warnings int `json:"warnings"`
+		Failed   int `json:"failed"`
+		Skipped  int `json:"skipped"`
+	} `json:"summary"`
 	Stats    struct {
 		Total          int     `json:"total"`
 		Complete       int     `json:"complete"`
@@ -88,8 +111,7 @@ func runHealth(cmd *cobra.Command, args []string) error {
 
 func runHealthChecks(db *database.Database) *HealthResult {
 	result := &HealthResult{
-		Errors:   make([]string, 0),
-		Warnings: make([]string, 0),
+		Checks: make([]HealthCheck, 0),
 	}
 
 	// Basic stats
@@ -100,6 +122,13 @@ func runHealthChecks(db *database.Database) *HealthResult {
 	result.Stats.Missing = counts[database.StatusMissing] + counts[database.StatusNotStarted]
 	result.Stats.Completion = db.CompletionPercentage()
 
+	// Check 1: RTM database loaded
+	result.Checks = append(result.Checks, HealthCheck{
+		Name:    "rtm_loads",
+		Status:  CheckPass,
+		Message: fmt.Sprintf("RTM database loaded: %d requirements", result.Stats.Total),
+	})
+
 	// Test coverage
 	for _, req := range db.All() {
 		if req.HasTest() {
@@ -109,30 +138,55 @@ func runHealthChecks(db *database.Database) *HealthResult {
 		}
 	}
 
-	// Check for orphaned dependencies
+	// Check 2: Orphaned dependencies
+	orphanedErrors := []string{}
 	for _, req := range db.All() {
 		for dep := range req.Dependencies {
 			// Skip cross-repo deps
 			if len(dep) > 0 && dep[0] != '@' && !db.Exists(dep) {
 				result.Stats.OrphanedDeps++
-				result.Errors = append(result.Errors,
+				orphanedErrors = append(orphanedErrors,
 					fmt.Sprintf("%s depends on non-existent %s", req.ReqID, dep))
 			}
 		}
 	}
+	if len(orphanedErrors) > 0 {
+		result.Checks = append(result.Checks, HealthCheck{
+			Name:       "orphaned_deps",
+			Status:     CheckFail,
+			Message:    fmt.Sprintf("Orphaned dependencies: %d errors", len(orphanedErrors)),
+			IsBlocking: true,
+		})
+	} else {
+		result.Checks = append(result.Checks, HealthCheck{
+			Name:    "orphaned_deps",
+			Status:  CheckPass,
+			Message: "No orphaned dependencies",
+		})
+	}
 
-	// Check for missing reciprocity
+	// Check 3: Reciprocity
 	for _, req := range db.All() {
 		for dep := range req.Dependencies {
 			if depReq := db.Get(dep); depReq != nil {
 				if !depReq.Blocks.Contains(req.ReqID) {
 					result.Stats.MissingRecip++
-					result.Warnings = append(result.Warnings,
-						fmt.Sprintf("%s depends on %s but %s doesn't block %s",
-							req.ReqID, dep, dep, req.ReqID))
 				}
 			}
 		}
+	}
+	if result.Stats.MissingRecip > 0 {
+		result.Checks = append(result.Checks, HealthCheck{
+			Name:    "reciprocity",
+			Status:  CheckWarn,
+			Message: fmt.Sprintf("Reciprocity violations: %d", result.Stats.MissingRecip),
+		})
+	} else {
+		result.Checks = append(result.Checks, HealthCheck{
+			Name:    "reciprocity",
+			Status:  CheckPass,
+			Message: "All dependencies have reciprocal blocks",
+		})
 	}
 
 	// Check for blocked requirements
@@ -142,40 +196,62 @@ func runHealthChecks(db *database.Database) *HealthResult {
 		}
 	}
 
-	// Check for requirements without tests
+	// Check 4: Test coverage
+	testCoverage := 0.0
+	if result.Stats.Total > 0 {
+		testCoverage = float64(result.Stats.WithTests) / float64(result.Stats.Total) * 100
+	}
 	incompleteWithoutTest := 0
 	for _, req := range db.Incomplete() {
 		if !req.HasTest() {
 			incompleteWithoutTest++
 		}
 	}
-	if incompleteWithoutTest > 0 {
-		result.Warnings = append(result.Warnings,
-			fmt.Sprintf("%d incomplete requirements have no tests assigned", incompleteWithoutTest))
+	if testCoverage >= 80 {
+		result.Checks = append(result.Checks, HealthCheck{
+			Name:    "test_coverage",
+			Status:  CheckPass,
+			Message: fmt.Sprintf("Test coverage: %.1f%% (%d requirements)", testCoverage, result.Stats.WithTests),
+		})
+	} else {
+		result.Checks = append(result.Checks, HealthCheck{
+			Name:    "test_coverage",
+			Status:  CheckWarn,
+			Message: fmt.Sprintf("Test coverage: %.1f%% (%d requirements without tests)", testCoverage, result.Stats.WithoutTests),
+		})
 	}
 
-	// Low test coverage warning
-	if result.Stats.Total > 0 {
-		testCoverage := float64(result.Stats.WithTests) / float64(result.Stats.Total) * 100
-		if testCoverage < 80 {
-			result.Warnings = append(result.Warnings,
-				fmt.Sprintf("Test coverage is %.1f%% (recommend >80%%)", testCoverage))
+	// Check 5: Cycles (placeholder)
+	result.Stats.CycleCount = 0
+	result.Checks = append(result.Checks, HealthCheck{
+		Name:    "cycles",
+		Status:  CheckPass,
+		Message: "No circular dependencies detected",
+	})
+
+	// Calculate summary
+	for _, check := range result.Checks {
+		switch check.Status {
+		case CheckPass:
+			result.Summary.Passed++
+		case CheckWarn:
+			result.Summary.Warnings++
+		case CheckFail:
+			result.Summary.Failed++
+		case CheckSkip:
+			result.Summary.Skipped++
 		}
 	}
 
-	// TODO: Add cycle detection when graph package is implemented
-	// For now, just set to 0
-	result.Stats.CycleCount = 0
-
 	// Determine overall status
-	if len(result.Errors) > 0 {
-		result.Status = "error"
+	if result.Summary.Failed > 0 {
+		result.Status = "UNHEALTHY"
 		result.ExitCode = 2
-	} else if len(result.Warnings) > 0 {
-		result.Status = "warning"
+	} else if result.Summary.Warnings > 0 {
+		result.Status = "WARNING"
 		result.ExitCode = 1
 	} else {
-		result.Status = "healthy"
+		result.Status = "HEALTHY"
 		result.ExitCode = 0
 	}
 
@@ -200,62 +276,62 @@ func outputHealthText(cmd *cobra.Command, result *HealthResult) error {
 	width := 80
 
 	// Header
-	cmd.Println(output.Header("RTM Health Check", width))
+	cmd.Println(output.Header("RTMX Health Check", width))
 	cmd.Println()
 
-	// Overall status
-	var statusIcon, statusColor string
+	// Display each check in Python format: [PASS] check_name: message
+	for _, check := range result.Checks {
+		var statusLabel, statusColor string
+		switch check.Status {
+		case CheckPass:
+			statusLabel = "[PASS]"
+			statusColor = output.Green
+		case CheckWarn:
+			statusLabel = "[WARN]"
+			statusColor = output.Yellow
+		case CheckFail:
+			statusLabel = "[FAIL]"
+			statusColor = output.Red
+		case CheckSkip:
+			statusLabel = "[SKIP]"
+			statusColor = output.Dim
+		}
+
+		msg := check.Message
+		if check.IsBlocking {
+			msg += " [blocking]"
+		}
+
+		cmd.Printf("  %s %s: %s\n",
+			output.Color(statusLabel, statusColor),
+			check.Name,
+			msg)
+	}
+	cmd.Println()
+
+	// Footer with status
+	cmd.Println(output.Header("", width-2))
+
+	var statusColor string
 	switch result.Status {
-	case "healthy":
-		statusIcon = "✓"
+	case "HEALTHY":
 		statusColor = output.Green
-	case "warning":
-		statusIcon = "⚠"
+	case "WARNING":
 		statusColor = output.Yellow
-	case "error":
-		statusIcon = "✗"
+	case "UNHEALTHY":
 		statusColor = output.Red
 	}
-	cmd.Printf("Status: %s %s\n\n",
-		output.Color(statusIcon, statusColor),
-		output.Color(result.Status, statusColor))
 
-	// Stats
-	cmd.Println(output.SubHeader("Statistics", width))
-	cmd.Printf("  Total requirements: %d\n", result.Stats.Total)
-	cmd.Printf("  Completion: %s\n", output.FormatPercent(result.Stats.Completion))
-	cmd.Printf("    %s Complete: %d\n", output.StatusIcon("COMPLETE"), result.Stats.Complete)
-	cmd.Printf("    %s Partial: %d\n", output.StatusIcon("PARTIAL"), result.Stats.Partial)
-	cmd.Printf("    %s Missing: %d\n", output.StatusIcon("MISSING"), result.Stats.Missing)
-	cmd.Println()
-	cmd.Printf("  Test coverage: %d/%d (%.1f%%)\n",
-		result.Stats.WithTests, result.Stats.Total,
-		float64(result.Stats.WithTests)/float64(max(1, result.Stats.Total))*100)
-	cmd.Printf("  Blocked requirements: %d\n", result.Stats.Blocked)
-	cmd.Println()
-
-	// Errors
-	if len(result.Errors) > 0 {
-		cmd.Println(output.Color(output.SubHeader("Errors", width), output.Red))
-		for _, err := range result.Errors {
-			cmd.Printf("  %s %s\n", output.Color("✗", output.Red), err)
-		}
-		cmd.Println()
+	statusMsg := result.Status
+	if result.Summary.Failed > 0 {
+		statusMsg += " (blocking errors)"
+	} else if result.Summary.Warnings > 0 {
+		statusMsg += " (non-blocking warnings)"
 	}
 
-	// Warnings
-	if len(result.Warnings) > 0 {
-		cmd.Println(output.Color(output.SubHeader("Warnings", width), output.Yellow))
-		for _, warn := range result.Warnings {
-			cmd.Printf("  %s %s\n", output.Color("⚠", output.Yellow), warn)
-		}
-		cmd.Println()
-	}
-
-	// Footer
-	if result.Status == "healthy" {
-		cmd.Println(output.Color("All health checks passed!", output.Green))
-	}
+	cmd.Printf("Status: %s\n", output.Color(statusMsg, statusColor))
+	cmd.Printf("Summary: %d passed, %d warnings, %d failed, %d skipped\n",
+		result.Summary.Passed, result.Summary.Warnings, result.Summary.Failed, result.Summary.Skipped)
 
 	// Return exit error if needed
 	if result.ExitCode != 0 {

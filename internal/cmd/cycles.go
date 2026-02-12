@@ -96,7 +96,22 @@ func outputCyclesJSON(cmd *cobra.Command, cycles [][]string, g *graph.Graph) err
 func outputCyclesText(cmd *cobra.Command, cycles [][]string, g *graph.Graph, db *database.Database) error {
 	width := 80
 
-	cmd.Println(output.Header("Cycle Detection", width))
+	cmd.Println(output.Header("Circular Dependency Analysis", width))
+	cmd.Println()
+
+	// Statistics section
+	stats := g.Statistics()
+	edges := 0
+	if v, ok := stats["edges"].(int); ok {
+		edges = v
+	}
+	cmd.Println("RTM Statistics:")
+	cmd.Printf("  Total requirements: %d\n", db.Len())
+	cmd.Printf("  Total dependencies: %d\n", edges)
+	if db.Len() > 0 {
+		avgDeps := float64(edges) / float64(db.Len())
+		cmd.Printf("  Average dependencies per requirement: %.2f\n", avgDeps)
+	}
 	cmd.Println()
 
 	if len(cycles) == 0 {
@@ -106,61 +121,82 @@ func outputCyclesText(cmd *cobra.Command, cycles [][]string, g *graph.Graph, db 
 		return nil
 	}
 
-	cmd.Printf("%s Found %d circular dependency chain(s)!\n\n",
-		output.Color("!", output.Red), len(cycles))
+	cmd.Printf("%s FOUND %d CIRCULAR DEPENDENCY GROUP(S)\n\n",
+		output.Color("✗", output.Red), len(cycles))
 
-	for i, cycle := range cycles {
-		cmd.Println(output.SubHeader(fmt.Sprintf("Cycle %d (%d requirements)", i+1, len(cycle)), width))
+	// Summary section
+	totalInvolved := 0
+	largestCycle := 0
+	smallestCycle := len(cycles[0])
+	for _, cycle := range cycles {
+		totalInvolved += len(cycle)
+		if len(cycle) > largestCycle {
+			largestCycle = len(cycle)
+		}
+		if len(cycle) < smallestCycle {
+			smallestCycle = len(cycle)
+		}
+	}
+
+	cmd.Println("Summary:")
+	cmd.Printf("  Circular dependency groups: %d\n", len(cycles))
+	cmd.Printf("  Requirements involved in cycles: %d\n", totalInvolved)
+	cmd.Printf("  Largest cycle: %d requirements\n", largestCycle)
+	cmd.Printf("  Smallest cycle: %d requirements\n", smallestCycle)
+	cmd.Println()
+
+	// Display cycles
+	cmd.Println(output.SubHeader("TOP 10 LARGEST CIRCULAR DEPENDENCY GROUPS:", width))
+	cmd.Println()
+
+	limit := 10
+	if len(cycles) < limit {
+		limit = len(cycles)
+	}
+
+	for i := 0; i < limit; i++ {
+		cycle := cycles[i]
+		cmd.Printf("%d. Cycle with %d requirements:\n", i+1, len(cycle))
 
 		// Find and display the path
 		path := g.FindCyclePath(cycle)
 		if len(path) > 0 {
-			cmd.Println()
-			cmd.Println("  Cycle path:")
-			for j, reqID := range path {
-				req := db.Get(reqID)
-				if req != nil {
-					icon := output.StatusIcon(req.Status.String())
-					arrow := ""
-					if j < len(path)-1 {
-						arrow = " → "
-					}
-					cmd.Printf("    %s %s%s\n", icon, reqID, arrow)
-				}
-			}
+			pathStr := strings.Join(path, " → ")
+			cmd.Printf("   Path: %s\n", pathStr)
 		} else {
-			cmd.Println("  Members: " + strings.Join(cycle, ", "))
-		}
-
-		cmd.Println()
-
-		// Show details for each member
-		cmd.Println("  Details:")
-		for _, reqID := range cycle {
-			req := db.Get(reqID)
-			if req != nil {
-				deps := g.Dependencies(reqID)
-				inCycleDeps := []string{}
-				for _, d := range deps {
-					for _, c := range cycle {
-						if d == c {
-							inCycleDeps = append(inCycleDeps, d)
-							break
-						}
-					}
-				}
-				cmd.Printf("    %s depends on: %s\n", reqID, strings.Join(inCycleDeps, ", "))
-			}
+			cmd.Printf("   Members: %s\n", strings.Join(cycle, ", "))
 		}
 		cmd.Println()
 	}
 
-	cmd.Println(output.Color("Resolution:", output.Bold))
-	cmd.Println("  To break a cycle, remove or modify dependencies so that")
-	cmd.Println("  at least one requirement in each cycle no longer depends")
-	cmd.Println("  on another member of that cycle.")
+	// Recommendations section
+	cmd.Println(strings.Repeat("=", width))
+	cmd.Println("RECOMMENDATIONS:")
+	cmd.Println(strings.Repeat("=", width))
 	cmd.Println()
-	cmd.Println("  Use 'rtmx reconcile' to help fix dependency issues.")
+
+	cmd.Println("1. Review dependency direction:")
+	cmd.Println("   - Ensure parent requirements don't depend on child requirements")
+	cmd.Println("   - Component requirements should depend on system requirements, not vice versa")
+	cmd.Println()
+
+	cmd.Println("2. Examine the largest cycles first:")
+	cmd.Println("   - These likely indicate architectural issues")
+	cmd.Println("   - May need to split into layers or stages")
+	cmd.Println()
+
+	cmd.Println("3. Check for \"blocks\" vs \"dependencies\" confusion:")
+	cmd.Println("   - If A blocks B, then B depends on A (not both!)")
+	cmd.Println("   - Run: rtmx reconcile --execute")
+	cmd.Println()
+
+	cmd.Println("4. Consider adding phase constraints:")
+	cmd.Println("   - Requirements should not depend on later-phase requirements")
+	cmd.Println()
+
+	cmd.Printf("5. Total effort to fix:\n")
+	cmd.Printf("   - %d requirements involved in %d cycles\n", totalInvolved, len(cycles))
+	cmd.Println("   - Suggest reviewing in batches: largest cycles first")
 
 	os.Exit(1)
 	return nil

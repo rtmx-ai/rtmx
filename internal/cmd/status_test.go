@@ -50,6 +50,99 @@ func TestStatusRealCommand(t *testing.T) {
 	}
 }
 
+// TestStatusPhaseNames verifies that phase names from config are displayed
+// REQ-GO-049: Go CLI shall display phase names from config in status output
+func TestStatusPhaseNames(t *testing.T) {
+	cwd, _ := os.Getwd()
+	projectRoot := findProjectRootDir(cwd)
+	if projectRoot == "" {
+		t.Skip("Could not find project root with .rtmx")
+	}
+
+	oldWd, _ := os.Getwd()
+	os.Chdir(projectRoot)
+	defer os.Chdir(oldWd)
+
+	rootCmd := createStatusTestCmd()
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetArgs([]string{"status"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("status command failed: %v", err)
+	}
+
+	output := buf.String()
+
+	// Verify phase names from config are shown
+	expectedPhases := []string{
+		"Phase 1 (Foundation)",
+		"Phase 2 (Core Data Model)",
+	}
+
+	for _, phrase := range expectedPhases {
+		if !strings.Contains(output, phrase) {
+			t.Errorf("Expected output to contain %q, got:\n%s", phrase, output)
+		}
+	}
+}
+
+// TestStatusCategoryListFormat verifies that status -v shows Python-style category list
+// REQ-GO-050: Go CLI status -v shall match Python category list format
+func TestStatusCategoryListFormat(t *testing.T) {
+	cwd, _ := os.Getwd()
+	projectRoot := findProjectRootDir(cwd)
+	if projectRoot == "" {
+		t.Skip("Could not find project root with .rtmx")
+	}
+
+	oldWd, _ := os.Getwd()
+	os.Chdir(projectRoot)
+	defer os.Chdir(oldWd)
+
+	rootCmd := createStatusTestCmd()
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetArgs([]string{"status", "-v"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("status -v failed: %v", err)
+	}
+
+	output := buf.String()
+
+	// Verify Python-style category list format
+	expectedPhrases := []string{
+		"Requirements by Category:",
+		"complete",
+		"partial",
+		"missing",
+	}
+
+	for _, phrase := range expectedPhrases {
+		if !strings.Contains(output, phrase) {
+			t.Errorf("Expected output to contain %q, got:\n%s", phrase, output)
+		}
+	}
+
+	// Verify it does NOT contain progress bars (old format)
+	if strings.Contains(output, "[██") || strings.Contains(output, "[░░") {
+		// Progress bars in category section would indicate old format
+		// Note: overall progress bar is OK, just not per-category
+		lines := strings.Split(output, "\n")
+		for _, line := range lines {
+			if strings.Contains(line, "complete") && strings.Contains(line, "missing") {
+				// This is a category line - should not have progress bar
+				if strings.Contains(line, "[██") || strings.Contains(line, "[░░") {
+					t.Errorf("Category line should not contain progress bar: %s", line)
+				}
+			}
+		}
+	}
+}
+
 func TestStatusVerbosityLevels(t *testing.T) {
 	cwd, _ := os.Getwd()
 	projectRoot := findProjectRootDir(cwd)
@@ -61,7 +154,7 @@ func TestStatusVerbosityLevels(t *testing.T) {
 	os.Chdir(projectRoot)
 	defer os.Chdir(oldWd)
 
-	// Test -vv shows category breakdown
+	// Test -vv shows phase and category breakdown
 	rootCmd := createStatusTestCmd()
 	buf := new(bytes.Buffer)
 	rootCmd.SetOut(buf)
