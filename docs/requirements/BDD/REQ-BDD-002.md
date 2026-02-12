@@ -1,6 +1,6 @@
 # REQ-BDD-002: Step Definition Discovery Across Languages
 
-## Status: MISSING
+## Status: PARTIAL
 ## Priority: HIGH
 ## Phase: 18
 
