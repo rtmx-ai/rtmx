@@ -1277,6 +1277,50 @@ def parse_feature(
         raise SystemExit(exit_code)
 
 
+@main.command("discover-steps")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, path_type=Path),
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    help="Output as JSON",
+)
+@click.option(
+    "--pattern",
+    "-p",
+    default="**/*.py",
+    help="Glob pattern for Python files (default: **/*.py)",
+)
+def discover_steps(
+    path: Path,
+    output_json: bool,
+    pattern: str,
+) -> None:
+    """Discover step definitions in Python files.
+
+    Scans Python files for pytest-bdd and behave step definitions
+    (@given, @when, @then decorators) and reports them.
+
+    \b
+    Examples:
+        rtmx discover-steps tests/steps/           # Scan directory
+        rtmx discover-steps tests/ -p "conftest.py"  # Specific file pattern
+        rtmx discover-steps tests/ --json          # JSON output
+    """
+    from rtmx.cli.discover_steps import run_discover_steps
+
+    exit_code = run_discover_steps(
+        str(path),
+        output_json=output_json,
+        pattern=pattern,
+    )
+    if exit_code != 0:
+        raise SystemExit(exit_code)
+
+
 # =============================================================================
 # Migration Command (REQ-DIST-002)
 # =============================================================================
