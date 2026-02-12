@@ -1275,15 +1275,29 @@ main.add_command(markers_group, name="markers")
     help="Output as JSON",
 )
 @click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json"]),
+    default="text",
+    help="Output format",
+)
+@click.option(
     "--pattern",
     "-p",
     default="**/*.feature",
     help="Glob pattern for directory scanning (default: **/*.feature)",
 )
+@click.option(
+    "--expand-outlines",
+    is_flag=True,
+    help="Expand Scenario Outlines into individual scenarios",
+)
 def parse_feature(
     path: Path,
     output_json: bool,
+    output_format: str,
     pattern: str,
+    expand_outlines: bool,
 ) -> None:
     """Parse Gherkin feature files and extract requirements.
 
@@ -1296,13 +1310,18 @@ def parse_feature(
         rtmx parse-feature features/                 # Scan directory recursively
         rtmx parse-feature features/ -p "*.feature"  # Non-recursive scan
         rtmx parse-feature test.feature --json       # JSON output
+        rtmx parse-feature test.feature --expand-outlines  # Expand outlines
     """
     from rtmx.cli.parse_feature import run_parse_feature
 
+    # Support both --json flag and --format json
+    use_json = output_json or output_format == "json"
+
     exit_code = run_parse_feature(
         str(path),
-        output_json=output_json,
+        output_json=use_json,
         pattern=pattern,
+        expand_outlines=expand_outlines,
     )
     if exit_code != 0:
         raise SystemExit(exit_code)

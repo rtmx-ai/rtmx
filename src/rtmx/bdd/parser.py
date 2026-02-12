@@ -72,6 +72,17 @@ class Examples:
     rows: list[list[str]] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     line: int = 0
+    description: str = ""
+
+    @property
+    def header(self) -> list[str]:
+        """Get the header row (first row)."""
+        return self.rows[0] if self.rows else []
+
+    @property
+    def data_rows(self) -> list[list[str]]:
+        """Get data rows (all rows except header)."""
+        return self.rows[1:] if len(self.rows) > 1 else []
 
 
 @dataclass
@@ -84,7 +95,15 @@ class Scenario:
     line: int = 0
     description: str = ""
     is_outline: bool = False
-    examples: Examples | None = None
+    examples_list: list[Examples] = field(default_factory=list)
+    # For expanded scenarios, track origin
+    outline_line: int = 0
+    example_row_index: int = -1
+
+    @property
+    def examples(self) -> Examples | None:
+        """Get the first Examples table (for backward compatibility)."""
+        return self.examples_list[0] if self.examples_list else None
 
     @property
     def requirement_tags(self) -> list[str]:
@@ -196,16 +215,28 @@ def _parse_examples(examples: dict) -> Examples:
         rows=rows,
         tags=_extract_tags(examples.get("tags", [])),
         line=examples.get("location", {}).get("line", 0),
+        description=examples.get("description", "").strip(),
     )
 
 
 def _parse_scenario(scenario: dict, feature_req_tags: list[str]) -> Scenario:
     """Parse a scenario from gherkin AST."""
     keyword = scenario.get("keyword", "")
-    is_outline = keyword in ("Scenario Outline", "Scenario Template")
+    # Check for outline keywords in multiple languages
+    is_outline = keyword.strip() in (
+        "Scenario Outline",
+        "Scenario Template",
+        "Szenariovorlage",  # German
+        "Plan du Scénario",  # French
+        "Esquema del escenario",  # Spanish
+    )
 
     steps = [_parse_step(s) for s in scenario.get("steps", [])]
     tags = _extract_tags(scenario.get("tags", []))
+
+    # Parse all examples tables
+    examples_data = scenario.get("examples", [])
+    examples_list = [_parse_examples(ex) for ex in examples_data]
 
     result = Scenario(
         name=scenario.get("name", ""),
@@ -213,16 +244,12 @@ def _parse_scenario(scenario: dict, feature_req_tags: list[str]) -> Scenario:
         tags=tags,
         line=scenario.get("location", {}).get("line", 0),
         description=scenario.get("description", "").strip(),
-        is_outline=is_outline,
+        is_outline=is_outline or len(examples_list) > 0,  # Also outline if has examples
+        examples_list=examples_list,
     )
 
     # Set inherited requirement tags from feature
     result.inherited_requirement_tags = feature_req_tags
-
-    # Parse examples for scenario outline
-    examples_list = scenario.get("examples", [])
-    if examples_list:
-        result.examples = _parse_examples(examples_list[0])
 
     return result
 

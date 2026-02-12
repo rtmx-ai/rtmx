@@ -85,6 +85,7 @@ def run_parse_feature(
     path: str,
     output_json: bool = False,
     pattern: str = "**/*.feature",
+    expand_outlines: bool = False,
 ) -> int:
     """Parse Gherkin feature file(s) and display results.
 
@@ -92,10 +93,12 @@ def run_parse_feature(
         path: Path to feature file or directory
         output_json: Output as JSON
         pattern: Glob pattern for directory scanning
+        expand_outlines: Expand Scenario Outlines into individual scenarios
 
     Returns:
         Exit code (0 for success)
     """
+    from rtmx.bdd.outline import expand_all_outlines
     from rtmx.bdd.parser import GherkinParseError, discover_features, parse_feature
     from rtmx.formatting import Colors
 
@@ -117,11 +120,14 @@ def run_parse_feature(
         print(f"{Colors.YELLOW}No feature files found{Colors.RESET}")
         return 0
 
+    # Expand outlines if requested
+    if expand_outlines:
+        for feature in features:
+            feature.scenarios = expand_all_outlines(feature.scenarios)
+
     if output_json:
-        if len(features) == 1:
-            print(json.dumps(feature_to_dict(features[0]), indent=2))
-        else:
-            print(json.dumps([feature_to_dict(f) for f in features], indent=2))
+        result = {"features": [feature_to_dict(f) for f in features]}
+        print(json.dumps(result, indent=2))
     else:
         _print_features(features)
 
