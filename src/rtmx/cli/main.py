@@ -1228,6 +1228,56 @@ main.add_command(markers_group, name="markers")
 
 
 # =============================================================================
+# BDD Commands (REQ-BDD-001)
+# =============================================================================
+
+
+@main.command("parse-feature")
+@click.argument(
+    "path",
+    type=click.Path(exists=True, path_type=Path),
+)
+@click.option(
+    "--json",
+    "output_json",
+    is_flag=True,
+    help="Output as JSON",
+)
+@click.option(
+    "--pattern",
+    "-p",
+    default="**/*.feature",
+    help="Glob pattern for directory scanning (default: **/*.feature)",
+)
+def parse_feature(
+    path: Path,
+    output_json: bool,
+    pattern: str,
+) -> None:
+    """Parse Gherkin feature files and extract requirements.
+
+    Parses .feature files and displays their structure including
+    Features, Scenarios, Steps, and @REQ-XXX-NNN requirement tags.
+
+    \b
+    Examples:
+        rtmx parse-feature test.feature              # Parse single file
+        rtmx parse-feature features/                 # Scan directory recursively
+        rtmx parse-feature features/ -p "*.feature"  # Non-recursive scan
+        rtmx parse-feature test.feature --json       # JSON output
+    """
+    from rtmx.cli.parse_feature import run_parse_feature
+
+    exit_code = run_parse_feature(
+        str(path),
+        output_json=output_json,
+        pattern=pattern,
+    )
+    if exit_code != 0:
+        raise SystemExit(exit_code)
+
+
+# =============================================================================
 # Migration Command (REQ-DIST-002)
 # =============================================================================
 
