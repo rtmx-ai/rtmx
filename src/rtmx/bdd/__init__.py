@@ -2,14 +2,20 @@
 
 REQ-BDD-001: Gherkin Parser for Feature Files
 REQ-BDD-002: Step Definition Discovery
+REQ-BDD-005: Scenario Outline Support
 """
 
 from __future__ import annotations
 
+from rtmx.bdd.outline import (
+    expand_all_outlines,
+    expand_outline,
+)
 from rtmx.bdd.parser import (
     Background,
     DataTable,
     DocString,
+    Examples,
     Feature,
     GherkinParseError,
     Scenario,
@@ -33,6 +39,7 @@ __all__ = [
     "Background",
     "DataTable",
     "DocString",
+    "Examples",
     "Feature",
     "GherkinParseError",
     "Scenario",
@@ -48,4 +55,7 @@ __all__ = [
     "find_ambiguous_matches",
     "find_unimplemented_steps",
     "match_step_to_definition",
+    # Outline expansion (REQ-BDD-005)
+    "expand_all_outlines",
+    "expand_outline",
 ]

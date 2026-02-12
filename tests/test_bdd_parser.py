@@ -290,8 +290,11 @@ class TestGherkinParser:
 
         assert result.exit_code == 0
         data = json.loads(result.output)
-        assert data["name"] == "CLI Test"
-        assert "REQ-CLI-001" in data["requirement_tags"]
+        # Output is wrapped in {"features": [...]}
+        assert len(data["features"]) == 1
+        feature = data["features"][0]
+        assert feature["name"] == "CLI Test"
+        assert "REQ-CLI-001" in feature["requirement_tags"]
 
     def test_recursive_feature_discovery(self, tmp_path: Path) -> None:
         """Glob pattern scanning."""
