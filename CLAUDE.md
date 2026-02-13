@@ -146,6 +146,164 @@ bar.Finish()
 
 Minimize dependencies to keep binary size small (<15MB target).
 
+## Testability Requirements
+
+### Coverage Targets
+
+| Package | Target | Enforcement |
+|---------|--------|-------------|
+| internal/adapters | 100% | Coveralls + CI gate |
+| internal/cmd | 100% | Coveralls + CI gate |
+| internal/database | 90% | Coveralls |
+| internal/graph | 90% | Coveralls |
+| internal/config | 90% | Coveralls |
+| internal/output | 90% | Coveralls |
+| cmd/rtmx | 100% | E2E tests |
+| **Overall** | >90% | CI fails below 80% |
+
+### Architecture Patterns for Testability
+
+**ALL adapters and commands MUST be fully testable:**
+
+1. **HTTPClient Interface** - All HTTP operations via interface
+   ```go
+   type HTTPClient interface {
+       Do(req *http.Request) (*http.Response, error)
+   }
+
+   func NewGitHubAdapter(cfg *config.GitHubConfig, opts ...AdapterOption) (*GitHubAdapter, error)
+
+   // Test with mock
+   adapter, _ := NewGitHubAdapter(cfg, WithHTTPClient(mockClient))
+   ```
+
+2. **FileSystem Interface** - All file I/O via interface
+   ```go
+   type FileSystem interface {
+       ReadFile(path string) ([]byte, error)
+       WriteFile(path string, data []byte, perm os.FileMode) error
+       Stat(path string) (os.FileInfo, error)
+       MkdirAll(path string, perm os.FileMode) error
+       Remove(path string) error
+   }
+   ```
+
+3. **CommandContext** - Dependency injection for commands
+   ```go
+   type CommandContext struct {
+       Config      *config.Config
+       Database    *database.Database
+       Output      io.Writer
+       ErrOutput   io.Writer
+       Input       io.Reader
+       GetEnv      func(string) string
+       FileSystem  FileSystem
+   }
+   ```
+
+4. **Environment Abstraction** - Never call `os.Getenv` directly
+   ```go
+   // WRONG
+   token := os.Getenv("GITHUB_TOKEN")
+
+   // RIGHT
+   func NewAdapter(cfg *Config, opts ...Option) *Adapter
+   func WithEnvGetter(fn func(string) string) Option
+   ```
+
+### Test Patterns
+
+1. **Table-Driven Tests** - Standard Go pattern for all test cases
+   ```go
+   func TestFeature(t *testing.T) {
+       tests := []struct {
+           name     string
+           input    Input
+           expected Output
+           wantErr  bool
+       }{...}
+
+       for _, tt := range tests {
+           t.Run(tt.name, func(t *testing.T) {...})
+       }
+   }
+   ```
+
+2. **Golden File Tests** - For output formatting
+   ```go
+   golden.Assert(t, "status_output", actualOutput)
+   // Update: go test -update
+   ```
+
+3. **Mock HTTP Server** - For adapter testing
+   ```go
+   server := testutil.NewMockServer()
+   server.ExpectRequest("GET", "/repos/owner/repo/issues", MockResponse{...})
+   defer server.Close()
+   ```
+
+4. **Fuzz Tests** - For parsing functions
+   ```go
+   func FuzzCSVParse(f *testing.F) {
+       f.Add([]byte("header\nrow"))
+       f.Fuzz(func(t *testing.T, data []byte) {
+           ParseCSV(bytes.NewReader(data)) // must not panic
+       })
+   }
+   ```
+
+5. **Property-Based Tests** - For algorithm invariants
+   ```go
+   // Graph algorithms must satisfy invariants
+   // - Tarjan finds ALL SCCs
+   // - Topological sort respects ALL edges
+   // - Critical path is actually critical
+   ```
+
+### Test Infrastructure Packages
+
+```
+internal/
+├── adapters/
+│   └── testutil/
+│       ├── mock_server.go    # HTTP mock server
+│       └── fixtures.go       # Adapter test data
+├── testutil/
+│   ├── fixtures.go           # Test database factories
+│   ├── golden.go             # Golden file assertions
+│   └── tempdir.go            # Temp directory helpers
+└── cmd/
+    └── testutil/
+        └── context.go        # CommandContext factory
+```
+
+### CI Integration
+
+```yaml
+# Coverage is checked on every PR
+- name: Run tests with coverage
+  run: go test -coverprofile=coverage.out -covermode=atomic ./...
+
+- name: Upload to Coveralls
+  uses: coverallsapp/github-action@v2
+
+- name: Check coverage threshold
+  run: |
+    COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+    if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+      echo "Coverage $COVERAGE% is below 80% threshold"
+      exit 1
+    fi
+```
+
+### What NOT to Do
+
+- **NO global state** - No package-level variables that affect behavior
+- **NO direct os.Getenv** - Use injected environment getter
+- **NO direct http.DefaultClient** - Use injected HTTPClient
+- **NO direct file operations** - Use FileSystem interface
+- **NO untested code paths** - Every error path must have a test
+
 ## Contact
 
 - RTMX Engineering: dev@rtmx.ai
