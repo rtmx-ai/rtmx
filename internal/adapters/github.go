@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -17,7 +16,8 @@ import (
 // GitHubAdapter syncs requirements with GitHub Issues
 type GitHubAdapter struct {
 	config *config.GitHubAdapterConfig
-	client *http.Client
+	client HTTPClient
+	getEnv func(string) string
 	token  string
 }
 
@@ -38,25 +38,29 @@ type GitHubIssue struct {
 	} `json:"assignee"`
 }
 
-// NewGitHubAdapter creates a new GitHub adapter
-func NewGitHubAdapter(cfg *config.GitHubAdapterConfig) (*GitHubAdapter, error) {
+// NewGitHubAdapter creates a new GitHub adapter.
+// Options can be provided to inject custom dependencies for testing.
+func NewGitHubAdapter(cfg *config.GitHubAdapterConfig, opts ...AdapterOption) (*GitHubAdapter, error) {
 	if !cfg.Enabled {
 		return nil, fmt.Errorf("GitHub adapter is not enabled")
 	}
+
+	options := applyOptions(opts)
 
 	tokenEnv := cfg.TokenEnv
 	if tokenEnv == "" {
 		tokenEnv = "GITHUB_TOKEN"
 	}
 
-	token := os.Getenv(tokenEnv)
+	token := options.getEnv(tokenEnv)
 	if token == "" {
 		return nil, fmt.Errorf("GitHub token not found. Set %s environment variable", tokenEnv)
 	}
 
 	return &GitHubAdapter{
 		config: cfg,
-		client: &http.Client{Timeout: 30 * time.Second},
+		client: options.httpClient,
+		getEnv: options.getEnv,
 		token:  token,
 	}, nil
 }

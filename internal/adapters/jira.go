@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -18,7 +17,8 @@ import (
 // JiraAdapter syncs requirements with Jira tickets
 type JiraAdapter struct {
 	config *config.JiraAdapterConfig
-	client *http.Client
+	client HTTPClient
+	getEnv func(string) string
 	auth   string // base64 encoded email:token
 }
 
@@ -52,11 +52,14 @@ type JiraSearchResponse struct {
 	StartAt    int         `json:"startAt"`
 }
 
-// NewJiraAdapter creates a new Jira adapter
-func NewJiraAdapter(cfg *config.JiraAdapterConfig) (*JiraAdapter, error) {
+// NewJiraAdapter creates a new Jira adapter.
+// Options can be provided to inject custom dependencies for testing.
+func NewJiraAdapter(cfg *config.JiraAdapterConfig, opts ...AdapterOption) (*JiraAdapter, error) {
 	if !cfg.Enabled {
 		return nil, fmt.Errorf("Jira adapter is not enabled")
 	}
+
+	options := applyOptions(opts)
 
 	tokenEnv := cfg.TokenEnv
 	if tokenEnv == "" {
@@ -68,8 +71,8 @@ func NewJiraAdapter(cfg *config.JiraAdapterConfig) (*JiraAdapter, error) {
 		emailEnv = "JIRA_EMAIL"
 	}
 
-	token := os.Getenv(tokenEnv)
-	email := os.Getenv(emailEnv)
+	token := options.getEnv(tokenEnv)
+	email := options.getEnv(emailEnv)
 
 	if token == "" {
 		return nil, fmt.Errorf("Jira API token not found. Set %s environment variable", tokenEnv)
@@ -83,7 +86,8 @@ func NewJiraAdapter(cfg *config.JiraAdapterConfig) (*JiraAdapter, error) {
 
 	return &JiraAdapter{
 		config: cfg,
-		client: &http.Client{Timeout: 30 * time.Second},
+		client: options.httpClient,
+		getEnv: options.getEnv,
 		auth:   auth,
 	}, nil
 }
