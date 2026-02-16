@@ -68,7 +68,7 @@ jobs:
 
       - name: Comment PR with diff
         if: steps.diff.outputs.diff_generated == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -126,7 +126,7 @@ jobs:
 
       - name: Comment PR (new RTM)
         if: steps.base.outputs.baseline_exists != 'true' && hashFiles('docs/rtm_database.csv') != ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const status = '${{ steps.health.outputs.status }}';
