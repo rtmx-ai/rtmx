@@ -5,9 +5,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+// binaryName returns the platform-appropriate binary name
+func binaryName() string {
+	if runtime.GOOS == "windows" {
+		return "rtmx.exe"
+	}
+	return "rtmx"
+}
 
 // TestFullParity validates that the Go CLI achieves feature parity with Python CLI
 // REQ-GO-020: Go CLI v1.0.0 shall achieve full feature parity
@@ -19,7 +28,7 @@ func TestFullParity(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	binaryPath := filepath.Join(tmpDir, "rtmx")
+	binaryPath := filepath.Join(tmpDir, binaryName())
 	buildCmd := exec.Command("go", "build", "-o", binaryPath, "../cmd/rtmx")
 	buildCmd.Dir = filepath.Dir(tmpDir)
 
@@ -116,7 +125,7 @@ func TestStatusParity(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	binaryPath := filepath.Join(tmpDir, "rtmx")
+	binaryPath := filepath.Join(tmpDir, binaryName())
 
 	wd, _ := os.Getwd()
 	projectRoot := filepath.Dir(wd)
@@ -163,7 +172,7 @@ func TestBacklogParity(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	binaryPath := filepath.Join(tmpDir, "rtmx")
+	binaryPath := filepath.Join(tmpDir, binaryName())
 
 	wd, _ := os.Getwd()
 	projectRoot := filepath.Dir(wd)
@@ -205,7 +214,7 @@ func TestHealthParity(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	binaryPath := filepath.Join(tmpDir, "rtmx")
+	binaryPath := filepath.Join(tmpDir, binaryName())
 
 	wd, _ := os.Getwd()
 	projectRoot := filepath.Dir(wd)
