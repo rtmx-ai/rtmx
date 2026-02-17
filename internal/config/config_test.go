@@ -148,18 +148,20 @@ func TestSaveConfig(t *testing.T) {
 func TestDatabasePath(t *testing.T) {
 	cfg := DefaultConfig()
 
-	// Test relative path
-	path := cfg.DatabasePath("/project")
-	expected := "/project/.rtmx/database.csv"
+	// Test relative path - use a temp directory for cross-platform compatibility
+	tmpDir := t.TempDir()
+	path := cfg.DatabasePath(tmpDir)
+	expected := filepath.Join(tmpDir, ".rtmx", "database.csv")
 	if path != expected {
 		t.Errorf("DatabasePath = %q, want %q", path, expected)
 	}
 
 	// Test absolute path
-	cfg.RTMX.Database = "/absolute/path/db.csv"
-	path = cfg.DatabasePath("/project")
-	if path != "/absolute/path/db.csv" {
-		t.Errorf("Absolute DatabasePath = %q, want /absolute/path/db.csv", path)
+	absPath := filepath.Join(tmpDir, "absolute", "path", "db.csv")
+	cfg.RTMX.Database = absPath
+	path = cfg.DatabasePath(tmpDir)
+	if path != absPath {
+		t.Errorf("Absolute DatabasePath = %q, want %s", path, absPath)
 	}
 }
 
