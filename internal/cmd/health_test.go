@@ -19,8 +19,8 @@ func TestHealthRealCommand(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createHealthTestCmd()
 	buf := new(bytes.Buffer)
@@ -56,8 +56,8 @@ func TestHealthJSONOutput(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createHealthTestCmd()
 	buf := new(bytes.Buffer)
@@ -97,8 +97,8 @@ func TestHealthCheckByCheckFormat(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createHealthTestCmd()
 	buf := new(bytes.Buffer)

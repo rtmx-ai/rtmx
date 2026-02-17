@@ -18,8 +18,8 @@ func TestInitCommand(t *testing.T) {
 
 	// Change to temp directory
 	oldWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	// Create fresh command
 	rootCmd := newTestRootCmd()
@@ -82,8 +82,8 @@ func TestInitLegacyCommand(t *testing.T) {
 
 	// Change to temp directory
 	oldWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	// Create fresh command
 	rootCmd := newTestRootCmd()
@@ -128,8 +128,8 @@ func TestInitDatabaseContent(t *testing.T) {
 
 	// Change to temp directory
 	oldWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	// Create fresh command
 	rootCmd := newTestRootCmd()
@@ -168,8 +168,8 @@ func TestInitConfigContent(t *testing.T) {
 
 	// Change to temp directory
 	oldWd, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	// Create fresh command
 	rootCmd := newTestRootCmd()

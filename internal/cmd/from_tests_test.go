@@ -103,11 +103,11 @@ def test_two():
     pass
 `
 	subDir := filepath.Join(tmpDir, "subdir")
-	os.MkdirAll(subDir, 0755)
+	_ = os.MkdirAll(subDir, 0755)
 
-	os.WriteFile(filepath.Join(tmpDir, "test_a.py"), []byte(testContent1), 0644)
-	os.WriteFile(filepath.Join(subDir, "test_b.py"), []byte(testContent2), 0644)
-	os.WriteFile(filepath.Join(tmpDir, "helper.py"), []byte("# not a test"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "test_a.py"), []byte(testContent1), 0644)
+	_ = os.WriteFile(filepath.Join(subDir, "test_b.py"), []byte(testContent2), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, "helper.py"), []byte("# not a test"), 0644)
 
 	markers, err := scanTestDirectory(tmpDir)
 	if err != nil {

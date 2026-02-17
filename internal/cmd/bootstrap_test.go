@@ -94,8 +94,8 @@ func TestBootstrapCommand(t *testing.T) {
 
 			// Change to temp directory
 			origDir, _ := os.Getwd()
-			os.Chdir(tmpDir)
-			defer os.Chdir(origDir)
+			_ = os.Chdir(tmpDir)
+			defer func() { _ = os.Chdir(origDir) }()
 
 			// Capture output
 			var buf bytes.Buffer

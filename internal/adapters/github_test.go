@@ -239,7 +239,7 @@ func TestTestConnection(t *testing.T) {
 	// Create a mock server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/repos/owner/repo" {
-			json.NewEncoder(w).Encode(map[string]string{"full_name": "owner/repo"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"full_name": "owner/repo"})
 			return
 		}
 		w.WriteHeader(404)
@@ -278,7 +278,7 @@ func TestFetchIssues(t *testing.T) {
 				UpdatedAt: time.Now(),
 			},
 		}
-		json.NewEncoder(w).Encode(issues)
+		_ = json.NewEncoder(w).Encode(issues)
 	}))
 	defer server.Close()
 

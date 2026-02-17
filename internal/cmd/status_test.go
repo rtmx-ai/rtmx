@@ -19,8 +19,8 @@ func TestStatusRealCommand(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	// Run the real status command
 	rootCmd := createStatusTestCmd()
@@ -60,8 +60,8 @@ func TestStatusPhaseNames(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createStatusTestCmd()
 	buf := new(bytes.Buffer)
@@ -98,8 +98,8 @@ func TestStatusCategoryListFormat(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createStatusTestCmd()
 	buf := new(bytes.Buffer)
@@ -151,8 +151,8 @@ func TestStatusVerbosityLevels(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	// Test -vv shows phase and category breakdown
 	rootCmd := createStatusTestCmd()

@@ -110,7 +110,7 @@ func TestOSFileSystemOpenCreate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
-	writer.Write([]byte("streamed content"))
+	_, _ = writer.Write([]byte("streamed content"))
 	writer.Close()
 
 	// Test Open
@@ -194,8 +194,8 @@ func TestMemoryFileSystemOpenCreate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
-	writer.Write([]byte("part1"))
-	writer.Write([]byte("part2"))
+	_, _ = writer.Write([]byte("part1"))
+	_, _ = writer.Write([]byte("part2"))
 	writer.Close()
 
 	// Test Open

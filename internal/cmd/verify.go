@@ -242,7 +242,7 @@ func runTests(cmd *cobra.Command, testPath string) (map[string]*TestResult, erro
 		}
 	}
 
-	testCmd.Wait()
+	_ = testCmd.Wait() // Ignore error - we already have results
 
 	return results, nil
 }

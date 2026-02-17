@@ -339,10 +339,3 @@ func outputHealthText(cmd *cobra.Command, result *HealthResult) error {
 	}
 	return nil
 }
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}

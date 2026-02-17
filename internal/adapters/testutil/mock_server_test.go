@@ -194,9 +194,9 @@ func TestMockServerRequestsForPath(t *testing.T) {
 	server.ExpectGET("/api/v1/users", MockResponse{StatusCode: 200})
 
 	// Make multiple requests
-	http.Get(server.URL + "/api/v1/items")
-	http.Get(server.URL + "/api/v1/items")
-	http.Get(server.URL + "/api/v1/users")
+	_, _ = http.Get(server.URL + "/api/v1/items")
+	_, _ = http.Get(server.URL + "/api/v1/items")
+	_, _ = http.Get(server.URL + "/api/v1/users")
 
 	itemRequests := server.RequestsForPath("/api/v1/items")
 	if len(itemRequests) != 2 {
@@ -214,7 +214,7 @@ func TestMockServerReset(t *testing.T) {
 	defer server.Close()
 
 	server.ExpectGET("/test", MockResponse{StatusCode: 200})
-	http.Get(server.URL + "/test")
+	_, _ = http.Get(server.URL + "/test")
 
 	if server.RequestCount() != 1 {
 		t.Error("Expected 1 request before reset")
@@ -243,7 +243,7 @@ func TestMockServerConcurrentAccess(t *testing.T) {
 	done := make(chan bool, 10)
 	for i := 0; i < 10; i++ {
 		go func() {
-			http.Get(server.URL + "/concurrent")
+			_, _ = http.Get(server.URL + "/concurrent")
 			done <- true
 		}()
 	}

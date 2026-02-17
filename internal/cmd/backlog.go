@@ -282,7 +282,7 @@ func displayAllBacklog(cmd *cobra.Command, reqs []*database.Requirement, db *dat
 			critical = critical[:limit]
 		}
 		cmd.Printf("CRITICAL PATH ITEMS (TOP %d)\n\n", len(critical))
-		displayCriticalTable(cmd, critical, db, cfg)
+		_ = displayCriticalTable(cmd, critical, db, cfg)
 		cmd.Println()
 	}
 
@@ -290,7 +290,7 @@ func displayAllBacklog(cmd *cobra.Command, reqs []*database.Requirement, db *dat
 	if len(quickWins) > 0 {
 		cmd.Println("QUICK WINS (<1 week, HIGH priority)")
 		cmd.Println()
-		displayQuickWinsTable(cmd, quickWins, cfg)
+		_ = displayQuickWinsTable(cmd, quickWins, cfg)
 		cmd.Println()
 	}
 
@@ -298,7 +298,7 @@ func displayAllBacklog(cmd *cobra.Command, reqs []*database.Requirement, db *dat
 	if len(remaining) > 0 {
 		cmd.Println("REMAINING REQUIREMENTS")
 		cmd.Println()
-		displayRemainingTable(cmd, remaining, db, cfg)
+		_ = displayRemainingTable(cmd, remaining, db, cfg)
 	}
 
 	return nil

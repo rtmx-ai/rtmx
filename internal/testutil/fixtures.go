@@ -29,7 +29,7 @@ func NewTestDatabase(t *testing.T, opts ...DatabaseOption) *database.Database {
 // WithRequirement adds a requirement to the database.
 func WithRequirement(req *database.Requirement) DatabaseOption {
 	return func(db *database.Database) {
-		db.Add(req)
+		_ = db.Add(req)
 	}
 }
 
@@ -37,7 +37,7 @@ func WithRequirement(req *database.Requirement) DatabaseOption {
 func WithRequirements(reqs ...*database.Requirement) DatabaseOption {
 	return func(db *database.Database) {
 		for _, req := range reqs {
-			db.Add(req)
+			_ = db.Add(req)
 		}
 	}
 }

@@ -252,7 +252,9 @@ func runHooksInstall(cmd *cobra.Command) error {
 
 	// Create hooks directory if needed
 	if !installDryRun {
-		os.MkdirAll(hooksDir, 0755)
+		if err := os.MkdirAll(hooksDir, 0755); err != nil {
+			return fmt.Errorf("failed to create hooks directory: %w", err)
+		}
 	}
 
 	// Determine which hooks to process
@@ -292,8 +294,11 @@ func runHooksInstall(cmd *cobra.Command) error {
 				if installDryRun {
 					cmd.Printf("  Would remove: %s\n", hookPath)
 				} else {
-					os.Remove(hookPath)
-					cmd.Printf("  %s %s\n", output.Color("Removed:", output.Green), hook.name)
+					if err := os.Remove(hookPath); err != nil {
+						cmd.Printf("  %s Failed to remove %s: %v\n", output.Color("Error:", output.Red), hook.name, err)
+					} else {
+						cmd.Printf("  %s %s\n", output.Color("Removed:", output.Green), hook.name)
+					}
 				}
 			} else {
 				cmd.Printf("  %s\n", output.Color(fmt.Sprintf("No RTMX hook to remove: %s", hook.name), output.Dim))
@@ -304,8 +309,11 @@ func runHooksInstall(cmd *cobra.Command) error {
 				// Backup existing non-RTMX hook
 				timestamp := time.Now().Format("20060102-150405")
 				backupPath := filepath.Join(hooksDir, fmt.Sprintf("%s.rtmx-backup-%s", hook.name, timestamp))
-				os.Rename(hookPath, backupPath)
-				cmd.Printf("  %s\n", output.Color(fmt.Sprintf("Backup: %s", backupPath), output.Dim))
+				if err := os.Rename(hookPath, backupPath); err != nil {
+					cmd.Printf("  %s Failed to backup %s: %v\n", output.Color("Warning:", output.Yellow), hook.name, err)
+				} else {
+					cmd.Printf("  %s\n", output.Color(fmt.Sprintf("Backup: %s", backupPath), output.Dim))
+				}
 			}
 
 			if installDryRun {
@@ -419,7 +427,7 @@ func runAgentInstall(cmd *cobra.Command) error {
 				ext := filepath.Ext(path)
 				backupPath := strings.TrimSuffix(path, ext) + fmt.Sprintf(".rtmx-backup-%s%s", timestamp, ext)
 				if content, err := os.ReadFile(path); err == nil {
-					os.WriteFile(backupPath, content, 0644)
+					_ = os.WriteFile(backupPath, content, 0644)
 					cmd.Printf("  %s\n", output.Color(fmt.Sprintf("Backup: %s", backupPath), output.Dim))
 				}
 			}
@@ -467,7 +475,7 @@ func runAgentInstall(cmd *cobra.Command) error {
 				newPath = filepath.Join(cwd, ".cursorrules")
 			case "copilot":
 				newPath = filepath.Join(cwd, ".github", "copilot-instructions.md")
-				os.MkdirAll(filepath.Dir(newPath), 0755)
+				_ = os.MkdirAll(filepath.Dir(newPath), 0755)
 			default:
 				cmd.Printf("  %s\n", output.Color(fmt.Sprintf("Unknown agent: %s", agent), output.Red))
 				continue

@@ -126,7 +126,7 @@ func analyzeProject(path string, cfg *config.Config) *AnalysisReport {
 
 	for _, testDir := range testDirs {
 		if info, err := os.Stat(testDir); err == nil && info.IsDir() {
-			filepath.Walk(testDir, func(p string, info os.FileInfo, err error) error {
+			_ = filepath.Walk(testDir, func(p string, info os.FileInfo, err error) error {
 				if err != nil {
 					return nil
 				}

@@ -19,8 +19,8 @@ func TestConfigCommand(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createConfigTestCmd()
 	buf := new(bytes.Buffer)
@@ -58,8 +58,8 @@ func TestMakefileCommand(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createMakefileTestCmd()
 	buf := new(bytes.Buffer)
@@ -98,8 +98,8 @@ func TestDocsCommand(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createDocsTestCmd()
 	buf := new(bytes.Buffer)
@@ -137,8 +137,8 @@ func TestReconcileCommand(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createReconcileTestCmd()
 	buf := new(bytes.Buffer)
@@ -173,8 +173,8 @@ func TestDiffCommand(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	// Compare database with itself
 	dbPath := ".rtmx/database.csv"

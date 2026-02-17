@@ -111,7 +111,7 @@ func (m *MockServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Default 404 response
 	w.WriteHeader(http.StatusNotFound)
-	w.Write([]byte(`{"error":"no mock response configured"}`))
+	_, _ = w.Write([]byte(`{"error":"no mock response configured"}`))
 }
 
 // writeResponse writes the configured response.
@@ -136,12 +136,12 @@ func (m *MockServer) writeResponse(w http.ResponseWriter, resp MockResponse) {
 	if resp.Body != nil {
 		switch body := resp.Body.(type) {
 		case string:
-			w.Write([]byte(body))
+			_, _ = w.Write([]byte(body))
 		case []byte:
-			w.Write(body)
+			_, _ = w.Write(body)
 		default:
 			// JSON encode
-			json.NewEncoder(w).Encode(body)
+			_ = json.NewEncoder(w).Encode(body)
 		}
 	}
 }

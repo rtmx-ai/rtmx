@@ -180,8 +180,8 @@ REQ-TEST-001,TEST,,Test requirement,,,TestFeature,Unit Test,MISSING,HIGH,1,,0.5,
 
 	// Change to temp directory
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	// Set flags
 	fromGoUpdate = true

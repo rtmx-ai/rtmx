@@ -213,7 +213,7 @@ func TestDatabaseFilter(t *testing.T) {
 		req.Dependencies = make(StringSet)
 		req.Blocks = make(StringSet)
 		req.Extra = make(map[string]string)
-		db.Add(req)
+		_ = db.Add(req)
 	}
 
 	// Test filter by status

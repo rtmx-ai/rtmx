@@ -148,8 +148,8 @@ func TestInstallHooksPreCommit(t *testing.T) {
 
 	// Save current directory and change to temp
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	// Reset flags
 	installDryRun = false
@@ -159,7 +159,7 @@ func TestInstallHooksPreCommit(t *testing.T) {
 	installRemove = false
 
 	// Run install hooks
-	err = rootCmd.Execute()
+	_ = rootCmd.Execute()
 	// Note: rootCmd might not be set up for this test, so we test the function directly
 
 	// Verify pre-commit hook exists

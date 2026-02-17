@@ -3,7 +3,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -78,17 +77,7 @@ func init() {
 }
 
 func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag
-		// TODO: Load config from specified file
-	} else {
-		// Search for config in standard locations
-		// TODO: Implement config discovery
-	}
-}
-
-// exitWithError prints an error message and exits with the given code.
-func exitWithError(msg string, code int) {
-	fmt.Fprintln(os.Stderr, msg)
-	os.Exit(code)
+	// Config loading is handled by individual commands via config.LoadFromDir()
+	// The --config flag is reserved for future use
+	_ = cfgFile // Suppress unused warning until implemented
 }

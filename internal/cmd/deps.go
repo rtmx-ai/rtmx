@@ -13,7 +13,6 @@ import (
 )
 
 var (
-	depsReqID    string
 	depsReverse  bool
 	depsAll      bool
 	depsWorkable bool
@@ -96,7 +95,6 @@ func showReqDeps(cmd *cobra.Command, reqID string, db *database.Database, g *gra
 	var label string
 
 	if depsReverse {
-		label = "Dependents"
 		if depsAll {
 			deps = g.TransitiveDependents(reqID)
 			label = "All Dependents (transitive)"
@@ -105,7 +103,6 @@ func showReqDeps(cmd *cobra.Command, reqID string, db *database.Database, g *gra
 			label = "Direct Dependents"
 		}
 	} else {
-		label = "Dependencies"
 		if depsAll {
 			deps = g.TransitiveDependencies(reqID)
 			label = "All Dependencies (transitive)"

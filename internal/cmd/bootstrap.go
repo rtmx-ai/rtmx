@@ -171,7 +171,7 @@ func bootstrapFromTestFiles(cwd string, prefix string) []BootstrapRequirement {
 			continue
 		}
 
-		filepath.Walk(testDir, func(path string, info os.FileInfo, err error) error {
+		_ = filepath.Walk(testDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil || info.IsDir() {
 				return nil
 			}
@@ -283,7 +283,9 @@ func writeBootstrapRequirements(cwd string, cfg *config.Config, requirements []B
 	dbPath := cfg.DatabasePath(cwd)
 
 	// Ensure directory exists
-	os.MkdirAll(filepath.Dir(dbPath), 0755)
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
 
 	var existingContent string
 	if merge {

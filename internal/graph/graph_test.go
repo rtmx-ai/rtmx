@@ -29,7 +29,7 @@ func createTestDB() *database.Database {
 
 	for _, req := range reqs {
 		req.Extra = make(map[string]string)
-		db.Add(req)
+		_ = db.Add(req)
 	}
 
 	return db
@@ -50,7 +50,7 @@ func createCyclicDB() *database.Database {
 
 	for _, req := range reqs {
 		req.Extra = make(map[string]string)
-		db.Add(req)
+		_ = db.Add(req)
 	}
 
 	return db

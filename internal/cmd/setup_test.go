@@ -66,7 +66,7 @@ func TestSetupDetectProjectWithRTM(t *testing.T) {
 
 	// Create docs/rtm_database.csv
 	docsDir := filepath.Join(tmpDir, "docs")
-	os.MkdirAll(docsDir, 0755)
+	_ = os.MkdirAll(docsDir, 0755)
 	rtmPath := filepath.Join(docsDir, "rtm_database.csv")
 	if err := os.WriteFile(rtmPath, []byte("req_id,status\nREQ-001,MISSING\n"), 0644); err != nil {
 		t.Fatal(err)
@@ -89,7 +89,7 @@ func TestSetupDetectProjectWithTests(t *testing.T) {
 
 	// Create tests directory
 	testsDir := filepath.Join(tmpDir, "tests")
-	os.MkdirAll(testsDir, 0755)
+	_ = os.MkdirAll(testsDir, 0755)
 
 	detection := detectProject(tmpDir)
 
@@ -271,8 +271,8 @@ func TestSetupCommand(t *testing.T) {
 
 	// Save current directory
 	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	// Reset flags
 	setupDryRun = true  // Use dry-run to avoid file creation

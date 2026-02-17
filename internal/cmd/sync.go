@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -479,31 +478,4 @@ func printSyncSummary(result *SyncResult) {
 			fmt.Printf("  • %s: %s\n", e.ID, e.Error)
 		}
 	}
-}
-
-// getDBPath returns the database path, checking for common locations
-func getDBPath(cfg *config.Config) string {
-	if cfg.RTMX.Database != "" {
-		return cfg.RTMX.Database
-	}
-
-	// Check common locations
-	locations := []string{
-		".rtmx/database.csv",
-		"docs/rtm_database.csv",
-	}
-
-	for _, loc := range locations {
-		if _, err := os.Stat(loc); err == nil {
-			return loc
-		}
-	}
-
-	return ".rtmx/database.csv"
-}
-
-// ensureDir creates directory if it doesn't exist
-func ensureDirSync(path string) error {
-	dir := filepath.Dir(path)
-	return os.MkdirAll(dir, 0755)
 }

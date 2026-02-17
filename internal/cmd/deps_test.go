@@ -17,8 +17,8 @@ func TestDepsRealCommand(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createDepsTestCmd()
 	buf := new(bytes.Buffer)
@@ -52,8 +52,8 @@ func TestDepsTableFormat(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createDepsTestCmd()
 	buf := new(bytes.Buffer)
@@ -92,8 +92,8 @@ func TestDepsWorkable(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createDepsTestCmd()
 	buf := new(bytes.Buffer)

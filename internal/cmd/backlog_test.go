@@ -17,8 +17,8 @@ func TestBacklogRealCommand(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createBacklogTestCmd()
 	buf := new(bytes.Buffer)
@@ -51,8 +51,8 @@ func TestBacklogPhaseFilter(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createBacklogTestCmd()
 	buf := new(bytes.Buffer)
@@ -79,8 +79,8 @@ func TestBacklogViewModes(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	views := []string{"all", "critical", "quick-wins", "blockers", "list"}
 
@@ -114,8 +114,8 @@ func TestBacklogTableFormat(t *testing.T) {
 	}
 
 	oldWd, _ := os.Getwd()
-	os.Chdir(projectRoot)
-	defer os.Chdir(oldWd)
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
 
 	rootCmd := createBacklogTestCmd()
 	buf := new(bytes.Buffer)
