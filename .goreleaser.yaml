@@ -69,29 +69,30 @@ release:
   prerelease: auto
   name_template: "v{{.Version}}"
 
-brews:
-  - name: rtmx
-    repository:
-      owner: rtmx-ai
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
-    homepage: "https://rtmx.ai"
-    description: "Requirements Traceability Matrix toolkit"
-    license: "Apache-2.0"
-    test: |
-      system "#{bin}/rtmx", "version"
-    install: |
-      bin.install "rtmx"
-
-scoops:
-  - repository:
-      owner: rtmx-ai
-      name: scoop-bucket
-      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
-    homepage: "https://rtmx.ai"
-    description: "Requirements Traceability Matrix toolkit"
-    license: "Apache-2.0"
+# Homebrew and Scoop publishing disabled until tokens are configured
+# brews:
+#   - name: rtmx
+#     repository:
+#       owner: rtmx-ai
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+#     directory: Formula
+#     homepage: "https://rtmx.ai"
+#     description: "Requirements Traceability Matrix toolkit"
+#     license: "Apache-2.0"
+#     test: |
+#       system "#{bin}/rtmx", "version"
+#     install: |
+#       bin.install "rtmx"
+#
+# scoops:
+#   - repository:
+#       owner: rtmx-ai
+#       name: scoop-bucket
+#       token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+#     homepage: "https://rtmx.ai"
+#     description: "Requirements Traceability Matrix toolkit"
+#     license: "Apache-2.0"
 
 nfpms:
   - id: packages
