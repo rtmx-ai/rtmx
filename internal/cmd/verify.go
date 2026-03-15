@@ -11,6 +11,7 @@ import (
 	"github.com/rtmx-ai/rtmx-go/internal/config"
 	"github.com/rtmx-ai/rtmx-go/internal/database"
 	"github.com/rtmx-ai/rtmx-go/internal/output"
+	"github.com/rtmx-ai/rtmx-go/internal/results"
 	"github.com/spf13/cobra"
 )
 
@@ -19,6 +20,7 @@ var (
 	verifyDryRun  bool
 	verifyVerbose bool
 	verifyCommand string
+	verifyResults string
 )
 
 var verifyCmd = &cobra.Command{
@@ -32,6 +34,10 @@ is automatically updated based on pass/fail results.
 The command runs "go test -json ./..." by default, but you can
 specify a custom test command with --command.
 
+For cross-language verification, use --results to provide a
+language-agnostic RTMX results JSON file produced by any
+test framework integration (Go, Python, Rust, etc.).
+
 Status update rules:
   - All tests pass → COMPLETE
   - Any test fails → Downgrade COMPLETE to PARTIAL
@@ -42,7 +48,8 @@ Examples:
   rtmx verify --update           # Run tests and update RTM
   rtmx verify ./internal/... --update  # Verify specific package
   rtmx verify --dry-run          # Show what would change
-  rtmx verify --command "pytest -v"    # Use custom test command`,
+  rtmx verify --command "pytest -v"    # Use custom test command
+  rtmx verify --results results.json --update  # Cross-language results`,
 	RunE: runVerify,
 }
 
@@ -51,6 +58,7 @@ func init() {
 	verifyCmd.Flags().BoolVar(&verifyDryRun, "dry-run", false, "show changes without updating")
 	verifyCmd.Flags().BoolVarP(&verifyVerbose, "verbose", "v", false, "verbose output")
 	verifyCmd.Flags().StringVar(&verifyCommand, "command", "", "custom test command (default: go test -json)")
+	verifyCmd.Flags().StringVar(&verifyResults, "results", "", "RTMX results JSON file (cross-language)")
 
 	rootCmd.AddCommand(verifyCmd)
 }
@@ -91,6 +99,11 @@ func runVerify(cmd *cobra.Command, args []string) error {
 		output.DisableColor()
 	}
 
+	// Check for mutually exclusive flags
+	if verifyResults != "" && len(args) > 0 {
+		return fmt.Errorf("--results and test_path are mutually exclusive")
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get working directory: %w", err)
@@ -107,32 +120,29 @@ func runVerify(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load database: %w", err)
 	}
 
-	// Determine test path
-	testPath := "./..."
-	if len(args) > 0 {
-		testPath = args[0]
+	var verifyResultsList []VerificationResult
+
+	if verifyResults != "" {
+		// Cross-language mode: read results file
+		verifyResultsList, err = runVerifyFromResults(cmd, db)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Default mode: run go test
+		verifyResultsList, err = runVerifyFromTests(cmd, db, args)
+		if err != nil {
+			return err
+		}
 	}
-
-	cmd.Println("Running tests and collecting requirement coverage...")
-	cmd.Println()
-
-	// Run tests and get results
-	testResults, err := runTests(cmd, testPath)
-	if err != nil {
-		cmd.Printf("%s Failed to run tests: %v\n", output.Color("!", output.Red), err)
-		// Continue to show what we can
-	}
-
-	// Map tests to requirements
-	verifyResults := mapTestsToRequirements(db, testResults)
 
 	// Print results
-	printVerifyResults(cmd, verifyResults)
+	printVerifyResults(cmd, verifyResultsList)
 
 	// Update database if requested
 	if verifyUpdate && !verifyDryRun {
 		updateCount := 0
-		for _, r := range verifyResults {
+		for _, r := range verifyResultsList {
 			if r.Updated {
 				req := db.Get(r.ReqID)
 				if req != nil {
@@ -153,14 +163,129 @@ func runVerify(cmd *cobra.Command, args []string) error {
 		cmd.Printf("\n%s\n", output.Color("Dry run - no changes made", output.Yellow))
 	}
 
-	// Exit with error if any tests failed
-	for _, r := range verifyResults {
+	// Return error if any tests failed
+	for _, r := range verifyResultsList {
 		if r.TestsFailed > 0 {
-			os.Exit(1)
+			return fmt.Errorf("verification failed: %d requirement(s) have failing tests", countFailingReqs(verifyResultsList))
 		}
 	}
 
 	return nil
+}
+
+func countFailingReqs(results []VerificationResult) int {
+	count := 0
+	for _, r := range results {
+		if r.TestsFailed > 0 {
+			count++
+		}
+	}
+	return count
+}
+
+// runVerifyFromResults processes an RTMX results JSON file (cross-language).
+func runVerifyFromResults(cmd *cobra.Command, db *database.Database) ([]VerificationResult, error) {
+	var r *os.File
+	var err error
+
+	if verifyResults == "-" {
+		r = os.Stdin
+	} else {
+		r, err = os.Open(verifyResults)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open results file: %w", err)
+		}
+		defer r.Close()
+	}
+
+	parsed, err := results.Parse(r)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse results file: %w", err)
+	}
+
+	// Validate results
+	if errs := results.Validate(parsed); len(errs) > 0 {
+		for _, e := range errs {
+			cmd.Printf("%s %v\n", output.Color("!", output.Yellow), e)
+		}
+	}
+
+	cmd.Println("Processing RTMX results file...")
+	cmd.Println()
+
+	if len(parsed) == 0 {
+		return nil, nil
+	}
+
+	// Group results by requirement
+	grouped := results.GroupByRequirement(parsed)
+
+	// Map to verification results
+	var vResults []VerificationResult
+	for reqID, reqResults := range grouped {
+		req := db.Get(reqID)
+		if req == nil {
+			if verifyVerbose {
+				cmd.Printf("  %s %s: not in database\n", output.Color("?", output.Yellow), reqID)
+			}
+			continue
+		}
+
+		passed := 0
+		failed := 0
+		for _, rr := range reqResults {
+			if rr.Passed {
+				passed++
+			} else {
+				failed++
+			}
+			if verifyVerbose {
+				icon := output.Color("✓", output.Green)
+				if !rr.Passed {
+					icon = output.Color("✗", output.Red)
+				}
+				cmd.Printf("  %s %s\n", icon, rr.Marker.TestName)
+			}
+		}
+
+		// Build a synthetic TestResult for status determination
+		testResult := &TestResult{
+			Test:   reqID,
+			Passed: failed == 0 && passed > 0,
+			Failed: failed > 0,
+		}
+
+		newStatus := determineNewStatus(testResult, req.Status)
+		vResults = append(vResults, VerificationResult{
+			ReqID:          reqID,
+			TestsTotal:     len(reqResults),
+			TestsPassed:    passed,
+			TestsFailed:    failed,
+			PreviousStatus: req.Status,
+			NewStatus:      newStatus,
+			Updated:        newStatus != req.Status,
+		})
+	}
+
+	return vResults, nil
+}
+
+// runVerifyFromTests runs go test and processes results (original mode).
+func runVerifyFromTests(cmd *cobra.Command, db *database.Database, args []string) ([]VerificationResult, error) {
+	testPath := "./..."
+	if len(args) > 0 {
+		testPath = args[0]
+	}
+
+	cmd.Println("Running tests and collecting requirement coverage...")
+	cmd.Println()
+
+	testResults, err := runTests(cmd, testPath)
+	if err != nil {
+		cmd.Printf("%s Failed to run tests: %v\n", output.Color("!", output.Red), err)
+	}
+
+	return mapTestsToRequirements(db, testResults), nil
 }
 
 func runTests(cmd *cobra.Command, testPath string) (map[string]*TestResult, error) {

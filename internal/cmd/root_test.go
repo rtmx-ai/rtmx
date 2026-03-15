@@ -162,7 +162,7 @@ Source: https://github.com/rtmx-ai/rtmx-go`,
 // newTestVerifyCmd creates a fresh verify command for testing with real behavior.
 func newTestVerifyCmd() *cobra.Command {
 	var update, dryRun, verbose bool
-	var command string
+	var command, resultsFile string
 
 	cmd := &cobra.Command{
 		Use:   "verify [test_path]",
@@ -172,6 +172,7 @@ func newTestVerifyCmd() *cobra.Command {
 			verifyDryRun = dryRun
 			verifyVerbose = verbose
 			verifyCommand = command
+			verifyResults = resultsFile
 			return runVerify(cmd, args)
 		},
 	}
@@ -179,6 +180,7 @@ func newTestVerifyCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show changes without updating")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	cmd.Flags().StringVar(&command, "command", "", "custom test command")
+	cmd.Flags().StringVar(&resultsFile, "results", "", "RTMX results JSON file")
 	return cmd
 }
 
