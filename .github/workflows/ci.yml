@@ -188,20 +188,29 @@ jobs:
           rtmx status
 
       - name: Commit RTM status updates
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/rtm_database.csv
           if git diff --staged --quiet; then
             echo "No RTM status changes to commit"
           else
-            git commit -m "ci: Auto-update RTM status from test results
+            # Use GitHub API to create a signed commit
+            REPO="${{ github.repository }}"
+            BRANCH="main"
+            FILE_PATH="docs/rtm_database.csv"
+            CONTENT=$(base64 -w 0 "$FILE_PATH")
+            SHA=$(gh api "repos/$REPO/contents/$FILE_PATH" --jq '.sha')
+            gh api "repos/$REPO/contents/$FILE_PATH" \
+              --method PUT \
+              --field message="ci: Auto-update RTM status from test results
 
-            Closed-loop verification: test results automatically update
-            requirement status in the RTM database.
-
-            Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
-            git push origin main
+          Closed-loop verification: test results automatically update
+          requirement status in the RTM database." \
+              --field content="$CONTENT" \
+              --field sha="$SHA" \
+              --field branch="$BRANCH"
+            echo "RTM status committed via API (signed)"
           fi
 
   # Update terminal screenshots when CLI formatting changes
@@ -277,18 +286,43 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/assets/*.png
           if git diff --staged --quiet; then
             echo "No screenshot changes to commit"
           else
+            REPO="${{ github.repository }}"
             BRANCH="auto/update-screenshots-$(date +%Y%m%d-%H%M%S)"
-            git checkout -b "$BRANCH"
-            git commit -m "docs: Auto-update terminal screenshots"
-            git push origin "$BRANCH"
+            MAIN_SHA=$(gh api "repos/$REPO/git/ref/heads/main" --jq '.object.sha')
 
-            # Try to create PR, but don't fail if permissions don't allow it
+            # Create branch via API
+            gh api "repos/$REPO/git/refs" \
+              --method POST \
+              --field ref="refs/heads/$BRANCH" \
+              --field sha="$MAIN_SHA"
+
+            # Commit each changed screenshot via API (produces signed commits)
+            for FILE in docs/assets/rtmx-status.png docs/assets/rtmx-backlog.png docs/assets/rtmx-health.png; do
+              if git diff --staged --name-only | grep -q "$FILE"; then
+                CONTENT=$(base64 -w 0 "$FILE")
+                FILE_SHA=$(gh api "repos/$REPO/contents/$FILE?ref=$BRANCH" --jq '.sha' 2>/dev/null || echo "")
+                if [ -n "$FILE_SHA" ]; then
+                  gh api "repos/$REPO/contents/$FILE" \
+                    --method PUT \
+                    --field message="docs: Auto-update $FILE" \
+                    --field content="$CONTENT" \
+                    --field sha="$FILE_SHA" \
+                    --field branch="$BRANCH"
+                else
+                  gh api "repos/$REPO/contents/$FILE" \
+                    --method PUT \
+                    --field message="docs: Auto-update $FILE" \
+                    --field content="$CONTENT" \
+                    --field branch="$BRANCH"
+                fi
+              fi
+            done
+
+            # Create PR
             if gh pr create \
               --title "docs: Auto-update terminal screenshots" \
               --body "Automated PR to update CLI terminal screenshots in docs/assets/." \
@@ -296,8 +330,7 @@ jobs:
               --head "$BRANCH"; then
               echo "PR created successfully"
             else
-              echo "::warning::Could not create PR automatically. Please create a PR from branch: $BRANCH"
-              echo "Branch pushed: $BRANCH"
-              echo "Create PR at: https://github.com/${{ github.repository }}/compare/main...$BRANCH"
+              echo "::warning::Could not create PR automatically."
+              echo "Create PR at: https://github.com/$REPO/compare/main...$BRANCH"
             fi
           fi
