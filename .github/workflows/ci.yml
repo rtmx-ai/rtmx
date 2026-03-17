@@ -165,9 +165,16 @@ jobs:
       contents: write
 
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v6
         with:
-          token: ${{ secrets.PAT_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -189,15 +196,14 @@ jobs:
 
       - name: Commit RTM status updates
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           git add docs/rtm_database.csv
           if git diff --staged --quiet; then
             echo "No RTM status changes to commit"
           else
-            # Use GitHub API to create a signed commit
+            # Use GitHub API with App token to create a signed commit
             REPO="${{ github.repository }}"
-            BRANCH="main"
             FILE_PATH="docs/rtm_database.csv"
             CONTENT=$(base64 -w 0 "$FILE_PATH")
             SHA=$(gh api "repos/$REPO/contents/$FILE_PATH" --jq '.sha')
@@ -209,7 +215,7 @@ jobs:
           requirement status in the RTM database." \
               --field content="$CONTENT" \
               --field sha="$SHA" \
-              --field branch="$BRANCH"
+              --field branch="main"
             echo "RTM status committed via API (signed)"
           fi
 
@@ -225,9 +231,16 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v6
         with:
-          token: ${{ secrets.PAT_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -284,7 +297,7 @@ jobs:
 
       - name: Create PR with updated screenshots
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           git add docs/assets/*.png
           if git diff --staged --quiet; then
@@ -300,7 +313,7 @@ jobs:
               --field ref="refs/heads/$BRANCH" \
               --field sha="$MAIN_SHA"
 
-            # Commit each changed screenshot via API (produces signed commits)
+            # Commit each changed screenshot via API (signed by GitHub App)
             for FILE in docs/assets/rtmx-status.png docs/assets/rtmx-backlog.png docs/assets/rtmx-health.png; do
               if git diff --staged --name-only | grep -q "$FILE"; then
                 CONTENT=$(base64 -w 0 "$FILE")
