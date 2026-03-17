@@ -254,15 +254,15 @@ jobs:
 
       - name: Create demo project
         run: |
-          mkdir -p /tmp/rtmx_demo/docs
-          cat > /tmp/rtmx_demo/rtmx.yaml << 'YAML'
+          mkdir -p /tmp/rtmx_demo/.rtmx
+          cat > /tmp/rtmx_demo/.rtmx/config.yaml << 'YAML'
           rtmx:
-            database: docs/rtm_database.csv
-            requirements_dir: docs/requirements
+            database: .rtmx/database.csv
+            requirements_dir: .rtmx/requirements
             schema: core
           YAML
 
-          cat > /tmp/rtmx_demo/docs/rtm_database.csv << 'CSV'
+          cat > /tmp/rtmx_demo/.rtmx/database.csv << 'CSV'
           req_id,category,subcategory,requirement_text,target_value,test_module,test_function,validation_method,status,priority,phase,notes,effort_weeks,dependencies,blocks,assignee,sprint,started_date,completed_date,requirement_file
           REQ-AUTH-001,AUTHENTICATION,Login,System shall authenticate users via OAuth 2.0,OAuth 2.0 PKCE,tests/test_auth.py,test_oauth_login,Integration Test,COMPLETE,P0,1,Core authentication,2.0,,,alice,v1.0,2024-11-01,2024-11-15,docs/requirements/AUTH/REQ-AUTH-001.md
           REQ-AUTH-002,AUTHENTICATION,Session,System shall manage user sessions with JWT,15 min expiry,tests/test_auth.py,test_jwt_session,Unit Test,COMPLETE,HIGH,1,Session management,1.5,REQ-AUTH-001,,alice,v1.0,2024-11-10,2024-11-20,docs/requirements/AUTH/REQ-AUTH-002.md
@@ -279,6 +279,8 @@ jobs:
           CSV
 
       - name: Generate screenshots
+        env:
+          RTMX_SUPPRESS_DEPRECATION: "1"
         run: |
           cd /tmp/rtmx_demo
           mkdir -p $GITHUB_WORKSPACE/docs/assets
