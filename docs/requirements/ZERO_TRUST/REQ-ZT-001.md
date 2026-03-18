@@ -104,6 +104,8 @@ rtmx:
 ## Dependencies
 
 - REQ-COLLAB-001: Cross-repo dependency references
+- REQ-E2E-001: Local development stack (provides Zitadel instance to develop against)
+- REQ-E2E-002: Zitadel auto-configuration (provides OIDC app and test users)
 
 ## Blocks
 
