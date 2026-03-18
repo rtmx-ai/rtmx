@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.7] - 2026-03-17
+
+**Final Python CLI release.** Future CLI development continues in [rtmx-go](https://github.com/rtmx-ai/rtmx-go). The `rtmx` PyPI package will be reduced to a minimal pytest plugin after Go CLI reaches feature parity.
+
+### Added
+- **BDD Support (Phase 18)**
+  - Gherkin parser for feature files using `gherkin-official` library (REQ-BDD-001)
+  - Step definition discovery for Python pytest-bdd and behave (REQ-BDD-002)
+  - Scenario Outline expansion with Examples tables (REQ-BDD-005)
+- **Claude Code Integration (Phase 19)**
+  - Pre-prompt and post-tool hooks for automatic RTM context injection (REQ-CLAUDE-001)
+- **Cross-Language Verification**
+  - `--rtmx-output` pytest option for JSON result export (REQ-LANG-004)
+- **Documentation**
+  - Typst whitepaper template with RTMX branding (REQ-DOC-005)
+- **Deprecation Infrastructure**
+  - Deprecation warning banner directing users to Go CLI
+  - `RTMX_SUPPRESS_DEPRECATION=1` environment variable to suppress
+  - `rtmx migrate` command for Go CLI transition assistance
+  - Platform-specific Go CLI install instructions (Homebrew, Scoop, curl)
+- **Strategic Requirements**
+  - Go migration requirements (REQ-MIG-001/002/003, Phase 21)
+  - Monorepo consolidation requirements (REQ-MONO-001/002/003, Phase 22)
+  - Hierarchical requirements discovery (REQ-HIER-001/002/003, Phase 22)
+  - Local E2E testing with Zarf + Kind (REQ-E2E-001/002/003, Phase 10)
+
+### Changed
+- CI pipeline migrated from PAT to GitHub App for signed commits
+- CI actions bumped: setup-python v6, upload-artifact v6, github-script v8
+- Screenshot generation uses modern `.rtmx/` directory layout
+
+### Fixed
+- mypy errors for untyped `gherkin-official` library imports
+
+### Deprecated
+- **All Python CLI commands.** The Go CLI (`rtmx-go`) will replace the Python CLI as the primary implementation. The Python package will be reduced to a minimal pytest plugin providing `@pytest.mark.req` and JSON result output. See the [migration guide](https://rtmx.ai/docs/go-migration).
+
 ## [0.0.6] - 2026-01-23
 
 ### Added
@@ -155,7 +192,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Security scanning (pip-audit, CodeQL)
 - E2E test suite for lifecycle management
 
-[Unreleased]: https://github.com/rtmx-ai/rtmx/compare/v0.0.3...HEAD
+[Unreleased]: https://github.com/rtmx-ai/rtmx/compare/v0.0.7...HEAD
+[0.0.7]: https://github.com/rtmx-ai/rtmx/compare/v0.0.6...v0.0.7
+[0.0.6]: https://github.com/rtmx-ai/rtmx/compare/v0.0.5...v0.0.6
+[0.0.5]: https://github.com/rtmx-ai/rtmx/compare/v0.0.4...v0.0.5
+[0.0.4]: https://github.com/rtmx-ai/rtmx/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/rtmx-ai/rtmx/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/rtmx-ai/rtmx/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/rtmx-ai/rtmx/releases/tag/v0.0.1
