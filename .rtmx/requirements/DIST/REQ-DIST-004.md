@@ -7,118 +7,91 @@
 - **Phase**: 14
 - **Status**: MISSING
 - **Dependencies**: REQ-GO-043, REQ-LANG-004
+- **Effort**: 2 weeks
 
 ## Requirement
 
-RTMX shall be installable via pip, with the package providing the pytest plugin and ensuring the Go binary is available.
+RTMX shall be installable via pip, with the package providing the pytest plugin with cross-language verification output (`--rtmx-output`).
 
 ## Rationale
 
-The original rtmx was a Python package. Maintaining PyPI distribution ensures:
-1. Backward compatibility for existing users
-2. pytest plugin integration
-3. Familiar installation path for Python developers
+The original rtmx is a Python package on PyPI (v0.0.6). We need to ship the new `--rtmx-output` feature that enables cross-language verification with the Go CLI. This maintains backward compatibility for existing users while enabling the new distributed verification workflow.
 
-## Design
+## Current State
 
-### Installation
+- rtmx v0.0.6 is on PyPI (published)
+- rtmx v0.0.7 is local with `--rtmx-output` feature (not yet released)
+- Release workflow exists at `.github/workflows/release.yml` (tag-triggered)
+- Python CLI commands work independently (no Go binary required)
+- Go binary is available separately via `brew install` or GitHub releases
 
-```bash
-# Install from PyPI
-pip install rtmx
+## Phased Approach
 
-# With optional dependencies
-pip install rtmx[dev]  # Include test utilities
-```
+### Phase A: Ship --rtmx-output (this requirement)
+- Bump version to 0.0.7
+- Update CHANGELOG.md
+- Tag and release to PyPI
+- Verify `pip install rtmx` works and pytest plugin loads
 
-### Package Behavior
-
-```python
-# On import, ensure Go binary is available
-import rtmx
-
-# If Go binary not found, guide user:
-# "RTMX CLI not found. Install via: brew install rtmx-ai/tap/rtmx"
-# Or offer to download automatically
-```
-
-### Package Structure
-
-```
-rtmx/
-├── pyproject.toml
-├── src/rtmx/
-│   ├── __init__.py       # Version, CLI detection
-│   ├── pytest/
-│   │   ├── __init__.py
-│   │   └── plugin.py     # pytest plugin
-│   ├── markers/
-│   │   └── __init__.py   # Marker utilities
-│   └── _binary.py        # Go binary management
-└── tests/
-```
-
-### Binary Management Options
-
-1. **Bundled wheels** (platform-specific wheels include binary)
-   ```
-   rtmx-0.1.0-py3-none-manylinux_x86_64.whl  # Includes linux-amd64 binary
-   rtmx-0.1.0-py3-none-macosx_arm64.whl      # Includes darwin-arm64 binary
-   ```
-
-2. **Post-install download** (pure Python wheel, downloads on first use)
-   ```python
-   def ensure_binary():
-       if not binary_exists():
-           download_and_install()
-   ```
-
-3. **External dependency** (require separate installation)
-   ```python
-   def ensure_binary():
-       if not binary_exists():
-           raise RuntimeError("Install rtmx CLI: brew install rtmx-ai/tap/rtmx")
-   ```
-
-### Recommended: Option 1 (Bundled Wheels)
-
-Platform-specific wheels provide the best UX:
-- No network required after pip install
-- Works in air-gapped environments
-- Consistent behavior across platforms
-
-```toml
-# pyproject.toml
-[tool.cibuildwheel]
-build = "cp39-* cp310-* cp311-* cp312-*"
-archs = ["x86_64", "arm64"]
-```
+### Phase B: Bundle Go binary in wheels (future requirement)
+- Platform-specific wheels with Go binary
+- Zero-dependency installation of full RTMX ecosystem
+- Requires cibuildwheel CI configuration
 
 ## Acceptance Criteria
 
-1. `pip install rtmx` installs pytest plugin
-2. `python -c "import rtmx; rtmx.version()"` shows version
-3. pytest markers work: `@pytest.mark.req("REQ-XXX")`
-4. `rtmx` CLI command available after install
-5. Works offline (binary bundled in wheel)
-6. Supports Python 3.9+
+1. `pip install rtmx` installs version >= 0.0.7 from PyPI
+2. `python -c "import rtmx"` succeeds
+3. `@pytest.mark.req("REQ-XXX")` markers work on test functions
+4. `pytest --rtmx-output=results.json` produces valid RTMX results JSON
+5. Go CLI's `rtmx verify --results results.json` successfully consumes the output
+6. `rtmx` CLI command available after install (Python implementation)
+7. Backward compatible: existing v0.0.6 users upgrade without breaking changes
+8. Supports Python 3.9+
+
+## Files to Modify
+
+In the `rtmx` (Python) repository:
+- `pyproject.toml` - Bump version to 0.0.7
+- `CHANGELOG.md` - Add v0.0.7 release notes
+- `src/rtmx/__init__.py` - Verify version matches
+
+## Dependencies
+
+| Requirement | Status | Relationship |
+|-------------|--------|-------------|
+| REQ-GO-043 | COMPLETE | GoReleaser produces Go binary (separate install) |
+| REQ-LANG-004 | COMPLETE | pytest plugin with --rtmx-output implemented |
 
 ## Test Strategy
 
-- CI matrix: Python 3.9-3.12 × linux/macos/windows × x64/arm64
-- pytest plugin integration tests
-- Binary invocation tests
+- Pre-release: `pip install -e .` and verify all acceptance criteria locally
+- Post-release: `pip install rtmx==0.0.7` in clean virtualenv and verify
+- CI: Existing tests pass in release workflow
 
-## Backward Compatibility
+## Release Process
 
-Existing rtmx users should be able to upgrade seamlessly:
 ```bash
-pip install --upgrade rtmx
-# All existing @pytest.mark.req() markers continue to work
+# 1. Verify all tests pass
+make test
+
+# 2. Update version and changelog
+# pyproject.toml: version = "0.0.7"
+# CHANGELOG.md: Add release notes
+
+# 3. Commit and tag
+git commit -m "chore: Bump version to v0.0.7"
+git tag v0.0.7
+git push origin main --tags
+
+# 4. Release workflow publishes to PyPI automatically
+
+# 5. Verify
+pip install rtmx==0.0.7
 ```
 
 ## References
 
-- Original rtmx package
-- cibuildwheel for platform-specific wheels
-- maturin pattern (Rust binaries in Python wheels)
+- PyPI: https://pypi.org/project/rtmx/
+- Release workflow: `.github/workflows/release.yml`
+- REQ-LANG-004 implementation: `src/rtmx/pytest/plugin.py`
