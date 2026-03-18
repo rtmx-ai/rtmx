@@ -44,6 +44,25 @@ rtmx-go/
 
 ## Development Workflow
 
+### Adding New Features or Requirements
+
+**CRITICAL: Fully elaborate the requirement specification and dependency relationships BEFORE commencing any implementation work.** This means:
+
+1. Check `make backlog` for prioritized requirements
+2. **Elaborate the requirement specification** in `.rtmx/requirements/<CATEGORY>/`:
+   - Write complete acceptance criteria with testable conditions
+   - Define all files to create/modify
+   - Identify all dependency relationships (blocks/blocked-by)
+   - Update `.rtmx/database.csv` with the requirement entry and dependencies
+   - Verify no circular dependencies with `rtmx cycles`
+3. **Write BDD feature specs** in `features/` when the requirement involves user-facing behavior
+4. Write failing tests with proper markers (TDD Red phase)
+5. Implement minimal code to pass tests (TDD Green phase)
+6. Refactor while keeping tests green
+7. Run `make test && make lint`
+8. Run `rtmx verify --update` to close the loop
+9. Commit with requirement ID in message
+
 ### Adding a New Command
 
 1. Create `internal/cmd/<command>.go`
