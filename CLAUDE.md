@@ -286,13 +286,23 @@ make pre-commit-run      # Run manually
 
 ## Adding New Features
 
+**CRITICAL: Fully elaborate the requirement specification and dependency relationships BEFORE commencing any implementation work.** This means:
+
 1. Check `make backlog` for prioritized requirements
-2. Create requirement spec in `docs/requirements/`
-3. Write failing tests with proper markers
-4. Implement feature
-5. Run `make test && make lint`
-6. Update CHANGELOG.md
-7. Submit PR
+2. **Elaborate the requirement specification** in `docs/requirements/`:
+   - Write complete acceptance criteria with testable conditions
+   - Define all files to create/modify
+   - Identify all dependency relationships (blocks/blocked-by)
+   - Update `docs/rtm_database.csv` with the requirement entry and dependencies
+   - Verify no circular dependencies with `rtmx cycles`
+3. **Write BDD feature specs** in `features/` when the requirement involves user-facing behavior
+4. Write failing tests with proper markers (TDD Red phase)
+5. Implement minimal code to pass tests (TDD Green phase)
+6. Refactor while keeping tests green
+7. Run `make test && make lint`
+8. Run `rtmx verify --update` to close the loop
+9. Update CHANGELOG.md
+10. Submit PR
 
 ## Parallel Development with Git Worktrees
 
