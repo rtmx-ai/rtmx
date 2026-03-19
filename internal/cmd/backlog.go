@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -18,6 +19,7 @@ var (
 	backlogPhase    int
 	backlogCategory string
 	backlogLimit    int
+	backlogJSON     bool
 )
 
 var backlogCmd = &cobra.Command{
@@ -39,6 +41,7 @@ func init() {
 	backlogCmd.Flags().IntVar(&backlogPhase, "phase", 0, "filter by phase number")
 	backlogCmd.Flags().StringVar(&backlogCategory, "category", "", "filter by category")
 	backlogCmd.Flags().IntVarP(&backlogLimit, "limit", "n", 0, "limit number of results")
+	backlogCmd.Flags().BoolVar(&backlogJSON, "json", false, "output as JSON")
 }
 
 func runBacklog(cmd *cobra.Command, args []string) error {
@@ -110,6 +113,11 @@ func runBacklog(cmd *cobra.Command, args []string) error {
 	// Apply limit
 	if backlogLimit > 0 && len(reqs) > backlogLimit {
 		reqs = reqs[:backlogLimit]
+	}
+
+	// JSON output mode
+	if backlogJSON {
+		return displayBacklogJSON(cmd, reqs, db)
 	}
 
 	// Display
@@ -456,5 +464,77 @@ func displayRemainingTable(cmd *cobra.Command, reqs []*database.Requirement, db 
 	cmd.Println("⊘ = blocked by incomplete dependencies")
 	cmd.Printf("%d actionable, %d blocked\n", actionable, blocked)
 
+	return nil
+}
+
+// backlogJSONCriticalItem represents a critical path item in JSON output.
+type backlogJSONCriticalItem struct {
+	ReqID       string  `json:"req_id"`
+	Description string  `json:"description"`
+	Effort      float64 `json:"effort"`
+	Blocks      int     `json:"blocks"`
+}
+
+// backlogJSONRemainingItem represents a remaining item in JSON output.
+type backlogJSONRemainingItem struct {
+	ReqID       string `json:"req_id"`
+	Description string `json:"description"`
+	Priority    string `json:"priority"`
+	Blocked     bool   `json:"blocked"`
+}
+
+// backlogJSONOutput represents the full JSON output structure.
+type backlogJSONOutput struct {
+	TotalMissing        int                        `json:"total_missing"`
+	EstimatedEffortWeeks float64                   `json:"estimated_effort_weeks"`
+	CriticalPath        []backlogJSONCriticalItem  `json:"critical_path"`
+	Remaining           []backlogJSONRemainingItem `json:"remaining"`
+}
+
+func displayBacklogJSON(cmd *cobra.Command, reqs []*database.Requirement, db *database.Database) error {
+	totalMissing := 0
+	totalEffort := 0.0
+	for _, r := range reqs {
+		if r.Status == database.StatusMissing || r.Status == database.StatusNotStarted {
+			totalMissing++
+		}
+		totalEffort += r.EffortWeeks
+	}
+
+	result := backlogJSONOutput{
+		TotalMissing:         totalMissing,
+		EstimatedEffortWeeks: totalEffort,
+		CriticalPath:         make([]backlogJSONCriticalItem, 0),
+		Remaining:            make([]backlogJSONRemainingItem, 0),
+	}
+
+	// Build critical path and remaining items
+	for _, r := range reqs {
+		blocked := countBlocked(r, db)
+		isBlocked := r.IsBlocked(db)
+
+		if r.Priority == database.PriorityP0 || r.Priority == database.PriorityHigh || blocked >= 2 {
+			result.CriticalPath = append(result.CriticalPath, backlogJSONCriticalItem{
+				ReqID:       r.ReqID,
+				Description: r.RequirementText,
+				Effort:      r.EffortWeeks,
+				Blocks:      blocked,
+			})
+		} else {
+			result.Remaining = append(result.Remaining, backlogJSONRemainingItem{
+				ReqID:       r.ReqID,
+				Description: r.RequirementText,
+				Priority:    string(r.Priority),
+				Blocked:     isBlocked,
+			})
+		}
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	cmd.Println(string(data))
 	return nil
 }
