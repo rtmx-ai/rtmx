@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 func TestInstallDetectAgentConfigs(t *testing.T) {
@@ -236,5 +239,133 @@ func TestInstallHookTemplates(t *testing.T) {
 	}
 	if !strings.Contains(prePushHookTemplate, "pytest") {
 		t.Error("Pre-push template should contain pytest check")
+	}
+}
+
+func TestInstallClaudeCreatesHooksJSON(t *testing.T) {
+	rtmx.Req(t, "REQ-AGENT-002",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	tmpDir := t.TempDir()
+
+	origDir, _ := os.Getwd()
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
+
+	cmd := newTestRootCmd()
+	output, err := executeCommand(cmd, "install", "--claude")
+
+	if err != nil {
+		t.Fatalf("install --claude failed: %v", err)
+	}
+
+	// Check .claude/hooks.json was created
+	hooksPath := filepath.Join(tmpDir, ".claude", "hooks.json")
+	data, err := os.ReadFile(hooksPath)
+	if err != nil {
+		t.Fatalf("Expected .claude/hooks.json to exist, got error: %v\nCommand output: %s", err, output)
+	}
+
+	// Verify JSON structure
+	var hooks map[string]interface{}
+	if err := json.Unmarshal(data, &hooks); err != nil {
+		t.Fatalf("hooks.json is not valid JSON: %v", err)
+	}
+
+	// Should have hooks.PreToolUse
+	hooksObj, ok := hooks["hooks"].(map[string]interface{})
+	if !ok {
+		t.Fatal("hooks.json should contain 'hooks' object")
+	}
+	preToolUse, ok := hooksObj["PreToolUse"].([]interface{})
+	if !ok {
+		t.Fatal("hooks.json should contain 'hooks.PreToolUse' array")
+	}
+	if len(preToolUse) == 0 {
+		t.Fatal("PreToolUse array should not be empty")
+	}
+
+	// Check the first hook entry
+	entry, ok := preToolUse[0].(map[string]interface{})
+	if !ok {
+		t.Fatal("PreToolUse entry should be an object")
+	}
+	if entry["command"] == nil {
+		t.Error("Hook entry should have a 'command' field")
+	}
+	cmdStr, _ := entry["command"].(string)
+	if !strings.Contains(cmdStr, "rtmx context") {
+		t.Errorf("Hook command should contain 'rtmx context', got: %s", cmdStr)
+	}
+}
+
+func TestInstallClaudeRemove(t *testing.T) {
+	rtmx.Req(t, "REQ-AGENT-002",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	tmpDir := t.TempDir()
+
+	// Create the hooks.json first
+	claudeDir := filepath.Join(tmpDir, ".claude")
+	if err := os.MkdirAll(claudeDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	hooksPath := filepath.Join(claudeDir, "hooks.json")
+	if err := os.WriteFile(hooksPath, []byte(`{"hooks":{"PreToolUse":[{"matcher":".*","command":"rtmx context --format claude"}]}}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	origDir, _ := os.Getwd()
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
+
+	cmd := newTestRootCmd()
+	_, err := executeCommand(cmd, "install", "--claude", "--remove")
+
+	if err != nil {
+		t.Fatalf("install --claude --remove failed: %v", err)
+	}
+
+	// Verify hooks.json was removed
+	if _, err := os.Stat(hooksPath); !os.IsNotExist(err) {
+		t.Error("Expected hooks.json to be removed")
+	}
+}
+
+func TestInstallClaudeDryRun(t *testing.T) {
+	rtmx.Req(t, "REQ-AGENT-002",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	tmpDir := t.TempDir()
+
+	origDir, _ := os.Getwd()
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
+
+	cmd := newTestRootCmd()
+	output, err := executeCommand(cmd, "install", "--claude", "--dry-run")
+
+	if err != nil {
+		t.Fatalf("install --claude --dry-run failed: %v", err)
+	}
+
+	// Should mention dry run or would create
+	if !strings.Contains(output, "Would create") {
+		t.Errorf("Expected dry-run output to mention 'Would create', got: %s", output)
+	}
+
+	// Verify hooks.json was NOT created
+	hooksPath := filepath.Join(tmpDir, ".claude", "hooks.json")
+	if _, err := os.Stat(hooksPath); !os.IsNotExist(err) {
+		t.Error("Expected hooks.json to NOT exist in dry-run mode")
 	}
 }

@@ -155,7 +155,62 @@ Source: https://github.com/rtmx-ai/rtmx-go`,
 	cmd.AddCommand(newTestHealthCmd())
 	cmd.AddCommand(newTestInitCmd())
 	cmd.AddCommand(newTestVerifyCmd())
+	cmd.AddCommand(newTestContextCmd())
+	cmd.AddCommand(newTestInstallCmd())
 
+	return cmd
+}
+
+// newTestContextCmd creates a fresh context command for testing with real behavior.
+func newTestContextCmd() *cobra.Command {
+	var format string
+
+	cmd := &cobra.Command{
+		Use:   "context",
+		Short: "Output token-efficient RTM summary for LLM context injection",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			contextFormat = format
+			return runContext(cmd, args)
+		},
+	}
+	cmd.Flags().StringVar(&format, "format", "plain", "output format: plain, claude")
+	return cmd
+}
+
+// newTestInstallCmd creates a fresh install command for testing with real behavior.
+func newTestInstallCmd() *cobra.Command {
+	var dryRun, yes, force, all, skipBackup, hooks, prePush, remove, validate, claude bool
+	var agents []string
+
+	cmd := &cobra.Command{
+		Use:   "install",
+		Short: "Install RTM-aware prompts into AI agent configs or git hooks",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			installDryRun = dryRun
+			installYes = yes
+			installForce = force
+			installAgents = agents
+			installAll = all
+			installSkipBackup = skipBackup
+			installHooks = hooks
+			installPrePush = prePush
+			installRemove = remove
+			installValidate = validate
+			installClaude = claude
+			return runInstall(cmd, args)
+		},
+	}
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "preview changes without writing")
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "skip confirmation prompts")
+	cmd.Flags().BoolVar(&force, "force", false, "overwrite existing RTMX sections")
+	cmd.Flags().StringSliceVar(&agents, "agents", nil, "specific agents to install")
+	cmd.Flags().BoolVar(&all, "all", false, "install to all detected agents")
+	cmd.Flags().BoolVar(&skipBackup, "skip-backup", false, "don't create backup files")
+	cmd.Flags().BoolVar(&hooks, "hooks", false, "install git hooks")
+	cmd.Flags().BoolVar(&prePush, "pre-push", false, "also install pre-push hook")
+	cmd.Flags().BoolVar(&remove, "remove", false, "remove installed hooks")
+	cmd.Flags().BoolVar(&validate, "validate", false, "install validation hook")
+	cmd.Flags().BoolVar(&claude, "claude", false, "install Claude Code hooks")
 	return cmd
 }
 

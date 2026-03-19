@@ -22,6 +22,7 @@ var (
 	installPrePush    bool
 	installRemove     bool
 	installValidate   bool
+	installClaude     bool
 )
 
 var installCmd = &cobra.Command{
@@ -38,7 +39,9 @@ Examples:
     rtmx install --hooks            # Install pre-commit hook (health check)
     rtmx install --hooks --validate # Install validation pre-commit hook
     rtmx install --hooks --pre-push # Install both hooks
-    rtmx install --hooks --remove   # Remove rtmx hooks`,
+    rtmx install --hooks --remove   # Remove rtmx hooks
+    rtmx install --claude           # Install Claude Code hooks
+    rtmx install --claude --remove  # Remove Claude Code hooks`,
 	RunE: runInstall,
 }
 
@@ -53,6 +56,7 @@ func init() {
 	installCmd.Flags().BoolVar(&installPrePush, "pre-push", false, "also install pre-push hook (requires --hooks)")
 	installCmd.Flags().BoolVar(&installRemove, "remove", false, "remove installed hooks (requires --hooks)")
 	installCmd.Flags().BoolVar(&installValidate, "validate", false, "install validation hook (requires --hooks)")
+	installCmd.Flags().BoolVar(&installClaude, "claude", false, "install Claude Code hooks (.claude/hooks.json)")
 
 	rootCmd.AddCommand(installCmd)
 }
@@ -220,11 +224,91 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		output.DisableColor()
 	}
 
+	if installClaude {
+		return runClaudeInstall(cmd)
+	}
+
 	if installHooks {
 		return runHooksInstall(cmd)
 	}
 
 	return runAgentInstall(cmd)
+}
+
+// claudeHooksJSON is the template for .claude/hooks.json.
+const claudeHooksJSON = `{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "command": "rtmx context --format claude"
+      }
+    ]
+  }
+}
+`
+
+func runClaudeInstall(cmd *cobra.Command) error {
+	cmd.Println("=== RTMX Claude Code Hooks ===")
+	cmd.Println()
+
+	if installDryRun {
+		cmd.Printf("%s\n", output.Color("DRY RUN - no files will be written", output.Yellow))
+		cmd.Println()
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	claudeDir := filepath.Join(cwd, ".claude")
+	hooksPath := filepath.Join(claudeDir, "hooks.json")
+
+	if installRemove {
+		cmd.Printf("%s\n", output.Color("Removing Claude Code hooks...", output.Bold))
+		if installDryRun {
+			cmd.Printf("  Would remove: %s\n", hooksPath)
+		} else {
+			if _, err := os.Stat(hooksPath); os.IsNotExist(err) {
+				cmd.Printf("  %s\n", output.Color("No hooks.json to remove", output.Dim))
+			} else {
+				if err := os.Remove(hooksPath); err != nil {
+					cmd.Printf("  %s Failed to remove: %v\n", output.Color("Error:", output.Red), err)
+				} else {
+					cmd.Printf("  %s %s\n", output.Color("Removed:", output.Green), hooksPath)
+				}
+			}
+		}
+		cmd.Println()
+		cmd.Printf("%s\n", output.Color("Claude Code hooks removed", output.Green))
+		return nil
+	}
+
+	cmd.Printf("%s\n", output.Color("Installing Claude Code hooks...", output.Bold))
+
+	if installDryRun {
+		cmd.Printf("  Would create: %s\n", hooksPath)
+	} else {
+		// Create .claude directory if needed
+		if err := os.MkdirAll(claudeDir, 0755); err != nil {
+			return fmt.Errorf("failed to create .claude directory: %w", err)
+		}
+
+		if err := os.WriteFile(hooksPath, []byte(claudeHooksJSON), 0644); err != nil {
+			return fmt.Errorf("failed to write hooks.json: %w", err)
+		}
+
+		cmd.Printf("  %s %s\n", output.Color("Created:", output.Green), hooksPath)
+	}
+
+	cmd.Println()
+	cmd.Printf("%s\n", output.Color("Claude Code hooks installed", output.Green))
+	cmd.Println()
+	cmd.Println("The PreToolUse hook will inject RTM context into Claude Code conversations.")
+	cmd.Println("Use 'rtmx install --claude --remove' to uninstall.")
+
+	return nil
 }
 
 func runHooksInstall(cmd *cobra.Command) error {
