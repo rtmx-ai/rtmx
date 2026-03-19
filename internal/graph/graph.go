@@ -101,6 +101,14 @@ func (g *Graph) TransitiveDependents(reqID string) []string {
 	return result
 }
 
+// IsIncomplete returns true if the requirement exists and is incomplete.
+func (g *Graph) IsIncomplete(reqID string) bool {
+	if req := g.db.Get(reqID); req != nil {
+		return req.IsIncomplete()
+	}
+	return false
+}
+
 // IsBlocked returns true if any dependency of this requirement is incomplete.
 func (g *Graph) IsBlocked(reqID string) bool {
 	for _, dep := range g.dependencies[reqID] {

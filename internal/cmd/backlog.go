@@ -8,6 +8,7 @@ import (
 
 	"github.com/rtmx-ai/rtmx-go/internal/config"
 	"github.com/rtmx-ai/rtmx-go/internal/database"
+	"github.com/rtmx-ai/rtmx-go/internal/graph"
 	"github.com/rtmx-ai/rtmx-go/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -93,7 +94,7 @@ func runBacklog(cmd *cobra.Command, args []string) error {
 	case "critical":
 		reqs = filterCritical(reqs, db)
 	case "quick-wins":
-		reqs = filterQuickWins(reqs)
+		reqs = filterQuickWins(reqs, db)
 	case "blockers":
 		reqs = filterBlockers(reqs, db)
 	case "list":
@@ -116,6 +117,7 @@ func runBacklog(cmd *cobra.Command, args []string) error {
 }
 
 func filterCritical(reqs []*database.Requirement, db *database.Database) []*database.Requirement {
+	g := graph.NewGraph(db)
 	var critical []*database.Requirement
 	for _, r := range reqs {
 		// P0 or HIGH priority
@@ -123,8 +125,8 @@ func filterCritical(reqs []*database.Requirement, db *database.Database) []*data
 			critical = append(critical, r)
 			continue
 		}
-		// Or blocking many others
-		blocked := countBlocked(r, db)
+		// Or transitively blocking many others
+		blocked := countBlockedTransitive(r.ReqID, g)
 		if blocked >= 2 {
 			critical = append(critical, r)
 		}
@@ -133,12 +135,13 @@ func filterCritical(reqs []*database.Requirement, db *database.Database) []*data
 	return critical
 }
 
-func filterQuickWins(reqs []*database.Requirement) []*database.Requirement {
+func filterQuickWins(reqs []*database.Requirement, db *database.Database) []*database.Requirement {
 	var quickWins []*database.Requirement
 	for _, r := range reqs {
-		// Low effort AND high priority
+		// Low effort AND high priority AND not blocked by incomplete dependencies
 		if r.EffortWeeks > 0 && r.EffortWeeks <= 1.0 &&
-			(r.Priority == database.PriorityP0 || r.Priority == database.PriorityHigh) {
+			(r.Priority == database.PriorityP0 || r.Priority == database.PriorityHigh) &&
+			!r.IsBlocked(db) {
 			quickWins = append(quickWins, r)
 		}
 	}
@@ -153,13 +156,14 @@ func filterQuickWins(reqs []*database.Requirement) []*database.Requirement {
 }
 
 func filterBlockers(reqs []*database.Requirement, db *database.Database) []*database.Requirement {
+	g := graph.NewGraph(db)
 	type blockerInfo struct {
 		req     *database.Requirement
 		blocked int
 	}
 	var blockers []blockerInfo
 	for _, r := range reqs {
-		blocked := countBlocked(r, db)
+		blocked := countBlockedTransitive(r.ReqID, g)
 		if blocked > 0 {
 			blockers = append(blockers, blockerInfo{r, blocked})
 		}
@@ -183,6 +187,24 @@ func countBlocked(req *database.Requirement, db *database.Database) int {
 		}
 	}
 	return count
+}
+
+// countBlockedTransitive returns the number of incomplete requirements transitively
+// blocked by this requirement, using the graph's transitive dependents analysis.
+func countBlockedTransitive(reqID string, g *graph.Graph) int {
+	count := 0
+	for _, dep := range g.TransitiveDependents(reqID) {
+		if g.IsIncomplete(dep) {
+			count++
+		}
+	}
+	return count
+}
+
+// formatBlocksColumn returns the "X (Y)" format for the Blocks column
+// where X is the transitive count and Y is the direct count.
+func formatBlocksColumn(transitive, direct int) string {
+	return fmt.Sprintf("%d (%d)", transitive, direct)
 }
 
 func sortByPriority(reqs []*database.Requirement) {
@@ -259,10 +281,11 @@ func displaySimpleList(cmd *cobra.Command, reqs []*database.Requirement) error {
 }
 
 func displayAllBacklog(cmd *cobra.Command, reqs []*database.Requirement, db *database.Database, cfg *config.Config) error {
+	g := graph.NewGraph(db)
 	// Split into critical, quick wins, and remaining
 	var critical, quickWins, remaining []*database.Requirement
 	for _, r := range reqs {
-		blocked := countBlocked(r, db)
+		blocked := countBlockedTransitive(r.ReqID, g)
 		if r.Priority == database.PriorityP0 || r.Priority == database.PriorityHigh || blocked >= 2 {
 			critical = append(critical, r)
 		} else if r.EffortWeeks > 0 && r.EffortWeeks <= 1.0 {
@@ -305,13 +328,14 @@ func displayAllBacklog(cmd *cobra.Command, reqs []*database.Requirement, db *dat
 }
 
 func displayCriticalTable(cmd *cobra.Command, reqs []*database.Requirement, db *database.Database, cfg *config.Config) error {
+	g := graph.NewGraph(db)
 	table := output.NewTable("#", "Status", "Requirement", "Description", "Effort", "Blocks", "Phase")
 
 	for i, r := range reqs {
 		icon := output.StatusIcon(r.Status.String())
-		blocked := countBlocked(r, db)
-		blockingDeps := len(r.BlockingDeps(db))
-		blocksStr := fmt.Sprintf("%d (%d)", blocked, blockingDeps)
+		transitive := countBlockedTransitive(r.ReqID, g)
+		direct := countBlocked(r, db)
+		blocksStr := formatBlocksColumn(transitive, direct)
 
 		phaseDesc := cfg.PhaseDescription(r.Phase)
 		phaseStr := fmt.Sprintf("Phase %d (%s)", r.Phase, phaseDesc)
@@ -365,11 +389,13 @@ func displayQuickWinsTable(cmd *cobra.Command, reqs []*database.Requirement, cfg
 }
 
 func displayBlockersTable(cmd *cobra.Command, reqs []*database.Requirement, db *database.Database, cfg *config.Config) error {
+	g := graph.NewGraph(db)
 	table := output.NewTable("#", "Status", "Requirement", "Description", "Blocks", "Phase")
 
 	for i, r := range reqs {
 		icon := output.StatusIcon(r.Status.String())
-		blocked := countBlocked(r, db)
+		transitive := countBlockedTransitive(r.ReqID, g)
+		direct := countBlocked(r, db)
 
 		phaseDesc := cfg.PhaseDescription(r.Phase)
 		phaseStr := fmt.Sprintf("Phase %d (%s)", r.Phase, phaseDesc)
@@ -379,7 +405,7 @@ func displayBlockersTable(cmd *cobra.Command, reqs []*database.Requirement, db *
 			icon,
 			r.ReqID,
 			output.TruncateCell(r.RequirementText, 35),
-			fmt.Sprintf("%d", blocked),
+			formatBlocksColumn(transitive, direct),
 			output.TruncateCell(phaseStr, 20),
 		)
 	}
@@ -389,6 +415,7 @@ func displayBlockersTable(cmd *cobra.Command, reqs []*database.Requirement, db *
 }
 
 func displayRemainingTable(cmd *cobra.Command, reqs []*database.Requirement, db *database.Database, cfg *config.Config) error {
+	g := graph.NewGraph(db)
 	table := output.NewTable("#", "Status", "Requirement", "Description", "Priority", "Blocks", "⊘", "Phase")
 
 	actionable := 0
@@ -396,7 +423,8 @@ func displayRemainingTable(cmd *cobra.Command, reqs []*database.Requirement, db 
 
 	for i, r := range reqs {
 		icon := output.StatusIcon(r.Status.String())
-		blockedCount := countBlocked(r, db)
+		transitive := countBlockedTransitive(r.ReqID, g)
+		direct := countBlocked(r, db)
 
 		phaseDesc := cfg.PhaseDescription(r.Phase)
 		phaseStr := fmt.Sprintf("Phase %d (%s)", r.Phase, phaseDesc)
@@ -417,7 +445,7 @@ func displayRemainingTable(cmd *cobra.Command, reqs []*database.Requirement, db 
 			r.ReqID,
 			output.TruncateCell(r.RequirementText, 35),
 			string(r.Priority),
-			fmt.Sprintf("%d", blockedCount),
+			formatBlocksColumn(transitive, direct),
 			blockedMarker,
 			output.TruncateCell(phaseStr, 26),
 		)
