@@ -23,6 +23,8 @@ func executeCommand(root *cobra.Command, args ...string) (string, error) {
 // newTestStatusCmd creates a fresh status command for testing.
 func newTestStatusCmd() *cobra.Command {
 	var verbosity int
+	var jsonOutput bool
+	var failUnder float64
 
 	cmd := &cobra.Command{
 		Use:   "status",
@@ -30,20 +32,29 @@ func newTestStatusCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Status command not yet implemented")
 			cmd.Printf("Verbosity level: %d\n", verbosity)
+			if jsonOutput {
+				cmd.Println("JSON output: true")
+			}
+			if failUnder > 0 {
+				cmd.Printf("Fail-under: %.1f\n", failUnder)
+			}
 			return nil
 		},
 	}
 	cmd.Flags().CountVarP(&verbosity, "verbose", "v", "increase verbosity")
+	cmd.Flags().BoolVar(&jsonOutput, "json", false, "output as JSON")
+	cmd.Flags().Float64Var(&failUnder, "fail-under", 0, "fail if completion below threshold")
 	return cmd
 }
 
 // newTestBacklogCmd creates a fresh backlog command for testing.
 func newTestBacklogCmd() *cobra.Command {
 	var (
-		view     string
-		phase    int
-		category string
-		limit    int
+		view       string
+		phase      int
+		category   string
+		limit      int
+		jsonOutput bool
 	)
 
 	cmd := &cobra.Command{
@@ -61,6 +72,9 @@ func newTestBacklogCmd() *cobra.Command {
 			if limit > 0 {
 				cmd.Printf("Limit: %d\n", limit)
 			}
+			if jsonOutput {
+				cmd.Println("JSON output: true")
+			}
 			return nil
 		},
 	}
@@ -68,6 +82,7 @@ func newTestBacklogCmd() *cobra.Command {
 	cmd.Flags().IntVar(&phase, "phase", 0, "filter by phase")
 	cmd.Flags().StringVar(&category, "category", "", "filter by category")
 	cmd.Flags().IntVarP(&limit, "limit", "n", 0, "limit results")
+	cmd.Flags().BoolVar(&jsonOutput, "json", false, "output as JSON")
 	return cmd
 }
 
@@ -161,22 +176,6 @@ Source: https://github.com/rtmx-ai/rtmx-go`,
 	return cmd
 }
 
-// newTestContextCmd creates a fresh context command for testing with real behavior.
-func newTestContextCmd() *cobra.Command {
-	var format string
-
-	cmd := &cobra.Command{
-		Use:   "context",
-		Short: "Output token-efficient RTM summary for LLM context injection",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			contextFormat = format
-			return runContext(cmd, args)
-		},
-	}
-	cmd.Flags().StringVar(&format, "format", "plain", "output format: plain, claude")
-	return cmd
-}
-
 // newTestInstallCmd creates a fresh install command for testing with real behavior.
 func newTestInstallCmd() *cobra.Command {
 	var dryRun, yes, force, all, skipBackup, hooks, prePush, remove, validate, claude bool
@@ -211,6 +210,22 @@ func newTestInstallCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&remove, "remove", false, "remove installed hooks")
 	cmd.Flags().BoolVar(&validate, "validate", false, "install validation hook")
 	cmd.Flags().BoolVar(&claude, "claude", false, "install Claude Code hooks")
+	return cmd
+}
+
+// newTestContextCmd creates a fresh context command for testing with real behavior.
+func newTestContextCmd() *cobra.Command {
+	var format string
+
+	cmd := &cobra.Command{
+		Use:   "context",
+		Short: "Output token-efficient RTM summary for LLM context injection",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			contextFormat = format
+			return runContext(cmd, args)
+		},
+	}
+	cmd.Flags().StringVar(&format, "format", "plain", "output format: plain, claude")
 	return cmd
 }
 

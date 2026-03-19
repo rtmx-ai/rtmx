@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -335,6 +336,68 @@ func TestBacklogBlocksColumnFormat(t *testing.T) {
 	}
 }
 
+// TestBacklogJSON verifies that --json produces valid JSON with correct structure.
+// REQ-PAR-001: JSON output flag for backlog command
+func TestBacklogJSON(t *testing.T) {
+	rtmx.Req(t, "REQ-PAR-001", rtmx.Scope("unit"), rtmx.Technique("nominal"))
+
+	cwd, _ := os.Getwd()
+	projectRoot := findProjectRootDir(cwd)
+	if projectRoot == "" {
+		t.Skip("Could not find project root with .rtmx")
+	}
+
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
+
+	rootCmd := createBacklogTestCmd()
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetArgs([]string{"backlog", "--json"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("backlog --json failed: %v", err)
+	}
+
+	output := buf.String()
+
+	// Must be valid JSON
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("output is not valid JSON: %v\nOutput:\n%s", err, output)
+	}
+
+	// Verify required top-level fields
+	requiredFields := []string{"total_missing", "estimated_effort_weeks", "remaining"}
+	for _, field := range requiredFields {
+		if _, ok := result[field]; !ok {
+			t.Errorf("JSON output missing required field %q", field)
+		}
+	}
+
+	// Verify remaining is an array with correct structure
+	remaining, ok := result["remaining"].([]interface{})
+	if !ok {
+		t.Fatalf("remaining is not an array")
+	}
+	if len(remaining) > 0 {
+		item := remaining[0].(map[string]interface{})
+		for _, field := range []string{"req_id", "description", "priority", "blocked"} {
+			if _, ok := item[field]; !ok {
+				t.Errorf("remaining entry missing required field %q", field)
+			}
+		}
+	}
+
+	// Verify no human-readable text
+	outputStr := strings.TrimSpace(output)
+	if strings.Contains(outputStr, "Prioritized Backlog") {
+		t.Error("JSON output should not contain 'Prioritized Backlog' header")
+	}
+}
+
 // createBacklogTestCmd creates a root command with real backlog command for testing
 func createBacklogTestCmd() *cobra.Command {
 	root := &cobra.Command{
@@ -347,6 +410,7 @@ func createBacklogTestCmd() *cobra.Command {
 	var phase int
 	var category string
 	var limit int
+	var jsonOutput bool
 
 	backlogCmd := &cobra.Command{
 		Use:   "backlog",
@@ -356,6 +420,7 @@ func createBacklogTestCmd() *cobra.Command {
 			backlogPhase = phase
 			backlogCategory = category
 			backlogLimit = limit
+			backlogJSON = jsonOutput
 			return runBacklog(cmd, args)
 		},
 	}
@@ -363,6 +428,7 @@ func createBacklogTestCmd() *cobra.Command {
 	backlogCmd.Flags().IntVar(&phase, "phase", 0, "filter by phase")
 	backlogCmd.Flags().StringVar(&category, "category", "", "filter by category")
 	backlogCmd.Flags().IntVarP(&limit, "limit", "n", 0, "limit results")
+	backlogCmd.Flags().BoolVar(&jsonOutput, "json", false, "output as JSON")
 	root.AddCommand(backlogCmd)
 
 	return root

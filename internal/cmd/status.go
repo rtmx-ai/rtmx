@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 
@@ -11,7 +13,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var statusVerbosity int
+var (
+	statusVerbosity int
+	statusJSON      bool
+	statusFailUnder float64
+)
 
 var statusCmd = &cobra.Command{
 	Use:   "status",
@@ -28,6 +34,8 @@ The verbosity level controls how much detail is shown:
 
 func init() {
 	statusCmd.Flags().CountVarP(&statusVerbosity, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")
+	statusCmd.Flags().BoolVar(&statusJSON, "json", false, "output as JSON")
+	statusCmd.Flags().Float64Var(&statusFailUnder, "fail-under", 0, "fail if completion percentage is below threshold")
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
@@ -54,17 +62,152 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load database: %w", err)
 	}
 
+	// JSON output mode
+	if statusJSON {
+		return displayStatusJSON(cmd, db, cfg)
+	}
+
 	// Display status based on verbosity
 	switch {
 	case statusVerbosity >= 3:
-		return displayDetailedStatus(cmd, db, cfg)
+		err = displayDetailedStatus(cmd, db, cfg)
 	case statusVerbosity >= 2:
-		return displayPhaseStatus(cmd, db, cfg)
+		err = displayPhaseStatus(cmd, db, cfg)
 	case statusVerbosity >= 1:
-		return displayCategoryStatus(cmd, db, cfg)
+		err = displayCategoryStatus(cmd, db, cfg)
 	default:
-		return displaySummaryStatus(cmd, db, cfg)
+		err = displaySummaryStatus(cmd, db, cfg)
 	}
+
+	if err != nil {
+		return err
+	}
+
+	// Check fail-under threshold
+	if statusFailUnder > 0 {
+		pct := db.CompletionPercentage()
+		if pct < statusFailUnder {
+			return NewExitError(1, fmt.Sprintf("completion %.1f%% is below threshold %.1f%%", pct, statusFailUnder))
+		}
+	}
+
+	return nil
+}
+
+// statusJSONPhase represents a phase entry in JSON output.
+type statusJSONPhase struct {
+	Phase    int     `json:"phase"`
+	Name     string  `json:"name"`
+	Total    int     `json:"total"`
+	Complete int     `json:"complete"`
+	Pct      float64 `json:"pct"`
+}
+
+// statusJSONCategory represents a category entry in JSON output.
+type statusJSONCategory struct {
+	Name     string  `json:"name"`
+	Total    int     `json:"total"`
+	Complete int     `json:"complete"`
+	Pct      float64 `json:"pct"`
+}
+
+// statusJSONOutput represents the full JSON output structure.
+type statusJSONOutput struct {
+	Total           int                  `json:"total"`
+	Complete        int                  `json:"complete"`
+	Partial         int                  `json:"partial"`
+	Missing         int                  `json:"missing"`
+	CompletionPct   float64              `json:"completion_pct"`
+	Phases          []statusJSONPhase    `json:"phases"`
+	Categories      []statusJSONCategory `json:"categories"`
+	FailUnder       *float64             `json:"fail_under,omitempty"`
+	ThresholdPassed *bool                `json:"threshold_passed,omitempty"`
+}
+
+func displayStatusJSON(cmd *cobra.Command, db *database.Database, cfg *config.Config) error {
+	counts := db.StatusCounts()
+	complete := counts[database.StatusComplete]
+	partial := counts[database.StatusPartial]
+	missing := counts[database.StatusMissing] + counts[database.StatusNotStarted]
+	pct := db.CompletionPercentage()
+
+	// Round to 1 decimal place
+	pct = math.Round(pct*10) / 10
+
+	result := statusJSONOutput{
+		Total:         db.Len(),
+		Complete:      complete,
+		Partial:       partial,
+		Missing:       missing,
+		CompletionPct: pct,
+		Phases:        make([]statusJSONPhase, 0),
+		Categories:    make([]statusJSONCategory, 0),
+	}
+
+	// Build phases
+	phases := db.Phases()
+	byPhase := db.ByPhase()
+	for _, phase := range phases {
+		reqs := byPhase[phase]
+		phaseComplete := 0
+		for _, r := range reqs {
+			if r.Status == database.StatusComplete {
+				phaseComplete++
+			}
+		}
+		phasePct := phaseCompletion(reqs)
+		phasePct = math.Round(phasePct*10) / 10
+
+		result.Phases = append(result.Phases, statusJSONPhase{
+			Phase:    phase,
+			Name:     cfg.PhaseDescription(phase),
+			Total:    len(reqs),
+			Complete: phaseComplete,
+			Pct:      phasePct,
+		})
+	}
+
+	// Build categories
+	categories := db.Categories()
+	byCategory := db.ByCategory()
+	for _, cat := range categories {
+		reqs := byCategory[cat]
+		catComplete := 0
+		for _, r := range reqs {
+			if r.Status == database.StatusComplete {
+				catComplete++
+			}
+		}
+		catPct := phaseCompletion(reqs)
+		catPct = math.Round(catPct*10) / 10
+
+		result.Categories = append(result.Categories, statusJSONCategory{
+			Name:     cat,
+			Total:    len(reqs),
+			Complete: catComplete,
+			Pct:      catPct,
+		})
+	}
+
+	// Include fail-under info if specified
+	var failUnderErr error
+	if statusFailUnder > 0 {
+		result.FailUnder = &statusFailUnder
+		passed := pct >= statusFailUnder
+		result.ThresholdPassed = &passed
+		if !passed {
+			failUnderErr = NewExitError(1, fmt.Sprintf("completion %.1f%% is below threshold %.1f%%", pct, statusFailUnder))
+		}
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	cmd.Println(string(data))
+
+	return failUnderErr
 }
 
 func displaySummaryStatus(cmd *cobra.Command, db *database.Database, cfg *config.Config) error {
