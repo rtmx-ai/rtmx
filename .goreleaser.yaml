@@ -48,6 +48,20 @@ checksum:
   name_template: 'checksums.txt'
   algorithm: sha256
 
+signs:
+  - artifacts: checksum
+    args:
+      - "--batch"
+      - "--local-user"
+      - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+
+sboms:
+  - artifacts: archive
+
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
@@ -68,6 +82,31 @@ release:
   draft: false
   prerelease: auto
   name_template: "v{{.Version}}"
+  header: |
+    ## Verify Your Download
+
+    ```bash
+    # Import RTMX public key
+    curl -fsSL https://rtmx.ai/gpg.key | gpg --import
+
+    # Verify checksums
+    gpg --verify checksums.txt.sig checksums.txt
+    sha256sum -c <(grep linux_amd64 checksums.txt)
+    ```
+
+    ## Install
+
+    ```bash
+    # Quick install (Linux/macOS)
+    curl -fsSL https://rtmx.ai/install.sh | sh
+
+    # Homebrew
+    brew install rtmx-ai/tap/rtmx
+
+    # Scoop (Windows)
+    scoop bucket add rtmx https://github.com/rtmx-ai/scoop-bucket
+    scoop install rtmx
+    ```
 
 # Homebrew and Scoop publishing disabled until tokens are configured
 # brews:

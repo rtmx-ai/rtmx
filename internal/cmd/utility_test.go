@@ -153,7 +153,7 @@ func TestReconcileCommand(t *testing.T) {
 	output := buf.String()
 	expectedElements := []string{
 		"Dependency Reconciliation",
-		"reciprocity",
+		"reciprocal",
 	}
 
 	for _, elem := range expectedElements {
