@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: '0 9 * * 1'  # Weekly Monday 9am UTC
 
 permissions:
   contents: read
@@ -57,6 +59,109 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: 'v1.64'
+
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.22'
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck
+        run: govulncheck ./...
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: go
+
+      - uses: github/codeql-action/autobuild@v3
+
+      - uses: github/codeql-action/analyze@v3
+
+  marker-compliance:
+    name: Marker Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.22'
+
+      - name: Check marker compliance
+        shell: bash
+        run: |
+          TOTAL=$(grep -r 'func Test' internal/ test/ pkg/ --include='*_test.go' -l | wc -l)
+          MARKED=$(grep -r 'rtmx\.Req(t,' internal/ test/ pkg/ --include='*_test.go' -l | wc -l)
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "No test files found"
+            exit 1
+          fi
+          PCT=$((MARKED * 100 / TOTAL))
+          echo "Test files with rtmx.Req markers: ${MARKED}/${TOTAL} (${PCT}%)"
+          if [ "$PCT" -lt 80 ]; then
+            echo "::error::Marker compliance ${PCT}% is below 80% threshold"
+            exit 1
+          fi
+          echo "Marker compliance: ${PCT}% (threshold: 80%)"
+
+  verify-requirements:
+    name: Verify Requirements
+    needs: [test, lint]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        continue-on-error: true
+
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ steps.app-token.outputs.token || github.token }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.22'
+
+      - name: Build
+        run: go build -o rtmx ./cmd/rtmx
+
+      - name: Verify requirements
+        run: ./rtmx verify --update --verbose
+
+      - name: Show status
+        run: ./rtmx status
+
+      - name: Commit RTM updates
+        run: |
+          git diff --quiet .rtmx/database.csv && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .rtmx/database.csv
+          git commit -m "ci: Auto-update RTM status from test results"
+          git push
 
   build-matrix:
     name: Build Matrix
