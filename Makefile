@@ -34,9 +34,16 @@ test-short:
 coverage: test
 	go tool cover -html=coverage.out
 
-## lint: Run linter
+## lint: Run linter (golangci-lint v2)
 lint:
-	golangci-lint run
+	@command -v golangci-lint >/dev/null 2>&1 || $(HOME)/go/bin/golangci-lint version >/dev/null 2>&1 || \
+		{ echo "golangci-lint not found. Install: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b \$$(go env GOPATH)/bin"; exit 1; }
+	@command -v golangci-lint >/dev/null 2>&1 && golangci-lint run ./... || $(HOME)/go/bin/golangci-lint run ./...
+
+## hooks: Install pre-commit hooks
+hooks:
+	git config core.hooksPath .githooks
+	@echo "Pre-commit hooks installed from .githooks/"
 
 ## fmt: Format code
 fmt:

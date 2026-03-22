@@ -300,12 +300,12 @@ func formatAnalysisMarkdown(report *AnalysisReport) string {
 
 	sb.WriteString("## Integrations\n\n")
 	if report.GitHubConfigured {
-		sb.WriteString(fmt.Sprintf("- **GitHub:** Configured (%s)\n", report.GitHubRepo))
+		fmt.Fprintf(&sb, "- **GitHub:** Configured (%s)\n", report.GitHubRepo)
 	} else {
 		sb.WriteString("- **GitHub:** Not configured\n")
 	}
 	if report.JiraConfigured {
-		sb.WriteString(fmt.Sprintf("- **Jira:** Configured (%s)\n", report.JiraProject))
+		fmt.Fprintf(&sb, "- **Jira:** Configured (%s)\n", report.JiraProject)
 	} else {
 		sb.WriteString("- **Jira:** Not configured\n")
 	}
@@ -313,14 +313,14 @@ func formatAnalysisMarkdown(report *AnalysisReport) string {
 
 	sb.WriteString("## RTM Status\n\n")
 	if report.RTMExists {
-		sb.WriteString(fmt.Sprintf("RTM database found at `%s`\n\n", report.RTMPath))
+		fmt.Fprintf(&sb, "RTM database found at `%s`\n\n", report.RTMPath)
 	} else {
 		sb.WriteString("RTM database not found.\n\n")
 	}
 
 	sb.WriteString("## Recommendations\n\n")
 	for i, rec := range report.Recommendations {
-		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, rec))
+		fmt.Fprintf(&sb, "%d. %s\n", i+1, rec)
 	}
 
 	return sb.String()

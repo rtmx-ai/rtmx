@@ -32,7 +32,7 @@ func TestFromGoCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create a sample rtmx-results.json file
 	resultsContent := `[
@@ -142,7 +142,7 @@ func TestFromGoWithDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create .rtmx directory
 	rtmxDir := filepath.Join(tmpDir, ".rtmx")
@@ -228,7 +228,7 @@ func TestFromGoEmptyResults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create empty results file
 	resultsPath := filepath.Join(tmpDir, "empty-results.json")
@@ -259,7 +259,7 @@ func TestFromGoInvalidJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create invalid JSON file
 	resultsPath := filepath.Join(tmpDir, "invalid.json")

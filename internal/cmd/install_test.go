@@ -16,7 +16,7 @@ func TestInstallDetectAgentConfigs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create CLAUDE.md
 	claudePath := filepath.Join(tmpDir, "CLAUDE.md")
@@ -49,7 +49,7 @@ func TestInstallDetectNestedClaudeConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create .claude directory
 	claudeDir := filepath.Join(tmpDir, ".claude")
@@ -107,7 +107,7 @@ func TestInstallHooksIsRTMXHook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create RTMX hook
 	rtmxHook := filepath.Join(tmpDir, "pre-commit")
@@ -141,7 +141,7 @@ func TestInstallHooksPreCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	gitDir := filepath.Join(tmpDir, ".git")
 	hooksDir := filepath.Join(gitDir, "hooks")
@@ -191,7 +191,7 @@ func TestInstallHooksValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	hooksDir := filepath.Join(tmpDir, ".git", "hooks")
 	if err := os.MkdirAll(hooksDir, 0755); err != nil {

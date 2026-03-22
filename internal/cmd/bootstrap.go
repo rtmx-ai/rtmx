@@ -316,8 +316,8 @@ func writeBootstrapRequirements(cwd string, cfg *config.Config, requirements []B
 
 		reqFile := fmt.Sprintf(".rtmx/requirements/%s/%s.md", req.Category, req.ID)
 
-		sb.WriteString(fmt.Sprintf("%s,%s,%s,%s,,%s,%s,Unit Test,MISSING,MEDIUM,1,Bootstrap generated,0.5,,,,,,,%s,%s\n",
-			req.ID, req.Category, req.Subcategory, text, req.TestModule, req.TestFunc, reqFile, req.ExternalID))
+		fmt.Fprintf(&sb, "%s,%s,%s,%s,,%s,%s,Unit Test,MISSING,MEDIUM,1,Bootstrap generated,0.5,,,,,,,%s,%s\n",
+			req.ID, req.Category, req.Subcategory, text, req.TestModule, req.TestFunc, reqFile, req.ExternalID)
 	}
 
 	return os.WriteFile(dbPath, []byte(sb.String()), 0644)

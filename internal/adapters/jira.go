@@ -121,7 +121,7 @@ func (j *JiraAdapter) TestConnection() (bool, string) {
 	if err != nil {
 		return false, fmt.Sprintf("Connection failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return false, fmt.Sprintf("Connection failed: HTTP %d", resp.StatusCode)
@@ -191,7 +191,7 @@ func (j *JiraAdapter) FetchItems(query map[string]interface{}) ([]ExternalItem, 
 		if err != nil {
 			return nil, fmt.Errorf("request failed: %w", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != 200 {
 			return nil, fmt.Errorf("API error: HTTP %d", resp.StatusCode)
@@ -235,7 +235,7 @@ func (j *JiraAdapter) GetItem(externalID string) (*ExternalItem, error) {
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("API error: HTTP %d", resp.StatusCode)
@@ -322,7 +322,7 @@ func (j *JiraAdapter) CreateItem(req *database.Requirement) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 201 {
 		return "", fmt.Errorf("API error: HTTP %d", resp.StatusCode)
@@ -390,7 +390,7 @@ func (j *JiraAdapter) UpdateItem(externalID string, req *database.Requirement) b
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Note: Jira returns 204 No Content on successful update
 	if resp.StatusCode != 204 && resp.StatusCode != 200 {
@@ -419,7 +419,7 @@ func (j *JiraAdapter) transitionIssue(ctx context.Context, issueKey string, targ
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return false

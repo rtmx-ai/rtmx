@@ -178,12 +178,12 @@ func TempProject(t *testing.T) (string, func()) {
 	// Create .rtmx directory
 	rtmxDir := filepath.Join(dir, ".rtmx")
 	if err := os.MkdirAll(rtmxDir, 0755); err != nil {
-		os.RemoveAll(dir)
+		_ = os.RemoveAll(dir)
 		t.Fatalf("Failed to create .rtmx directory: %v", err)
 	}
 
 	cleanup := func() {
-		os.RemoveAll(dir)
+		_ = os.RemoveAll(dir)
 	}
 
 	return dir, cleanup

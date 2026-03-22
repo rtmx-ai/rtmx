@@ -186,10 +186,10 @@ func generateConfigDoc() string {
 	if cwd, err := os.Getwd(); err == nil {
 		if cfg, err := config.LoadFromDir(cwd); err == nil {
 			sb.WriteString("## Current Configuration\n\n")
-			sb.WriteString(fmt.Sprintf("- Database: `%s`\n", cfg.RTMX.Database))
-			sb.WriteString(fmt.Sprintf("- Requirements Dir: `%s`\n", cfg.RequirementsPath(cwd)))
-			sb.WriteString(fmt.Sprintf("- Schema: `%s`\n", cfg.RTMX.Schema))
-			sb.WriteString(fmt.Sprintf("- Phases: %d defined\n", len(cfg.RTMX.Phases)))
+			fmt.Fprintf(&sb, "- Database: `%s`\n", cfg.RTMX.Database)
+			fmt.Fprintf(&sb, "- Requirements Dir: `%s`\n", cfg.RequirementsPath(cwd))
+			fmt.Fprintf(&sb, "- Schema: `%s`\n", cfg.RTMX.Schema)
+			fmt.Fprintf(&sb, "- Phases: %d defined\n", len(cfg.RTMX.Phases))
 			sb.WriteString("\n")
 		}
 	}

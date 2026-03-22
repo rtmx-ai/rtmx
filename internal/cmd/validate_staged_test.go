@@ -16,7 +16,7 @@ func TestValidateStagedValidCSV(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create a valid CSV file
 	validCSV := filepath.Join(tmpDir, "valid.csv")
@@ -41,7 +41,7 @@ func TestValidateStagedMissingColumns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create CSV missing required columns
 	invalidCSV := filepath.Join(tmpDir, "missing_cols.csv")
@@ -82,7 +82,7 @@ func TestValidateStagedDuplicateIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create CSV with duplicate IDs
 	duplicateCSV := filepath.Join(tmpDir, "duplicates.csv")
@@ -117,7 +117,7 @@ func TestValidateStagedInvalidStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create CSV with invalid status
 	invalidCSV := filepath.Join(tmpDir, "invalid_status.csv")
@@ -151,7 +151,7 @@ func TestValidateStagedInvalidPriority(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create CSV with invalid priority
 	invalidCSV := filepath.Join(tmpDir, "invalid_priority.csv")
@@ -185,7 +185,7 @@ func TestValidateStagedCycleDetection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create CSV with dependency cycle
 	cycleCSV := filepath.Join(tmpDir, "cycle.csv")

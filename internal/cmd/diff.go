@@ -311,15 +311,15 @@ func formatDiffMarkdown(result *DiffResult) string {
 	sb.WriteString("## Statistics\n\n")
 	sb.WriteString("| Metric | Baseline | Current |\n")
 	sb.WriteString("|--------|----------|--------|\n")
-	sb.WriteString(fmt.Sprintf("| Total | %d | %d |\n", result.Baseline.Total, result.Current.Total))
-	sb.WriteString(fmt.Sprintf("| Complete | %d | %d |\n", result.Baseline.Complete, result.Current.Complete))
-	sb.WriteString(fmt.Sprintf("| Completion | %.1f%% | %.1f%% |\n", result.Baseline.Completion, result.Current.Completion))
+	fmt.Fprintf(&sb, "| Total | %d | %d |\n", result.Baseline.Total, result.Current.Total)
+	fmt.Fprintf(&sb, "| Complete | %d | %d |\n", result.Baseline.Complete, result.Current.Complete)
+	fmt.Fprintf(&sb, "| Completion | %.1f%% | %.1f%% |\n", result.Baseline.Completion, result.Current.Completion)
 	sb.WriteString("\n")
 
 	if len(result.Added) > 0 {
 		sb.WriteString("## Added\n\n")
 		for _, id := range result.Added {
-			sb.WriteString(fmt.Sprintf("- %s\n", id))
+			fmt.Fprintf(&sb, "- %s\n", id)
 		}
 		sb.WriteString("\n")
 	}
@@ -327,7 +327,7 @@ func formatDiffMarkdown(result *DiffResult) string {
 	if len(result.Removed) > 0 {
 		sb.WriteString("## Removed\n\n")
 		for _, id := range result.Removed {
-			sb.WriteString(fmt.Sprintf("- %s\n", id))
+			fmt.Fprintf(&sb, "- %s\n", id)
 		}
 		sb.WriteString("\n")
 	}
@@ -337,16 +337,16 @@ func formatDiffMarkdown(result *DiffResult) string {
 		sb.WriteString("| Requirement | Field | Old | New |\n")
 		sb.WriteString("|-------------|-------|-----|-----|\n")
 		for _, c := range result.Changed {
-			sb.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n", c.ReqID, c.Field, c.OldValue, c.NewValue))
+			fmt.Fprintf(&sb, "| %s | %s | %s | %s |\n", c.ReqID, c.Field, c.OldValue, c.NewValue)
 		}
 		sb.WriteString("\n")
 	}
 
-	sb.WriteString(fmt.Sprintf("## Summary: %s\n\n", result.Summary))
-	sb.WriteString(fmt.Sprintf("- %d improved\n", result.Improved))
-	sb.WriteString(fmt.Sprintf("- %d regressed\n", result.Regressed))
-	sb.WriteString(fmt.Sprintf("- %d added\n", len(result.Added)))
-	sb.WriteString(fmt.Sprintf("- %d removed\n", len(result.Removed)))
+	fmt.Fprintf(&sb, "## Summary: %s\n\n", result.Summary)
+	fmt.Fprintf(&sb, "- %d improved\n", result.Improved)
+	fmt.Fprintf(&sb, "- %d regressed\n", result.Regressed)
+	fmt.Fprintf(&sb, "- %d added\n", len(result.Added))
+	fmt.Fprintf(&sb, "- %d removed\n", len(result.Removed))
 
 	return sb.String()
 }
