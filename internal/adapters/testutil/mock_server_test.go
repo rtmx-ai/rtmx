@@ -129,7 +129,7 @@ func TestMockServerCustomHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.Header.Get("X-Custom-Header") != "custom-value" {
 		t.Errorf("Expected custom header, got %s", resp.Header.Get("X-Custom-Header"))
@@ -148,7 +148,7 @@ func TestMockServer404ForUnknownPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 404 {
 		t.Errorf("Expected status 404, got %d", resp.StatusCode)
@@ -181,7 +181,7 @@ func TestMockServerMultipleMethods(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s request failed: %v", tt.method, err)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 
 		if resp.StatusCode != tt.wantStatus {
 			t.Errorf("%s: expected status %d, got %d", tt.method, tt.wantStatus, resp.StatusCode)

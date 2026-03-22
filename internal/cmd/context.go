@@ -206,7 +206,7 @@ func renderClaudeContext(cmd *cobra.Command, db *database.Database) error {
 	incomplete := total - complete
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("RTM: %.0f%% (%d/%d complete, %d remaining)\n", pct, complete, total, incomplete))
+	fmt.Fprintf(&sb, "RTM: %.0f%% (%d/%d complete, %d remaining)\n", pct, complete, total, incomplete)
 
 	// Status breakdown by category
 	byCat := db.ByCategory()

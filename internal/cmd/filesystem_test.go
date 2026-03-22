@@ -28,7 +28,7 @@ func TestOSFileSystem(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 
 	testPath := filepath.Join(dir, "test.txt")
 
@@ -86,7 +86,7 @@ func TestOSFileSystemMkdirAll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 
 	nested := filepath.Join(dir, "a", "b", "c")
 	if err := fs.MkdirAll(nested, 0755); err != nil {
@@ -105,7 +105,7 @@ func TestOSFileSystemOpenCreate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 
 	testPath := filepath.Join(dir, "stream.txt")
 

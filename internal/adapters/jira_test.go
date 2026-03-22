@@ -1,7 +1,6 @@
 package adapters
 
 import (
-	"os"
 	"testing"
 
 	"github.com/rtmx-ai/rtmx-go/internal/config"
@@ -13,12 +12,8 @@ import (
 // REQ-GO-032: Go CLI shall implement Jira adapter
 func TestJiraAdapter(t *testing.T) {
 	rtmx.Req(t, "REQ-GO-032")
-	os.Setenv("TEST_JIRA_TOKEN", "test-token")
-	os.Setenv("TEST_JIRA_EMAIL", "test@example.com")
-	defer func() {
-		os.Unsetenv("TEST_JIRA_TOKEN")
-		os.Unsetenv("TEST_JIRA_EMAIL")
-	}()
+	t.Setenv("TEST_JIRA_TOKEN", "test-token")
+	t.Setenv("TEST_JIRA_EMAIL", "test@example.com")
 
 	cfg := config.JiraAdapterConfig{
 		Enabled:  true,
@@ -51,7 +46,7 @@ func TestJiraAdapter(t *testing.T) {
 }
 
 func TestNewJiraAdapter(t *testing.T) {
-	// Test without token
+	// Test without token - t.Setenv not called, so env vars are unset
 	cfg := config.JiraAdapterConfig{
 		Enabled:  true,
 		Server:   "https://test.atlassian.net",
@@ -60,18 +55,13 @@ func TestNewJiraAdapter(t *testing.T) {
 		EmailEnv: "TEST_JIRA_EMAIL",
 	}
 
-	// Ensure env vars are not set
-	os.Unsetenv("TEST_JIRA_TOKEN")
-	os.Unsetenv("TEST_JIRA_EMAIL")
-
 	_, err := NewJiraAdapter(&cfg)
 	if err == nil {
 		t.Error("Expected error when token is not set")
 	}
 
 	// Test with token but no email
-	os.Setenv("TEST_JIRA_TOKEN", "test-token")
-	defer os.Unsetenv("TEST_JIRA_TOKEN")
+	t.Setenv("TEST_JIRA_TOKEN", "test-token")
 
 	_, err = NewJiraAdapter(&cfg)
 	if err == nil {
@@ -79,8 +69,7 @@ func TestNewJiraAdapter(t *testing.T) {
 	}
 
 	// Test with both token and email
-	os.Setenv("TEST_JIRA_EMAIL", "test@example.com")
-	defer os.Unsetenv("TEST_JIRA_EMAIL")
+	t.Setenv("TEST_JIRA_EMAIL", "test@example.com")
 
 	adapter, err := NewJiraAdapter(&cfg)
 	if err != nil {
@@ -110,12 +99,8 @@ func TestJiraAdapterDisabled(t *testing.T) {
 }
 
 func TestJiraMapStatusToRTMX(t *testing.T) {
-	os.Setenv("TEST_JIRA_TOKEN", "test-token")
-	os.Setenv("TEST_JIRA_EMAIL", "test@example.com")
-	defer func() {
-		os.Unsetenv("TEST_JIRA_TOKEN")
-		os.Unsetenv("TEST_JIRA_EMAIL")
-	}()
+	t.Setenv("TEST_JIRA_TOKEN", "test-token")
+	t.Setenv("TEST_JIRA_EMAIL", "test@example.com")
 
 	cfg := config.JiraAdapterConfig{
 		Enabled:  true,
@@ -150,12 +135,8 @@ func TestJiraMapStatusToRTMX(t *testing.T) {
 }
 
 func TestJiraMapStatusFromRTMX(t *testing.T) {
-	os.Setenv("TEST_JIRA_TOKEN", "test-token")
-	os.Setenv("TEST_JIRA_EMAIL", "test@example.com")
-	defer func() {
-		os.Unsetenv("TEST_JIRA_TOKEN")
-		os.Unsetenv("TEST_JIRA_EMAIL")
-	}()
+	t.Setenv("TEST_JIRA_TOKEN", "test-token")
+	t.Setenv("TEST_JIRA_EMAIL", "test@example.com")
 
 	cfg := config.JiraAdapterConfig{
 		Enabled:  true,
@@ -185,12 +166,8 @@ func TestJiraMapStatusFromRTMX(t *testing.T) {
 }
 
 func TestJiraIssueToItem(t *testing.T) {
-	os.Setenv("TEST_JIRA_TOKEN", "test-token")
-	os.Setenv("TEST_JIRA_EMAIL", "test@example.com")
-	defer func() {
-		os.Unsetenv("TEST_JIRA_TOKEN")
-		os.Unsetenv("TEST_JIRA_EMAIL")
-	}()
+	t.Setenv("TEST_JIRA_TOKEN", "test-token")
+	t.Setenv("TEST_JIRA_EMAIL", "test@example.com")
 
 	cfg := config.JiraAdapterConfig{
 		Enabled:  true,
@@ -242,12 +219,8 @@ func TestJiraIssueToItem(t *testing.T) {
 }
 
 func TestJiraWithCustomStatusMapping(t *testing.T) {
-	os.Setenv("TEST_JIRA_TOKEN", "test-token")
-	os.Setenv("TEST_JIRA_EMAIL", "test@example.com")
-	defer func() {
-		os.Unsetenv("TEST_JIRA_TOKEN")
-		os.Unsetenv("TEST_JIRA_EMAIL")
-	}()
+	t.Setenv("TEST_JIRA_TOKEN", "test-token")
+	t.Setenv("TEST_JIRA_EMAIL", "test@example.com")
 
 	cfg := config.JiraAdapterConfig{
 		Enabled:  true,
@@ -282,12 +255,8 @@ func TestJiraWithCustomStatusMapping(t *testing.T) {
 }
 
 func TestJiraIsConfigured(t *testing.T) {
-	os.Setenv("TEST_JIRA_TOKEN", "test-token")
-	os.Setenv("TEST_JIRA_EMAIL", "test@example.com")
-	defer func() {
-		os.Unsetenv("TEST_JIRA_TOKEN")
-		os.Unsetenv("TEST_JIRA_EMAIL")
-	}()
+	t.Setenv("TEST_JIRA_TOKEN", "test-token")
+	t.Setenv("TEST_JIRA_EMAIL", "test@example.com")
 
 	tests := []struct {
 		name     string
@@ -348,12 +317,8 @@ func TestJiraIsConfigured(t *testing.T) {
 }
 
 func TestJiraExtractReqIDFromDescription(t *testing.T) {
-	os.Setenv("TEST_JIRA_TOKEN", "test-token")
-	os.Setenv("TEST_JIRA_EMAIL", "test@example.com")
-	defer func() {
-		os.Unsetenv("TEST_JIRA_TOKEN")
-		os.Unsetenv("TEST_JIRA_EMAIL")
-	}()
+	t.Setenv("TEST_JIRA_TOKEN", "test-token")
+	t.Setenv("TEST_JIRA_EMAIL", "test@example.com")
 
 	cfg := config.JiraAdapterConfig{
 		Enabled:  true,

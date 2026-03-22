@@ -190,13 +190,13 @@ func getAdapter(service string, cfg *config.Config) (adapters.ServiceAdapter, er
 	switch service {
 	case "github":
 		if !cfg.RTMX.Adapters.GitHub.Enabled {
-			return nil, fmt.Errorf("GitHub adapter not enabled in rtmx.yaml")
+			return nil, fmt.Errorf("github adapter not enabled in rtmx.yaml")
 		}
 		return adapters.NewGitHubAdapter(&cfg.RTMX.Adapters.GitHub)
 
 	case "jira":
 		if !cfg.RTMX.Adapters.Jira.Enabled {
-			return nil, fmt.Errorf("Jira adapter not enabled in rtmx.yaml")
+			return nil, fmt.Errorf("jira adapter not enabled in rtmx.yaml")
 		}
 		return adapters.NewJiraAdapter(&cfg.RTMX.Adapters.Jira)
 

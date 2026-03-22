@@ -94,7 +94,7 @@ func (g *GitHubAdapter) TestConnection() (bool, string) {
 	if err != nil {
 		return false, fmt.Sprintf("Connection failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return false, fmt.Sprintf("Connection failed: HTTP %d", resp.StatusCode)
@@ -136,7 +136,7 @@ func (g *GitHubAdapter) FetchItems(query map[string]interface{}) ([]ExternalItem
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("API error: HTTP %d", resp.StatusCode)
@@ -174,7 +174,7 @@ func (g *GitHubAdapter) GetItem(externalID string) (*ExternalItem, error) {
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("API error: HTTP %d", resp.StatusCode)
@@ -233,7 +233,7 @@ func (g *GitHubAdapter) CreateItem(req *database.Requirement) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 201 {
 		return "", fmt.Errorf("API error: HTTP %d", resp.StatusCode)
@@ -284,7 +284,7 @@ func (g *GitHubAdapter) UpdateItem(externalID string, req *database.Requirement)
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return resp.StatusCode == 200
 }

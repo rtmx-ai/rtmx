@@ -33,7 +33,7 @@ func TestAnalyzeCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create tests directory
 	testsDir := filepath.Join(tmpDir, "tests")
@@ -117,7 +117,7 @@ func TestAnalyzeProject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create tests directory with test files
 	testsDir := filepath.Join(tmpDir, "tests")
@@ -177,7 +177,7 @@ func TestCountMarkersInFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	tests := []struct {
 		name    string
@@ -318,7 +318,7 @@ func TestAnalyzeOutputToFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	outputFile := filepath.Join(tmpDir, "report.json")
 
@@ -362,7 +362,7 @@ func TestAnalyzeEmptyProject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	report := analyzeProject(tmpDir, nil)
 
@@ -382,7 +382,7 @@ func TestAnalyzeWithRTMDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create .rtmx directory and database
 	rtmxDir := filepath.Join(tmpDir, ".rtmx")

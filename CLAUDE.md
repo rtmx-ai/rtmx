@@ -11,10 +11,20 @@ This is the Go implementation of the RTMX CLI, providing a single static binary 
 ```bash
 make build        # Build the binary
 make test         # Run tests
-make lint         # Run linter
+make lint         # Run linter (golangci-lint v2 required)
+make hooks        # Install pre-commit hooks
 make dev          # Build with race detector
 make build-all    # Build for all platforms
 make parity       # Run parity tests against Python CLI
+```
+
+## Local CI Parity
+
+**CRITICAL: Local pre-commit hooks must match remote CI checks.** Run `make hooks` after cloning to install `.githooks/pre-commit` which runs build, test, lint, and vet before each commit. This prevents pushing code that fails CI.
+
+Install golangci-lint v2 if not present:
+```bash
+curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin
 ```
 
 ## Project Structure

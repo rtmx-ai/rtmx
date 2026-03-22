@@ -93,7 +93,7 @@ func TestBootstrapCommand(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to create temp dir: %v", err)
 			}
-			defer os.RemoveAll(tmpDir)
+			defer func() { _ = os.RemoveAll(tmpDir) }()
 
 			// Change to temp directory
 			origDir, _ := os.Getwd()
@@ -129,7 +129,7 @@ func TestBootstrapFromTestFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create tests directory
 	testsDir := filepath.Join(tmpDir, "tests")
@@ -282,7 +282,7 @@ func TestWriteBootstrapRequirements(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create config
 	cfg := config.DefaultConfig()
@@ -346,7 +346,7 @@ func TestWriteBootstrapRequirementsMerge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create existing database
 	rtmxDir := filepath.Join(tmpDir, ".rtmx")
@@ -423,7 +423,7 @@ func TestBootstrapEmptyTestsDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Run bootstrap
 	reqs := bootstrapFromTestFiles(tmpDir, "REQ")
@@ -441,7 +441,7 @@ func TestBootstrapSubdirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create nested tests directory
 	cliDir := filepath.Join(tmpDir, "tests", "cli")

@@ -106,7 +106,7 @@ func validateCSVFile(filePath string) []string {
 		errors = append(errors, fmt.Sprintf("%s: Failed to open: %v", filePath, err))
 		return errors
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	reader := csv.NewReader(file)
 

@@ -17,7 +17,7 @@ func TestSetupDetectProject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Test empty directory
 	detection := detectProject(tmpDir)
@@ -45,7 +45,7 @@ func TestSetupDetectProjectWithConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create rtmx.yaml
 	configPath := filepath.Join(tmpDir, "rtmx.yaml")
@@ -66,7 +66,7 @@ func TestSetupDetectProjectWithRTM(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create docs/rtm_database.csv
 	docsDir := filepath.Join(tmpDir, "docs")
@@ -89,7 +89,7 @@ func TestSetupDetectProjectWithTests(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create tests directory
 	testsDir := filepath.Join(tmpDir, "tests")
@@ -108,7 +108,7 @@ func TestSetupDetectProjectWithMakefile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create Makefile
 	makefilePath := filepath.Join(tmpDir, "Makefile")
@@ -129,7 +129,7 @@ func TestSetupDetectAgentConfigs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create CLAUDE.md with RTMX content
 	claudePath := filepath.Join(tmpDir, "CLAUDE.md")
@@ -171,7 +171,7 @@ func TestSetupBackupFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Create a file to backup
 	origPath := filepath.Join(tmpDir, "test.txt")
@@ -271,7 +271,7 @@ func TestSetupCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Save current directory
 	origDir, _ := os.Getwd()
