@@ -195,7 +195,7 @@ func runVerifyFromResults(cmd *cobra.Command, db *database.Database) ([]Verifica
 		if err != nil {
 			return nil, fmt.Errorf("failed to open results file: %w", err)
 		}
-		defer r.Close()
+		defer func() { _ = r.Close() }()
 	}
 
 	parsed, err := results.Parse(r)
@@ -468,17 +468,18 @@ func printVerifyResults(cmd *cobra.Command, results []VerificationResult) {
 		for _, r := range results {
 			if r.Updated {
 				statusChange := fmt.Sprintf("%s → %s", r.PreviousStatus, r.NewStatus)
-				if r.NewStatus == database.StatusComplete {
+				switch r.NewStatus {
+				case database.StatusComplete:
 					cmd.Printf("  %s %s: %s\n",
 						output.Color("↑", output.Green),
 						output.Color(r.ReqID, output.Cyan),
 						output.Color(statusChange, output.Green))
-				} else if r.NewStatus == database.StatusPartial {
+				case database.StatusPartial:
 					cmd.Printf("  %s %s: %s\n",
 						output.Color("↓", output.Yellow),
 						output.Color(r.ReqID, output.Cyan),
 						output.Color(statusChange, output.Yellow))
-				} else {
+				default:
 					cmd.Printf("  %s: %s\n", r.ReqID, statusChange)
 				}
 			}

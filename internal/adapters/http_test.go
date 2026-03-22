@@ -42,7 +42,7 @@ func TestDefaultHTTPClient(t *testing.T) {
 	}
 
 	// Should be usable as HTTPClient
-	var _ HTTPClient = client
+	var _ = client
 }
 
 // TestWithHTTPClient validates HTTP client injection.

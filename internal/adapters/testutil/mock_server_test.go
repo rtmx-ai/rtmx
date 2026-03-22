@@ -28,7 +28,7 @@ func TestMockServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
@@ -62,7 +62,7 @@ func TestMockServerRecordsRequests(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Request failed: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	// Verify request was recorded
 	lastReq := server.LastRequest()
@@ -100,7 +100,7 @@ func TestMockServerJSONResponse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {

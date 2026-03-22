@@ -249,9 +249,10 @@ func displayBacklog(cmd *cobra.Command, reqs []*database.Requirement, db *databa
 	totalPartial := 0
 	totalEffort := 0.0
 	for _, r := range reqs {
-		if r.Status == database.StatusMissing || r.Status == database.StatusNotStarted {
+		switch r.Status {
+		case database.StatusMissing, database.StatusNotStarted:
 			totalMissing++
-		} else if r.Status == database.StatusPartial {
+		case database.StatusPartial:
 			totalPartial++
 		}
 		totalEffort += r.EffortWeeks

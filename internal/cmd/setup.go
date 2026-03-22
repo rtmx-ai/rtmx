@@ -350,7 +350,7 @@ This project uses RTMX for requirements traceability.
 					f, err := os.OpenFile(agentPath, os.O_APPEND|os.O_WRONLY, 0644)
 					if err == nil {
 						_, _ = f.WriteString("\n" + rtmxSection)
-						f.Close()
+						_ = f.Close()
 						result.FilesModified = append(result.FilesModified, agentPath)
 					}
 				}
@@ -359,9 +359,10 @@ This project uses RTMX for requirements traceability.
 			} else if name == "claude" || name == "cursor" {
 				// Create new file for key agents
 				var newPath string
-				if name == "claude" {
+				switch name {
+				case "claude":
 					newPath = filepath.Join(cwd, "CLAUDE.md")
-				} else if name == "cursor" {
+				case "cursor":
 					newPath = filepath.Join(cwd, ".cursorrules")
 				}
 				if newPath != "" && !setupDryRun {
@@ -410,7 +411,7 @@ health:
 				f, err := os.OpenFile(makefilePath, os.O_APPEND|os.O_WRONLY, 0644)
 				if err == nil {
 					_, _ = f.WriteString(makefileTargets)
-					f.Close()
+					_ = f.Close()
 					result.FilesModified = append(result.FilesModified, makefilePath)
 				}
 			}

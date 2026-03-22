@@ -29,7 +29,7 @@ func TestFullParity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	binaryPath := filepath.Join(tmpDir, binaryName())
 	buildCmd := exec.Command("go", "build", "-o", binaryPath, "../cmd/rtmx")
@@ -126,7 +126,7 @@ func TestStatusParity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	binaryPath := filepath.Join(tmpDir, binaryName())
 
@@ -173,7 +173,7 @@ func TestBacklogParity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	binaryPath := filepath.Join(tmpDir, binaryName())
 
@@ -215,7 +215,7 @@ func TestHealthParity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	binaryPath := filepath.Join(tmpDir, binaryName())
 

@@ -11,7 +11,7 @@ import (
 func main() {
 	if err := cmd.Execute(); err != nil {
 		// Print error (SilenceErrors suppresses Cobra output)
-		os.Stderr.WriteString("Error: " + err.Error() + "\n")
+		_, _ = os.Stderr.WriteString("Error: " + err.Error() + "\n")
 		// Check for ExitError to get specific exit code
 		var exitErr *cmd.ExitError
 		if errors.As(err, &exitErr) {

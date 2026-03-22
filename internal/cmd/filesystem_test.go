@@ -115,14 +115,14 @@ func TestOSFileSystemOpenCreate(t *testing.T) {
 		t.Fatalf("Create failed: %v", err)
 	}
 	_, _ = writer.Write([]byte("streamed content"))
-	writer.Close()
+	_ = writer.Close()
 
 	// Test Open
 	reader, err := fs.Open(testPath)
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	buf := make([]byte, 100)
 	n, _ := reader.Read(buf)
@@ -200,14 +200,14 @@ func TestMemoryFileSystemOpenCreate(t *testing.T) {
 	}
 	_, _ = writer.Write([]byte("part1"))
 	_, _ = writer.Write([]byte("part2"))
-	writer.Close()
+	_ = writer.Close()
 
 	// Test Open
 	reader, err := fs.Open(path)
 	if err != nil {
 		t.Fatalf("Open failed: %v", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	buf := make([]byte, 100)
 	n, _ := reader.Read(buf)

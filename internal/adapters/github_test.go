@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -17,8 +16,7 @@ import (
 // REQ-GO-019: Go CLI shall implement GitHub adapter
 func TestGitHubAdapter(t *testing.T) {
 	rtmx.Req(t, "REQ-GO-019")
-	os.Setenv("TEST_GITHUB_TOKEN", "test-token")
-	defer os.Unsetenv("TEST_GITHUB_TOKEN")
+	t.Setenv("TEST_GITHUB_TOKEN", "test-token")
 
 	cfg := config.GitHubAdapterConfig{
 		Enabled:  true,
@@ -88,8 +86,8 @@ func TestNewGitHubAdapter(t *testing.T) {
 		TokenEnv: "TEST_GITHUB_TOKEN",
 	}
 
-	// Ensure env var is not set
-	os.Unsetenv("TEST_GITHUB_TOKEN")
+	// Ensure env var is not set (t.Setenv restores on cleanup)
+	t.Setenv("TEST_GITHUB_TOKEN", "")
 
 	_, err := NewGitHubAdapter(&cfg)
 	if err == nil {
@@ -97,8 +95,7 @@ func TestNewGitHubAdapter(t *testing.T) {
 	}
 
 	// Test with token
-	os.Setenv("TEST_GITHUB_TOKEN", "test-token")
-	defer os.Unsetenv("TEST_GITHUB_TOKEN")
+	t.Setenv("TEST_GITHUB_TOKEN", "test-token")
 
 	adapter, err := NewGitHubAdapter(&cfg)
 	if err != nil {
@@ -127,8 +124,7 @@ func TestGitHubAdapterDisabled(t *testing.T) {
 }
 
 func TestExtractPriority(t *testing.T) {
-	os.Setenv("TEST_GITHUB_TOKEN", "test-token")
-	defer os.Unsetenv("TEST_GITHUB_TOKEN")
+	t.Setenv("TEST_GITHUB_TOKEN", "test-token")
 
 	cfg := config.GitHubAdapterConfig{
 		Enabled:  true,
@@ -158,8 +154,7 @@ func TestExtractPriority(t *testing.T) {
 }
 
 func TestMapStatus(t *testing.T) {
-	os.Setenv("TEST_GITHUB_TOKEN", "test-token")
-	defer os.Unsetenv("TEST_GITHUB_TOKEN")
+	t.Setenv("TEST_GITHUB_TOKEN", "test-token")
 
 	cfg := config.GitHubAdapterConfig{
 		Enabled:  true,
@@ -187,8 +182,7 @@ func TestMapStatus(t *testing.T) {
 }
 
 func TestIssueToItem(t *testing.T) {
-	os.Setenv("TEST_GITHUB_TOKEN", "test-token")
-	defer os.Unsetenv("TEST_GITHUB_TOKEN")
+	t.Setenv("TEST_GITHUB_TOKEN", "test-token")
 
 	cfg := config.GitHubAdapterConfig{
 		Enabled:  true,
@@ -248,8 +242,7 @@ func TestTestConnection(t *testing.T) {
 	}))
 	defer server.Close()
 
-	os.Setenv("TEST_GITHUB_TOKEN", "test-token")
-	defer os.Unsetenv("TEST_GITHUB_TOKEN")
+	t.Setenv("TEST_GITHUB_TOKEN", "test-token")
 
 	cfg := config.GitHubAdapterConfig{
 		Enabled:  true,
@@ -284,8 +277,7 @@ func TestFetchIssues(t *testing.T) {
 	}))
 	defer server.Close()
 
-	os.Setenv("TEST_GITHUB_TOKEN", "test-token")
-	defer os.Unsetenv("TEST_GITHUB_TOKEN")
+	t.Setenv("TEST_GITHUB_TOKEN", "test-token")
 
 	// Note: Full integration test would require mocking the base URL
 	// This test verifies the function signature and basic structure

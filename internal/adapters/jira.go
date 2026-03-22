@@ -56,7 +56,7 @@ type JiraSearchResponse struct {
 // Options can be provided to inject custom dependencies for testing.
 func NewJiraAdapter(cfg *config.JiraAdapterConfig, opts ...AdapterOption) (*JiraAdapter, error) {
 	if !cfg.Enabled {
-		return nil, fmt.Errorf("Jira adapter is not enabled")
+		return nil, fmt.Errorf("jira adapter is not enabled")
 	}
 
 	options := applyOptions(opts)
@@ -75,10 +75,10 @@ func NewJiraAdapter(cfg *config.JiraAdapterConfig, opts ...AdapterOption) (*Jira
 	email := options.getEnv(emailEnv)
 
 	if token == "" {
-		return nil, fmt.Errorf("Jira API token not found. Set %s environment variable", tokenEnv)
+		return nil, fmt.Errorf("jira API token not found, set %s environment variable", tokenEnv)
 	}
 	if email == "" {
-		return nil, fmt.Errorf("Jira email not found. Set %s environment variable", emailEnv)
+		return nil, fmt.Errorf("jira email not found, set %s environment variable", emailEnv)
 	}
 
 	// Create basic auth string
@@ -459,7 +459,7 @@ func (j *JiraAdapter) transitionIssue(ctx context.Context, issueKey string, targ
 	if err != nil {
 		return false
 	}
-	defer transResp2.Body.Close()
+	defer func() { _ = transResp2.Body.Close() }()
 
 	return transResp2.StatusCode == 204 || transResp2.StatusCode == 200
 }
