@@ -56,9 +56,7 @@ jobs:
           go-version: '1.25'
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: 'latest'
+        uses: golangci/golangci-lint-action@v7
 
   security:
     name: Security
