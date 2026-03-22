@@ -41,6 +41,17 @@ func TestInstallDetectAgentConfigs(t *testing.T) {
 	if configs["copilot"] != "" {
 		t.Errorf("Expected copilot not detected, got %s", configs["copilot"])
 	}
+
+	// Check all 10 agents are in the detection map
+	expectedAgents := []string{
+		"claude", "cursor", "copilot", "cline", "gemini",
+		"windsurf", "aider", "amazonq", "zed", "continue",
+	}
+	for _, name := range expectedAgents {
+		if _, exists := configs[name]; !exists {
+			t.Errorf("Expected agent %q in detection map", name)
+		}
+	}
 }
 
 func TestInstallDetectNestedClaudeConfig(t *testing.T) {
@@ -73,25 +84,24 @@ func TestInstallDetectNestedClaudeConfig(t *testing.T) {
 }
 
 func TestInstallGetAgentPrompt(t *testing.T) {
-	// Test claude prompt
-	claudePrompt := getAgentPrompt("claude")
-	if !strings.Contains(claudePrompt, "RTMX Requirements Traceability") {
-		t.Error("Claude prompt should contain RTMX section")
-	}
-	if !strings.Contains(claudePrompt, "rtmx verify --update") {
-		t.Error("Claude prompt should contain verify command")
+	// All 10 agents should return non-empty prompts containing RTMX context
+	agents := []string{
+		"claude", "cursor", "copilot", "cline", "gemini",
+		"windsurf", "aider", "amazonq", "zed", "continue",
 	}
 
-	// Test cursor prompt
-	cursorPrompt := getAgentPrompt("cursor")
-	if !strings.Contains(cursorPrompt, "RTMX Requirements Traceability") {
-		t.Error("Cursor prompt should contain RTMX section")
-	}
-
-	// Test copilot prompt
-	copilotPrompt := getAgentPrompt("copilot")
-	if !strings.Contains(copilotPrompt, "RTMX Requirements Traceability") {
-		t.Error("Copilot prompt should contain RTMX section")
+	for _, agent := range agents {
+		prompt := getAgentPrompt(agent)
+		if prompt == "" {
+			t.Errorf("Agent %q should return a non-empty prompt", agent)
+			continue
+		}
+		if !strings.Contains(prompt, "RTMX") {
+			t.Errorf("Agent %q prompt should contain 'RTMX'", agent)
+		}
+		if !strings.Contains(prompt, "rtmx verify --update") && !strings.Contains(prompt, "rtmx verify") {
+			t.Errorf("Agent %q prompt should reference verify command", agent)
+		}
 	}
 
 	// Test unknown agent
@@ -367,5 +377,269 @@ func TestInstallClaudeDryRun(t *testing.T) {
 	hooksPath := filepath.Join(tmpDir, ".claude", "hooks.json")
 	if _, err := os.Stat(hooksPath); !os.IsNotExist(err) {
 		t.Error("Expected hooks.json to NOT exist in dry-run mode")
+	}
+}
+
+func TestInstallAllAgents(t *testing.T) {
+	rtmx.Req(t, "REQ-AGENT-001",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	// Verify all 10 agents are in the supportedAgents registry
+	if len(supportedAgents) != 10 {
+		t.Errorf("Expected 10 supported agents, got %d", len(supportedAgents))
+	}
+
+	expectedAgents := map[string]string{
+		"claude":   "CLAUDE.md",
+		"cursor":   ".cursorrules",
+		"copilot":  ".github/copilot-instructions.md",
+		"cline":    ".clinerules",
+		"gemini":   "GEMINI.md",
+		"windsurf": ".windsurfrules",
+		"aider":    ".aider.conf.yml",
+		"amazonq":  ".amazonq/rules",
+		"zed":      ".zed/settings.json",
+		"continue": ".continue/config.yaml",
+	}
+
+	for _, agent := range supportedAgents {
+		expectedFile, ok := expectedAgents[agent.Name]
+		if !ok {
+			t.Errorf("Unexpected agent in registry: %s", agent.Name)
+			continue
+		}
+		if agent.ConfigFile != expectedFile {
+			t.Errorf("Agent %s: expected config file %q, got %q", agent.Name, expectedFile, agent.ConfigFile)
+		}
+		// Every agent must have a non-empty prompt
+		prompt := getAgentPrompt(agent.Name)
+		if prompt == "" {
+			t.Errorf("Agent %s has no prompt defined", agent.Name)
+		}
+	}
+
+	// Verify detection covers all agents
+	tmpDir := t.TempDir()
+	configs := detectAgentConfigs(tmpDir)
+	for name := range expectedAgents {
+		if _, exists := configs[name]; !exists {
+			t.Errorf("Agent %q not in detection map", name)
+		}
+	}
+}
+
+func TestInstallAgentsList(t *testing.T) {
+	rtmx.Req(t, "REQ-AGENT-001",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	tmpDir := t.TempDir()
+
+	origDir, _ := os.Getwd()
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
+
+	cmd := newTestRootCmd()
+	out, err := executeCommand(cmd, "install", "--list")
+
+	if err != nil {
+		t.Fatalf("install --list failed: %v", err)
+	}
+
+	// Should show all 10 agents
+	expectedNames := []string{
+		"claude", "cursor", "copilot", "cline", "gemini",
+		"windsurf", "aider", "amazonq", "zed", "continue",
+	}
+	for _, name := range expectedNames {
+		if !strings.Contains(out, name) {
+			t.Errorf("Expected --list output to contain agent %q, got:\n%s", name, out)
+		}
+	}
+
+	// Should mention the count
+	if !strings.Contains(out, "10") {
+		t.Errorf("Expected --list output to mention '10' agents, got:\n%s", out)
+	}
+}
+
+func TestInstallDetectNewAgents(t *testing.T) {
+	rtmx.Req(t, "REQ-AGENT-001",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	tmpDir := t.TempDir()
+
+	// Create config files for new agents
+	newAgentFiles := map[string]string{
+		"cline":    ".clinerules",
+		"gemini":   "GEMINI.md",
+		"windsurf": ".windsurfrules",
+		"aider":    ".aider.conf.yml",
+	}
+
+	for _, file := range newAgentFiles {
+		path := filepath.Join(tmpDir, file)
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("# test\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Also create nested dirs for amazonq and zed
+	for _, dir := range []string{".amazonq", ".zed", ".continue"} {
+		if err := os.MkdirAll(filepath.Join(tmpDir, dir), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_ = os.WriteFile(filepath.Join(tmpDir, ".amazonq", "rules"), []byte("# test\n"), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, ".zed", "settings.json"), []byte(`{"theme":"one-dark"}`), 0644)
+	_ = os.WriteFile(filepath.Join(tmpDir, ".continue", "config.yaml"), []byte("# test\n"), 0644)
+
+	configs := detectAgentConfigs(tmpDir)
+
+	for agent, file := range newAgentFiles {
+		expected := filepath.Join(tmpDir, file)
+		if configs[agent] != expected {
+			t.Errorf("Expected %s detected at %s, got %s", agent, expected, configs[agent])
+		}
+	}
+
+	// Check nested path agents
+	if configs["amazonq"] != filepath.Join(tmpDir, ".amazonq", "rules") {
+		t.Errorf("Expected amazonq detected, got %s", configs["amazonq"])
+	}
+	if configs["zed"] != filepath.Join(tmpDir, ".zed", "settings.json") {
+		t.Errorf("Expected zed detected, got %s", configs["zed"])
+	}
+	if configs["continue"] != filepath.Join(tmpDir, ".continue", "config.yaml") {
+		t.Errorf("Expected continue detected, got %s", configs["continue"])
+	}
+}
+
+func TestInstallZedJSON(t *testing.T) {
+	rtmx.Req(t, "REQ-AGENT-001",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	tmpDir := t.TempDir()
+
+	// Create .zed/settings.json with existing settings
+	zedDir := filepath.Join(tmpDir, ".zed")
+	if err := os.MkdirAll(zedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	settingsPath := filepath.Join(zedDir, "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{"theme": "one-dark"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	origDir, _ := os.Getwd()
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
+
+	cmd := newTestRootCmd()
+	_, err := executeCommand(cmd, "install", "--agents", "zed", "--skip-backup")
+
+	if err != nil {
+		t.Fatalf("install --agents zed failed: %v", err)
+	}
+
+	// Read the updated file
+	data, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatalf("Failed to read settings.json: %v", err)
+	}
+
+	// Verify it's valid JSON
+	var settings map[string]interface{}
+	if err := json.Unmarshal(data, &settings); err != nil {
+		t.Fatalf("settings.json is not valid JSON: %v", err)
+	}
+
+	// Should preserve existing theme
+	if settings["theme"] != "one-dark" {
+		t.Errorf("Expected theme 'one-dark' preserved, got %v", settings["theme"])
+	}
+
+	// Should have assistant.instructions
+	assistant, ok := settings["assistant"].(map[string]interface{})
+	if !ok {
+		t.Fatal("Expected assistant key in settings")
+	}
+	instructions, ok := assistant["instructions"].(string)
+	if !ok {
+		t.Fatal("Expected assistant.instructions to be a string")
+	}
+	if !strings.Contains(instructions, "RTMX") {
+		t.Errorf("Expected instructions to contain 'RTMX', got: %s", instructions)
+	}
+}
+
+func TestInstallNewAgentCreatesFile(t *testing.T) {
+	rtmx.Req(t, "REQ-AGENT-001",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	agents := []struct {
+		name       string
+		configFile string
+	}{
+		{"cline", ".clinerules"},
+		{"gemini", "GEMINI.md"},
+		{"windsurf", ".windsurfrules"},
+		{"aider", ".aider.conf.yml"},
+		{"amazonq", ".amazonq/rules"},
+		{"zed", ".zed/settings.json"},
+		{"continue", ".continue/config.yaml"},
+	}
+
+	for _, tc := range agents {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+
+			origDir, _ := os.Getwd()
+			_ = os.Chdir(tmpDir)
+			defer func() { _ = os.Chdir(origDir) }()
+
+			cmd := newTestRootCmd()
+			_, err := executeCommand(cmd, "install", "--agents", tc.name, "--skip-backup")
+			if err != nil {
+				t.Fatalf("install --agents %s failed: %v", tc.name, err)
+			}
+
+			// Verify the file was created
+			path := filepath.Join(tmpDir, tc.configFile)
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("Expected %s to exist: %v", tc.configFile, err)
+			}
+
+			content := string(data)
+			if !strings.Contains(content, "RTMX") {
+				t.Errorf("Expected %s to contain 'RTMX', got: %s", tc.configFile, content)
+			}
+
+			// For JSON format, verify it's valid JSON
+			if tc.name == "zed" {
+				var js map[string]interface{}
+				if err := json.Unmarshal(data, &js); err != nil {
+					t.Errorf("Expected %s to be valid JSON: %v", tc.configFile, err)
+				}
+			}
+		})
 	}
 }

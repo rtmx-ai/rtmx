@@ -178,7 +178,7 @@ Source: https://github.com/rtmx-ai/rtmx-go`,
 
 // newTestInstallCmd creates a fresh install command for testing with real behavior.
 func newTestInstallCmd() *cobra.Command {
-	var dryRun, yes, force, all, skipBackup, hooks, prePush, remove, validate, claude bool
+	var dryRun, yes, force, all, skipBackup, hooks, prePush, remove, validate, claude, list bool
 	var agents []string
 
 	cmd := &cobra.Command{
@@ -196,6 +196,7 @@ func newTestInstallCmd() *cobra.Command {
 			installRemove = remove
 			installValidate = validate
 			installClaude = claude
+			installList = list
 			return runInstall(cmd, args)
 		},
 	}
@@ -210,6 +211,7 @@ func newTestInstallCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&remove, "remove", false, "remove installed hooks")
 	cmd.Flags().BoolVar(&validate, "validate", false, "install validation hook")
 	cmd.Flags().BoolVar(&claude, "claude", false, "install Claude Code hooks")
+	cmd.Flags().BoolVar(&list, "list", false, "list all supported agents")
 	return cmd
 }
 
