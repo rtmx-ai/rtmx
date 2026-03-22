@@ -6,12 +6,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 	"github.com/spf13/cobra"
 )
 
 // TestConfigCommand verifies the config command works
 // REQ-GO-023: Go CLI config command shall display and validate config
 func TestConfigCommand(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-021")
+
 	cwd, _ := os.Getwd()
 	projectRoot := findProjectRootDir(cwd)
 	if projectRoot == "" {

@@ -10,11 +10,13 @@ import (
 
 	"github.com/rtmx-ai/rtmx-go/internal/config"
 	"github.com/rtmx-ai/rtmx-go/internal/database"
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 // TestGitHubAdapter validates the complete GitHub adapter functionality
 // REQ-GO-019: Go CLI shall implement GitHub adapter
 func TestGitHubAdapter(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-019")
 	os.Setenv("TEST_GITHUB_TOKEN", "test-token")
 	defer os.Unsetenv("TEST_GITHUB_TOKEN")
 

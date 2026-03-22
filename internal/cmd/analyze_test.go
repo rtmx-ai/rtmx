@@ -7,11 +7,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 // TestAnalyzeCommand tests the analyze command.
 // REQ-GO-031: Go CLI shall implement analyze command with tests at internal/cmd/analyze_test.go
 func TestAnalyzeCommand(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-031")
+
 	// Save original flag values
 	origOutput := analyzeOutput
 	origFormat := analyzeFormat

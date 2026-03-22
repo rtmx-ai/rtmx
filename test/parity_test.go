@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 // binaryName returns the platform-appropriate binary name
@@ -21,6 +23,7 @@ func binaryName() string {
 // TestFullParity validates that the Go CLI achieves feature parity with Python CLI
 // REQ-GO-020: Go CLI v1.0.0 shall achieve full feature parity
 func TestFullParity(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-020")
 	// Build the Go CLI binary
 	tmpDir, err := os.MkdirTemp("", "rtmx-parity-test")
 	if err != nil {

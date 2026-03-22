@@ -4,11 +4,15 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 // TestFileSystemInterface validates that our implementations satisfy FileSystem.
 // REQ-GO-062: Go CLI shall provide FileSystem interface for command testing
 func TestFileSystemInterface(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-062")
+
 	// OSFileSystem must satisfy FileSystem
 	var _ FileSystem = &OSFileSystem{}
 

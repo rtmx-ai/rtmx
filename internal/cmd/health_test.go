@@ -8,10 +8,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 	"github.com/spf13/cobra"
 )
 
 func TestHealthRealCommand(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-012")
+
 	cwd, _ := os.Getwd()
 	projectRoot := findProjectRootDir(cwd)
 	if projectRoot == "" {

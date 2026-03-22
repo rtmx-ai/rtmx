@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/rtmx-ai/rtmx-go/internal/config"
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 // MockHTTPClient implements HTTPClient for testing.
@@ -25,6 +26,7 @@ func (m *MockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 // TestHTTPClientInterface validates that http.Client satisfies HTTPClient.
 // REQ-GO-061: Go CLI shall provide HTTPClient interface for adapter testing
 func TestHTTPClientInterface(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-061")
 	// http.Client must satisfy HTTPClient interface
 	var _ HTTPClient = &http.Client{}
 

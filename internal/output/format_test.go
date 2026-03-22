@@ -2,11 +2,14 @@ package output
 
 import (
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 // TestColorScheme verifies that the color scheme matches Python CLI
 // REQ-GO-054: Go CLI shall use same color scheme as Python CLI
 func TestColorScheme(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-054")
 	// Status colors: COMPLETE=green, PARTIAL=yellow, MISSING=red
 	tests := []struct {
 		status   string

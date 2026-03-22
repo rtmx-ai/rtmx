@@ -3,9 +3,12 @@ package output
 import (
 	"strings"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 func TestNewTable(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-048")
 	table := NewTable("A", "B", "C")
 	if table == nil {
 		t.Fatal("NewTable returned nil")

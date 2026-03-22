@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 func TestStatusParsing(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-009")
 	tests := []struct {
 		input    string
 		expected Status

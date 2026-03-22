@@ -8,6 +8,7 @@ import (
 )
 
 func TestReqValidID(t *testing.T) {
+	Req(t, "REQ-LANG-003")
 	ClearRegistry()
 
 	// This should not fail

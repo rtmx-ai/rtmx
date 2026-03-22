@@ -11,6 +11,7 @@ import (
 
 	"github.com/rtmx-ai/rtmx-go/internal/config"
 	"github.com/rtmx-ai/rtmx-go/internal/database"
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 // REQ-GO-065: Go CLI adapters shall achieve 100% test coverage
@@ -20,6 +21,7 @@ import (
 // =============================================================================
 
 func TestGitHubFetchItems(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-065")
 	tests := []struct {
 		name       string
 		query      map[string]interface{}

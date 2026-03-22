@@ -6,11 +6,13 @@ import (
 
 	"github.com/rtmx-ai/rtmx-go/internal/config"
 	"github.com/rtmx-ai/rtmx-go/internal/database"
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 // TestJiraAdapter validates the complete Jira adapter functionality
 // REQ-GO-032: Go CLI shall implement Jira adapter
 func TestJiraAdapter(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-032")
 	os.Setenv("TEST_JIRA_TOKEN", "test-token")
 	os.Setenv("TEST_JIRA_EMAIL", "test@example.com")
 	defer func() {
