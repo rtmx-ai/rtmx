@@ -6,10 +6,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 	"github.com/spf13/cobra"
 )
 
 func TestExtractMarkersFromFile(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-017")
+
 	// Create a temporary test file
 	tmpDir, err := os.MkdirTemp("", "rtmx-from-tests")
 	if err != nil {

@@ -8,11 +8,14 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 // TestV010Release validates the v0.1.0 release requirements.
 // REQ-GO-073: Go CLI v0.1.0 release signals architectural transition from Python
 func TestV010Release(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-073")
 	// Build the Go CLI binary
 	tmpDir, err := os.MkdirTemp("", "rtmx-release-test")
 	if err != nil {

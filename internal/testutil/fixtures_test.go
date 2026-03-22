@@ -6,11 +6,13 @@ import (
 	"testing"
 
 	"github.com/rtmx-ai/rtmx-go/internal/database"
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 // TestFixtures validates the test fixtures functionality.
 // REQ-GO-063: Go CLI shall provide test fixtures package
 func TestFixtures(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-063")
 	// Test that we can create a test database
 	db := NewTestDatabase(t)
 	if db == nil {

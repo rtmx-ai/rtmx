@@ -2,9 +2,12 @@ package testutil
 
 import (
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 func TestStripANSIString(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-071")
 	tests := []struct {
 		name   string
 		input  string

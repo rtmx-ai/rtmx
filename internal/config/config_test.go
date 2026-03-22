@@ -4,9 +4,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 func TestDefaultConfig(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-008")
 	cfg := DefaultConfig()
 
 	if cfg.RTMX.Database != ".rtmx/database.csv" {

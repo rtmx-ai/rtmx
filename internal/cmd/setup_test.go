@@ -5,9 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 func TestSetupDetectProject(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-026")
+
 	// Create temp directory
 	tmpDir, err := os.MkdirTemp("", "rtmx-setup-test")
 	if err != nil {

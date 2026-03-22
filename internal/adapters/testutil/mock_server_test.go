@@ -6,11 +6,14 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 // TestMockServer validates the mock HTTP server functionality.
 // REQ-GO-064: Go CLI shall provide mock HTTP server for adapter tests
 func TestMockServer(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-064")
 	server := NewMockServer()
 	defer server.Close()
 

@@ -6,11 +6,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 // TestFromGoCommand tests the from-go command.
 // REQ-LANG-003: Go testing integration with helper functions
 func TestFromGoCommand(t *testing.T) {
+	rtmx.Req(t, "REQ-LANG-003")
+
 	// Save original flag values
 	origUpdate := fromGoUpdate
 	origDryRun := fromGoDryRun

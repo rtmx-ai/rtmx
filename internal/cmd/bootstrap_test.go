@@ -8,11 +8,14 @@ import (
 	"testing"
 
 	"github.com/rtmx-ai/rtmx-go/internal/config"
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 // TestBootstrapCommand tests the bootstrap command.
 // REQ-GO-027: Go CLI shall implement bootstrap command with tests at internal/cmd/bootstrap_test.go
 func TestBootstrapCommand(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-027")
+
 	// Save original flag values
 	origFromTests := bootstrapFromTests
 	origFromGitHub := bootstrapFromGitHub

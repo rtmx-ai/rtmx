@@ -6,9 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 func TestInitCommand(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-016")
+
 	// Create temp directory
 	tmpDir, err := os.MkdirTemp("", "rtmx-init-test")
 	if err != nil {

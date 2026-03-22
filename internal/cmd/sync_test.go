@@ -3,9 +3,13 @@ package cmd
 import (
 	"strings"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 func TestSyncResultSummary(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-028")
+
 	tests := []struct {
 		name     string
 		result   *SyncResult

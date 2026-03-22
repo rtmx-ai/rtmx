@@ -6,10 +6,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 	"github.com/spf13/cobra"
 )
 
 func TestDepsRealCommand(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-013")
+
 	cwd, _ := os.Getwd()
 	projectRoot := findProjectRootDir(cwd)
 	if projectRoot == "" {

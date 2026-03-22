@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/rtmx-ai/rtmx-go/internal/database"
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 func createTestDB() *database.Database {
@@ -57,6 +58,7 @@ func createCyclicDB() *database.Database {
 }
 
 func TestGraphBasics(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-013")
 	db := createTestDB()
 	g := NewGraph(db)
 

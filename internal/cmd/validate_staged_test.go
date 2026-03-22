@@ -4,9 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
 )
 
 func TestValidateStagedValidCSV(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-030")
+
 	// Create temp directory
 	tmpDir, err := os.MkdirTemp("", "rtmx-validate-test")
 	if err != nil {
