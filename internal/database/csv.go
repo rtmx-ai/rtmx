@@ -47,7 +47,7 @@ func Load(path string) (*Database, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	db, err := ReadCSV(file)
 	if err != nil {
@@ -71,7 +71,7 @@ func (db *Database) Save(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create database file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if err := db.WriteCSV(file); err != nil {
 		return err

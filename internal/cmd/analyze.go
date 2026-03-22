@@ -280,7 +280,7 @@ func formatAnalysisMarkdown(report *AnalysisReport) string {
 	var sb strings.Builder
 
 	sb.WriteString("# RTMX Project Analysis\n\n")
-	sb.WriteString(fmt.Sprintf("**Path:** %s\n\n", report.Path))
+	fmt.Fprintf(&sb, "**Path:** %s\n\n", report.Path)
 
 	sb.WriteString("## Test Files\n\n")
 	if len(report.TestFiles) > 0 {
@@ -291,9 +291,9 @@ func formatAnalysisMarkdown(report *AnalysisReport) string {
 			if tf.HasMarkers {
 				hasMarkers = "Yes"
 			}
-			sb.WriteString(fmt.Sprintf("| %s | %s | %d |\n", tf.Path, hasMarkers, tf.MarkerCount))
+			fmt.Fprintf(&sb, "| %s | %s | %d |\n", tf.Path, hasMarkers, tf.MarkerCount)
 		}
-		sb.WriteString(fmt.Sprintf("\n**Tests without markers:** %d\n\n", report.UnmarkedTests))
+		fmt.Fprintf(&sb, "\n**Tests without markers:** %d\n\n", report.UnmarkedTests)
 	} else {
 		sb.WriteString("No test files found.\n\n")
 	}
