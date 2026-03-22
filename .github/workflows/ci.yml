@@ -240,8 +240,8 @@ jobs:
       - name: Build Go CLI
         run: go build -o rtmx ./cmd/rtmx
 
-      - name: Install Python rtmx
-        run: pip install rtmx
+      - name: Install Python rtmx and pytest
+        run: pip install rtmx pytest
 
       - name: Create test file
         run: |
