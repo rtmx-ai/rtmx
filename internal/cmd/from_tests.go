@@ -54,6 +54,15 @@ type TestRequirement struct {
 	Markers      []string
 }
 
+// ConftestMarkerRegistration represents a marker registration found in conftest.py
+type ConftestMarkerRegistration struct {
+	FilePath   string
+	MarkerName string
+	MarkerArgs string
+	MarkerHelp string
+	LineNumber int
+}
+
 func runFromTests(cmd *cobra.Command, args []string) error {
 	if noColor {
 		output.DisableColor()
@@ -72,6 +81,35 @@ func runFromTests(cmd *cobra.Command, args []string) error {
 	}
 
 	cmd.Printf("Scanning %s for requirement markers...\n\n", testPath)
+
+	// Scan for conftest.py marker registrations
+	var conftestRegs []ConftestMarkerRegistration
+	if info.IsDir() {
+		conftestRegs, err = scanConftestFiles(testPath)
+		if err != nil {
+			return fmt.Errorf("failed to scan conftest files: %w", err)
+		}
+	} else if filepath.Base(testPath) == "conftest.py" {
+		conftestRegs, err = extractConftestRegistrations(testPath)
+		if err != nil {
+			return fmt.Errorf("failed to parse conftest: %w", err)
+		}
+	}
+
+	if len(conftestRegs) > 0 {
+		cmd.Printf("conftest.py markers detected: %d registration(s)\n", len(conftestRegs))
+		for _, reg := range conftestRegs {
+			desc := reg.MarkerName
+			if reg.MarkerArgs != "" {
+				desc += "(" + reg.MarkerArgs + ")"
+			}
+			if reg.MarkerHelp != "" {
+				desc += ": " + reg.MarkerHelp
+			}
+			cmd.Printf("  %s [%s:%d]\n", desc, reg.FilePath, reg.LineNumber)
+		}
+		cmd.Println()
+	}
 
 	// Scan for markers
 	var markers []TestRequirement
@@ -240,7 +278,7 @@ func runFromTests(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// scanTestDirectory scans a directory for Python test files
+// scanTestDirectory scans a directory for Python test files and conftest.py files
 func scanTestDirectory(dir string) ([]TestRequirement, error) {
 	var results []TestRequirement
 
@@ -254,11 +292,22 @@ func scanTestDirectory(dir string) ([]TestRequirement, error) {
 			return nil
 		}
 
+		base := filepath.Base(path)
+
 		// Match test_*.py pattern
-		if strings.HasPrefix(filepath.Base(path), "test_") && strings.HasSuffix(path, ".py") {
+		if strings.HasPrefix(base, "test_") && strings.HasSuffix(path, ".py") {
 			markers, err := extractMarkersFromFile(path)
 			if err != nil {
 				// Skip files that can't be parsed
+				return nil
+			}
+			results = append(results, markers...)
+		}
+
+		// Also scan conftest.py for requirement markers on fixtures
+		if base == "conftest.py" {
+			markers, err := extractMarkersFromFile(path)
+			if err != nil {
 				return nil
 			}
 			results = append(results, markers...)
@@ -280,11 +329,16 @@ func extractMarkersFromFile(filePath string) ([]TestRequirement, error) {
 
 	var results []TestRequirement
 
+	isConftest := filepath.Base(filePath) == "conftest.py"
+
 	// Regex patterns for pytest markers
 	reqMarkerPattern := regexp.MustCompile(`@pytest\.mark\.req\(['"](REQ-[A-Z0-9-]+)['"]\)`)
 	funcPattern := regexp.MustCompile(`^(?:async\s+)?def\s+(test_\w+)\s*\(`)
 	classPattern := regexp.MustCompile(`^class\s+(Test\w+)\s*[:(]`)
 	otherMarkerPattern := regexp.MustCompile(`@pytest\.mark\.(scope_\w+|technique_\w+|env_\w+)`)
+
+	// For conftest.py, also match non-test functions (fixtures)
+	fixtureFuncPattern := regexp.MustCompile(`^(?:async\s+)?def\s+(\w+)\s*\(`)
 
 	scanner := bufio.NewScanner(file)
 	lineNum := 0
@@ -319,9 +373,26 @@ func extractMarkersFromFile(filePath string) ([]TestRequirement, error) {
 			continue
 		}
 
-		// Check for function definition
-		if match := funcPattern.FindStringSubmatch(trimmed); match != nil {
-			funcName := match[1]
+		// Check for function definition - in conftest.py also match fixture functions
+		var funcMatch []string
+		if isConftest && len(pendingReqIDs) > 0 {
+			funcMatch = fixtureFuncPattern.FindStringSubmatch(trimmed)
+		} else {
+			// For non-conftest files, try the test function pattern first
+			funcMatch = funcPattern.FindStringSubmatch(trimmed)
+
+			// If a non-test function is found and there are pending markers, discard them
+			if funcMatch == nil && len(pendingReqIDs) > 0 {
+				if anyFunc := fixtureFuncPattern.FindStringSubmatch(trimmed); anyFunc != nil {
+					pendingReqIDs = nil
+					pendingMarkers = nil
+					continue
+				}
+			}
+		}
+
+		if funcMatch != nil {
+			funcName := funcMatch[1]
 			if currentClass != "" {
 				funcName = currentClass + "::" + funcName
 			}
@@ -344,4 +415,115 @@ func extractMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	}
 
 	return results, scanner.Err()
+}
+
+// extractConftestRegistrations parses conftest.py for marker registration patterns
+// such as config.addinivalue_line("markers", "req(id, ...): ...").
+func extractConftestRegistrations(filePath string) ([]ConftestMarkerRegistration, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = file.Close() }()
+
+	var results []ConftestMarkerRegistration
+
+	// Match patterns like:
+	//   config.addinivalue_line("markers", "req(id, scope=None): Link test to requirement")
+	//   config.addinivalue_line("markers", "scope_unit: Unit test scope")
+	// Also handles multiline calls where arguments span multiple lines.
+	addiniPattern := regexp.MustCompile(
+		`addinivalue_line\s*\(\s*["']markers["']\s*,\s*["'](\w+)(?:\(([^)]*)\))?\s*(?::\s*(.+?))?["']\s*\)`,
+	)
+	// Detect start of multiline addinivalue_line call (line contains the call but no closing paren for markers arg)
+	addiniStartPattern := regexp.MustCompile(`addinivalue_line\s*\(`)
+
+	scanner := bufio.NewScanner(file)
+	lineNum := 0
+	var accumulator string
+	accumulatorLine := 0
+
+	for scanner.Scan() {
+		lineNum++
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+
+		// Handle multiline accumulation
+		if accumulator != "" {
+			accumulator += " " + trimmed
+			// Try to match the accumulated lines
+			if matches := addiniPattern.FindAllStringSubmatch(accumulator, -1); matches != nil {
+				for _, m := range matches {
+					reg := ConftestMarkerRegistration{
+						FilePath:   filePath,
+						MarkerName: m[1],
+						LineNumber: accumulatorLine,
+					}
+					if len(m) > 2 {
+						reg.MarkerArgs = m[2]
+					}
+					if len(m) > 3 {
+						reg.MarkerHelp = strings.TrimSpace(m[3])
+					}
+					results = append(results, reg)
+				}
+				accumulator = ""
+			} else if lineNum-accumulatorLine > 5 {
+				// Give up after 5 lines of accumulation to avoid runaway
+				accumulator = ""
+			}
+			continue
+		}
+
+		// Check if this is a single-line match
+		if matches := addiniPattern.FindAllStringSubmatch(line, -1); matches != nil {
+			for _, m := range matches {
+				reg := ConftestMarkerRegistration{
+					FilePath:   filePath,
+					MarkerName: m[1],
+					LineNumber: lineNum,
+				}
+				if len(m) > 2 {
+					reg.MarkerArgs = m[2]
+				}
+				if len(m) > 3 {
+					reg.MarkerHelp = strings.TrimSpace(m[3])
+				}
+				results = append(results, reg)
+			}
+			continue
+		}
+
+		// Check for start of multiline call
+		if addiniStartPattern.MatchString(trimmed) {
+			accumulator = trimmed
+			accumulatorLine = lineNum
+		}
+	}
+
+	return results, scanner.Err()
+}
+
+// scanConftestFiles finds and parses conftest.py marker registrations in a directory tree
+func scanConftestFiles(dir string) ([]ConftestMarkerRegistration, error) {
+	var results []ConftestMarkerRegistration
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if filepath.Base(path) == "conftest.py" {
+			regs, err := extractConftestRegistrations(path)
+			if err != nil {
+				return nil
+			}
+			results = append(results, regs...)
+		}
+		return nil
+	})
+
+	return results, err
 }
