@@ -1,6 +1,7 @@
 # Binaries
 bin/
 dist/
+!.rtmx/requirements/DIST/
 *.exe
 *.exe~
 *.dll
