@@ -49,7 +49,7 @@ checksum:
   algorithm: sha256
 
 signs:
-  - artifacts: checksum
+  - artifacts: all
     args:
       - "--batch"
       - "--local-user"
