@@ -144,3 +144,35 @@ nfpms:
       - deb
       - rpm
     bindir: /usr/bin
+
+dockers:
+  - image_templates:
+      - 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}-amd64'
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+    goarch: amd64
+    dockerfile: Dockerfile
+    extra_files:
+      - go.mod
+      - go.sum
+  - image_templates:
+      - 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}-arm64'
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64"
+    goarch: arm64
+    dockerfile: Dockerfile
+    extra_files:
+      - go.mod
+      - go.sum
+
+docker_manifests:
+  - name_template: 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}'
+    image_templates:
+      - 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}-amd64'
+      - 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}-arm64'
+  - name_template: 'ghcr.io/rtmx-ai/rtmx:latest'
+    image_templates:
+      - 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}-amd64'
+      - 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}-arm64'

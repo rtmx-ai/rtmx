@@ -44,6 +44,18 @@ jobs:
           file: ./coverage.out
           fail_ci_if_error: false
 
+      - name: Check coverage threshold
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          echo "Total coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            echo "::error::Coverage ${COVERAGE}% is below 80% threshold"
+            exit 1
+          fi
+          echo "Coverage ${COVERAGE}% meets 80% threshold"
+
       - name: Upload coverage to Coveralls
         if: matrix.os == 'ubuntu-latest'
         uses: coverallsapp/github-action@v2
