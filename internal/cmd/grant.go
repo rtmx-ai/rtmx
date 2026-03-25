@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/rtmx-ai/rtmx-go/internal/config"
-	syncpkg "github.com/rtmx-ai/rtmx-go/internal/sync"
+	"github.com/rtmx-ai/rtmx/internal/config"
+	syncpkg "github.com/rtmx-ai/rtmx/internal/sync"
 )
 
 var (

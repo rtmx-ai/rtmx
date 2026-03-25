@@ -45,7 +45,7 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: Install rtmx
-        run: go install github.com/rtmx-ai/rtmx-go/cmd/rtmx@latest
+        run: go install github.com/rtmx-ai/rtmx/cmd/rtmx@latest
 
       - name: Validate CSV structure
         run: |

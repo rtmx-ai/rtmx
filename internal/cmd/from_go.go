@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rtmx-ai/rtmx-go/internal/config"
-	"github.com/rtmx-ai/rtmx-go/internal/database"
-	"github.com/rtmx-ai/rtmx-go/internal/output"
+	"github.com/rtmx-ai/rtmx/internal/config"
+	"github.com/rtmx-ai/rtmx/internal/database"
+	"github.com/rtmx-ai/rtmx/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +27,7 @@ writes them to a JSON file. This command imports those results into
 the RTM database.
 
 Usage in Go tests:
-    import "github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+    import "github.com/rtmx-ai/rtmx/pkg/rtmx"
 
     func TestFeature(t *testing.T) {
         rtmx.Req(t, "REQ-FEAT-001", rtmx.Scope("unit"))

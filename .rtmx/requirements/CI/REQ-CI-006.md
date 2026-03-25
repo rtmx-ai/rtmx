@@ -46,7 +46,7 @@ on:
 ```yaml
 # In rtmx-sync/.github/workflows/ci.yml
 validate-rtm:
-  uses: rtmx-ai/rtmx-go/.github/workflows/rtmx-validate.yml@main
+  uses: rtmx-ai/rtmx/.github/workflows/rtmx-validate.yml@main
   with:
     rtm-csv-path: '.rtmx/database.csv'
 ```

@@ -8,7 +8,7 @@
 
 set -e
 
-REPO="rtmx-ai/rtmx-go"
+REPO="rtmx-ai/rtmx"
 INSTALL_DIR="${RTMX_INSTALL:-/usr/local/bin}"
 
 # Detect OS
@@ -107,6 +107,6 @@ if [ -n "$PYTHON_RTMX" ]; then
   echo "  1. Verify the Go CLI works: rtmx status"
   echo "  2. Remove the Python CLI:   ${PYTHON_RTMX} uninstall rtmx"
   echo ""
-  echo "Migration guide: https://github.com/rtmx-ai/rtmx-go#migrating-from-python-cli"
+  echo "Migration guide: https://github.com/rtmx-ai/rtmx#migrating-from-python-cli"
   echo ""
 fi

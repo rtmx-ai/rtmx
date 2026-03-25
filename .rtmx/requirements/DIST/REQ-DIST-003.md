@@ -53,7 +53,7 @@ const { downloadBinary } = require('../lib/binary');
 const platform = os.platform();  // 'darwin', 'linux', 'win32'
 const arch = os.arch();          // 'x64', 'arm64'
 
-const binaryUrl = `https://github.com/rtmx-ai/rtmx-go/releases/download/v${version}/rtmx_${version}_${platform}_${arch}.tar.gz`;
+const binaryUrl = `https://github.com/rtmx-ai/rtmx/releases/download/v${version}/rtmx_${version}_${platform}_${arch}.tar.gz`;
 
 await downloadBinary(binaryUrl);
 ```

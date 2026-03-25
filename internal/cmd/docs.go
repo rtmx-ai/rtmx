@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rtmx-ai/rtmx-go/internal/config"
+	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/spf13/cobra"
 )
 

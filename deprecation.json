@@ -2,10 +2,10 @@
   "tool": "rtmx",
   "deprecated_package": "rtmx",
   "deprecated_install": "pip install rtmx",
-  "replacement_package": "rtmx-go",
+  "replacement_package": "rtmx",
   "replacement_install": "brew install rtmx-ai/tap/rtmx",
-  "migration_guide": "https://github.com/rtmx-ai/rtmx-go#migrating-from-python-cli",
+  "migration_guide": "https://github.com/rtmx-ai/rtmx#migrating-from-python-cli",
   "deprecation_date": "2026-03-25",
   "sunset_date": "2026-09-25",
-  "message": "The Python rtmx CLI is deprecated. Please migrate to the Go CLI: brew install rtmx-ai/tap/rtmx. See https://github.com/rtmx-ai/rtmx-go#migrating-from-python-cli for details."
+  "message": "The Python rtmx CLI is deprecated. Please migrate to the Go CLI: brew install rtmx-ai/tap/rtmx. See https://github.com/rtmx-ai/rtmx#migrating-from-python-cli for details."
 }

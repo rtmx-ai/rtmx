@@ -156,7 +156,7 @@ It provides commands to track requirements, run verification tests, manage depen
 and synchronize with external tools like GitHub and Jira.
 
 Documentation: https://rtmx.ai/docs
-Source: https://github.com/rtmx-ai/rtmx-go`,
+Source: https://github.com/rtmx-ai/rtmx`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}

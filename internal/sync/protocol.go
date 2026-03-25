@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rtmx-ai/rtmx-go/internal/database"
+	"github.com/rtmx-ai/rtmx/internal/database"
 )
 
 // MessageType identifies the type of sync protocol message.

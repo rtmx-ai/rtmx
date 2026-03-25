@@ -41,11 +41,11 @@ scoop update rtmx
     "license": "Apache-2.0",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/rtmx-ai/rtmx-go/releases/download/v0.1.0/rtmx_0.1.0_windows_amd64.zip",
+            "url": "https://github.com/rtmx-ai/rtmx/releases/download/v0.1.0/rtmx_0.1.0_windows_amd64.zip",
             "hash": "sha256:..."
         },
         "arm64": {
-            "url": "https://github.com/rtmx-ai/rtmx-go/releases/download/v0.1.0/rtmx_0.1.0_windows_arm64.zip",
+            "url": "https://github.com/rtmx-ai/rtmx/releases/download/v0.1.0/rtmx_0.1.0_windows_arm64.zip",
             "hash": "sha256:..."
         }
     },
@@ -54,10 +54,10 @@ scoop update rtmx
     "autoupdate": {
         "architecture": {
             "64bit": {
-                "url": "https://github.com/rtmx-ai/rtmx-go/releases/download/v$version/rtmx_$version_windows_amd64.zip"
+                "url": "https://github.com/rtmx-ai/rtmx/releases/download/v$version/rtmx_$version_windows_amd64.zip"
             },
             "arm64": {
-                "url": "https://github.com/rtmx-ai/rtmx-go/releases/download/v$version/rtmx_$version_windows_arm64.zip"
+                "url": "https://github.com/rtmx-ai/rtmx/releases/download/v$version/rtmx_$version_windows_arm64.zip"
             }
         }
     }

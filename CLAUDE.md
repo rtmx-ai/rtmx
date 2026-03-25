@@ -123,7 +123,7 @@ var (
 
 Build with:
 ```bash
-go build -ldflags "-X github.com/rtmx-ai/rtmx-go/internal/cmd.Version=v0.1.0 ..."
+go build -ldflags "-X github.com/rtmx-ai/rtmx/internal/cmd.Version=v0.1.0 ..."
 ```
 
 ## Compatibility Requirements
@@ -336,4 +336,4 @@ internal/
 ## Contact
 
 - RTMX Engineering: dev@rtmx.ai
-- Issues: https://github.com/rtmx-ai/rtmx-go/issues
+- Issues: https://github.com/rtmx-ai/rtmx/issues

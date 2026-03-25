@@ -22,7 +22,7 @@ Go is the implementation language for the RTMX CLI. Native Go integration demons
 ### Installation
 
 ```go
-import "github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+import "github.com/rtmx-ai/rtmx/pkg/rtmx"
 ```
 
 ### Helper Function

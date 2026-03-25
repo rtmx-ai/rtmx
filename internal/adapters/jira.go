@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rtmx-ai/rtmx-go/internal/config"
-	"github.com/rtmx-ai/rtmx-go/internal/database"
+	"github.com/rtmx-ai/rtmx/internal/config"
+	"github.com/rtmx-ai/rtmx/internal/database"
 )
 
 // JiraAdapter syncs requirements with Jira tickets

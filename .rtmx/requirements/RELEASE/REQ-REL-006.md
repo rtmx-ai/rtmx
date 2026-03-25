@@ -46,8 +46,8 @@ set -e
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 case "$ARCH" in x86_64) ARCH=amd64;; aarch64|arm64) ARCH=arm64;; esac
-VERSION=$(curl -s https://api.github.com/repos/rtmx-ai/rtmx-go/releases/latest | grep tag_name | cut -d'"' -f4)
-URL="https://github.com/rtmx-ai/rtmx-go/releases/download/${VERSION}/rtmx_${VERSION#v}_${OS}_${ARCH}.tar.gz"
+VERSION=$(curl -s https://api.github.com/repos/rtmx-ai/rtmx/releases/latest | grep tag_name | cut -d'"' -f4)
+URL="https://github.com/rtmx-ai/rtmx/releases/download/${VERSION}/rtmx_${VERSION#v}_${OS}_${ARCH}.tar.gz"
 curl -fsSL "$URL" | tar xz -C /usr/local/bin rtmx
 echo "rtmx ${VERSION} installed to /usr/local/bin/rtmx"
 ```
