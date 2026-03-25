@@ -416,6 +416,126 @@ func TestStatusJSONWithFailUnder(t *testing.T) {
 	}
 }
 
+// TestStatusDetailedVerbosity tests -vvv which calls displayDetailedStatus
+func TestStatusDetailedVerbosity(t *testing.T) {
+	cwd, _ := os.Getwd()
+	projectRoot := findProjectRootDir(cwd)
+	if projectRoot == "" {
+		t.Skip("Could not find project root with .rtmx")
+	}
+
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(projectRoot)
+	defer func() { _ = os.Chdir(oldWd) }()
+
+	rootCmd := createStatusTestCmd()
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetArgs([]string{"status", "-vvv"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("status -vvv failed: %v", err)
+	}
+
+	out := buf.String()
+
+	// displayDetailedStatus outputs "RTM Detailed Status" header
+	if !strings.Contains(out, "RTM Detailed Status") {
+		t.Errorf("expected 'RTM Detailed Status' header in output, got:\n%s", out)
+	}
+
+	// Should show overall progress with requirement count
+	if !strings.Contains(out, "Overall:") {
+		t.Errorf("expected 'Overall:' line in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "requirements") {
+		t.Errorf("expected 'requirements' count in output, got:\n%s", out)
+	}
+
+	// Should show phase sub-headers
+	if !strings.Contains(out, "Phase") {
+		t.Errorf("expected phase sections in output, got:\n%s", out)
+	}
+
+	// Should show individual requirement IDs (REQ-*)
+	if !strings.Contains(out, "REQ-") {
+		t.Errorf("expected individual requirement IDs (REQ-*) in output, got:\n%s", out)
+	}
+}
+
+// TestStatusDetailedWithTempDB tests displayDetailedStatus with a controlled temp database.
+func TestStatusDetailedWithTempDB(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create config
+	if err := os.MkdirAll(filepath.Join(dir, ".rtmx"), 0755); err != nil {
+		t.Fatalf("failed to create .rtmx dir: %v", err)
+	}
+	cfgContent := `rtmx:
+  database: database.csv
+  phases:
+    1: Foundation
+    2: Integration
+`
+	if err := os.WriteFile(filepath.Join(dir, ".rtmx", "config.yaml"), []byte(cfgContent), 0644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	// Create database with requirements in multiple phases and categories
+	// Use a minimal CSV with only the columns needed
+	csvContent := `req_id,category,requirement_text,status,priority,phase
+REQ-CORE-001,CORE,Core feature one,COMPLETE,HIGH,1
+REQ-CORE-002,CORE,Core feature two,MISSING,MEDIUM,1
+REQ-INT-001,INTEGRATION,Integration feature,PARTIAL,P0,2
+REQ-INT-002,INTEGRATION,Another integration feature with a very long description that should be truncated,NOT_STARTED,LOW,2
+`
+	if err := os.WriteFile(filepath.Join(dir, "database.csv"), []byte(csvContent), 0644); err != nil {
+		t.Fatalf("failed to write database: %v", err)
+	}
+
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(dir)
+	defer func() { _ = os.Chdir(oldWd) }()
+
+	rootCmd := createStatusTestCmd()
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetArgs([]string{"status", "-vvv"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("status -vvv with temp DB failed: %v", err)
+	}
+
+	out := buf.String()
+
+	// Verify phase headers
+	if !strings.Contains(out, "Phase 1") {
+		t.Errorf("expected Phase 1 section, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Phase 2") {
+		t.Errorf("expected Phase 2 section, got:\n%s", out)
+	}
+
+	// Verify requirement IDs are shown
+	for _, reqID := range []string{"REQ-CORE-001", "REQ-CORE-002", "REQ-INT-001", "REQ-INT-002"} {
+		if !strings.Contains(out, reqID) {
+			t.Errorf("expected %s in output, got:\n%s", reqID, out)
+		}
+	}
+
+	// Verify priority labels appear
+	if !strings.Contains(out, "HIGH") {
+		t.Errorf("expected HIGH priority in output, got:\n%s", out)
+	}
+
+	// Verify overall line includes requirement count
+	if !strings.Contains(out, "4 requirements") {
+		t.Errorf("expected '4 requirements' in output, got:\n%s", out)
+	}
+}
+
 // createStatusTestCmd creates a root command with real status command for testing
 func createStatusTestCmd() *cobra.Command {
 	root := &cobra.Command{
