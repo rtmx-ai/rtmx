@@ -1,0 +1,88 @@
+name: RTMX Validate
+
+on:
+  workflow_call:
+    inputs:
+      rtm-csv-path:
+        description: 'Path to RTM database CSV'
+        required: false
+        default: '.rtmx/database.csv'
+        type: string
+      go-version:
+        description: 'Go version for building rtmx'
+        required: false
+        default: '1.25'
+        type: string
+      fail-on-unhealthy:
+        description: 'Fail the workflow if health status is unhealthy'
+        required: false
+        default: true
+        type: boolean
+    outputs:
+      status:
+        description: 'Health status (healthy/degraded/unhealthy)'
+        value: ${{ jobs.validate.outputs.status }}
+      completion:
+        description: 'Completion percentage'
+        value: ${{ jobs.validate.outputs.completion }}
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate RTM Database
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.health.outputs.status }}
+      completion: ${{ steps.health.outputs.completion }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Install rtmx
+        run: go install github.com/rtmx-ai/rtmx-go/cmd/rtmx@latest
+
+      - name: Validate CSV structure
+        run: |
+          if [ ! -f "${{ inputs.rtm-csv-path }}" ]; then
+            echo "::error::RTM database not found at ${{ inputs.rtm-csv-path }}"
+            exit 1
+          fi
+          rtmx status --json > /dev/null
+
+      - name: Check health
+        id: health
+        run: |
+          HEALTH_JSON=$(rtmx health --json)
+          STATUS=$(echo "$HEALTH_JSON" | jq -r '.status // "unknown"')
+          COMPLETION=$(echo "$HEALTH_JSON" | jq -r '.completion // "0"')
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          echo "completion=$COMPLETION" >> "$GITHUB_OUTPUT"
+          echo "## RTM Health Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Status**: $STATUS" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Completion**: ${COMPLETION}%" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          rtmx status >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+
+      - name: Upload health report
+        uses: actions/upload-artifact@v5
+        with:
+          name: rtm-health-report
+          path: ${{ inputs.rtm-csv-path }}
+          retention-days: 30
+
+      - name: Enforce health gate
+        if: inputs.fail-on-unhealthy
+        run: |
+          STATUS="${{ steps.health.outputs.status }}"
+          if [ "$STATUS" = "unhealthy" ]; then
+            echo "::error::RTM health is unhealthy"
+            exit 1
+          fi
+          echo "RTM health: $STATUS"

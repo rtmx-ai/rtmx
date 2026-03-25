@@ -8,6 +8,7 @@ dist/
 *.dylib
 /rtmx
 rtmx-*
+!.github/workflows/rtmx-*
 
 # Test binary, built with `go test -c`
 *.test
