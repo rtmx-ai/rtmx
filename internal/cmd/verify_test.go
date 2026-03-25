@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -501,6 +502,9 @@ func setupTestProject(t *testing.T, dbContent string) string {
 const testDBHeader = "req_id,category,subcategory,requirement_text,target_value,test_module,test_function,validation_method,status,priority,phase,notes,effort_weeks,dependencies,blocks,assignee,sprint,started_date,completed_date,requirement_file,external_id\n"
 
 func TestVerifyFromTests_CustomCommand_EchoJSON(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("echo behaves differently on Windows")
+	}
 	dbContent := testDBHeader +
 		"REQ-001,CAT,Sub,Requirement text,Pass,test_mod,TestFoo,Unit Test,MISSING,HIGH,1,,,,,,,,,\n"
 	tmpDir := setupTestProject(t, dbContent)
@@ -534,6 +538,9 @@ func TestVerifyFromTests_CustomCommand_EchoJSON(t *testing.T) {
 }
 
 func TestVerifyFromTests_CustomCommand_FailingTest(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("echo behaves differently on Windows")
+	}
 	dbContent := testDBHeader +
 		"REQ-001,CAT,Sub,Requirement text,Pass,test_mod,TestBar,Unit Test,COMPLETE,HIGH,1,,,,,,,,,\n"
 	tmpDir := setupTestProject(t, dbContent)
