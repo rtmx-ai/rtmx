@@ -47,6 +47,15 @@ type HealthCheck struct {
 	Status      CheckStatus `json:"status"`
 	Message     string      `json:"message"`
 	IsBlocking  bool        `json:"is_blocking,omitempty"`
+	Details     interface{} `json:"details,omitempty"`
+}
+
+// StatusConsistencyDetail describes a single status consistency violation.
+type StatusConsistencyDetail struct {
+	ReqID     string `json:"req_id"`
+	Status    string `json:"status"`
+	DepID     string `json:"dependency"`
+	DepStatus string `json:"dep_status"`
 }
 
 // HealthResult represents the result of a health check.
@@ -70,8 +79,9 @@ type HealthResult struct {
 		WithoutTests   int     `json:"without_tests"`
 		Blocked        int     `json:"blocked"`
 		CycleCount     int     `json:"cycle_count"`
-		OrphanedDeps   int     `json:"orphaned_deps"`
-		MissingRecip   int     `json:"missing_reciprocity"`
+		OrphanedDeps       int     `json:"orphaned_deps"`
+		MissingRecip       int     `json:"missing_reciprocity"`
+		StatusConsistency  int     `json:"status_consistency"`
 	} `json:"stats"`
 }
 
@@ -229,6 +239,10 @@ func runHealthChecks(db *database.Database) *HealthResult {
 		Message: "No circular dependencies detected",
 	})
 
+	// Check 6: Status consistency (REQ-GO-074)
+	// Detect COMPLETE requirements that depend on MISSING or PARTIAL dependencies
+	checkStatusConsistency(db, result)
+
 	// Calculate summary
 	for _, check := range result.Checks {
 		switch check.Status {
@@ -338,4 +352,48 @@ func outputHealthText(cmd *cobra.Command, result *HealthResult) error {
 		return NewExitError(result.ExitCode, "")
 	}
 	return nil
+}
+
+// checkStatusConsistency detects COMPLETE requirements that depend on
+// MISSING or PARTIAL dependencies (status drift / consistency violations).
+func checkStatusConsistency(db *database.Database, result *HealthResult) {
+	var details []StatusConsistencyDetail
+
+	for _, req := range db.All() {
+		if req.Status != database.StatusComplete {
+			continue
+		}
+		for dep := range req.Dependencies {
+			depReq := db.Get(dep)
+			if depReq == nil {
+				// Orphaned deps are handled by the orphaned_deps check
+				continue
+			}
+			if depReq.Status == database.StatusMissing || depReq.Status == database.StatusPartial || depReq.Status == database.StatusNotStarted {
+				details = append(details, StatusConsistencyDetail{
+					ReqID:     req.ReqID,
+					Status:    string(req.Status),
+					DepID:     dep,
+					DepStatus: string(depReq.Status),
+				})
+			}
+		}
+	}
+
+	result.Stats.StatusConsistency = len(details)
+
+	if len(details) > 0 {
+		result.Checks = append(result.Checks, HealthCheck{
+			Name:    "status_consistency",
+			Status:  CheckWarn,
+			Message: fmt.Sprintf("%d status consistency issue(s) found", len(details)),
+			Details: details,
+		})
+	} else {
+		result.Checks = append(result.Checks, HealthCheck{
+			Name:    "status_consistency",
+			Status:  CheckPass,
+			Message: "No status consistency issues",
+		})
+	}
 }
