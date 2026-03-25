@@ -84,3 +84,29 @@ echo "Get started:"
 echo "  rtmx init        # Initialize new project"
 echo "  rtmx setup       # Full project setup"
 echo "  rtmx status      # Check RTM status"
+
+# Detect existing Python rtmx installation and print migration notice
+PYTHON_RTMX=""
+if command -v pip >/dev/null 2>&1 && pip show rtmx >/dev/null 2>&1; then
+  PYTHON_RTMX="pip"
+elif command -v pip3 >/dev/null 2>&1 && pip3 show rtmx >/dev/null 2>&1; then
+  PYTHON_RTMX="pip3"
+elif command -v pipx >/dev/null 2>&1 && pipx list 2>/dev/null | grep -q rtmx; then
+  PYTHON_RTMX="pipx"
+fi
+
+if [ -n "$PYTHON_RTMX" ]; then
+  echo ""
+  echo "=========================================="
+  echo "  Python rtmx CLI detected (via ${PYTHON_RTMX})"
+  echo "=========================================="
+  echo ""
+  echo "The Python rtmx CLI is deprecated and will reach end-of-life on 2026-09-25."
+  echo "You have just installed the Go replacement. To complete the migration:"
+  echo ""
+  echo "  1. Verify the Go CLI works: rtmx status"
+  echo "  2. Remove the Python CLI:   ${PYTHON_RTMX} uninstall rtmx"
+  echo ""
+  echo "Migration guide: https://github.com/rtmx-ai/rtmx-go#migrating-from-python-cli"
+  echo ""
+fi

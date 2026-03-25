@@ -62,16 +62,43 @@ rtmx health
 
 ## Migrating from Python CLI
 
-If you're currently using the Python CLI (`pip install rtmx`), you can migrate:
+> **Deprecation Notice:** The Python `rtmx` CLI (`pip install rtmx`) is deprecated
+> and will reach end-of-life on 2026-09-25. Please migrate to the Go CLI.
 
-```bash
-# Using the Python CLI migration tool
-rtmx migrate --to-go
+The Go CLI is a drop-in replacement for the Python CLI. All configuration files,
+database formats, and command outputs are fully compatible.
 
-# Or install manually (see Installation above)
-```
+### Migration steps
 
-The Go CLI maintains full compatibility with the Python CLI's configuration files and database format.
+1. Install the Go CLI (see [Installation](#installation) above).
+2. Verify the Go CLI works with your project:
+   ```bash
+   rtmx status
+   rtmx health
+   ```
+3. Remove the Python CLI:
+   ```bash
+   pip uninstall rtmx
+   ```
+4. (Optional) Use the built-in migration command:
+   ```bash
+   rtmx migrate --to-go
+   ```
+
+### What stays the same
+
+- `.rtmx/` directory structure and `database.csv` format
+- `rtmx.yaml` / `.rtmx/config.yaml` configuration files
+- All CLI commands and flags
+- JSON output schema
+- Exit codes
+
+### What is new
+
+- Single static binary with no runtime dependencies
+- Cross-platform support (Linux, macOS, Windows) from a single build
+- Faster startup and execution
+- Native Go test integration (`rtmx from-go`)
 
 ## Development
 
