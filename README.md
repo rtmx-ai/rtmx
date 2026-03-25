@@ -3,6 +3,7 @@
 Requirements Traceability Matrix toolkit - Go implementation.
 
 [![CI](https://github.com/rtmx-ai/rtmx-go/actions/workflows/ci.yml/badge.svg)](https://github.com/rtmx-ai/rtmx-go/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/rtmx-ai/rtmx-go/badge.svg?branch=main)](https://coveralls.io/github/rtmx-ai/rtmx-go?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rtmx-ai/rtmx-go)](https://goreportcard.com/report/github.com/rtmx-ai/rtmx-go)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 

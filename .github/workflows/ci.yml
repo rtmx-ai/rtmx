@@ -37,12 +37,19 @@ jobs:
         shell: bash
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
-      - name: Upload coverage
+      - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v5
         with:
           file: ./coverage.out
           fail_ci_if_error: false
+
+      - name: Upload coverage to Coveralls
+        if: matrix.os == 'ubuntu-latest'
+        uses: coverallsapp/github-action@v2
+        with:
+          file: ./coverage.out
+          format: golang
 
   lint:
     name: Lint
