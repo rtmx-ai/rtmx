@@ -309,7 +309,7 @@ jobs:
         with:
           distribution: goreleaser
           version: '~> v2'
-          args: release --snapshot --clean --skip=sign,publish
+          args: release --snapshot --clean --skip=sign,publish,docker
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
