@@ -120,6 +120,25 @@ type MCPConfig struct {
 type SyncConfig struct {
 	ConflictResolution string                `yaml:"conflict_resolution"`
 	Remotes            map[string]SyncRemote `yaml:"remotes"`
+	Grants             []SyncGrant           `yaml:"grants,omitempty"`
+}
+
+// SyncGrant represents an access delegation to a remote collaborator.
+type SyncGrant struct {
+	ID          string         `yaml:"id"`
+	Grantee     string         `yaml:"grantee"`
+	Role        string         `yaml:"role"`
+	Constraints GrantConstraint `yaml:"constraints,omitempty"`
+	CreatedAt   string         `yaml:"created_at"`
+	CreatedBy   string         `yaml:"created_by"`
+}
+
+// GrantConstraint limits which requirements are visible to a grantee.
+type GrantConstraint struct {
+	Categories        []string `yaml:"categories,omitempty"`
+	RequirementIDs    []string `yaml:"requirement_ids,omitempty"`
+	ExcludeCategories []string `yaml:"exclude_categories,omitempty"`
+	ExpiresAt         string   `yaml:"expires_at,omitempty"`
 }
 
 // SyncRemote represents a remote RTM repository.
