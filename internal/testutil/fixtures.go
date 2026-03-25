@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rtmx-ai/rtmx-go/internal/config"
-	"github.com/rtmx-ai/rtmx-go/internal/database"
+	"github.com/rtmx-ai/rtmx/internal/config"
+	"github.com/rtmx-ai/rtmx/internal/database"
 )
 
 // DatabaseOption configures a test database.

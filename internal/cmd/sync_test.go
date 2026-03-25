@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rtmx-ai/rtmx-go/internal/adapters"
-	"github.com/rtmx-ai/rtmx-go/internal/config"
-	"github.com/rtmx-ai/rtmx-go/internal/database"
-	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+	"github.com/rtmx-ai/rtmx/internal/adapters"
+	"github.com/rtmx-ai/rtmx/internal/config"
+	"github.com/rtmx-ai/rtmx/internal/database"
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
 // mockAdapter implements adapters.ServiceAdapter for testing sync functions.

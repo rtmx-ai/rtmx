@@ -28,7 +28,7 @@ func FuzzConfigParse(f *testing.F) {
   adapters:
     github:
       enabled: true
-      repo: rtmx-ai/rtmx-go
+      repo: rtmx-ai/rtmx
     jira:
       enabled: false
 `)

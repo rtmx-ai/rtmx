@@ -31,7 +31,7 @@ Create `deprecation.json` in the repo root:
   "install": "curl -fsSL https://rtmx.ai/install.sh | sh",
   "homebrew": "brew install rtmx-ai/tap/rtmx",
   "scoop": "scoop install rtmx",
-  "migration_guide": "https://github.com/rtmx-ai/rtmx-go#migrating-from-python",
+  "migration_guide": "https://github.com/rtmx-ai/rtmx#migrating-from-python",
   "sunset_date": "2026-06-01"
 }
 ```

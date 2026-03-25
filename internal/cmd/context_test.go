@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
 // createTestProject creates a temp directory with a minimal RTMX project.

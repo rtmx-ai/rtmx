@@ -96,7 +96,7 @@ type RequirementUpdate struct {
 rtmx:
   sync:
     server: "wss://sync.rtmx.ai"
-    room: "rtmx-ai/rtmx-go"    # Default: GitHub repo identifier
+    room: "rtmx-ai/rtmx"    # Default: GitHub repo identifier
     auto_sync: false             # Enable live sync on verify/status
 ```
 

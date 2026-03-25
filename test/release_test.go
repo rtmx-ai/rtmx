@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
 // TestV010Release validates the v0.1.0 release requirements.

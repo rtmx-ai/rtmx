@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
 // TestSecurityPolicy validates that SECURITY.md and install script exist

@@ -2,7 +2,7 @@
 package adapters
 
 import (
-	"github.com/rtmx-ai/rtmx-go/internal/database"
+	"github.com/rtmx-ai/rtmx/internal/database"
 )
 
 // ServiceAdapter defines the interface for external service adapters

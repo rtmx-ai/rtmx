@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rtmx-ai/rtmx-go/internal/database"
-	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+	"github.com/rtmx-ai/rtmx/internal/database"
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
 // TestFixtures validates the test fixtures functionality.

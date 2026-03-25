@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
 // TestDeprecationNotice validates the Python CLI deprecation notice artifacts.
@@ -54,10 +54,10 @@ func TestDeprecationNotice(t *testing.T) {
 			}
 		}
 
-		// Verify the migration guide URL points to the Go CLI repo
+		// Verify the migration guide URL points to the rtmx repo
 		if guide, ok := manifest["migration_guide"].(string); ok {
-			if !strings.Contains(guide, "rtmx-go") {
-				t.Error("migration_guide must reference rtmx-go repository")
+			if !strings.Contains(guide, "rtmx-ai/rtmx") {
+				t.Error("migration_guide must reference rtmx repository")
 			}
 		}
 

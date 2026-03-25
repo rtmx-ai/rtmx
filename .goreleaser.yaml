@@ -23,9 +23,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/rtmx-ai/rtmx-go/internal/cmd.Version={{.Version}}
-      - -X github.com/rtmx-ai/rtmx-go/internal/cmd.Commit={{.Commit}}
-      - -X github.com/rtmx-ai/rtmx-go/internal/cmd.Date={{.Date}}
+      - -X github.com/rtmx-ai/rtmx/internal/cmd.Version={{.Version}}
+      - -X github.com/rtmx-ai/rtmx/internal/cmd.Commit={{.Commit}}
+      - -X github.com/rtmx-ai/rtmx/internal/cmd.Date={{.Date}}
 
 archives:
   - id: default

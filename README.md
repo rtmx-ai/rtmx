@@ -2,9 +2,9 @@
 
 Requirements Traceability Matrix toolkit - Go implementation.
 
-[![CI](https://github.com/rtmx-ai/rtmx-go/actions/workflows/ci.yml/badge.svg)](https://github.com/rtmx-ai/rtmx-go/actions/workflows/ci.yml)
-[![Coverage Status](https://coveralls.io/repos/github/rtmx-ai/rtmx-go/badge.svg?branch=main)](https://coveralls.io/github/rtmx-ai/rtmx-go?branch=main)
-[![Go Report Card](https://goreportcard.com/badge/github.com/rtmx-ai/rtmx-go)](https://goreportcard.com/report/github.com/rtmx-ai/rtmx-go)
+[![CI](https://github.com/rtmx-ai/rtmx/actions/workflows/ci.yml/badge.svg)](https://github.com/rtmx-ai/rtmx/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/rtmx-ai/rtmx/badge.svg?branch=main)](https://coveralls.io/github/rtmx-ai/rtmx?branch=main)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rtmx-ai/rtmx)](https://goreportcard.com/report/github.com/rtmx-ai/rtmx)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ## Overview
@@ -34,12 +34,12 @@ scoop install rtmx
 ### Go Install
 
 ```bash
-go install github.com/rtmx-ai/rtmx-go/cmd/rtmx@latest
+go install github.com/rtmx-ai/rtmx/cmd/rtmx@latest
 ```
 
 ### Download Binary
 
-Download the appropriate binary from the [releases page](https://github.com/rtmx-ai/rtmx-go/releases).
+Download the appropriate binary from the [releases page](https://github.com/rtmx-ai/rtmx/releases).
 
 ## Usage
 
@@ -161,5 +161,5 @@ Apache 2.0 - See [LICENSE](LICENSE) for details.
 ## Support
 
 - Documentation: https://rtmx.ai/docs
-- Issues: https://github.com/rtmx-ai/rtmx-go/issues
+- Issues: https://github.com/rtmx-ai/rtmx/issues
 - Email: dev@rtmx.ai

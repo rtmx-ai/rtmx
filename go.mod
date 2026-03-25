@@ -1,4 +1,4 @@
-module github.com/rtmx-ai/rtmx-go
+module github.com/rtmx-ai/rtmx
 
 go 1.25
 

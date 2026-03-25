@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/rtmx-ai/rtmx-go/internal/config"
+	"github.com/rtmx-ai/rtmx/internal/config"
 )
 
 var (

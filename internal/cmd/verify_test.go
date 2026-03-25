@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rtmx-ai/rtmx-go/internal/database"
-	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+	"github.com/rtmx-ai/rtmx/internal/database"
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
 func TestVerifyCommandHelp(t *testing.T) {

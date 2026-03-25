@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rtmx-ai/rtmx-go/internal/database"
-	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+	"github.com/rtmx-ai/rtmx/internal/database"
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
 func TestCRDTMerge(t *testing.T) {
@@ -230,7 +230,7 @@ func TestCRDTMerge(t *testing.T) {
 	t.Run("EncodeDecode_roundtrip", func(t *testing.T) {
 		msg := &SyncMessage{
 			Type: MessageTypePush,
-			Room: "rtmx-ai/rtmx-go",
+			Room: "rtmx-ai/rtmx",
 			Updates: []RequirementUpdate{
 				{
 					ReqID:     "REQ-001",
@@ -255,8 +255,8 @@ func TestCRDTMerge(t *testing.T) {
 		if decoded.Type != MessageTypePush {
 			t.Errorf("expected type push, got %q", decoded.Type)
 		}
-		if decoded.Room != "rtmx-ai/rtmx-go" {
-			t.Errorf("expected room rtmx-ai/rtmx-go, got %q", decoded.Room)
+		if decoded.Room != "rtmx-ai/rtmx" {
+			t.Errorf("expected room rtmx-ai/rtmx, got %q", decoded.Room)
 		}
 		if len(decoded.Updates) != 1 {
 			t.Errorf("expected 1 update, got %d", len(decoded.Updates))

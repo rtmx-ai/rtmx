@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
 // TestUnitCoverage validates that core packages maintain adequate test coverage.

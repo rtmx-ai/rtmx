@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -49,7 +49,7 @@ rtmx:
   adapters:
     github:
       enabled: true
-      repo: rtmx-ai/rtmx-go
+      repo: rtmx-ai/rtmx
 `
 	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
 		t.Fatalf("Failed to write test config: %v", err)
@@ -72,8 +72,8 @@ rtmx:
 		t.Error("GitHub adapter should be enabled")
 	}
 
-	if cfg.RTMX.Adapters.GitHub.Repo != "rtmx-ai/rtmx-go" {
-		t.Errorf("GitHub repo = %q, want rtmx-ai/rtmx-go", cfg.RTMX.Adapters.GitHub.Repo)
+	if cfg.RTMX.Adapters.GitHub.Repo != "rtmx-ai/rtmx" {
+		t.Errorf("GitHub repo = %q, want rtmx-ai/rtmx", cfg.RTMX.Adapters.GitHub.Repo)
 	}
 
 	// Verify phases

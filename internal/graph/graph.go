@@ -2,7 +2,7 @@
 package graph
 
 import (
-	"github.com/rtmx-ai/rtmx-go/internal/database"
+	"github.com/rtmx-ai/rtmx/internal/database"
 )
 
 // Graph represents a dependency graph of requirements.

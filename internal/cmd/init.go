@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/rtmx-ai/rtmx-go/internal/output"
+	"github.com/rtmx-ai/rtmx/internal/output"
 	"github.com/spf13/cobra"
 )
 

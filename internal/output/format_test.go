@@ -3,7 +3,7 @@ package output
 import (
 	"testing"
 
-	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
 // TestColorScheme verifies that the color scheme matches Python CLI

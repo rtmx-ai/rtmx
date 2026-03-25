@@ -3,7 +3,7 @@ package graph
 import (
 	"testing"
 
-	"github.com/rtmx-ai/rtmx-go/internal/database"
+	"github.com/rtmx-ai/rtmx/internal/database"
 )
 
 // TestIsIncomplete tests the IsIncomplete method on the graph.

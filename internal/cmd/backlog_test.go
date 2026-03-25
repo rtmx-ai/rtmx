@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rtmx-ai/rtmx-go/internal/database"
-	"github.com/rtmx-ai/rtmx-go/internal/graph"
-	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+	"github.com/rtmx-ai/rtmx/internal/database"
+	"github.com/rtmx-ai/rtmx/internal/graph"
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 	"github.com/spf13/cobra"
 )
 

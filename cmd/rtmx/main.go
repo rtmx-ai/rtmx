@@ -5,7 +5,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/rtmx-ai/rtmx-go/internal/cmd"
+	"github.com/rtmx-ai/rtmx/internal/cmd"
 )
 
 func main() {

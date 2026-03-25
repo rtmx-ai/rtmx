@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rtmx-ai/rtmx-go/internal/config"
-	"github.com/rtmx-ai/rtmx-go/internal/database"
+	"github.com/rtmx-ai/rtmx/internal/config"
+	"github.com/rtmx-ai/rtmx/internal/database"
 )
 
 // Role constants for grant delegation.

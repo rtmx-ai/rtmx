@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rtmx-ai/rtmx-go/internal/config"
-	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+	"github.com/rtmx-ai/rtmx/internal/config"
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
 // TestBootstrapCommand tests the bootstrap command.

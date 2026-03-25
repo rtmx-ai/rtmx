@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rtmx-ai/rtmx-go/internal/config"
-	"github.com/rtmx-ai/rtmx-go/internal/database"
-	"github.com/rtmx-ai/rtmx-go/pkg/rtmx"
+	"github.com/rtmx-ai/rtmx/internal/config"
+	"github.com/rtmx-ai/rtmx/internal/database"
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
 // REQ-GO-065: Go CLI adapters shall achieve 100% test coverage
