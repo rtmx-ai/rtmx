@@ -158,7 +158,7 @@ func TestOutputCyclesJSON_NoCycles(t *testing.T) {
 	if result.Count != 0 {
 		t.Errorf("expected Count=0, got %d", result.Count)
 	}
-	if result.Cycles != nil && len(result.Cycles) > 0 {
+	if len(result.Cycles) > 0 {
 		t.Errorf("expected empty cycles, got %v", result.Cycles)
 	}
 }
@@ -278,7 +278,7 @@ func TestCyclesJSON_SingleNodeNoCycle(t *testing.T) {
 	}
 
 	var result cycleResult
-	if err := json.Unmarshal([]byte(buf.String()), &result); err != nil {
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
 		t.Fatalf("failed to parse JSON: %v", err)
 	}
 
@@ -312,7 +312,7 @@ func TestCyclesJSON_LongChainNoCycles(t *testing.T) {
 	}
 
 	var result cycleResult
-	if err := json.Unmarshal([]byte(buf.String()), &result); err != nil {
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
 		t.Fatalf("failed to parse JSON: %v", err)
 	}
 

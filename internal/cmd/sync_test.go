@@ -704,8 +704,12 @@ func TestRunExportDryRunNewExport(t *testing.T) {
 	if !strings.Contains(output, "Would export: REQ-TEST-001") {
 		t.Errorf("expected dry-run export message, got: %s", output)
 	}
-	if len(result.Created) != 0 && len(result.Updated) != 0 {
-		// Dry run should not actually create/update
+	// Dry run should not actually create/update
+	if len(result.Created) != 0 {
+		t.Errorf("dry-run should not create, got %d", len(result.Created))
+	}
+	if len(result.Updated) != 0 {
+		t.Errorf("dry-run should not update, got %d", len(result.Updated))
 	}
 }
 
