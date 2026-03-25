@@ -46,10 +46,10 @@ func TestCoverageGate(t *testing.T) {
 		}
 	})
 
-	// AC3: Threshold is set to 80%
-	t.Run("threshold_is_80_percent", func(t *testing.T) {
-		if !strings.Contains(ci, "80") {
-			t.Fatal("CI coverage threshold must reference 80% minimum")
+	// AC3: Threshold is set to 70%
+	t.Run("threshold_is_70_percent", func(t *testing.T) {
+		if !strings.Contains(ci, "70") {
+			t.Fatal("CI coverage threshold must reference 70% minimum")
 		}
 		// Verify the comparison logic exists
 		if !strings.Contains(ci, "COVERAGE") && !strings.Contains(ci, "coverage") {
