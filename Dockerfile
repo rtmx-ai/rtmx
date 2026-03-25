@@ -11,9 +11,9 @@ COPY . .
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /usr/bin/rtmx ./cmd/rtmx
 
 # Stage 2: Minimal runtime image
-FROM alpine:latest
+FROM scratch
 
-RUN apk add --no-cache ca-certificates git
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /usr/bin/rtmx /usr/bin/rtmx
 
 ENTRYPOINT ["rtmx"]
