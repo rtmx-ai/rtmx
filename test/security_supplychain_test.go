@@ -61,11 +61,10 @@ func TestActionPinning(t *testing.T) {
 		}
 	}
 
-	// ATTACK SUCCEEDS: mutable tags found
-	if mutableCount == 0 {
-		t.Fatal("Expected mutable action tags but found none -- vulnerability may be fixed")
+	// FIXED: all actions should be pinned to SHAs
+	if mutableCount > 0 {
+		t.Errorf("%d/%d action references still use mutable tags", mutableCount, totalCount)
 	}
-	t.Logf("ATTACK CONFIRMED: %d/%d action references use mutable tags", mutableCount, totalCount)
 }
 
 // TestInstallScriptGPGVerification proves that the install script verifies
@@ -99,14 +98,13 @@ func TestInstallScriptGPGVerification(t *testing.T) {
 		t.Fatal("Install script doesn't even verify checksums")
 	}
 
-	// ATTACK SUCCEEDS: no GPG verification
-	if strings.Contains(script, "gpg --verify") {
-		t.Fatal("GPG verification found -- vulnerability may be fixed")
+	// FIXED: GPG verification should be present
+	if !strings.Contains(script, "gpg --verify") {
+		t.Error("Install script must contain gpg --verify for signature validation")
 	}
-	if strings.Contains(script, "checksums.txt.sig") {
-		t.Fatal("Signature file download found -- vulnerability may be fixed")
+	if !strings.Contains(script, "checksums.txt.sig") {
+		t.Error("Install script must download checksums.txt.sig")
 	}
-	t.Log("ATTACK CONFIRMED: install script verifies checksums but not GPG signatures")
 }
 
 // TestMandatoryGPGSigning proves that GPG signing is conditional in the
@@ -147,13 +145,10 @@ func TestMandatoryGPGSigning(t *testing.T) {
 	}
 	block := release[gpgIdx:end]
 
-	if !strings.Contains(block, "if:") {
-		t.Fatal("GPG step has no conditional -- vulnerability may be fixed (signing is mandatory)")
+	// FIXED: GPG step should NOT have a conditional
+	if strings.Contains(block, "if:") {
+		t.Error("GPG signing step still has conditional -- should be mandatory")
 	}
-	if !strings.Contains(block, "GPG_PRIVATE_KEY != ''") {
-		t.Fatal("GPG condition doesn't check for empty key -- may be fixed")
-	}
-	t.Log("ATTACK CONFIRMED: GPG signing is conditional; releases can ship unsigned")
 }
 
 // TestCIPipelineSafety proves that the CI auto-commit in verify-requirements

@@ -5,7 +5,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -52,11 +54,56 @@ type JiraSearchResponse struct {
 	StartAt    int         `json:"startAt"`
 }
 
+// isPrivateIP checks if an IP address is in RFC1918 or link-local range.
+func isPrivateIP(ip net.IP) bool {
+	privateRanges := []struct {
+		network string
+	}{
+		{"10.0.0.0/8"},
+		{"172.16.0.0/12"},
+		{"192.168.0.0/16"},
+		{"169.254.0.0/16"},
+		{"127.0.0.0/8"},
+		{"fc00::/7"},
+		{"fe80::/10"},
+		{"::1/128"},
+	}
+	for _, r := range privateRanges {
+		_, cidr, _ := net.ParseCIDR(r.network)
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// validateJiraServer validates that the Jira server URL is HTTPS and not a private/link-local address.
+func validateJiraServer(server string) error {
+	u, err := url.Parse(server)
+	if err != nil {
+		return fmt.Errorf("invalid Jira server URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("Jira server URL must use HTTPS, got %q", u.Scheme)
+	}
+	host := u.Hostname()
+	ip := net.ParseIP(host)
+	if ip != nil && isPrivateIP(ip) {
+		return fmt.Errorf("Jira server URL must not point to a private/link-local address: %s", host)
+	}
+	return nil
+}
+
 // NewJiraAdapter creates a new Jira adapter.
 // Options can be provided to inject custom dependencies for testing.
 func NewJiraAdapter(cfg *config.JiraAdapterConfig, opts ...AdapterOption) (*JiraAdapter, error) {
 	if !cfg.Enabled {
 		return nil, fmt.Errorf("jira adapter is not enabled")
+	}
+
+	// Validate server URL
+	if err := validateJiraServer(cfg.Server); err != nil {
+		return nil, err
 	}
 
 	options := applyOptions(opts)
@@ -148,7 +195,7 @@ func (j *JiraAdapter) FetchItems(query map[string]interface{}) ([]ExternalItem, 
 	if query != nil && query["jql"] != nil {
 		jql = query["jql"].(string)
 	} else {
-		jqlParts := []string{fmt.Sprintf("project = %s", j.config.Project)}
+		jqlParts := []string{fmt.Sprintf("project = '%s'", strings.ReplaceAll(j.config.Project, "'", ""))}
 
 		if j.config.IssueType != "" {
 			jqlParts = append(jqlParts, fmt.Sprintf("issuetype = '%s'", j.config.IssueType))
@@ -175,7 +222,7 @@ func (j *JiraAdapter) FetchItems(query map[string]interface{}) ([]ExternalItem, 
 	for {
 		url := fmt.Sprintf("%s/rest/api/3/search?jql=%s&startAt=%d&maxResults=%d",
 			strings.TrimSuffix(j.config.Server, "/"),
-			jql,
+			url.QueryEscape(jql),
 			startAt,
 			maxResults)
 

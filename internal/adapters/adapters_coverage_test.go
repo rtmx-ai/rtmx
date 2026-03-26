@@ -2318,10 +2318,14 @@ func TestGitHubTestConnectionInvalidURL(t *testing.T) {
 		TokenEnv: "TEST_TOKEN",
 	}
 
-	adapter, _ := NewGitHubAdapter(&cfg,
+	adapter, err := NewGitHubAdapter(&cfg,
 		WithHTTPClient(mockClient),
 		WithEnvGetter(func(key string) string { return "test-token" }),
 	)
+	if err != nil {
+		// Validation caught the invalid repo at construction time
+		return
+	}
 
 	success, msg := adapter.TestConnection()
 	if success {
@@ -2341,12 +2345,15 @@ func TestGitHubFetchItemsInvalidURL(t *testing.T) {
 		TokenEnv: "TEST_TOKEN",
 	}
 
-	adapter, _ := NewGitHubAdapter(&cfg,
+	adapter, err := NewGitHubAdapter(&cfg,
 		WithHTTPClient(mockClient),
 		WithEnvGetter(func(key string) string { return "test-token" }),
 	)
+	if err != nil {
+		return
+	}
 
-	_, err := adapter.FetchItems(nil)
+	_, err = adapter.FetchItems(nil)
 	if err == nil {
 		t.Error("Expected error with invalid URL")
 	}
@@ -2361,12 +2368,15 @@ func TestGitHubGetItemInvalidURL(t *testing.T) {
 		TokenEnv: "TEST_TOKEN",
 	}
 
-	adapter, _ := NewGitHubAdapter(&cfg,
+	adapter, err := NewGitHubAdapter(&cfg,
 		WithHTTPClient(mockClient),
 		WithEnvGetter(func(key string) string { return "test-token" }),
 	)
+	if err != nil {
+		return
+	}
 
-	_, err := adapter.GetItem("123")
+	_, err = adapter.GetItem("123")
 	if err == nil {
 		t.Error("Expected error with invalid URL")
 	}
@@ -2381,17 +2391,20 @@ func TestGitHubCreateItemInvalidURL(t *testing.T) {
 		TokenEnv: "TEST_TOKEN",
 	}
 
-	adapter, _ := NewGitHubAdapter(&cfg,
+	adapter, err := NewGitHubAdapter(&cfg,
 		WithHTTPClient(mockClient),
 		WithEnvGetter(func(key string) string { return "test-token" }),
 	)
+	if err != nil {
+		return
+	}
 
 	req := &database.Requirement{
 		ReqID:           "REQ-TEST-001",
 		RequirementText: "Test",
 	}
 
-	_, err := adapter.CreateItem(req)
+	_, err = adapter.CreateItem(req)
 	if err == nil {
 		t.Error("Expected error with invalid URL")
 	}
@@ -2406,10 +2419,13 @@ func TestGitHubUpdateItemInvalidURL(t *testing.T) {
 		TokenEnv: "TEST_TOKEN",
 	}
 
-	adapter, _ := NewGitHubAdapter(&cfg,
+	adapter, err := NewGitHubAdapter(&cfg,
 		WithHTTPClient(mockClient),
 		WithEnvGetter(func(key string) string { return "test-token" }),
 	)
+	if err != nil {
+		return
+	}
 
 	req := &database.Requirement{
 		ReqID:           "REQ-TEST-001",
@@ -2434,7 +2450,7 @@ func TestJiraTestConnectionInvalidURL(t *testing.T) {
 		EmailEnv: "TEST_EMAIL",
 	}
 
-	adapter, _ := NewJiraAdapter(&cfg,
+	adapter, err := NewJiraAdapter(&cfg,
 		WithHTTPClient(mockClient),
 		WithEnvGetter(func(key string) string {
 			if key == "TEST_TOKEN" {
@@ -2446,6 +2462,9 @@ func TestJiraTestConnectionInvalidURL(t *testing.T) {
 			return ""
 		}),
 	)
+	if err != nil {
+		return
+	}
 
 	success, msg := adapter.TestConnection()
 	if success {
@@ -2467,7 +2486,7 @@ func TestJiraFetchItemsInvalidURL(t *testing.T) {
 		EmailEnv: "TEST_EMAIL",
 	}
 
-	adapter, _ := NewJiraAdapter(&cfg,
+	adapter, err := NewJiraAdapter(&cfg,
 		WithHTTPClient(mockClient),
 		WithEnvGetter(func(key string) string {
 			if key == "TEST_TOKEN" {
@@ -2479,8 +2498,11 @@ func TestJiraFetchItemsInvalidURL(t *testing.T) {
 			return ""
 		}),
 	)
+	if err != nil {
+		return
+	}
 
-	_, err := adapter.FetchItems(nil)
+	_, err = adapter.FetchItems(nil)
 	if err == nil {
 		t.Error("Expected error with invalid URL")
 	}
@@ -2497,7 +2519,7 @@ func TestJiraGetItemInvalidURL(t *testing.T) {
 		EmailEnv: "TEST_EMAIL",
 	}
 
-	adapter, _ := NewJiraAdapter(&cfg,
+	adapter, err := NewJiraAdapter(&cfg,
 		WithHTTPClient(mockClient),
 		WithEnvGetter(func(key string) string {
 			if key == "TEST_TOKEN" {
@@ -2509,8 +2531,11 @@ func TestJiraGetItemInvalidURL(t *testing.T) {
 			return ""
 		}),
 	)
+	if err != nil {
+		return
+	}
 
-	_, err := adapter.GetItem("TEST-123")
+	_, err = adapter.GetItem("TEST-123")
 	if err == nil {
 		t.Error("Expected error with invalid URL")
 	}
@@ -2527,7 +2552,7 @@ func TestJiraCreateItemInvalidURL(t *testing.T) {
 		EmailEnv: "TEST_EMAIL",
 	}
 
-	adapter, _ := NewJiraAdapter(&cfg,
+	adapter, err := NewJiraAdapter(&cfg,
 		WithHTTPClient(mockClient),
 		WithEnvGetter(func(key string) string {
 			if key == "TEST_TOKEN" {
@@ -2539,13 +2564,16 @@ func TestJiraCreateItemInvalidURL(t *testing.T) {
 			return ""
 		}),
 	)
+	if err != nil {
+		return
+	}
 
 	req := &database.Requirement{
 		ReqID:           "REQ-TEST-001",
 		RequirementText: "Test",
 	}
 
-	_, err := adapter.CreateItem(req)
+	_, err = adapter.CreateItem(req)
 	if err == nil {
 		t.Error("Expected error with invalid URL")
 	}
@@ -2562,7 +2590,7 @@ func TestJiraUpdateItemInvalidURL(t *testing.T) {
 		EmailEnv: "TEST_EMAIL",
 	}
 
-	adapter, _ := NewJiraAdapter(&cfg,
+	adapter, err := NewJiraAdapter(&cfg,
 		WithHTTPClient(mockClient),
 		WithEnvGetter(func(key string) string {
 			if key == "TEST_TOKEN" {
@@ -2574,6 +2602,9 @@ func TestJiraUpdateItemInvalidURL(t *testing.T) {
 			return ""
 		}),
 	)
+	if err != nil {
+		return
+	}
 
 	req := &database.Requirement{
 		ReqID:           "REQ-TEST-001",
@@ -2598,7 +2629,7 @@ func TestJiraTransitionIssueInvalidURL(t *testing.T) {
 		EmailEnv: "TEST_EMAIL",
 	}
 
-	adapter, _ := NewJiraAdapter(&cfg,
+	adapter, err := NewJiraAdapter(&cfg,
 		WithHTTPClient(mockClient),
 		WithEnvGetter(func(key string) string {
 			if key == "TEST_TOKEN" {
@@ -2610,6 +2641,9 @@ func TestJiraTransitionIssueInvalidURL(t *testing.T) {
 			return ""
 		}),
 	)
+	if err != nil {
+		return
+	}
 
 	ctx := context.Background()
 	ok := adapter.transitionIssue(ctx, "TEST-123", "Done")
