@@ -40,3 +40,4 @@ go.work
 .env
 .env.local
 *.local.yaml
+.claude/
