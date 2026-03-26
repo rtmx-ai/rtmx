@@ -1,0 +1,35 @@
+#!/bin/sh
+# RTMX pre-commit hook
+# Ensures local CI matches remote CI before allowing commits.
+# Install: git config core.hooksPath .githooks
+# Or: rtmx install --hooks
+
+set -e
+
+echo "Running pre-commit checks..."
+
+# 1. Build
+echo "  Building..."
+go build ./... || { echo "FAIL: Build failed"; exit 1; }
+
+# 2. Tests
+echo "  Testing..."
+go test ./... -count=1 -short || { echo "FAIL: Tests failed"; exit 1; }
+
+# 3. Lint (golangci-lint v2)
+if command -v golangci-lint >/dev/null 2>&1; then
+    echo "  Linting..."
+    golangci-lint run ./... || { echo "FAIL: Lint errors found"; exit 1; }
+elif [ -x "$HOME/go/bin/golangci-lint" ]; then
+    echo "  Linting..."
+    "$HOME/go/bin/golangci-lint" run ./... || { echo "FAIL: Lint errors found"; exit 1; }
+else
+    echo "  WARN: golangci-lint not found, skipping lint check"
+    echo "  Install: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b \$(go env GOPATH)/bin"
+fi
+
+# 4. Go vet
+echo "  Vetting..."
+go vet ./... || { echo "FAIL: Vet errors found"; exit 1; }
+
+echo "All pre-commit checks passed."

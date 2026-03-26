@@ -6,346 +6,367 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: "0 9 * * 1"  # Weekly security scan on Monday 9am UTC
+    - cron: '0 9 * * 1'  # Weekly Monday 9am UTC
+
+permissions:
+  contents: read
 
 jobs:
   test:
-    name: Test (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    name: Test
+    runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        go: ['1.25']
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
         with:
-          python-version: ${{ matrix.python-version }}
+          go-version: ${{ matrix.go }}
 
-      - name: Install dependencies
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        shell: bash
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v5
+        with:
+          file: ./coverage.out
+          fail_ci_if_error: false
+
+      - name: Check coverage threshold
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
-      - name: Run tests with coverage
-        run: pytest --cov=rtmx --cov-report=xml --cov-report=term-missing --ignore=tests/bdd --ignore=tests/property --ignore=tests/chaos --ignore=tests/compliance
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          echo "Total coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "::error::Coverage ${COVERAGE}% is below 70% threshold"
+            exit 1
+          fi
+          echo "Coverage ${COVERAGE}% meets 70% threshold"
 
       - name: Upload coverage to Coveralls
-        if: matrix.python-version == '3.12'
+        if: matrix.os == 'ubuntu-latest'
         uses: coverallsapp/github-action@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./coverage.xml
+          file: ./coverage.out
+          format: golang
 
   lint:
-    name: Lint & Type Check
+    name: Lint
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
         with:
-          python-version: "3.12"
+          go-version: '1.25'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
-      - name: Ruff check
-        run: ruff check src/ tests/
-
-      - name: Ruff format check
-        run: ruff format --check src/ tests/
-
-      - name: Type check
-        run: mypy src/rtmx
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
 
   security:
-    name: Security Scan
+    name: Security
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
         with:
-          python-version: "3.12"
+          go-version: '1.25'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-          pip install pip-audit
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
 
-      - name: Vulnerability scan
-        run: pip-audit
-
-  marker-compliance:
-    name: Test Marker Compliance
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
-      - name: Check marker compliance
-        run: |
-          echo "Checking test marker compliance using pytest..."
-          # Use pytest's marker-aware collection to properly count class-level markers
-          TOTAL=$(pytest tests/ --collect-only 2>&1 | grep "::test_" | wc -l)
-          WITH_REQ=$(pytest tests/ --collect-only -m req 2>&1 | grep "::test_" | wc -l)
-          WITH_SCOPE=$(pytest tests/ --collect-only -m "scope_unit or scope_integration or scope_system" 2>&1 | grep "::test_" | wc -l)
-
-          echo "Total tests: $TOTAL"
-          echo "With @pytest.mark.req: $WITH_REQ"
-          echo "With scope markers: $WITH_SCOPE"
-
-          if [ "$TOTAL" -eq 0 ]; then
-            echo "ERROR: No tests found"
-            exit 1
-          fi
-
-          REQ_PCT=$((WITH_REQ * 100 / TOTAL))
-          SCOPE_PCT=$((WITH_SCOPE * 100 / TOTAL))
-          echo "Req marker coverage: ${REQ_PCT}%"
-          echo "Scope marker coverage: ${SCOPE_PCT}%"
-
-          # Fail if coverage drops below 80%
-          if [ "$REQ_PCT" -lt 80 ]; then
-            echo "ERROR: Req marker coverage is below 80% (${REQ_PCT}%)"
-            exit 1
-          fi
-          if [ "$SCOPE_PCT" -lt 80 ]; then
-            echo "ERROR: Scope marker coverage is below 80% (${SCOPE_PCT}%)"
-            exit 1
-          fi
-          echo "Marker compliance check passed!"
+      - name: Run govulncheck
+        run: govulncheck ./...
 
   codeql:
     name: CodeQL
     runs-on: ubuntu-latest
     permissions:
       security-events: write
-
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+      - uses: github/codeql-action/init@v3
         with:
-          languages: python
+          languages: go
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+      - uses: github/codeql-action/autobuild@v3
 
-  # Closed-loop requirement verification
-  # Runs after tests pass on main, updates RTM status based on test results
+      - uses: github/codeql-action/analyze@v3
+
+  marker-compliance:
+    name: Marker Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Check marker compliance
+        shell: bash
+        run: |
+          TOTAL=$(grep -r 'func Test' internal/ test/ pkg/ --include='*_test.go' -l | wc -l)
+          MARKED=$(grep -r 'rtmx\.Req(t,' internal/ test/ pkg/ --include='*_test.go' -l | wc -l)
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "No test files found"
+            exit 1
+          fi
+          PCT=$((MARKED * 100 / TOTAL))
+          echo "Test files with rtmx.Req markers: ${MARKED}/${TOTAL} (${PCT}%)"
+          THRESHOLD=80
+          if [ "$PCT" -lt "$THRESHOLD" ]; then
+            echo "::error::Marker compliance ${PCT}% is below ${THRESHOLD}% threshold"
+            exit 1
+          fi
+          echo "Marker compliance: ${PCT}% (threshold: 80%)"
+
   verify-requirements:
     name: Verify Requirements
+    needs: [test, lint]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [test, lint]  # Only run after tests pass
     permissions:
       contents: write
-
     steps:
-      - name: Generate GitHub App token
+      - uses: actions/create-github-app-token@v1
         id: app-token
-        uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        continue-on-error: true
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
         with:
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.app-token.outputs.token || github.token }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
         with:
-          python-version: "3.12"
+          go-version: '1.25'
 
-      - name: Install dependencies
+      - name: Build
+        run: go build -o rtmx ./cmd/rtmx
+
+      - name: Verify requirements
+        run: ./rtmx verify --update --verbose
+
+      - name: Show status
+        run: ./rtmx status
+
+      - name: Commit RTM updates
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          git diff --quiet .rtmx/database.csv && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .rtmx/database.csv
+          git commit -m "ci: Auto-update RTM status from test results"
+          git push
 
-      - name: Run requirement verification
-        run: |
-          # Run verify with update to sync test results to RTM status
-          # Note: verify exits 1 if any tests fail (which is correct)
-          rtmx verify --update --verbose || true
-          # Show final status (status exits 0 unless --fail-under is specified)
-          rtmx status
-
-      - name: Commit RTM status updates
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          git add docs/rtm_database.csv
-          if git diff --staged --quiet; then
-            echo "No RTM status changes to commit"
-          else
-            # Use GitHub API with App token to create a signed commit
-            REPO="${{ github.repository }}"
-            FILE_PATH="docs/rtm_database.csv"
-            CONTENT=$(base64 -w 0 "$FILE_PATH")
-            SHA=$(gh api "repos/$REPO/contents/$FILE_PATH" --jq '.sha')
-            gh api "repos/$REPO/contents/$FILE_PATH" \
-              --method PUT \
-              --field message="ci: Auto-update RTM status from test results
-
-          Closed-loop verification: test results automatically update
-          requirement status in the RTM database." \
-              --field content="$CONTENT" \
-              --field sha="$SHA" \
-              --field branch="main"
-            echo "RTM status committed via API (signed)"
-          fi
-
-  # Update terminal screenshots when CLI formatting changes
-  # Only runs on main branch, creates PR with updated assets
-  update-screenshots:
-    name: Update Screenshots
+  smoke-test:
+    name: Smoke Test
+    needs: [test, lint]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [test, lint]  # Only run after tests pass
-    permissions:
-      contents: write
-      pull-requests: write
-
     steps:
-      - name: Generate GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      - uses: actions/checkout@v5
 
-      - uses: actions/checkout@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
         with:
-          token: ${{ steps.app-token.outputs.token }}
+          go-version: '1.25'
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
+      - name: Build binary
+        run: go build -o rtmx ./cmd/rtmx
 
-      - name: Install dependencies
+      - name: Smoke test core commands
         run: |
-          pip install -e .
-          pip install ansi2image
+          set -e
+          echo "=== version ==="
+          ./rtmx version
 
-      - name: Create demo project
+          echo "=== status ==="
+          ./rtmx status
+
+          echo "=== status --json ==="
+          ./rtmx status --json | jq .total
+
+          echo "=== status --fail-under ==="
+          ./rtmx status --fail-under 50
+
+          echo "=== backlog ==="
+          ./rtmx backlog | head -20
+
+          echo "=== backlog --json ==="
+          ./rtmx backlog --json | jq .total_missing
+
+          echo "=== health ==="
+          ./rtmx health
+
+          echo "=== health --json ==="
+          ./rtmx health --json | jq .status
+
+          echo "=== deps ==="
+          ./rtmx deps | head -20
+
+          echo "=== cycles ==="
+          ./rtmx cycles
+
+          echo "=== reconcile ==="
+          ./rtmx reconcile
+
+          echo "=== context ==="
+          ./rtmx context
+
+          echo "=== install --agents --list ==="
+          ./rtmx install --agents --list
+
+          echo "All smoke tests passed."
+
+  cross-language-e2e:
+    name: Cross-Language E2E
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build Go CLI
+        run: go build -o rtmx ./cmd/rtmx
+
+      - name: Install Python rtmx and pytest
+        run: pip install rtmx pytest
+
+      - name: Create test file
         run: |
-          mkdir -p /tmp/rtmx_demo/.rtmx
-          cat > /tmp/rtmx_demo/.rtmx/config.yaml << 'YAML'
-          rtmx:
-            database: .rtmx/database.csv
-            requirements_dir: .rtmx/requirements
-            schema: core
-          YAML
+          cat > /tmp/test_cross.py << 'PYEOF'
+          import pytest
 
-          cat > /tmp/rtmx_demo/.rtmx/database.csv << 'CSV'
-          req_id,category,subcategory,requirement_text,target_value,test_module,test_function,validation_method,status,priority,phase,notes,effort_weeks,dependencies,blocks,assignee,sprint,started_date,completed_date,requirement_file
-          REQ-AUTH-001,AUTHENTICATION,Login,System shall authenticate users via OAuth 2.0,OAuth 2.0 PKCE,tests/test_auth.py,test_oauth_login,Integration Test,COMPLETE,P0,1,Core authentication,2.0,,,alice,v1.0,2024-11-01,2024-11-15,docs/requirements/AUTH/REQ-AUTH-001.md
-          REQ-AUTH-002,AUTHENTICATION,Session,System shall manage user sessions with JWT,15 min expiry,tests/test_auth.py,test_jwt_session,Unit Test,COMPLETE,HIGH,1,Session management,1.5,REQ-AUTH-001,,alice,v1.0,2024-11-10,2024-11-20,docs/requirements/AUTH/REQ-AUTH-002.md
-          REQ-AUTH-003,AUTHENTICATION,MFA,System shall support TOTP-based MFA,RFC 6238,tests/test_auth.py,test_totp_mfa,Integration Test,PARTIAL,HIGH,2,Multi-factor auth,2.0,REQ-AUTH-001|REQ-AUTH-002,,bob,v1.1,2024-11-25,,docs/requirements/AUTH/REQ-AUTH-003.md
-          REQ-API-001,API,REST,System shall expose RESTful endpoints,OpenAPI 3.0,tests/test_api.py,test_rest_endpoints,Integration Test,COMPLETE,P0,1,REST API,3.0,REQ-AUTH-001,,charlie,v1.0,2024-10-15,2024-11-01,docs/requirements/API/REQ-API-001.md
-          REQ-API-002,API,GraphQL,System shall support GraphQL queries,GraphQL spec,tests/test_api.py,test_graphql_queries,Integration Test,MISSING,MEDIUM,2,GraphQL support,4.0,REQ-API-001,,charlie,v1.2,,,docs/requirements/API/REQ-API-002.md
-          REQ-API-003,API,Webhooks,System shall deliver webhooks for events,< 5s latency,tests/test_api.py,test_webhook_delivery,System Test,MISSING,MEDIUM,3,Event webhooks,2.5,REQ-API-001,,,,,,docs/requirements/API/REQ-API-003.md
-          REQ-DATA-001,DATA,Storage,System shall persist data in PostgreSQL,ACID compliant,tests/test_data.py,test_postgres_storage,Integration Test,COMPLETE,P0,1,Database layer,2.0,,,dave,v1.0,2024-10-01,2024-10-20,docs/requirements/DATA/REQ-DATA-001.md
-          REQ-DATA-002,DATA,Cache,System shall cache frequently accessed data,Redis cluster,tests/test_data.py,test_redis_cache,Integration Test,PARTIAL,HIGH,1,Caching layer,1.5,REQ-DATA-001,,dave,v1.0,2024-10-15,,docs/requirements/DATA/REQ-DATA-002.md
-          REQ-DATA-003,DATA,Backup,System shall perform automated backups,Daily snapshots,tests/test_data.py,test_backup_automation,System Test,MISSING,HIGH,2,Backup automation,2.0,REQ-DATA-001,REQ-DATA-004,eve,v1.1,,,docs/requirements/DATA/REQ-DATA-003.md
-          REQ-DATA-004,DATA,Recovery,System shall support point-in-time recovery,< 1 hour RPO,tests/test_data.py,test_pitr_recovery,System Test,NOT_STARTED,HIGH,3,Disaster recovery,3.0,REQ-DATA-003,,eve,,,docs/requirements/DATA/REQ-DATA-004.md
-          REQ-UI-001,UI,Dashboard,System shall provide real-time dashboard,< 100ms refresh,tests/test_ui.py,test_dashboard_refresh,E2E Test,COMPLETE,HIGH,1,Main dashboard,3.0,REQ-API-001,,frank,v1.0,2024-11-01,2024-11-25,docs/requirements/UI/REQ-UI-001.md
-          REQ-UI-002,UI,Mobile,System shall support responsive mobile view,iOS/Android,tests/test_ui.py,test_mobile_responsive,E2E Test,PARTIAL,MEDIUM,2,Mobile support,2.5,REQ-UI-001,,frank,v1.1,2024-11-20,,docs/requirements/UI/REQ-UI-002.md
-          CSV
+          @pytest.mark.req("REQ-VERIFY-001")
+          @pytest.mark.scope_unit
+          def test_cross_lang_passing():
+              assert True
 
-      - name: Generate screenshots
+          @pytest.mark.req("REQ-VERIFY-002")
+          def test_cross_lang_also_passing():
+              assert True
+          PYEOF
+
+      - name: Run Python tests with RTMX output
+        run: pytest /tmp/test_cross.py --rtmx-output=/tmp/results.json -v
+
+      - name: Validate JSON output
+        run: python3 -m json.tool /tmp/results.json
+
+      - name: Verify with Go CLI
+        run: ./rtmx verify --results /tmp/results.json --dry-run --verbose
+
+  release-dry-run:
+    name: Release Dry Run
+    needs: [test, lint]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Install syft
+        run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: GoReleaser snapshot
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --snapshot --clean --skip=sign,publish,docker
         env:
-          RTMX_SUPPRESS_DEPRECATION: "1"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify artifacts
         run: |
-          cd /tmp/rtmx_demo
-          mkdir -p $GITHUB_WORKSPACE/docs/assets
+          echo "=== Release artifacts ==="
+          ls -la dist/
+          echo ""
+          echo "=== Checksums ==="
+          cat dist/checksums.txt
+          echo ""
+          echo "=== Verify expected files ==="
+          test -f dist/checksums.txt || { echo "FAIL: missing checksums.txt"; exit 1; }
+          ls dist/rtmx-go_*_linux_amd64.tar.gz || { echo "FAIL: missing linux amd64 archive"; exit 1; }
+          ls dist/rtmx_*_linux_amd64.deb || { echo "FAIL: missing linux deb"; exit 1; }
+          echo "All release artifacts verified."
 
-          # Generate status screenshot
-          script -q -c "rtmx status" /dev/null | grep -v "^Script " > /tmp/status.txt
-          ansi2image /tmp/status.txt -o $GITHUB_WORKSPACE/docs/assets/rtmx-status.png
+  install-script-test:
+    name: Install Script Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
 
-          # Generate backlog screenshot
-          script -q -c "rtmx backlog" /dev/null | grep -v "^Script " > /tmp/backlog.txt
-          ansi2image /tmp/backlog.txt -o $GITHUB_WORKSPACE/docs/assets/rtmx-backlog.png
+      - name: Validate script syntax
+        run: bash -n scripts/install.sh
 
-          # Generate health screenshot
-          script -q -c "rtmx health" /dev/null | grep -v "^Script " > /tmp/health.txt
-          ansi2image /tmp/health.txt -o $GITHUB_WORKSPACE/docs/assets/rtmx-health.png
+      - name: Test error handling
+        run: |
+          # Should fail gracefully for non-existent version
+          RTMX_VERSION=v999.999.999 bash scripts/install.sh 2>&1 && exit 1 || true
+          echo "Install script correctly fails for non-existent version"
 
-      - name: Create PR with updated screenshots
+  build-matrix:
+    name: Build Matrix
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Build
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
         run: |
-          git add docs/assets/*.png
-          if git diff --staged --quiet; then
-            echo "No screenshot changes to commit"
-          else
-            REPO="${{ github.repository }}"
-            BRANCH="auto/update-screenshots-$(date +%Y%m%d-%H%M%S)"
-            MAIN_SHA=$(gh api "repos/$REPO/git/ref/heads/main" --jq '.object.sha')
+          go build -ldflags="-s -w" -o rtmx-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }} ./cmd/rtmx
 
-            # Create branch via API
-            gh api "repos/$REPO/git/refs" \
-              --method POST \
-              --field ref="refs/heads/$BRANCH" \
-              --field sha="$MAIN_SHA"
-
-            # Commit each changed screenshot via API (signed by GitHub App)
-            for FILE in docs/assets/rtmx-status.png docs/assets/rtmx-backlog.png docs/assets/rtmx-health.png; do
-              if git diff --staged --name-only | grep -q "$FILE"; then
-                CONTENT=$(base64 -w 0 "$FILE")
-                FILE_SHA=$(gh api "repos/$REPO/contents/$FILE?ref=$BRANCH" --jq '.sha' 2>/dev/null || echo "")
-                if [ -n "$FILE_SHA" ]; then
-                  gh api "repos/$REPO/contents/$FILE" \
-                    --method PUT \
-                    --field message="docs: Auto-update $FILE" \
-                    --field content="$CONTENT" \
-                    --field sha="$FILE_SHA" \
-                    --field branch="$BRANCH"
-                else
-                  gh api "repos/$REPO/contents/$FILE" \
-                    --method PUT \
-                    --field message="docs: Auto-update $FILE" \
-                    --field content="$CONTENT" \
-                    --field branch="$BRANCH"
-                fi
-              fi
-            done
-
-            # Create PR
-            if gh pr create \
-              --title "docs: Auto-update terminal screenshots" \
-              --body "Automated PR to update CLI terminal screenshots in docs/assets/." \
-              --base main \
-              --head "$BRANCH"; then
-              echo "PR created successfully"
-            else
-              echo "::warning::Could not create PR automatically."
-              echo "Create PR at: https://github.com/$REPO/compare/main...$BRANCH"
-            fi
-          fi
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: rtmx-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: rtmx-${{ matrix.goos }}-${{ matrix.goarch }}*
