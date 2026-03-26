@@ -40,6 +40,9 @@ type RTMXConfig struct {
 	// MCP configuration for Model Context Protocol.
 	MCP MCPConfig `yaml:"mcp"`
 
+	// Verify configuration for closed-loop verification.
+	Verify VerifyConfig `yaml:"verify"`
+
 	// Sync configuration for collaboration.
 	Sync SyncConfig `yaml:"sync"`
 
@@ -48,6 +51,19 @@ type RTMXConfig struct {
 
 	// Ziti configuration for zero-trust networking.
 	Ziti ZitiConfig `yaml:"ziti"`
+}
+
+// VerifyConfig contains verification settings.
+type VerifyConfig struct {
+	AutoUpdate bool             `yaml:"auto_update"`
+	Thresholds ThresholdConfig  `yaml:"thresholds"`
+	AuditLog   bool             `yaml:"audit_log"`
+}
+
+// ThresholdConfig defines warn and fail thresholds for status changes.
+type ThresholdConfig struct {
+	Warn int `yaml:"warn"`
+	Fail int `yaml:"fail"`
 }
 
 // PytestConfig contains pytest-related settings.
@@ -216,6 +232,14 @@ func DefaultConfig() *Config {
 				Enabled: false,
 				Port:    3000,
 				Host:    "localhost",
+			},
+			Verify: VerifyConfig{
+				AutoUpdate: true,
+				Thresholds: ThresholdConfig{
+					Warn: 5,
+					Fail: 15,
+				},
+				AuditLog: true,
 			},
 			Sync: SyncConfig{
 				ConflictResolution: "manual",

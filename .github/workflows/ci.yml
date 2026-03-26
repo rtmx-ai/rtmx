@@ -174,7 +174,17 @@ jobs:
 
       - name: Commit RTM updates
         run: |
-          git diff --quiet .rtmx/database.csv && exit 0
+          # Safety check: verify only database.csv was modified (REQ-SEC-010)
+          CHANGED=$(git diff --name-only)
+          if [ -z "$CHANGED" ]; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          if [ "$CHANGED" != ".rtmx/database.csv" ]; then
+            echo "::error::Unexpected files modified by verify: $CHANGED"
+            echo "Only .rtmx/database.csv should change. Refusing to commit."
+            exit 1
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .rtmx/database.csv
