@@ -30,7 +30,7 @@ curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install
 ## Project Structure
 
 ```
-rtmx-go/
+rtmx/
 ├── cmd/rtmx/           # Main entry point
 ├── internal/
 │   ├── cmd/            # CLI commands (Cobra)

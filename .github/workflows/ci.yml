@@ -323,7 +323,7 @@ jobs:
           echo ""
           echo "=== Verify expected files ==="
           test -f dist/checksums.txt || { echo "FAIL: missing checksums.txt"; exit 1; }
-          ls dist/rtmx-go_*_linux_amd64.tar.gz || { echo "FAIL: missing linux amd64 archive"; exit 1; }
+          ls dist/rtmx_*_linux_amd64.tar.gz || { echo "FAIL: missing linux amd64 archive"; exit 1; }
           ls dist/rtmx_*_linux_amd64.deb || { echo "FAIL: missing linux deb"; exit 1; }
           echo "All release artifacts verified."
 
