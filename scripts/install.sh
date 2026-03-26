@@ -37,7 +37,7 @@ if [ -z "$RTMX_VERSION" ]; then
 fi
 
 VERSION_NUM="${RTMX_VERSION#v}"
-ARCHIVE="rtmx-go_${VERSION_NUM}_${OS}_${ARCH}.tar.gz"
+ARCHIVE="rtmx_${VERSION_NUM}_${OS}_${ARCH}.tar.gz"
 URL="https://github.com/${REPO}/releases/download/${RTMX_VERSION}/${ARCHIVE}"
 CHECKSUM_URL="https://github.com/${REPO}/releases/download/${RTMX_VERSION}/checksums.txt"
 
