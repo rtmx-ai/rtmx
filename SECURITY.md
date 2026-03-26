@@ -3,73 +3,47 @@
 ## Supported Versions
 
 | Version | Supported          |
-| ------- | ------------------ |
+|---------|--------------------|
 | 0.1.x   | :white_check_mark: |
+| < 0.1   | :x:                |
 
 ## Reporting a Vulnerability
 
-We take security vulnerabilities seriously. If you discover a security issue, please report it responsibly.
+**Please do NOT report security vulnerabilities through public GitHub issues.**
 
-### How to Report
+Instead, email **security@rtmx.ai** with:
 
-**Do NOT open a public GitHub issue for security vulnerabilities.**
+- Description of the vulnerability
+- Steps to reproduce
+- Expected vs actual behavior
+- Impact assessment (if known)
 
-Instead, please report security vulnerabilities by emailing:
+We will acknowledge receipt within **48 hours** and provide a fix timeline within **7 business days** for critical issues.
 
-**security@iotactical.co**
+## Verification
 
-Include the following information:
-- Type of vulnerability (e.g., injection, authentication bypass, etc.)
-- Full path to the affected source file(s)
-- Steps to reproduce the issue
-- Proof-of-concept or exploit code (if possible)
-- Impact assessment
+All release binaries are GPG-signed. Verify your download:
 
-### What to Expect
+```bash
+# Import RTMX public key
+curl -fsSL https://rtmx.ai/gpg.key | gpg --import
 
-1. **Acknowledgment**: We will acknowledge receipt within 48 hours
-2. **Assessment**: We will assess the vulnerability within 7 days
-3. **Resolution**: We aim to resolve critical issues within 30 days
-4. **Disclosure**: We will coordinate disclosure timing with you
+# Verify checksums signature
+gpg --verify checksums.txt.sig checksums.txt
 
-### Scope
+# Verify binary checksum
+sha256sum -c <(grep linux_amd64 checksums.txt)
+```
 
-This security policy covers:
-- The rtmx Python package
-- CLI commands and their handling of user input
-- Configuration file parsing
-- Integration with external services (GitHub, Jira)
-- MCP server implementation
+## Security Practices
 
-### Out of Scope
+- All dependencies are audited with `govulncheck` in CI
+- CodeQL analysis runs on every push
+- Binaries are statically compiled (CGO_ENABLED=0) with no external runtime dependencies
+- Release artifacts include SBOM (Software Bill of Materials) in SPDX format
 
-- Issues in dependencies (report to the respective project)
-- Theoretical attacks without proof of concept
-- Social engineering attacks
+## Contact
 
-## Security Measures
-
-### Current Protections
-
-- **Input validation**: All CLI inputs are validated
-- **No eval/exec**: We never execute arbitrary code from user input
-- **Token handling**: API tokens are read from environment variables only
-- **Dependency scanning**: Automated pip-audit checks in CI
-- **SBOM generation**: CycloneDX SBOM attached to releases
-
-### Best Practices for Users
-
-1. **Keep updated**: Always use the latest version
-2. **Secure tokens**: Store API tokens securely in environment variables
-3. **Review permissions**: Only grant necessary access to GitHub/Jira tokens
-4. **Audit dependencies**: Use `pip-audit` to check for vulnerabilities
-
-## Security Updates
-
-Security updates are released as patch versions (e.g., 0.1.1, 0.1.2).
-
-Subscribe to GitHub releases to be notified of security updates.
-
-## Acknowledgments
-
-We thank security researchers who help keep RTMX secure. Contributors who report valid security issues will be acknowledged in release notes (unless they prefer anonymity).
+- Security issues: security@rtmx.ai
+- General support: dev@rtmx.ai
+- Company: ioTACTICAL LLC

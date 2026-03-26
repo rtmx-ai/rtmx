@@ -1,0 +1,178 @@
+# GoReleaser configuration for RTMX CLI
+# Documentation: https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - id: rtmx
+    main: ./cmd/rtmx
+    binary: rtmx
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/rtmx-ai/rtmx/internal/cmd.Version={{.Version}}
+      - -X github.com/rtmx-ai/rtmx/internal/cmd.Commit={{.Commit}}
+      - -X github.com/rtmx-ai/rtmx/internal/cmd.Date={{.Date}}
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+signs:
+  - artifacts: all
+    args:
+      - "--batch"
+      - "--local-user"
+      - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+
+sboms:
+  - artifacts: archive
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: rtmx-ai
+    name: rtmx-go
+  draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"
+  header: |
+    ## Verify Your Download
+
+    ```bash
+    # Import RTMX public key
+    curl -fsSL https://rtmx.ai/gpg.key | gpg --import
+
+    # Verify checksums
+    gpg --verify checksums.txt.sig checksums.txt
+    sha256sum -c <(grep linux_amd64 checksums.txt)
+    ```
+
+    ## Install
+
+    ```bash
+    # Quick install (Linux/macOS)
+    curl -fsSL https://rtmx.ai/install.sh | sh
+
+    # Homebrew
+    brew install rtmx-ai/tap/rtmx
+
+    # Scoop (Windows)
+    scoop bucket add rtmx https://github.com/rtmx-ai/scoop-bucket
+    scoop install rtmx
+    ```
+
+brews:
+  - name: rtmx
+    repository:
+      owner: rtmx-ai
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://rtmx.ai"
+    description: "Requirements Traceability Matrix toolkit"
+    license: "Apache-2.0"
+    test: |
+      system "#{bin}/rtmx", "version"
+    install: |
+      bin.install "rtmx"
+
+scoops:
+  - repository:
+      owner: rtmx-ai
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+    homepage: "https://rtmx.ai"
+    description: "Requirements Traceability Matrix toolkit"
+    license: "Apache-2.0"
+
+nfpms:
+  - id: packages
+    package_name: rtmx
+    vendor: ioTACTICAL LLC
+    homepage: https://rtmx.ai
+    maintainer: RTMX Engineering <dev@rtmx.ai>
+    description: Requirements Traceability Matrix toolkit
+    license: Apache-2.0
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+
+dockers:
+  - image_templates:
+      - 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}-amd64'
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+    goarch: amd64
+    dockerfile: Dockerfile
+    extra_files:
+      - go.mod
+      - go.sum
+  - image_templates:
+      - 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}-arm64'
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64"
+    goarch: arm64
+    dockerfile: Dockerfile
+    extra_files:
+      - go.mod
+      - go.sum
+
+docker_manifests:
+  - name_template: 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}'
+    image_templates:
+      - 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}-amd64'
+      - 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}-arm64'
+  - name_template: 'ghcr.io/rtmx-ai/rtmx:latest'
+    image_templates:
+      - 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}-amd64'
+      - 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}-arm64'

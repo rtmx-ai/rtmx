@@ -1,299 +1,69 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with the RTMX codebase.
+This file provides guidance to Claude Code when working with the RTMX Go CLI codebase.
 
-## Repository Ecosystem
+## Overview
 
-This is the core RTMX CLI client, part of the multi-repo system:
-
-| Repo | Purpose | Relationship |
-|------|---------|--------------|
-| rtmx.ai | Website & docs | Has rtmx as submodule |
-| **rtmx** (this) | CLI client | Core library |
-| rtmx-sync | Real-time coordination | Imports rtmx>=0.0.5 |
-
-When working across repos:
-- API changes here → update rtmx-sync dependency
-- Doc changes here → update rtmx.ai submodule
-- Breaking changes → coordinate across all repos
+This is the Go implementation of the RTMX CLI, providing a single static binary for requirements traceability management. It is a port of the Python CLI (`rtmx-ai/rtmx`).
 
 ## Quick Commands
 
 ```bash
-make dev          # Install with dev dependencies
+make build        # Build the binary
 make test         # Run tests
-make lint         # Run linter
-make rtm          # Show RTM status
-make backlog      # Show backlog
+make lint         # Run linter (golangci-lint v2 required)
+make hooks        # Install pre-commit hooks
+make dev          # Build with race detector
+make build-all    # Build for all platforms
+make parity       # Run parity tests against Python CLI
+```
+
+## Local CI Parity
+
+**CRITICAL: Local pre-commit hooks must match remote CI checks.** Run `make hooks` after cloning to install `.githooks/pre-commit` which runs build, test, lint, and vet before each commit. This prevents pushing code that fails CI.
+
+Install golangci-lint v2 if not present:
+```bash
+curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin
 ```
 
 ## Project Structure
 
 ```
-src/rtmx/
-├── cli/          # Click CLI commands
-├── adapters/     # External service integrations (GitHub, Jira, MCP)
-├── pytest/       # Pytest plugin for requirement markers
-├── models.py     # Requirement, RTMDatabase
-├── config.py     # RTMXConfig, load_config()
-├── graph.py      # Dependency analysis (cycles, critical path)
-├── validation.py # Database validation
-└── schema.py     # Schema definitions (core, phoenix)
+rtmx-go/
+├── cmd/rtmx/           # Main entry point
+├── internal/
+│   ├── cmd/            # CLI commands (Cobra)
+│   ├── config/         # Configuration management (Viper)
+│   ├── database/       # CSV parsing, Requirement model
+│   ├── graph/          # Tarjan's SCC, topological sort, critical path
+│   ├── output/         # Tables, colors, progress bars
+│   ├── adapters/       # GitHub, Jira, MCP integrations
+│   └── sync/           # CRDT sync and remotes
+├── pkg/rtmx/           # Public API for Go integration
+└── testdata/           # Golden files and fixtures
 ```
 
-## Versioning
+## Key Design Decisions
 
-We use [Semantic Versioning](https://semver.org/) with strict adherence:
+1. **Cobra for CLI** - Standard Go CLI framework with subcommands
+2. **Viper for config** - YAML/JSON/ENV config management
+3. **No CGO** - Pure Go for static binary distribution
+4. **Internal packages** - Implementation details not exported
+5. **Golden file tests** - Ensure output parity with Python CLI
 
-- **MAJOR** (x.0.0): Breaking API changes
-- **MINOR** (0.x.0): New features, backward compatible
-- **PATCH** (0.0.x): Bug fixes, backward compatible
+## Development Workflow
 
-### Release Process
-
-1. Update version in `pyproject.toml`
-2. Update `CHANGELOG.md` with release notes
-3. Commit: `git commit -m "chore: Bump version to vX.Y.Z"`
-4. Tag: `git tag vX.Y.Z`
-5. Push: `git push origin main --tags`
-
-The release workflow automatically publishes to PyPI on version tags.
-
-### Version Constraints
-
-- Pre-1.0: API is unstable, minor versions may break compatibility
-- Post-1.0: Strict semver, deprecation warnings before removal
-
-## Test-Driven Development (TDD)
-
-**All code changes MUST follow TDD:**
-
-1. **Red**: Write a failing test first
-2. **Green**: Write minimal code to pass the test
-3. **Refactor**: Clean up while keeping tests green
-
-### Test Requirements
-
-Every test function MUST have requirement markers:
-
-```python
-@pytest.mark.req("REQ-XX-NNN")      # Link to requirement
-@pytest.mark.scope_unit             # or scope_integration, scope_system
-@pytest.mark.technique_nominal      # or parametric, monte_carlo, stress
-@pytest.mark.env_simulation         # or hil, anechoic, field
-def test_feature():
-    pass
-```
-
-### Test File Structure
-
-```
-tests/
-├── test_models.py          # Unit tests for models
-├── test_graph.py           # Unit tests for graph algorithms
-├── test_validation.py      # Unit tests for validation
-├── test_lifecycle_e2e.py   # E2E lifecycle tests
-└── fixtures/               # Test data
-```
-
-### Running Tests
-
-```bash
-pytest tests/ -v                    # All tests
-pytest tests/test_models.py -v      # Single module
-pytest -k "test_status" -v          # Pattern match
-pytest --cov=rtmx --cov-report=html # With coverage
-```
-
-## Behavior-Driven Development (BDD)
-
-For feature development, write requirements BEFORE implementation:
-
-### 1. Define Requirement
-
-Add to `docs/rtm_database.csv`:
-
-```csv
-REQ-FEAT-001,FEATURES,API,System shall export RTM as JSON,JSON schema v1,tests/test_export.py,test_json_export,Unit Test,MISSING,MEDIUM,2,API endpoint for JSON export,0.5,REQ-CORE-001,,developer,v0.2,,,docs/requirements/FEATURES/REQ-FEAT-001.md
-```
-
-### 2. Write Specification
-
-Create `docs/requirements/FEATURES/REQ-FEAT-001.md`:
-
-```markdown
-# REQ-FEAT-001: JSON Export
-
-## Description
-System shall export the RTM database as JSON.
-
-## Acceptance Criteria
-- [ ] Exports all requirements as JSON array
-- [ ] Includes all schema fields
-- [ ] Validates against JSON schema
-- [ ] Handles empty database
-
-## Test Cases
-1. Export populated database
-2. Export empty database
-3. Export with special characters
-```
-
-### 3. Write Failing Test
-
-```python
-@pytest.mark.req("REQ-FEAT-001")
-@pytest.mark.scope_unit
-@pytest.mark.technique_nominal
-@pytest.mark.env_simulation
-def test_json_export():
-    db = RTMDatabase.load("fixtures/sample.csv")
-    result = db.to_json()
-    assert isinstance(result, str)
-    data = json.loads(result)
-    assert len(data) == len(db.requirements)
-```
-
-### 4. Implement Feature
-
-Write minimal code to pass the test, then refactor.
-
-### 5. Update Status
-
-```bash
-rtmx from-tests --update  # Sync test info to RTM
-```
-
-## Gherkin Feature Specifications
-
-RTMX uses pytest-bdd for executable Gherkin specifications. Feature files live in `features/` and are language-agnostic.
-
-### Directory Structure
-
-```
-features/                    # Gherkin feature files (portable)
-├── cli/                     # CLI command features
-│   ├── status.feature
-│   └── backlog.feature
-└── sync/                    # Collaboration features
-    ├── collaboration.feature
-    └── offline.feature
-
-tests/bdd/                   # Python step definitions
-├── conftest.py              # BDD fixtures
-├── steps/
-│   ├── common_steps.py      # Shared Given/When/Then
-│   └── cli_steps.py         # CLI-specific steps
-└── scenarios/               # pytest-bdd test modules
-    └── test_cli_status.py
-```
-
-### Writing Feature Files
-
-Every feature file MUST:
-1. Link to requirements via `@REQ-XXX` tags
-2. Include test scope and technique tags
-3. Follow Gherkin best practices (Background for setup, Scenario Outline for data-driven)
-
-```gherkin
-@REQ-CLI-001 @REQ-UX-001 @cli
-Feature: RTM Status Display
-  As a developer using RTMX
-  I want to see the current RTM completion status
-  So that I can track project progress
-
-  Background:
-    Given an initialized RTMX project
-
-  @scope_system @technique_nominal
-  Scenario: Display status summary
-    Given the RTM database has 10 requirements
-    And 5 requirements are COMPLETE
-    When I run "rtmx status"
-    Then the command should succeed
-    And I should see "50%" in the output
-```
-
-### Tag Conventions
-
-| Tag Pattern | Purpose | Example |
-|-------------|---------|---------|
-| `@REQ-XXX-NNN` | Link to requirement | `@REQ-CLI-001` |
-| `@scope_*` | Test scope | `@scope_system` |
-| `@technique_*` | Test technique | `@technique_nominal` |
-| `@cli/@sync/@web` | Component | `@cli` |
-| `@phase-N` | Development phase | `@phase-10` |
-
-### Step Definition Patterns
-
-Use universal patterns that translate across languages:
-
-```python
-# tests/bdd/steps/common_steps.py
-from pytest_bdd import given, when, then, parsers
-
-@given("an initialized RTMX project")
-def initialized_project(tmp_path):
-    """Create project with rtmx.yaml and database."""
-    ...
-
-@when(parsers.parse('I run "{command}"'))
-def run_command(context, command):
-    """Execute CLI command. Universal pattern for any language."""
-    ...
-
-@then("the command should succeed")
-def command_succeeds(context):
-    assert context["result"].returncode == 0
-```
-
-### Running BDD Tests
-
-```bash
-pytest tests/bdd/ -v                      # Run BDD tests only
-pytest tests/ -v                          # Run all tests (unit + BDD)
-pytest tests/bdd/ -v --gherkin-terminal-reporter  # Verbose Gherkin output
-```
-
-### BDD Workflow for New Features
-
-1. **Write Feature Spec First**: Create `.feature` file with scenarios
-2. **Add Requirement Tags**: Link to existing or new requirements
-3. **Write Step Definitions**: Implement Given/When/Then in Python
-4. **Create Scenario Runner**: Add `tests/bdd/scenarios/test_*.py`
-5. **Run and Iterate**: Use failing scenarios to drive implementation
-
-### Multi-Language Portability
-
-Feature files are portable across languages. When adding SDKs in other languages:
-- Keep same `.feature` files
-- Write new step definitions in target language
-- Use language-appropriate BDD runner (cucumber-js, godog, etc.)
-
-## Code Style
-
-- **Formatter**: ruff format
-- **Linter**: ruff check
-- **Type checker**: mypy --strict
-- **Docstrings**: Google style
-
-### Pre-commit
-
-```bash
-make pre-commit-install  # Setup hooks
-make pre-commit-run      # Run manually
-```
-
-## Adding New Features
+### Adding New Features or Requirements
 
 **CRITICAL: Fully elaborate the requirement specification and dependency relationships BEFORE commencing any implementation work.** This means:
 
 1. Check `make backlog` for prioritized requirements
-2. **Elaborate the requirement specification** in `docs/requirements/`:
+2. **Elaborate the requirement specification** in `.rtmx/requirements/<CATEGORY>/`:
    - Write complete acceptance criteria with testable conditions
    - Define all files to create/modify
    - Identify all dependency relationships (blocks/blocked-by)
-   - Update `docs/rtm_database.csv` with the requirement entry and dependencies
+   - Update `.rtmx/database.csv` with the requirement entry and dependencies
    - Verify no circular dependencies with `rtmx cycles`
 3. **Write BDD feature specs** in `features/` when the requirement involves user-facing behavior
 4. Write failing tests with proper markers (TDD Red phase)
@@ -301,140 +71,269 @@ make pre-commit-run      # Run manually
 6. Refactor while keeping tests green
 7. Run `make test && make lint`
 8. Run `rtmx verify --update` to close the loop
-9. Update CHANGELOG.md
-10. Submit PR
+9. Commit with requirement ID in message
 
-## Parallel Development with Git Worktrees
+### Adding a New Command
 
-When multiple requirements are **mutually exclusive** (no shared file dependencies, no blocking relationships), use parallel Claude Code agents on separate Git worktrees to accelerate development.
+1. Create `internal/cmd/<command>.go`
+2. Add command to `internal/cmd/root.go` in `init()`
+3. Create test file `internal/cmd/<command>_test.go`
+4. Add golden files to `testdata/` if needed
 
-### When to Parallelize
+### Testing Parity
 
-Requirements are safe to parallelize when:
-- They touch **different files** (check spec's "Files to Modify" section)
-- Neither **blocks** the other (check `Blocks` / `Dependencies` in specs)
-- They belong to **different components** (e.g., CLI vs adapters vs tests)
-
-### Worktree Setup
+Every command must produce identical output to the Python CLI:
 
 ```bash
-# Create worktrees for parallel work
-git worktree add ../rtmx-feat-a -b feat/REQ-XXX-001
-git worktree add ../rtmx-feat-b -b feat/REQ-YYY-001
+# Run parity tests
+make parity
 
-# Each agent works in its own worktree
-cd ../rtmx-feat-a  # Agent 1
-cd ../rtmx-feat-b  # Agent 2
+# Manual comparison
+python -m rtmx status > /tmp/py.out
+./bin/rtmx status > /tmp/go.out
+diff /tmp/py.out /tmp/go.out
 ```
 
-### Workflow
-
-1. **Identify candidates**: Run `make backlog` and find unblocked requirements
-2. **Verify independence**: Read specs to confirm no file overlap
-3. **Create worktrees**: One per requirement, with feature branches
-4. **Spawn agents**: Each agent implements one requirement in its worktree
-5. **Merge sequentially**: After agents complete, merge branches to main one at a time
-6. **Clean up**: `git worktree remove ../rtmx-feat-a`
-
-### Example: Parallel Phase Work
+### Build & Release
 
 ```bash
-# REQ-MCP-001 (adapters/mcp/) and REQ-GIT-002 (git hooks) are independent
-git worktree add ../rtmx-mcp -b feat/REQ-MCP-001
-git worktree add ../rtmx-git -b feat/REQ-GIT-002
+# Local snapshot build
+make snapshot
 
-# Agent 1: Implement MCP spec reading in ../rtmx-mcp
-# Agent 2: Implement pre-commit hooks in ../rtmx-git
+# Check release config
+make release-check
 
-# After both complete:
-git merge feat/REQ-MCP-001
-git merge feat/REQ-GIT-002
-git worktree remove ../rtmx-mcp
-git worktree remove ../rtmx-git
+# Release (triggered by tag)
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
-### Caution
+## Version Management
 
-- **Never parallelize blocking requirements** - check `blockedBy` fields
-- **Avoid shared files** - if two reqs modify `models.py`, work sequentially
-- **Sync database changes** - `docs/rtm_database.csv` edits should be coordinated
+Version, commit, and date are injected via ldflags:
 
-## CLI Development
-
-Commands are in `src/rtmx/cli/`. Each command:
-
-1. Has its own module (e.g., `status.py`)
-2. Is registered in `main.py`
-3. Uses Click decorators
-4. Has corresponding tests
-
-```python
-# src/rtmx/cli/newcmd.py
-def run_newcmd(arg: str) -> None:
-    """Implementation."""
-    pass
-
-# src/rtmx/cli/main.py
-@main.command()
-@click.argument("arg")
-def newcmd(arg: str) -> None:
-    """Command docstring."""
-    from rtmx.cli.newcmd import run_newcmd
-    run_newcmd(arg)
+```go
+// internal/cmd/root.go
+var (
+    Version = "dev"
+    Commit  = "none"
+    Date    = "unknown"
+)
 ```
 
-## Debugging
-
+Build with:
 ```bash
-rtmx --help                    # Show all commands
-rtmx status -vvv               # Verbose output
-python -m rtmx status          # Run as module
-pytest -v -s --tb=long         # Verbose test output
+go build -ldflags "-X github.com/rtmx-ai/rtmx/internal/cmd.Version=v0.1.0 ..."
 ```
 
-## Patterns and Anti-Patterns
+## Compatibility Requirements
 
-**Read the full guide**: [docs/patterns.md](docs/patterns.md)
+- **Config files**: Must read rtmx.yaml/.rtmx/config.yaml identically to Python
+- **CSV format**: Must read/write rtm_database.csv identically to Python
+- **Output format**: Tables, colors, progress bars must match Python
+- **Exit codes**: Must match Python exit codes
+- **JSON output**: Must match Python JSON schema exactly
 
-### Critical: Closed-Loop Verification
+## Common Patterns
 
-**Never manually edit the `status` field in rtm_database.csv.**
+### Error Handling
 
-Status must be derived from test results, not claimed by agents or humans.
-
-```bash
-# RIGHT: Let tests determine status
-rtmx verify --update
-
-# WRONG: Manual status edit
-# Editing status: COMPLETE directly in CSV
+```go
+func runCommand(cmd *cobra.Command, args []string) error {
+    config, err := loadConfig()
+    if err != nil {
+        return fmt.Errorf("failed to load config: %w", err)
+    }
+    // ...
+}
 ```
 
-### Quick Reference
+### Color Output
 
-| Do This | Not This |
-|---------|----------|
-| `rtmx verify --update` | Manual status edits |
-| `@pytest.mark.req()` on tests | Orphan tests |
-| Spec-first development | Code-first, spec-never |
-| Respect `blockedBy` deps | Ignore dependencies |
+```go
+if !noColor && isTerminal() {
+    output = colorize(output, "green")
+}
+```
 
-### Agent Workflow
+### Progress Display
 
-1. Read requirement spec from `docs/requirements/`
-2. Write/update tests with `@pytest.mark.req()`
-3. Implement code to pass tests
-4. Run `rtmx verify --update`
-5. Commit (status updated by verification)
+```go
+bar := output.NewProgressBar(total)
+for _, item := range items {
+    process(item)
+    bar.Increment()
+}
+bar.Finish()
+```
 
-## Architecture Decisions
+## Dependencies
 
-- **CSV over SQLite**: Human-readable, git-friendly, AI-parseable
-- **Click over argparse**: Better UX, composable commands
-- **Pydantic-style validation**: Type safety without runtime overhead
-- **Lazy imports in CLI**: Fast startup time
-- When you push, always monitor CI in a background process. Fix pipeline errors immediately. A broken pipeline always becomes the team's highest priority.
-- The contact information for the rtmx project is RTMX Engineering, dev@rtmx.ai.
-- The company name is ioTACTICAL LLC (owner of RTMX). Technical support: dev@rtmx.ai, Sales: sales@rtmx.ai, Help: help@rtmx.ai.
-- Never use --no-verify or SKIP= when we run a commit. Pre-commit checks exist to fully verify what we are pushing to main. Catching an error in main that should have been caught locally is a quality escape, and we should always minimize or eliminate quality escapes. Quality lives as far left as possible, and for this project, that's in the local development environment.
-- Every tag for release to pypi should be accompanied with a thorough documentation review and update.
+- `github.com/spf13/cobra` - CLI framework
+- `github.com/spf13/viper` - Configuration
+- `gopkg.in/yaml.v3` - YAML parsing
+
+Minimize dependencies to keep binary size small (<15MB target).
+
+## Testability Requirements
+
+### Coverage Targets
+
+| Package | Target | Enforcement |
+|---------|--------|-------------|
+| internal/adapters | 100% | Coveralls + CI gate |
+| internal/cmd | 100% | Coveralls + CI gate |
+| internal/database | 90% | Coveralls |
+| internal/graph | 90% | Coveralls |
+| internal/config | 90% | Coveralls |
+| internal/output | 90% | Coveralls |
+| cmd/rtmx | 100% | E2E tests |
+| **Overall** | >90% | CI fails below 80% |
+
+### Architecture Patterns for Testability
+
+**ALL adapters and commands MUST be fully testable:**
+
+1. **HTTPClient Interface** - All HTTP operations via interface
+   ```go
+   type HTTPClient interface {
+       Do(req *http.Request) (*http.Response, error)
+   }
+
+   func NewGitHubAdapter(cfg *config.GitHubConfig, opts ...AdapterOption) (*GitHubAdapter, error)
+
+   // Test with mock
+   adapter, _ := NewGitHubAdapter(cfg, WithHTTPClient(mockClient))
+   ```
+
+2. **FileSystem Interface** - All file I/O via interface
+   ```go
+   type FileSystem interface {
+       ReadFile(path string) ([]byte, error)
+       WriteFile(path string, data []byte, perm os.FileMode) error
+       Stat(path string) (os.FileInfo, error)
+       MkdirAll(path string, perm os.FileMode) error
+       Remove(path string) error
+   }
+   ```
+
+3. **CommandContext** - Dependency injection for commands
+   ```go
+   type CommandContext struct {
+       Config      *config.Config
+       Database    *database.Database
+       Output      io.Writer
+       ErrOutput   io.Writer
+       Input       io.Reader
+       GetEnv      func(string) string
+       FileSystem  FileSystem
+   }
+   ```
+
+4. **Environment Abstraction** - Never call `os.Getenv` directly
+   ```go
+   // WRONG
+   token := os.Getenv("GITHUB_TOKEN")
+
+   // RIGHT
+   func NewAdapter(cfg *Config, opts ...Option) *Adapter
+   func WithEnvGetter(fn func(string) string) Option
+   ```
+
+### Test Patterns
+
+1. **Table-Driven Tests** - Standard Go pattern for all test cases
+   ```go
+   func TestFeature(t *testing.T) {
+       tests := []struct {
+           name     string
+           input    Input
+           expected Output
+           wantErr  bool
+       }{...}
+
+       for _, tt := range tests {
+           t.Run(tt.name, func(t *testing.T) {...})
+       }
+   }
+   ```
+
+2. **Golden File Tests** - For output formatting
+   ```go
+   golden.Assert(t, "status_output", actualOutput)
+   // Update: go test -update
+   ```
+
+3. **Mock HTTP Server** - For adapter testing
+   ```go
+   server := testutil.NewMockServer()
+   server.ExpectRequest("GET", "/repos/owner/repo/issues", MockResponse{...})
+   defer server.Close()
+   ```
+
+4. **Fuzz Tests** - For parsing functions
+   ```go
+   func FuzzCSVParse(f *testing.F) {
+       f.Add([]byte("header\nrow"))
+       f.Fuzz(func(t *testing.T, data []byte) {
+           ParseCSV(bytes.NewReader(data)) // must not panic
+       })
+   }
+   ```
+
+5. **Property-Based Tests** - For algorithm invariants
+   ```go
+   // Graph algorithms must satisfy invariants
+   // - Tarjan finds ALL SCCs
+   // - Topological sort respects ALL edges
+   // - Critical path is actually critical
+   ```
+
+### Test Infrastructure Packages
+
+```
+internal/
+├── adapters/
+│   └── testutil/
+│       ├── mock_server.go    # HTTP mock server
+│       └── fixtures.go       # Adapter test data
+├── testutil/
+│   ├── fixtures.go           # Test database factories
+│   ├── golden.go             # Golden file assertions
+│   └── tempdir.go            # Temp directory helpers
+└── cmd/
+    └── testutil/
+        └── context.go        # CommandContext factory
+```
+
+### CI Integration
+
+```yaml
+# Coverage is checked on every PR
+- name: Run tests with coverage
+  run: go test -coverprofile=coverage.out -covermode=atomic ./...
+
+- name: Upload to Coveralls
+  uses: coverallsapp/github-action@v2
+
+- name: Check coverage threshold
+  run: |
+    COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+    if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+      echo "Coverage $COVERAGE% is below 80% threshold"
+      exit 1
+    fi
+```
+
+### What NOT to Do
+
+- **NO global state** - No package-level variables that affect behavior
+- **NO direct os.Getenv** - Use injected environment getter
+- **NO direct http.DefaultClient** - Use injected HTTPClient
+- **NO direct file operations** - Use FileSystem interface
+- **NO untested code paths** - Every error path must have a test
+
+## Contact
+
+- RTMX Engineering: dev@rtmx.ai
+- Issues: https://github.com/rtmx-ai/rtmx/issues

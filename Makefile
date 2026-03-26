@@ -1,127 +1,87 @@
-# RTMX Development Makefile
-# Requirements Traceability Matrix toolkit
+.PHONY: build test lint clean install dev snapshot release help
 
-.PHONY: help install dev test lint format typecheck clean build publish pre-commit-install pre-commit-run
+# Variables
+BINARY_NAME := rtmx
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
+DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS := -ldflags "-s -w -X github.com/rtmx-ai/rtmx/internal/cmd.Version=$(VERSION) -X github.com/rtmx-ai/rtmx/internal/cmd.Commit=$(COMMIT) -X github.com/rtmx-ai/rtmx/internal/cmd.Date=$(DATE)"
 
-PYTHON := python3
-VENV := .venv
-PIP := $(VENV)/bin/pip
-PYTEST := $(VENV)/bin/pytest
-RUFF := $(VENV)/bin/ruff
-MYPY := $(VENV)/bin/mypy
+# Default target
+all: build
 
-help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+## build: Build the binary
+build:
+	go build $(LDFLAGS) -o bin/$(BINARY_NAME) ./cmd/rtmx
 
-# Installation targets
+## dev: Build with race detector for development
+dev:
+	go build -race $(LDFLAGS) -o bin/$(BINARY_NAME) ./cmd/rtmx
 
-$(VENV)/bin/activate:
-	$(PYTHON) -m venv $(VENV)
-	$(PIP) install --upgrade pip
+## install: Install to $GOPATH/bin
+install:
+	go install $(LDFLAGS) ./cmd/rtmx
 
-install: $(VENV)/bin/activate ## Install package in production mode
-	$(PIP) install -e .
+## test: Run tests
+test:
+	go test -v -race -coverprofile=coverage.out ./...
 
-dev: $(VENV)/bin/activate ## Install package with dev dependencies
-	$(PIP) install -e ".[dev]"
+## test-short: Run short tests only
+test-short:
+	go test -v -short ./...
 
-# Testing targets
+## coverage: Show test coverage in browser
+coverage: test
+	go tool cover -html=coverage.out
 
-test: ## Run tests
-	$(PYTEST) tests/ -v
+## lint: Run linter (golangci-lint v2)
+lint:
+	@command -v golangci-lint >/dev/null 2>&1 || $(HOME)/go/bin/golangci-lint version >/dev/null 2>&1 || \
+		{ echo "golangci-lint not found. Install: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b \$$(go env GOPATH)/bin"; exit 1; }
+	@command -v golangci-lint >/dev/null 2>&1 && golangci-lint run ./... || $(HOME)/go/bin/golangci-lint run ./...
 
-test-cov: ## Run tests with coverage
-	$(PYTEST) tests/ -v --cov=rtmx --cov-report=term-missing --cov-report=html
+## hooks: Install pre-commit hooks
+hooks:
+	git config core.hooksPath .githooks
+	@echo "Pre-commit hooks installed from .githooks/"
 
-test-fast: ## Run tests without coverage
-	$(PYTEST) tests/ -v --no-cov
+## fmt: Format code
+fmt:
+	go fmt ./...
+	goimports -w .
 
-# Code quality targets
+## tidy: Tidy and verify dependencies
+tidy:
+	go mod tidy
+	go mod verify
 
-lint: ## Run linter
-	$(RUFF) check src/ tests/
+## clean: Remove build artifacts
+clean:
+	rm -rf bin/ dist/ coverage.out
 
-lint-fix: ## Run linter and fix issues
-	$(RUFF) check --fix src/ tests/
+## snapshot: Build snapshot release (local testing)
+snapshot:
+	goreleaser release --snapshot --clean
 
-format: ## Format code
-	$(RUFF) format src/ tests/
+## release-check: Validate release configuration
+release-check:
+	goreleaser check
 
-format-check: ## Check code formatting
-	$(RUFF) format --check src/ tests/
+## build-all: Build for all platforms
+build-all:
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-linux-amd64 ./cmd/rtmx
+	GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-linux-arm64 ./cmd/rtmx
+	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-darwin-amd64 ./cmd/rtmx
+	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-darwin-arm64 ./cmd/rtmx
+	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-windows-amd64.exe ./cmd/rtmx
 
-typecheck: ## Run type checker
-	$(MYPY) src/rtmx/
+## parity: Run parity tests against Python CLI
+parity:
+	@echo "Running parity tests..."
+	go test -v -tags=parity ./test/parity/...
 
-check: lint format-check typecheck ## Run all checks
-
-# Build targets
-
-clean: ## Clean build artifacts
-	rm -rf build/ dist/ *.egg-info src/*.egg-info
-	rm -rf .pytest_cache/ .mypy_cache/ .ruff_cache/
-	rm -rf htmlcov/ .coverage coverage.xml
-	find . -type d -name __pycache__ -exec rm -rf {} +
-	find . -type f -name "*.pyc" -delete
-
-build: clean ## Build package
-	$(VENV)/bin/python -m build
-
-publish: build ## Publish to PyPI
-	$(VENV)/bin/twine upload dist/*
-
-publish-test: build ## Publish to TestPyPI
-	$(VENV)/bin/twine upload --repository testpypi dist/*
-
-# RTM self-test targets (dogfooding)
-# Note: status always exits 0 unless --fail-under is specified
-
-rtm: ## Show RTM status (summary)
-	@$(VENV)/bin/rtmx status
-
-rtm-v: ## Show RTM status (categories)
-	@$(VENV)/bin/rtmx status -v
-
-rtm-vv: ## Show RTM status (subcategories)
-	@$(VENV)/bin/rtmx status -vv
-
-rtm-vvv: ## Show RTM status (all requirements)
-	@$(VENV)/bin/rtmx status -vvv
-
-backlog: ## Show backlog (use PHASE=N to filter, DEPTH=N for more items)
-ifdef PHASE
-ifdef DEPTH
-	$(VENV)/bin/rtmx backlog --phase $(PHASE) --limit $(DEPTH)
-else
-	$(VENV)/bin/rtmx backlog --phase $(PHASE)
-endif
-else
-ifdef DEPTH
-	$(VENV)/bin/rtmx backlog --limit $(DEPTH)
-else
-	$(VENV)/bin/rtmx backlog
-endif
-endif
-
-cycles: ## Check for dependency cycles
-	$(VENV)/bin/rtmx cycles
-
-# Verification targets (closed-loop requirement verification)
-
-verify: ## Verify requirements (run tests, show status changes)
-	$(VENV)/bin/rtmx verify
-
-verify-update: ## Verify and update RTM status based on test results
-	$(VENV)/bin/rtmx verify --update
-
-verify-dry: ## Show what status changes would be made (dry run)
-	$(VENV)/bin/rtmx verify --dry-run
-
-# Pre-commit targets
-
-pre-commit-install: ## Install pre-commit hooks
-	$(PIP) install pre-commit
-	$(VENV)/bin/pre-commit install
-
-pre-commit-run: ## Run pre-commit on all files
-	$(VENV)/bin/pre-commit run --all-files
+## help: Show this help
+help:
+	@echo "RTMX Go CLI - Makefile targets"
+	@echo ""
+	@sed -n 's/^##//p' $(MAKEFILE_LIST) | column -t -s ':' | sed -e 's/^/  /'
