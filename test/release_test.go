@@ -283,12 +283,18 @@ func TestV1Release(t *testing.T) {
 		cmd.Dir = projectRoot
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			// health may exit non-zero if checks fail, but JSON should still be valid
-			_ = err
+			_ = err // health may exit non-zero on warnings
+		}
+		// Extract JSON object from output (may have extra text from error exit)
+		raw := string(output)
+		start := strings.Index(raw, "{")
+		end := strings.LastIndex(raw, "}")
+		if start < 0 || end < 0 || end <= start {
+			t.Fatalf("health --json produced no JSON object\nOutput: %s", raw)
 		}
 		var result map[string]interface{}
-		if err := json.Unmarshal(output, &result); err != nil {
-			t.Fatalf("health --json produced invalid JSON: %v\nOutput: %s", err, output)
+		if err := json.Unmarshal([]byte(raw[start:end+1]), &result); err != nil {
+			t.Fatalf("health --json produced invalid JSON: %v\nOutput: %s", err, raw)
 		}
 	})
 
