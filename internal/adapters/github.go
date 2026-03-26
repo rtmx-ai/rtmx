@@ -38,11 +38,19 @@ type GitHubIssue struct {
 	} `json:"assignee"`
 }
 
+// validRepoPattern matches valid GitHub repo names: owner/repo
+var validRepoPattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$`)
+
 // NewGitHubAdapter creates a new GitHub adapter.
 // Options can be provided to inject custom dependencies for testing.
 func NewGitHubAdapter(cfg *config.GitHubAdapterConfig, opts ...AdapterOption) (*GitHubAdapter, error) {
 	if !cfg.Enabled {
 		return nil, fmt.Errorf("GitHub adapter is not enabled")
+	}
+
+	// Validate repo format to prevent path traversal (allow empty for deferred config)
+	if cfg.Repo != "" && !validRepoPattern.MatchString(cfg.Repo) {
+		return nil, fmt.Errorf("invalid GitHub repo format %q: must match owner/repo", cfg.Repo)
 	}
 
 	options := applyOptions(opts)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -58,7 +59,9 @@ func Load(path string) (*Database, error) {
 	return db, nil
 }
 
-// Save saves the database to a CSV file.
+// Save saves the database to a CSV file atomically.
+// It writes to a temporary file first, then renames over the target path.
+// This ensures the database file is never in a partially-written state.
 func (db *Database) Save(path string) error {
 	if path == "" {
 		path = db.path
@@ -67,16 +70,37 @@ func (db *Database) Save(path string) error {
 		return fmt.Errorf("no path specified for saving database")
 	}
 
-	file, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("failed to create database file: %w", err)
-	}
-	defer func() { _ = file.Close() }()
+	dir := filepath.Dir(path)
+	base := filepath.Base(path)
 
-	if err := db.WriteCSV(file); err != nil {
+	tmpFile, err := os.CreateTemp(dir, base+".tmp")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary database file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+
+	// Clean up the temp file on error
+	success := false
+	defer func() {
+		if !success {
+			_ = tmpFile.Close()
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	if err := db.WriteCSV(tmpFile); err != nil {
 		return err
 	}
 
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temporary database file: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("failed to rename temporary file to %s: %w", path, err)
+	}
+
+	success = true
 	db.path = path
 	db.dirty = false
 	return nil

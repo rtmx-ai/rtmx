@@ -40,6 +40,8 @@ VERSION_NUM="${RTMX_VERSION#v}"
 ARCHIVE="rtmx_${VERSION_NUM}_${OS}_${ARCH}.tar.gz"
 URL="https://github.com/${REPO}/releases/download/${RTMX_VERSION}/${ARCHIVE}"
 CHECKSUM_URL="https://github.com/${REPO}/releases/download/${RTMX_VERSION}/checksums.txt"
+SIGNATURE_URL="https://github.com/${REPO}/releases/download/${RTMX_VERSION}/checksums.txt.sig"
+GPG_KEY_URL="https://github.com/${REPO}/releases/download/${RTMX_VERSION}/gpg.key"
 
 echo "Installing rtmx ${RTMX_VERSION} for ${OS}/${ARCH}..."
 
@@ -51,6 +53,27 @@ trap 'rm -rf "$TMPDIR"' EXIT
 echo "Downloading ${URL}..."
 curl -fsSL "$URL" -o "${TMPDIR}/${ARCHIVE}"
 curl -fsSL "$CHECKSUM_URL" -o "${TMPDIR}/checksums.txt"
+curl -fsSL "$SIGNATURE_URL" -o "${TMPDIR}/checksums.txt.sig" 2>/dev/null || true
+
+# Verify GPG signature if gpg is available
+if command -v gpg >/dev/null 2>&1; then
+  if [ -f "${TMPDIR}/checksums.txt.sig" ]; then
+    echo "Verifying GPG signature..."
+    curl -fsSL "$GPG_KEY_URL" -o "${TMPDIR}/gpg.key" 2>/dev/null || true
+    if [ -f "${TMPDIR}/gpg.key" ]; then
+      gpg --batch --import "${TMPDIR}/gpg.key" 2>/dev/null || true
+    fi
+    if ! gpg --verify "${TMPDIR}/checksums.txt.sig" "${TMPDIR}/checksums.txt" 2>/dev/null; then
+      echo "Error: GPG signature verification failed!" >&2
+      exit 1
+    fi
+    echo "GPG signature verified."
+  else
+    echo "Warning: checksums.txt.sig not found, skipping GPG verification" >&2
+  fi
+else
+  echo "Warning: gpg not found, skipping GPG signature verification" >&2
+fi
 
 # Verify checksum
 echo "Verifying checksum..."

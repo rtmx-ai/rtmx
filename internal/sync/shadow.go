@@ -166,6 +166,14 @@ func (r *ShadowResolver) loadRemoteDB(alias string, remote config.SyncRemote) (*
 	}
 
 	dbPath := filepath.Join(remote.Path, remote.Database)
+
+	// Verify the resolved path stays within the remote's base directory
+	cleanBase := filepath.Clean(remote.Path) + string(filepath.Separator)
+	cleanPath := filepath.Clean(dbPath)
+	if !strings.HasPrefix(cleanPath, cleanBase) && cleanPath != filepath.Clean(remote.Path) {
+		return nil, fmt.Errorf("path traversal detected: resolved path %q escapes remote directory %q", cleanPath, remote.Path)
+	}
+
 	db, err := database.Load(dbPath)
 	if err != nil {
 		return nil, err
