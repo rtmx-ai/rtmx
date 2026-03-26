@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/database"
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
@@ -902,4 +904,165 @@ func TestPrintVerifyResults_WithChanges(t *testing.T) {
 	if !strings.Contains(out, "REQ-002") {
 		t.Errorf("expected REQ-002 in output, got:\n%s", out)
 	}
+}
+
+// --- Threshold Tests (REQ-SEC-011) ---
+
+func TestVerifyThresholds(t *testing.T) {
+	rtmx.Req(t, "REQ-SEC-011")
+
+	// Build a database with many MISSING requirements that will flip to COMPLETE
+	makeDB := func(n int) string {
+		db := testDBHeader
+		for i := 1; i <= n; i++ {
+			db += fmt.Sprintf("REQ-%03d,CAT,Sub,Req %d,Pass,mod,TestReq%03d,Unit Test,MISSING,HIGH,1,,,,,,,,,\n", i, i, i)
+		}
+		return db
+	}
+
+	// Build a test results map where all tests pass
+	makeResults := func(n int) map[string]*TestResult {
+		results := make(map[string]*TestResult)
+		for i := 1; i <= n; i++ {
+			name := fmt.Sprintf("TestReq%03d", i)
+			results[fmt.Sprintf("mod/%s", name)] = &TestResult{
+				Package: "mod",
+				Test:    name,
+				Passed:  true,
+			}
+		}
+		return results
+	}
+
+	t.Run("within_warn_threshold", func(t *testing.T) {
+		// 3 changes, warn=5, fail=15 -> should succeed silently
+		tmpDir := setupTestProject(t, makeDB(3))
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cfg, _ := config.LoadFromDir(tmpDir)
+		dbPath := cfg.DatabasePath(tmpDir)
+		db, _ := database.Load(dbPath)
+
+		results := mapTestsToRequirements(db, makeResults(3))
+
+		updateCount := 0
+		for _, r := range results {
+			if r.Updated {
+				updateCount++
+			}
+		}
+
+		warnThreshold := 5
+		failThreshold := 15
+
+		if updateCount > failThreshold {
+			t.Errorf("should not exceed fail threshold: %d > %d", updateCount, failThreshold)
+		}
+		if updateCount > warnThreshold {
+			t.Errorf("should not exceed warn threshold: %d > %d", updateCount, warnThreshold)
+		}
+		if updateCount != 3 {
+			t.Errorf("expected 3 updates, got %d", updateCount)
+		}
+	})
+
+	t.Run("exceeds_warn_within_fail", func(t *testing.T) {
+		// 8 changes, warn=5, fail=15 -> should warn but succeed
+		tmpDir := setupTestProject(t, makeDB(8))
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cfg, _ := config.LoadFromDir(tmpDir)
+		dbPath := cfg.DatabasePath(tmpDir)
+		db, _ := database.Load(dbPath)
+
+		results := mapTestsToRequirements(db, makeResults(8))
+
+		updateCount := 0
+		for _, r := range results {
+			if r.Updated {
+				updateCount++
+			}
+		}
+
+		warnThreshold := 5
+		failThreshold := 15
+
+		if updateCount <= warnThreshold {
+			t.Errorf("should exceed warn threshold: %d <= %d", updateCount, warnThreshold)
+		}
+		if updateCount > failThreshold {
+			t.Errorf("should not exceed fail threshold: %d > %d", updateCount, failThreshold)
+		}
+	})
+
+	t.Run("exceeds_fail_threshold", func(t *testing.T) {
+		// 20 changes, warn=5, fail=15 -> should fail
+		tmpDir := setupTestProject(t, makeDB(20))
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		// Write a config with low thresholds
+		cfgContent := "rtmx:\n  database: .rtmx/database.csv\n  verify:\n    thresholds:\n      warn: 5\n      fail: 15\n"
+		_ = os.WriteFile(filepath.Join(tmpDir, ".rtmx", "config.yaml"), []byte(cfgContent), 0644)
+
+		cfg, _ := config.LoadFromDir(tmpDir)
+		dbPath := cfg.DatabasePath(tmpDir)
+		db, _ := database.Load(dbPath)
+
+		results := mapTestsToRequirements(db, makeResults(20))
+
+		updateCount := 0
+		for _, r := range results {
+			if r.Updated {
+				updateCount++
+			}
+		}
+
+		if updateCount <= cfg.RTMX.Verify.Thresholds.Fail {
+			t.Errorf("should exceed fail threshold: %d <= %d", updateCount, cfg.RTMX.Verify.Thresholds.Fail)
+		}
+
+		// Verify the database was NOT modified (threshold blocks write)
+		originalDB, _ := os.ReadFile(dbPath)
+		if !strings.Contains(string(originalDB), "MISSING") {
+			t.Error("database should still contain MISSING (threshold should block write)")
+		}
+	})
+
+	t.Run("custom_thresholds_from_config", func(t *testing.T) {
+		tmpDir := setupTestProject(t, makeDB(3))
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		// Set thresholds to warn=1, fail=2
+		cfgContent := "rtmx:\n  database: .rtmx/database.csv\n  verify:\n    thresholds:\n      warn: 1\n      fail: 2\n"
+		_ = os.WriteFile(filepath.Join(tmpDir, ".rtmx", "config.yaml"), []byte(cfgContent), 0644)
+
+		cfg, _ := config.LoadFromDir(tmpDir)
+		if cfg.RTMX.Verify.Thresholds.Warn != 1 {
+			t.Errorf("expected warn=1, got %d", cfg.RTMX.Verify.Thresholds.Warn)
+		}
+		if cfg.RTMX.Verify.Thresholds.Fail != 2 {
+			t.Errorf("expected fail=2, got %d", cfg.RTMX.Verify.Thresholds.Fail)
+		}
+	})
+
+	t.Run("defaults_when_no_config", func(t *testing.T) {
+		cfg := config.DefaultConfig()
+		if cfg.RTMX.Verify.Thresholds.Warn != 5 {
+			t.Errorf("expected default warn=5, got %d", cfg.RTMX.Verify.Thresholds.Warn)
+		}
+		if cfg.RTMX.Verify.Thresholds.Fail != 15 {
+			t.Errorf("expected default fail=15, got %d", cfg.RTMX.Verify.Thresholds.Fail)
+		}
+		if !cfg.RTMX.Verify.AutoUpdate {
+			t.Error("expected default auto_update=true")
+		}
+	})
 }

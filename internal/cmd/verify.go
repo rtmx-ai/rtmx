@@ -53,10 +53,13 @@ Examples:
 	RunE: runVerify,
 }
 
+var verifyForce bool
+
 func init() {
 	verifyCmd.Flags().BoolVar(&verifyUpdate, "update", false, "update RTM database with results")
 	verifyCmd.Flags().BoolVar(&verifyDryRun, "dry-run", false, "show changes without updating")
 	verifyCmd.Flags().BoolVarP(&verifyVerbose, "verbose", "v", false, "verbose output")
+	verifyCmd.Flags().BoolVar(&verifyForce, "force", false, "override fail threshold for this invocation")
 	verifyCmd.Flags().StringVar(&verifyCommand, "command", "", "custom test command (default: go test -json)")
 	verifyCmd.Flags().StringVar(&verifyResults, "results", "", "RTMX results JSON file (cross-language)")
 
@@ -144,14 +147,42 @@ func runVerify(cmd *cobra.Command, args []string) error {
 		updateCount := 0
 		for _, r := range verifyResultsList {
 			if r.Updated {
-				req := db.Get(r.ReqID)
-				if req != nil {
-					req.Status = r.NewStatus
-					updateCount++
-				}
+				updateCount++
 			}
 		}
+
+		// Enforce thresholds
+		warnThreshold := cfg.RTMX.Verify.Thresholds.Warn
+		failThreshold := cfg.RTMX.Verify.Thresholds.Fail
+		if warnThreshold <= 0 {
+			warnThreshold = 5
+		}
+		if failThreshold <= 0 {
+			failThreshold = 15
+		}
+
+		if updateCount > failThreshold && !verifyForce {
+			cmd.Printf("\n%s %d status changes exceed fail threshold (%d). Changes NOT written.\n",
+				output.Color("ERROR:", output.Red), updateCount, failThreshold)
+			cmd.Printf("  Run with --force to override, or adjust verify.thresholds.fail in config.\n")
+			return fmt.Errorf("threshold exceeded: %d changes > fail threshold %d", updateCount, failThreshold)
+		}
+
+		if updateCount > warnThreshold {
+			cmd.Printf("\n%s %d status changes exceed warn threshold (%d). Review changes carefully.\n",
+				output.Color("WARNING:", output.Yellow), updateCount, warnThreshold)
+		}
+
+		// Apply the updates
 		if updateCount > 0 {
+			for _, r := range verifyResultsList {
+				if r.Updated {
+					req := db.Get(r.ReqID)
+					if req != nil {
+						req.Status = r.NewStatus
+					}
+				}
+			}
 			if err := db.Save(dbPath); err != nil {
 				return fmt.Errorf("failed to save database: %w", err)
 			}
