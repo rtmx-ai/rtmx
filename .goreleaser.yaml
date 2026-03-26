@@ -153,9 +153,6 @@ dockers:
       - "--platform=linux/amd64"
     goarch: amd64
     dockerfile: Dockerfile
-    extra_files:
-      - go.mod
-      - go.sum
   - image_templates:
       - 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}-arm64'
     use: buildx
@@ -163,9 +160,6 @@ dockers:
       - "--platform=linux/arm64"
     goarch: arm64
     dockerfile: Dockerfile
-    extra_files:
-      - go.mod
-      - go.sum
 
 docker_manifests:
   - name_template: 'ghcr.io/rtmx-ai/rtmx:{{ .Version }}'
