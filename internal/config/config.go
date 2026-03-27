@@ -58,6 +58,16 @@ type VerifyConfig struct {
 	AutoUpdate bool             `yaml:"auto_update"`
 	Thresholds ThresholdConfig  `yaml:"thresholds"`
 	AuditLog   bool             `yaml:"audit_log"`
+	WarnStale  *bool            `yaml:"warn_stale,omitempty"`
+	AutoVerify bool             `yaml:"auto_verify"`
+}
+
+// ShouldWarnStale returns true if staleness warnings are enabled (default: true).
+func (v VerifyConfig) ShouldWarnStale() bool {
+	if v.WarnStale == nil {
+		return true
+	}
+	return *v.WarnStale
 }
 
 // ThresholdConfig defines warn and fail thresholds for status changes.
