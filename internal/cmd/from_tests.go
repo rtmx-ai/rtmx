@@ -322,6 +322,15 @@ func scanTestDirectory(dir string) ([]TestRequirement, error) {
 			results = append(results, markers...)
 		}
 
+		// Scan Rust test files for requirement markers
+		if isRustTestFile(path) {
+			markers, err := extractRustMarkersFromFile(path)
+			if err != nil {
+				return nil
+			}
+			results = append(results, markers...)
+		}
+
 		return nil
 	})
 
@@ -542,6 +551,129 @@ func extractConftestRegistrations(filePath string) ([]ConftestMarkerRegistration
 	}
 
 	return results, scanner.Err()
+}
+
+// extractRustMarkersFromFile extracts requirement markers from Rust test files.
+// It recognizes three marker styles:
+//   - #[req("REQ-ID")] attribute macros
+//   - // rtmx:req REQ-ID comment markers
+//   - rtmx::req("REQ-ID") function call markers
+func extractRustMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	// Patterns for the three marker styles
+	attrPattern := regexp.MustCompile(`#\[req\("(REQ-[A-Z0-9-]+)"`)
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	callPattern := regexp.MustCompile(`rtmx::req\("(REQ-[A-Z0-9-]+)"`)
+
+	// Pattern for Rust function definitions (fn, pub fn, async fn, pub async fn)
+	funcPattern := regexp.MustCompile(`^\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)\s*\(`)
+
+	// Pattern for mod blocks
+	modPattern := regexp.MustCompile(`^\s*(?:pub\s+)?mod\s+(\w+)\s*\{`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+	currentMod := ""
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		// Track mod blocks
+		if m := modPattern.FindStringSubmatch(line); len(m) > 1 {
+			currentMod = m[1]
+		}
+
+		// Check for attribute macro: #[req("REQ-ID")]
+		if matches := attrPattern.FindAllStringSubmatch(line, -1); matches != nil {
+			for _, m := range matches {
+				pendingReqIDs = append(pendingReqIDs, struct {
+					reqID  string
+					lineNo int
+				}{m[1], lineNum})
+			}
+			continue
+		}
+
+		// Check for comment marker: // rtmx:req REQ-ID
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		// Check for function definition
+		if funcMatch := funcPattern.FindStringSubmatch(line); funcMatch != nil {
+			funcName := funcMatch[1]
+			if currentMod != "" {
+				funcName = currentMod + "::" + funcName
+			}
+
+			// Check for function call marker inside the function body
+			// We look ahead a few lines for rtmx::req() calls
+			for j := i + 1; j < len(lines) && j < i+20; j++ {
+				bodyLine := lines[j]
+				// Stop at next function or closing brace at column 0
+				if funcPattern.MatchString(bodyLine) {
+					break
+				}
+				if cm := callPattern.FindStringSubmatch(bodyLine); len(cm) > 1 {
+					results = append(results, TestRequirement{
+						ReqID:        cm[1],
+						TestFile:     filePath,
+						TestFunction: funcName,
+						LineNumber:   j + 1,
+					})
+				}
+			}
+
+			// Assign pending attribute/comment markers to this function
+			for _, pending := range pendingReqIDs {
+				results = append(results, TestRequirement{
+					ReqID:        pending.reqID,
+					TestFile:     filePath,
+					TestFunction: funcName,
+					LineNumber:   pending.lineNo,
+				})
+			}
+			pendingReqIDs = nil
+		}
+	}
+
+	return results, nil
+}
+
+// isRustTestFile returns true if the file should be scanned for Rust requirement markers.
+// It matches:
+//   - *_test.rs files (unit test convention)
+//   - any .rs file inside a tests/ directory (Rust integration test convention)
+func isRustTestFile(path string) bool {
+	if !strings.HasSuffix(path, ".rs") {
+		return false
+	}
+	base := filepath.Base(path)
+	if strings.HasSuffix(base, "_test.rs") {
+		return true
+	}
+	// Check if the file is inside a tests/ directory
+	dir := filepath.Dir(path)
+	for dir != "." && dir != "/" {
+		if filepath.Base(dir) == "tests" {
+			return true
+		}
+		dir = filepath.Dir(dir)
+	}
+	return false
 }
 
 // scanConftestFiles finds and parses conftest.py marker registrations in a directory tree
