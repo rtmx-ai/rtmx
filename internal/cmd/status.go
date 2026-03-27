@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/rtmx-ai/rtmx/internal/config"
@@ -32,10 +33,17 @@ The verbosity level controls how much detail is shown:
 	RunE: runStatus,
 }
 
+var (
+	statusVerify bool
+	statusNoWarn bool
+)
+
 func init() {
 	statusCmd.Flags().CountVarP(&statusVerbosity, "verbose", "v", "increase verbosity (-v, -vv, -vvv)")
 	statusCmd.Flags().BoolVar(&statusJSON, "json", false, "output as JSON")
 	statusCmd.Flags().Float64Var(&statusFailUnder, "fail-under", 0, "fail if completion percentage is below threshold")
+	statusCmd.Flags().BoolVar(&statusVerify, "verify", false, "run verify --update before displaying status")
+	statusCmd.Flags().BoolVar(&statusNoWarn, "no-warn", false, "suppress staleness warning")
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
@@ -53,6 +61,24 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	cfg, err := config.LoadFromDir(cwd)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Run verify first if --verify flag or auto_verify config
+	if statusVerify || cfg.RTMX.Verify.AutoVerify {
+		if err := runVerify(cmd, nil); err != nil {
+			// Verify may fail due to test failures -- continue showing status
+			cmd.Printf("%s Verify completed with errors: %v\n\n", output.Color("!", output.Yellow), err)
+		}
+	}
+
+	// Check staleness (unless --no-warn or --json or --verify just ran)
+	if !statusNoWarn && !statusJSON && !statusVerify && !cfg.RTMX.Verify.AutoVerify && cfg.RTMX.Verify.ShouldWarnStale() {
+		dbPath := cfg.DatabasePath(cwd)
+		rtmxDir := filepath.Dir(dbPath)
+		warning := CheckStaleness(rtmxDir)
+		if warning != "" {
+			cmd.Printf("%s %s\n\n", output.Color("WARNING:", output.Yellow), warning)
+		}
 	}
 
 	// Load database

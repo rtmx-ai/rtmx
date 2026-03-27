@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/rtmx-ai/rtmx/internal/config"
@@ -189,6 +190,11 @@ func runVerify(cmd *cobra.Command, args []string) error {
 			cmd.Printf("\n%s Updated %d requirement(s)\n", output.Color("✓", output.Green), updateCount)
 		} else {
 			cmd.Println("\nNo status changes needed")
+		}
+		// Write verify metadata
+		rtmxDir := filepath.Dir(dbPath)
+		if err := WriteVerifyMeta(rtmxDir); err != nil {
+			cmd.Printf("%s Failed to write verify metadata: %v\n", output.Color("!", output.Yellow), err)
 		}
 	} else if verifyDryRun {
 		cmd.Printf("\n%s\n", output.Color("Dry run - no changes made", output.Yellow))
