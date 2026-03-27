@@ -237,15 +237,19 @@ func displayStatusJSON(cmd *cobra.Command, db *database.Database, cfg *config.Co
 }
 
 func displaySummaryStatus(cmd *cobra.Command, db *database.Database, cfg *config.Config) error {
-	width := 80
+	width := output.TerminalWidth()
 
 	// Header
 	cmd.Println(output.Header("RTM Status Check", width))
 	cmd.Println()
 
-	// Progress bar
+	// Progress bar - scale to terminal width with room for label and percentage
+	barWidth := width - 20 // "Requirements: " (14) + "  " (2) + percent (~6)
+	if barWidth < 20 {
+		barWidth = 20
+	}
 	pct := db.CompletionPercentage()
-	cmd.Printf("Requirements: %s  %s\n", output.ProgressBar(pct, 50), output.FormatPercent(pct))
+	cmd.Printf("Requirements: %s  %s\n", output.ProgressBar(pct, barWidth), output.FormatPercent(pct))
 	cmd.Println()
 
 	// Status counts
@@ -261,7 +265,7 @@ func displaySummaryStatus(cmd *cobra.Command, db *database.Database, cfg *config
 	cmd.Printf("(%d total)\n", db.Len())
 	cmd.Println()
 
-	// Phase status summary
+	// Phase status summary with per-phase progress bars
 	phases := db.Phases()
 	if len(phases) > 0 {
 		cmd.Println(output.Header("Phase Status", width))
@@ -272,45 +276,28 @@ func displaySummaryStatus(cmd *cobra.Command, db *database.Database, cfg *config
 			reqs := byPhase[phase]
 			phasePct := phaseCompletion(reqs)
 
-			var statusText string
-			switch {
-			case phasePct >= 100:
-				statusText = output.Color("✓ Complete", output.Green)
-			case phasePct > 0:
-				statusText = output.Color("⚠ In Progress", output.Yellow)
-			default:
-				statusText = output.Color("✗ Not Started", output.Red)
-			}
-
 			// Count by status
-			complete := 0
-			partial := 0
-			missing := 0
+			phaseComplete := 0
+			phasePartial := 0
+			phaseMissing := 0
 			for _, r := range reqs {
 				switch r.Status {
 				case database.StatusComplete:
-					complete++
+					phaseComplete++
 				case database.StatusPartial:
-					partial++
+					phasePartial++
 				default:
-					missing++
+					phaseMissing++
 				}
 			}
 
 			phaseDesc := cfg.PhaseDescription(phase)
-			if phaseDesc != "" && phaseDesc != fmt.Sprintf("Phase %d", phase) {
-				cmd.Printf("Phase %d (%s): %6.1f%%  %s  (%d%s %d%s %d%s)\n",
-					phase, phaseDesc, phasePct, statusText,
-					complete, output.Color("✓", output.Green),
-					partial, output.Color("⚠", output.Yellow),
-					missing, output.Color("✗", output.Red))
-			} else {
-				cmd.Printf("Phase %d: %6.1f%%  %s  (%d%s %d%s %d%s)\n",
-					phase, phasePct, statusText,
-					complete, output.Color("✓", output.Green),
-					partial, output.Color("⚠", output.Yellow),
-					missing, output.Color("✗", output.Red))
+			if phaseDesc == fmt.Sprintf("Phase %d", phase) {
+				phaseDesc = ""
 			}
+
+			cmd.Println(output.PhaseProgressLine(phase, phaseDesc, phasePct,
+				phaseComplete, phasePartial, phaseMissing, width))
 		}
 		cmd.Println()
 	}
@@ -323,14 +310,18 @@ func displaySummaryStatus(cmd *cobra.Command, db *database.Database, cfg *config
 }
 
 func displayCategoryStatus(cmd *cobra.Command, db *database.Database, cfg *config.Config) error {
-	width := 80
+	width := output.TerminalWidth()
 
 	cmd.Println(output.Header("RTM Status Check", width))
 	cmd.Println()
 
 	// Progress bar
+	barWidth := width - 20
+	if barWidth < 20 {
+		barWidth = 20
+	}
 	pct := db.CompletionPercentage()
-	cmd.Printf("Requirements: %s  %s\n", output.ProgressBar(pct, 50), output.FormatPercent(pct))
+	cmd.Printf("Requirements: %s  %s\n", output.ProgressBar(pct, barWidth), output.FormatPercent(pct))
 	cmd.Println()
 
 	// Status counts
@@ -395,7 +386,7 @@ func displayCategoryStatus(cmd *cobra.Command, db *database.Database, cfg *confi
 }
 
 func displayPhaseStatus(cmd *cobra.Command, db *database.Database, cfg *config.Config) error {
-	width := 80
+	width := output.TerminalWidth()
 
 	cmd.Println(output.Header("RTM Status by Phase and Category", width))
 	cmd.Println()
@@ -427,13 +418,20 @@ func displayPhaseStatus(cmd *cobra.Command, db *database.Database, cfg *config.C
 		}
 		sort.Strings(cats)
 
+		// Scale category progress bar to terminal width
+		// "  " + cat(12) + ": " + bar + " " + pct(6) + " (" + N + " reqs)"
+		catBarWidth := width - 40
+		if catBarWidth < 10 {
+			catBarWidth = 10
+		}
+
 		for _, cat := range cats {
 			reqs := catMap[cat]
 			catPct := phaseCompletion(reqs)
 
 			cmd.Printf("  %s: %s %s (%d reqs)\n",
 				output.PadRight(cat, 12),
-				output.ProgressBar(catPct, 20),
+				output.ProgressBar(catPct, catBarWidth),
 				output.FormatPercent(catPct),
 				len(reqs))
 		}
@@ -443,15 +441,19 @@ func displayPhaseStatus(cmd *cobra.Command, db *database.Database, cfg *config.C
 }
 
 func displayDetailedStatus(cmd *cobra.Command, db *database.Database, cfg *config.Config) error {
-	width := 80
+	width := output.TerminalWidth()
 
 	cmd.Println(output.Header("RTM Detailed Status", width))
 	cmd.Println()
 
-	// Overall summary first
+	// Overall summary first - scale bar to terminal width
+	overallBarWidth := width - 35 // "Overall: " (9) + "  " (2) + pct (6) + " (NNN requirements)" (~18)
+	if overallBarWidth < 20 {
+		overallBarWidth = 20
+	}
 	pct := db.CompletionPercentage()
 	cmd.Printf("Overall: %s  %s (%d requirements)\n",
-		output.ProgressBar(pct, 40), output.FormatPercent(pct), db.Len())
+		output.ProgressBar(pct, overallBarWidth), output.FormatPercent(pct), db.Len())
 	cmd.Println()
 
 	// Group by phase, then category
