@@ -313,10 +313,50 @@ func scanTestDirectory(dir string) ([]TestRequirement, error) {
 			results = append(results, markers...)
 		}
 
+		// Scan Go test files for rtmx.Req() markers
+		if strings.HasSuffix(base, "_test.go") {
+			markers, err := extractGoMarkersFromFile(path)
+			if err != nil {
+				return nil
+			}
+			results = append(results, markers...)
+		}
+
 		return nil
 	})
 
 	return results, err
+}
+
+// extractGoMarkersFromFile extracts rtmx.Req() markers from Go test files.
+func extractGoMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+	currentFunc := ""
+
+	reqPattern := regexp.MustCompile(`rtmx\.Req\(t,\s*"(REQ-[^"]+)"`)
+	funcPattern := regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
+
+	for i, line := range lines {
+		if m := funcPattern.FindStringSubmatch(line); len(m) > 1 {
+			currentFunc = m[1]
+		}
+		if m := reqPattern.FindStringSubmatch(line); len(m) > 1 {
+			results = append(results, TestRequirement{
+				ReqID:        m[1],
+				TestFile:     filePath,
+				TestFunction: currentFunc,
+				LineNumber:   i + 1,
+			})
+		}
+	}
+
+	return results, nil
 }
 
 // extractMarkersFromFile extracts requirement markers from a Python test file
