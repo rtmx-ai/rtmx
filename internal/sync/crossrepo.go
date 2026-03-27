@@ -1,0 +1,226 @@
+package sync
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/rtmx-ai/rtmx/internal/database"
+)
+
+// CrossRepoOptions configures a cross-repo move or clone operation.
+type CrossRepoOptions struct {
+	// SrcDir is the root directory of the source rtmx project.
+	SrcDir string
+
+	// DstDir is the root directory of the target rtmx project.
+	DstDir string
+
+	// TargetID overrides the requirement ID in the target database.
+	// If empty, the original ID is preserved.
+	TargetID string
+
+	// DryRun previews changes without writing.
+	DryRun bool
+}
+
+// CrossRepoResult summarizes the outcome of a cross-repo operation.
+type CrossRepoResult struct {
+	// MovedID is the requirement ID transferred (for move operations).
+	MovedID string
+
+	// ClonedID is the requirement ID created (for clone operations).
+	ClonedID string
+
+	// SourceExternalID is the external_id set on the source requirement.
+	SourceExternalID string
+
+	// TargetExternalID is the external_id set on the target requirement.
+	TargetExternalID string
+
+	// DryRun indicates whether the operation was a dry run.
+	DryRun bool
+
+	// SpecFileCopied indicates whether a spec file was copied.
+	SpecFileCopied bool
+}
+
+// isRtmxEnabled checks if a directory is an rtmx-enabled project.
+func isRtmxEnabled(dir string) bool {
+	// Check for .rtmx/ directory
+	if _, err := os.Stat(filepath.Join(dir, ".rtmx")); err == nil {
+		return true
+	}
+	// Check for docs/rtm_database.csv (legacy layout)
+	if _, err := os.Stat(filepath.Join(dir, "docs", "rtm_database.csv")); err == nil {
+		return true
+	}
+	return false
+}
+
+// repoName returns a short identifier for a project directory.
+func repoName(dir string) string {
+	return filepath.Base(dir)
+}
+
+// buildExternalID creates an external_id link string.
+func buildExternalID(repoDir, reqID string) string {
+	return repoName(repoDir) + "/" + reqID
+}
+
+// validateCrossRepo performs common validation for move/clone operations.
+func validateCrossRepo(srcDB *database.Database, reqID string, opts CrossRepoOptions) (*database.Requirement, error) {
+	if !isRtmxEnabled(opts.DstDir) {
+		return nil, fmt.Errorf("target directory is not an rtmx-enabled project: %s", opts.DstDir)
+	}
+
+	srcReq := srcDB.Get(reqID)
+	if srcReq == nil {
+		return nil, fmt.Errorf("requirement %q not found in source database", reqID)
+	}
+
+	return srcReq, nil
+}
+
+// copySpecFile copies a requirement spec file from source to destination.
+func copySpecFile(srcDir, dstDir string, srcReq *database.Requirement, targetID string) (bool, error) {
+	if srcReq.RequirementFile == "" {
+		return false, nil
+	}
+
+	srcSpecPath := filepath.Join(srcDir, ".rtmx", srcReq.RequirementFile)
+	if _, err := os.Stat(srcSpecPath); os.IsNotExist(err) {
+		return false, nil
+	}
+
+	// Determine destination spec path using same category structure
+	dstSpecDir := filepath.Join(dstDir, ".rtmx", "requirements", srcReq.Category)
+	if err := os.MkdirAll(dstSpecDir, 0755); err != nil {
+		return false, fmt.Errorf("failed to create spec directory: %w", err)
+	}
+
+	specFileName := targetID + ".md"
+	dstSpecPath := filepath.Join(dstSpecDir, specFileName)
+
+	content, err := os.ReadFile(srcSpecPath)
+	if err != nil {
+		return false, fmt.Errorf("failed to read spec file: %w", err)
+	}
+
+	if err := os.WriteFile(dstSpecPath, content, 0644); err != nil {
+		return false, fmt.Errorf("failed to write spec file: %w", err)
+	}
+
+	return true, nil
+}
+
+// MoveRequirement transfers a requirement from the source database to the destination database
+// with bidirectional provenance links via external_id.
+func MoveRequirement(srcDB, dstDB *database.Database, reqID string, opts CrossRepoOptions) (*CrossRepoResult, error) {
+	srcReq, err := validateCrossRepo(srcDB, reqID, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	targetID := reqID
+	if opts.TargetID != "" {
+		targetID = opts.TargetID
+	}
+
+	srcExtID := buildExternalID(opts.DstDir, targetID)
+	dstExtID := buildExternalID(opts.SrcDir, reqID)
+
+	result := &CrossRepoResult{
+		MovedID:          targetID,
+		SourceExternalID: srcExtID,
+		TargetExternalID: dstExtID,
+		DryRun:           opts.DryRun,
+	}
+
+	if opts.DryRun {
+		return result, nil
+	}
+
+	// Clone the requirement for the destination
+	dstReq := srcReq.Clone()
+	dstReq.ReqID = targetID
+	dstReq.ExternalID = dstExtID
+
+	// Update requirement_file for the destination if it exists
+	if srcReq.RequirementFile != "" {
+		dstReq.RequirementFile = filepath.Join("requirements", srcReq.Category, targetID+".md")
+	}
+
+	// Add to destination
+	if err := dstDB.Add(dstReq); err != nil {
+		return nil, fmt.Errorf("failed to add requirement to destination: %w", err)
+	}
+
+	// Set provenance link on source
+	srcReq.ExternalID = srcExtID
+
+	// Copy spec file if it exists
+	copied, err := copySpecFile(opts.SrcDir, opts.DstDir, srcReq, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy spec file: %w", err)
+	}
+	result.SpecFileCopied = copied
+
+	return result, nil
+}
+
+// CloneRequirement creates a copy of a requirement in the destination database
+// while preserving the original in the source database. Both get bidirectional
+// provenance links via external_id.
+func CloneRequirement(srcDB, dstDB *database.Database, reqID string, opts CrossRepoOptions) (*CrossRepoResult, error) {
+	srcReq, err := validateCrossRepo(srcDB, reqID, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	targetID := reqID
+	if opts.TargetID != "" {
+		targetID = opts.TargetID
+	}
+
+	srcExtID := buildExternalID(opts.DstDir, targetID)
+	dstExtID := buildExternalID(opts.SrcDir, reqID)
+
+	result := &CrossRepoResult{
+		ClonedID:         targetID,
+		SourceExternalID: srcExtID,
+		TargetExternalID: dstExtID,
+		DryRun:           opts.DryRun,
+	}
+
+	if opts.DryRun {
+		return result, nil
+	}
+
+	// Clone the requirement for the destination
+	dstReq := srcReq.Clone()
+	dstReq.ReqID = targetID
+	dstReq.ExternalID = dstExtID
+
+	// Update requirement_file for the destination if it exists
+	if srcReq.RequirementFile != "" {
+		dstReq.RequirementFile = filepath.Join("requirements", srcReq.Category, targetID+".md")
+	}
+
+	// Add to destination
+	if err := dstDB.Add(dstReq); err != nil {
+		return nil, fmt.Errorf("failed to add requirement to destination: %w", err)
+	}
+
+	// Set provenance link on source (original stays in place)
+	srcReq.ExternalID = srcExtID
+
+	// Copy spec file if it exists
+	copied, err := copySpecFile(opts.SrcDir, opts.DstDir, srcReq, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to copy spec file: %w", err)
+	}
+	result.SpecFileCopied = copied
+
+	return result, nil
+}
