@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/rtmx-ai/rtmx/internal/config"
@@ -352,28 +353,21 @@ func runTests(cmd *cobra.Command, testPath string) (map[string]*TestResult, erro
 		return nil, fmt.Errorf("failed to start test command: %w", err)
 	}
 
-	// Parse JSON output
+	// Parse test output (auto-detect format)
 	scanner := bufio.NewScanner(stdout)
+	// Patterns for cargo test / pytest / generic test runners
+	cargoTestPattern := regexp.MustCompile(`^test\s+(\S+)\s+\.\.\.\s+(ok|FAILED|ignored)`)
+	pytestPattern := regexp.MustCompile(`^(PASSED|FAILED|ERROR)\s+(\S+)`)
+	pytestCollectPattern := regexp.MustCompile(`^(\S+\.py)::(\S+)\s+(PASSED|FAILED|SKIPPED)`)
+
 	for scanner.Scan() {
 		line := scanner.Text()
 
+		// Try Go test JSON format first
 		var event TestEvent
-		if err := json.Unmarshal([]byte(line), &event); err != nil {
-			// Not JSON, might be custom command output
-			if verifyVerbose {
-				cmd.Println(line)
-			}
-			continue
-		}
-
-		// Only care about test pass/fail/skip events
-		if event.Test == "" {
-			continue
-		}
-
-		key := event.Package + "/" + event.Test
-
-		switch event.Action {
+		if err := json.Unmarshal([]byte(line), &event); err == nil && event.Test != "" {
+			key := event.Package + "/" + event.Test
+			switch event.Action {
 		case "pass":
 			results[key] = &TestResult{
 				Package: event.Package,
@@ -401,6 +395,76 @@ func runTests(cmd *cobra.Command, testPath string) (map[string]*TestResult, erro
 			if verifyVerbose {
 				cmd.Printf("  %s %s (skipped)\n", output.Color("-", output.Yellow), event.Test)
 			}
+		}
+			continue
+		}
+
+		// Try cargo test format: "test tests::test_name ... ok/FAILED/ignored"
+		if m := cargoTestPattern.FindStringSubmatch(line); len(m) > 2 {
+			testName := m[1]
+			status := m[2]
+			key := "cargo/" + testName
+			switch status {
+			case "ok":
+				results[key] = &TestResult{Package: "cargo", Test: testName, Passed: true}
+				if verifyVerbose {
+					cmd.Printf("  %s %s\n", output.Color("✓", output.Green), testName)
+				}
+			case "FAILED":
+				results[key] = &TestResult{Package: "cargo", Test: testName, Failed: true}
+				if verifyVerbose {
+					cmd.Printf("  %s %s\n", output.Color("✗", output.Red), testName)
+				}
+			case "ignored":
+				results[key] = &TestResult{Package: "cargo", Test: testName, Skipped: true}
+				if verifyVerbose {
+					cmd.Printf("  %s %s (ignored)\n", output.Color("-", output.Yellow), testName)
+				}
+			}
+			continue
+		}
+
+		// Try pytest format: "path/test.py::test_name PASSED/FAILED/SKIPPED"
+		if m := pytestCollectPattern.FindStringSubmatch(line); len(m) > 3 {
+			testFile := m[1]
+			testFunc := m[2]
+			status := m[3]
+			key := testFile + "/" + testFunc
+			switch status {
+			case "PASSED":
+				results[key] = &TestResult{Package: testFile, Test: testFunc, Passed: true}
+			case "FAILED":
+				results[key] = &TestResult{Package: testFile, Test: testFunc, Failed: true}
+			case "SKIPPED":
+				results[key] = &TestResult{Package: testFile, Test: testFunc, Skipped: true}
+			}
+			continue
+		}
+
+		// Try pytest short format: "PASSED/FAILED path::func"
+		if m := pytestPattern.FindStringSubmatch(line); len(m) > 2 {
+			status := m[1]
+			testPath := m[2]
+			parts := strings.SplitN(testPath, "::", 2)
+			testFunc := testPath
+			testPkg := ""
+			if len(parts) == 2 {
+				testPkg = parts[0]
+				testFunc = parts[1]
+			}
+			key := testPkg + "/" + testFunc
+			switch status {
+			case "PASSED":
+				results[key] = &TestResult{Package: testPkg, Test: testFunc, Passed: true}
+			case "FAILED", "ERROR":
+				results[key] = &TestResult{Package: testPkg, Test: testFunc, Failed: true}
+			}
+			continue
+		}
+
+		// Unrecognized line
+		if verifyVerbose {
+			cmd.Println(line)
 		}
 	}
 

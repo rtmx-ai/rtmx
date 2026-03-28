@@ -1066,3 +1066,77 @@ func TestVerifyThresholds(t *testing.T) {
 		}
 	})
 }
+
+func TestVerifyCargoTestOutput(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-003")
+
+	// Create a temp project with database linking tests to cargo test names
+	dbContent := testDBHeader +
+		"REQ-001,CAT,Sub,Req one,Pass,src/lib.rs,tests::test_parse_csv,Unit Test,MISSING,HIGH,1,,,,,,,,,\n" +
+		"REQ-002,CAT,Sub,Req two,Pass,src/lib.rs,tests::test_get_by_id,Unit Test,MISSING,HIGH,1,,,,,,,,,\n" +
+		"REQ-003,CAT,Sub,Req three,Pass,src/lib.rs,tests::test_filter_status,Unit Test,COMPLETE,HIGH,1,,,,,,,,,\n"
+
+	tmpDir := setupTestProject(t, dbContent)
+	origDir, _ := os.Getwd()
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
+
+	// Create a script that outputs cargo test format
+	scriptContent := `#!/bin/sh
+echo "running 3 tests"
+echo "test tests::test_parse_csv ... ok"
+echo "test tests::test_get_by_id ... ok"
+echo "test tests::test_filter_status ... FAILED"
+echo ""
+echo "test result: FAILED. 2 passed; 1 failed; 0 ignored"
+exit 1
+`
+	scriptPath := filepath.Join(tmpDir, "fake_cargo.sh")
+	_ = os.WriteFile(scriptPath, []byte(scriptContent), 0755)
+
+	// Run verify with the fake cargo script
+	verifyCommand = "sh " + scriptPath
+	verifyUpdate = false
+	verifyDryRun = false
+	verifyVerbose = false
+	verifyForce = false
+
+	cmd := newTestRootCmd()
+	buf := new(bytes.Buffer)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
+
+	cfg, _ := config.LoadFromDir(tmpDir)
+	dbPath := cfg.DatabasePath(tmpDir)
+	db, _ := database.Load(dbPath)
+
+	testResults, _ := runTests(cmd, "")
+	results := mapTestsToRequirements(db, testResults)
+
+	// Should find 3 test results
+	if len(testResults) < 2 {
+		t.Fatalf("expected at least 2 cargo test results, got %d", len(testResults))
+	}
+
+	// Check that REQ-001 and REQ-002 would flip to COMPLETE (tests passed)
+	foundReq1 := false
+	foundReq3 := false
+	for _, r := range results {
+		if r.ReqID == "REQ-001" && r.NewStatus == database.StatusComplete {
+			foundReq1 = true
+		}
+		if r.ReqID == "REQ-003" && r.NewStatus == database.StatusPartial {
+			foundReq3 = true
+		}
+	}
+
+	if !foundReq1 {
+		t.Error("REQ-001 should be marked COMPLETE from passing cargo test")
+	}
+	if !foundReq3 {
+		t.Error("REQ-003 should be marked PARTIAL from failing cargo test (was COMPLETE)")
+	}
+
+	// Reset
+	verifyCommand = ""
+}
