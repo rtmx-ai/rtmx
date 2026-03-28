@@ -24,14 +24,22 @@ var (
 var fromTestsCmd = &cobra.Command{
 	Use:   "from-tests [test_path]",
 	Short: "Scan test files for requirement markers",
-	Long: `Scan test files for @pytest.mark.req() markers and report coverage.
+	Long: `Scan test files for requirement markers across all supported languages.
 
-This command parses Python test files to find requirement markers and
-shows which requirements have tests linked to them.
+Supported languages and marker styles:
+  Go:         rtmx.Req(t, "REQ-ID")
+  Python:     @pytest.mark.req("REQ-ID")
+  Rust:       #[req("REQ-ID")], // rtmx:req REQ-ID, rtmx::req("REQ-ID")
+  JavaScript: req("REQ-ID"), // rtmx:req REQ-ID
+  C#:         [Req("REQ-ID")], // rtmx:req REQ-ID
+  C/C++:      RTMX_REQ("REQ-ID"), // rtmx:req REQ-ID
+  Ruby:       it "...", req: "REQ-ID", # rtmx:req REQ-ID
+  All others: // rtmx:req REQ-ID (comment marker, universal)
 
 Examples:
-  rtmx from-tests                 # Scan tests/ directory
-  rtmx from-tests tests/unit/     # Scan specific directory
+  rtmx from-tests                 # Scan current directory
+  rtmx from-tests src/            # Scan specific directory
+  rtmx from-tests crates/         # Scan Rust workspace
   rtmx from-tests --show-all      # Show all markers found
   rtmx from-tests --update        # Update RTM with test info`,
 	RunE: runFromTests,
@@ -116,7 +124,7 @@ func runFromTests(cmd *cobra.Command, args []string) error {
 	if info.IsDir() {
 		markers, err = scanTestDirectory(testPath)
 	} else {
-		markers, err = extractMarkersFromFile(testPath)
+		markers, err = extractMarkersFromSingleFile(testPath)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to scan tests: %w", err)
@@ -278,7 +286,22 @@ func runFromTests(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// scanTestDirectory scans a directory for Python test files and conftest.py files
+// extractMarkersFromSingleFile dispatches to the appropriate language-specific extractor.
+func extractMarkersFromSingleFile(path string) ([]TestRequirement, error) {
+	switch {
+	case strings.HasSuffix(path, ".rs"):
+		return extractRustMarkersFromFile(path)
+	case strings.HasSuffix(path, "_test.go"):
+		return extractGoMarkersFromFile(path)
+	case strings.HasSuffix(path, ".py"):
+		return extractMarkersFromFile(path)
+	default:
+		// Try Python parser as fallback (handles generic comment markers)
+		return extractMarkersFromFile(path)
+	}
+}
+
+// scanTestDirectory scans a directory for test files across all supported languages
 func scanTestDirectory(dir string) ([]TestRequirement, error) {
 	var results []TestRequirement
 
@@ -322,13 +345,39 @@ func scanTestDirectory(dir string) ([]TestRequirement, error) {
 			results = append(results, markers...)
 		}
 
-		// Scan Rust test files for requirement markers
+		// Scan Rust files for requirement markers
 		if isRustTestFile(path) {
 			markers, err := extractRustMarkersFromFile(path)
 			if err != nil {
 				return nil
 			}
 			results = append(results, markers...)
+		}
+
+		// Scan language-specific test files
+		langScanners := []struct {
+			check   func(string) bool
+			extract func(string) ([]TestRequirement, error)
+		}{
+			{isJSTestFile, extractJSMarkersFromFile},
+			{isCSharpTestFile, extractCSharpMarkersFromFile},
+			{isCppTestFile, extractCppMarkersFromFile},
+			{isTerraformTestFile, extractTerraformMarkersFromFile},
+			{isRubyTestFile, extractRubyMarkersFromFile},
+			{isCobolTestFile, extractCobolMarkersFromFile},
+			{isMatlabTestFile, extractMatlabMarkersFromFile},
+			{isAdaTestFile, extractAdaMarkersFromFile},
+		}
+
+		for _, scanner := range langScanners {
+			if scanner.check(path) {
+				markers, err := scanner.extract(path)
+				if err != nil {
+					break
+				}
+				results = append(results, markers...)
+				break
+			}
 		}
 
 		return nil
@@ -554,7 +603,7 @@ func extractConftestRegistrations(filePath string) ([]ConftestMarkerRegistration
 }
 
 // extractRustMarkersFromFile extracts requirement markers from Rust test files.
-// It recognizes three marker styles:
+// It recognizes four marker styles:
 //   - #[req("REQ-ID")] attribute macros
 //   - // rtmx:req REQ-ID comment markers
 //   - rtmx::req("REQ-ID") function call markers
@@ -567,9 +616,9 @@ func extractRustMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	// Patterns for the three marker styles
+	// Patterns for marker styles
 	attrPattern := regexp.MustCompile(`#\[req\("(REQ-[A-Z0-9-]+)"`)
-	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	commentPattern := regexp.MustCompile(`//\s*(?:rtmx:req|@req)\s+(REQ-[A-Z0-9-]+)`)
 	callPattern := regexp.MustCompile(`rtmx::req\("(REQ-[A-Z0-9-]+)"`)
 
 	// Pattern for Rust function definitions (fn, pub fn, async fn, pub async fn)
@@ -655,25 +704,13 @@ func extractRustMarkersFromFile(filePath string) ([]TestRequirement, error) {
 
 // isRustTestFile returns true if the file should be scanned for Rust requirement markers.
 // It matches:
+//   - ANY .rs file (Rust unit tests are inline in src/*.rs via #[cfg(test)] mod tests)
 //   - *_test.rs files (unit test convention)
 //   - any .rs file inside a tests/ directory (Rust integration test convention)
+//
+// We scan all .rs files because idiomatic Rust embeds tests alongside source code.
 func isRustTestFile(path string) bool {
-	if !strings.HasSuffix(path, ".rs") {
-		return false
-	}
-	base := filepath.Base(path)
-	if strings.HasSuffix(base, "_test.rs") {
-		return true
-	}
-	// Check if the file is inside a tests/ directory
-	dir := filepath.Dir(path)
-	for dir != "." && dir != "/" {
-		if filepath.Base(dir) == "tests" {
-			return true
-		}
-		dir = filepath.Dir(dir)
-	}
-	return false
+	return strings.HasSuffix(path, ".rs")
 }
 
 // scanConftestFiles finds and parses conftest.py marker registrations in a directory tree
