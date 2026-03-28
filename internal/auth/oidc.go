@@ -413,8 +413,8 @@ func callbackHandler(expectedState string, resultCh chan<- callbackResult) http.
 			if desc != "" {
 				msg += ": " + desc
 			}
-			w.Header().Set("Content-Type", "text/html")
-			_, _ = fmt.Fprintf(w, "<html><body><h2>Authentication Failed</h2><p>%s</p><p>You may close this window.</p></body></html>", msg)
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = fmt.Fprintf(w, "Authentication Failed\n\n%s\n\nYou may close this window.", msg)
 			resultCh <- callbackResult{err: fmt.Errorf("%s", msg)}
 			return
 		}
@@ -422,22 +422,22 @@ func callbackHandler(expectedState string, resultCh chan<- callbackResult) http.
 		// Validate state.
 		state := r.URL.Query().Get("state")
 		if state != expectedState {
-			w.Header().Set("Content-Type", "text/html")
-			_, _ = fmt.Fprint(w, "<html><body><h2>Authentication Failed</h2><p>State mismatch.</p></body></html>")
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = fmt.Fprint(w, "Authentication Failed\n\nState mismatch.\n\nYou may close this window.")
 			resultCh <- callbackResult{err: fmt.Errorf("state mismatch: expected %q, got %q", expectedState, state)}
 			return
 		}
 
 		code := r.URL.Query().Get("code")
 		if code == "" {
-			w.Header().Set("Content-Type", "text/html")
-			_, _ = fmt.Fprint(w, "<html><body><h2>Authentication Failed</h2><p>No authorization code received.</p></body></html>")
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = fmt.Fprint(w, "Authentication Failed\n\nNo authorization code received.\n\nYou may close this window.")
 			resultCh <- callbackResult{err: fmt.Errorf("no authorization code in callback")}
 			return
 		}
 
-		w.Header().Set("Content-Type", "text/html")
-		_, _ = fmt.Fprint(w, "<html><body><h2>Authentication Successful</h2><p>You may close this window and return to the CLI.</p></body></html>")
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = fmt.Fprint(w, "Authentication Successful\n\nYou may close this window and return to the CLI.")
 		resultCh <- callbackResult{code: code}
 	})
 }
