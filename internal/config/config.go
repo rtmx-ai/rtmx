@@ -147,6 +147,37 @@ type SyncConfig struct {
 	ConflictResolution string                `yaml:"conflict_resolution"`
 	Remotes            map[string]SyncRemote `yaml:"remotes"`
 	Grants             []SyncGrant           `yaml:"grants,omitempty"`
+	Adjudication       AdjudicationConfig    `yaml:"adjudication,omitempty"`
+}
+
+// AdjudicationConfig contains automated requirement PR adjudication settings.
+type AdjudicationConfig struct {
+	Enabled   bool                       `yaml:"enabled"`
+	Rules     []AdjudicationRuleConfig   `yaml:"rules,omitempty"`
+	AutoMerge AdjudicationAutoMerge      `yaml:"auto_merge,omitempty"`
+	Labels    AdjudicationLabels         `yaml:"labels,omitempty"`
+}
+
+// AdjudicationRuleConfig defines a single adjudication rule in configuration.
+type AdjudicationRuleConfig struct {
+	Name              string `yaml:"name"`
+	Category          string `yaml:"category,omitempty"`
+	PriorityThreshold string `yaml:"priority_threshold,omitempty"`
+	Phase             int    `yaml:"phase,omitempty"`
+	Action            string `yaml:"action"`
+}
+
+// AdjudicationAutoMerge controls automatic merge behavior.
+type AdjudicationAutoMerge struct {
+	Enabled    bool     `yaml:"enabled"`
+	Conditions []string `yaml:"conditions,omitempty"`
+}
+
+// AdjudicationLabels defines PR labels for adjudication outcomes.
+type AdjudicationLabels struct {
+	Pass string `yaml:"pass"`
+	Fail string `yaml:"fail"`
+	Auto string `yaml:"auto"`
 }
 
 // SyncGrant represents an access delegation to a remote collaborator.

@@ -380,3 +380,36 @@ jobs:
         with:
           name: rtmx-${{ matrix.goos }}-${{ matrix.goarch }}
           path: rtmx-${{ matrix.goos }}-${{ matrix.goarch }}*
+
+  screenshots:
+    name: Screenshots
+    needs: [test, lint]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version: '1.25'
+
+      - name: Build binary
+        run: go build -o rtmx ./cmd/rtmx
+
+      - name: Generate terminal screenshots
+        run: |
+          mkdir -p docs/screenshots
+          ./rtmx status > docs/screenshots/status.txt 2>&1 || true
+          ./rtmx backlog > docs/screenshots/backlog.txt 2>&1 || true
+          ./rtmx health > docs/screenshots/health.txt 2>&1 || true
+          ./rtmx deps > docs/screenshots/deps.txt 2>&1 || true
+          ./rtmx markers > docs/screenshots/markers.txt 2>&1 || true
+          echo "Generated screenshots:"
+          ls -la docs/screenshots/
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: terminal-screenshots
+          path: docs/screenshots/

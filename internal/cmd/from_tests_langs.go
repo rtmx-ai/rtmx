@@ -434,6 +434,1058 @@ func isTerraformTestFile(path string) bool {
 	return false
 }
 
+// extractJavaMarkersFromFile extracts requirement markers from Java test files.
+// It recognizes two marker styles:
+//   - // rtmx:req REQ-ID comment markers
+//   - @Req("REQ-ID") annotation
+func extractJavaMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	annotationPattern := regexp.MustCompile(`@Req\("(REQ-[A-Z0-9-]+)"\)`)
+	classPattern := regexp.MustCompile(`^\s*(?:public\s+)?class\s+(\w+)`)
+	methodPattern := regexp.MustCompile(`^\s*(?:public\s+|private\s+|protected\s+)?(?:static\s+)?(?:void|boolean|int|String|[A-Z]\w*)\s+(\w+)\s*\(`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+	currentClass := ""
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := classPattern.FindStringSubmatch(line); len(m) > 1 {
+			currentClass = m[1]
+		}
+
+		if m := annotationPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if len(pendingReqIDs) > 0 {
+			if methodMatch := methodPattern.FindStringSubmatch(line); methodMatch != nil {
+				funcName := methodMatch[1]
+				if currentClass != "" {
+					funcName = currentClass + "." + funcName
+				}
+				for _, pending := range pendingReqIDs {
+					results = append(results, TestRequirement{
+						ReqID:        pending.reqID,
+						TestFile:     filePath,
+						TestFunction: funcName,
+						LineNumber:   pending.lineNo,
+					})
+				}
+				pendingReqIDs = nil
+			}
+		}
+	}
+
+	return results, nil
+}
+
+// isJavaTestFile returns true if the file should be scanned for Java requirement markers.
+func isJavaTestFile(path string) bool {
+	base := filepath.Base(path)
+	if !strings.HasSuffix(base, ".java") {
+		return false
+	}
+	name := base[:len(base)-5]
+	return strings.HasSuffix(name, "Test") || strings.HasSuffix(name, "Tests")
+}
+
+// extractSwiftMarkersFromFile extracts requirement markers from Swift test files.
+// It recognizes two marker styles:
+//   - // rtmx:req REQ-ID comment markers
+//   - @Req("REQ-ID") annotation
+func extractSwiftMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	annotationPattern := regexp.MustCompile(`@Req\("(REQ-[A-Z0-9-]+)"\)`)
+	classPattern := regexp.MustCompile(`^\s*(?:final\s+)?class\s+(\w+)`)
+	funcPattern := regexp.MustCompile(`^\s*func\s+(test\w+)\s*\(`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+	currentClass := ""
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := classPattern.FindStringSubmatch(line); len(m) > 1 {
+			currentClass = m[1]
+		}
+
+		if m := annotationPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if funcMatch := funcPattern.FindStringSubmatch(line); funcMatch != nil {
+			funcName := funcMatch[1]
+			if currentClass != "" {
+				funcName = currentClass + "." + funcName
+			}
+			for _, pending := range pendingReqIDs {
+				results = append(results, TestRequirement{
+					ReqID:        pending.reqID,
+					TestFile:     filePath,
+					TestFunction: funcName,
+					LineNumber:   pending.lineNo,
+				})
+			}
+			pendingReqIDs = nil
+		}
+	}
+
+	return results, nil
+}
+
+// isSwiftTestFile returns true if the file should be scanned for Swift requirement markers.
+func isSwiftTestFile(path string) bool {
+	base := filepath.Base(path)
+	if !strings.HasSuffix(base, ".swift") {
+		return false
+	}
+	name := base[:len(base)-6]
+	return strings.HasSuffix(name, "Tests") || strings.HasSuffix(name, "Test")
+}
+
+// extractDartMarkersFromFile extracts requirement markers from Dart test files.
+// It recognizes two marker styles:
+//   - // rtmx:req REQ-ID comment markers
+//   - req("REQ-ID") function call
+func extractDartMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	reqCallPattern := regexp.MustCompile(`req\(["'](REQ-[A-Z0-9-]+)["']\)`)
+	testFuncPattern := regexp.MustCompile(`^\s*(?:test|group)\s*\(\s*["']([^"']+)["']`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if testMatch := testFuncPattern.FindStringSubmatch(line); testMatch != nil {
+			funcName := testMatch[1]
+
+			for _, pending := range pendingReqIDs {
+				results = append(results, TestRequirement{
+					ReqID:        pending.reqID,
+					TestFile:     filePath,
+					TestFunction: funcName,
+					LineNumber:   pending.lineNo,
+				})
+			}
+			pendingReqIDs = nil
+
+			// Look ahead for req() calls inside the test body
+			for j := i + 1; j < len(lines) && j < i+20; j++ {
+				bodyLine := lines[j]
+				if testFuncPattern.MatchString(bodyLine) {
+					break
+				}
+				if cm := reqCallPattern.FindStringSubmatch(bodyLine); len(cm) > 1 {
+					results = append(results, TestRequirement{
+						ReqID:        cm[1],
+						TestFile:     filePath,
+						TestFunction: funcName,
+						LineNumber:   j + 1,
+					})
+				}
+			}
+		}
+	}
+
+	return results, nil
+}
+
+// isDartTestFile returns true if the file should be scanned for Dart requirement markers.
+func isDartTestFile(path string) bool {
+	return strings.HasSuffix(filepath.Base(path), "_test.dart")
+}
+
+// extractVerilogMarkersFromFile extracts requirement markers from Verilog/SystemVerilog test files.
+// It recognizes:
+//   - // rtmx:req REQ-ID comment markers
+func extractVerilogMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	modulePattern := regexp.MustCompile(`^\s*module\s+(\w+)`)
+	taskPattern := regexp.MustCompile(`^\s*task\s+(\w+)`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+	currentModule := ""
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := modulePattern.FindStringSubmatch(line); len(m) > 1 {
+			currentModule = m[1]
+		}
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if taskMatch := taskPattern.FindStringSubmatch(line); taskMatch != nil {
+			funcName := taskMatch[1]
+			if currentModule != "" {
+				funcName = currentModule + "." + funcName
+			}
+			for _, pending := range pendingReqIDs {
+				results = append(results, TestRequirement{
+					ReqID:        pending.reqID,
+					TestFile:     filePath,
+					TestFunction: funcName,
+					LineNumber:   pending.lineNo,
+				})
+			}
+			pendingReqIDs = nil
+		}
+	}
+
+	return results, nil
+}
+
+// isVerilogTestFile returns true if the file should be scanned for Verilog requirement markers.
+func isVerilogTestFile(path string) bool {
+	base := filepath.Base(path)
+	return strings.HasSuffix(base, "_test.sv") || strings.HasSuffix(base, "_test.v") ||
+		strings.HasSuffix(base, "_tb.sv") || strings.HasSuffix(base, "_tb.v")
+}
+
+// extractFortranMarkersFromFile extracts requirement markers from Fortran test files.
+// It recognizes:
+//   - ! rtmx:req REQ-ID comment markers
+func extractFortranMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`!\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	subroutinePattern := regexp.MustCompile(`(?i)^\s*subroutine\s+(\w+)`)
+	funcPatternFortran := regexp.MustCompile(`(?i)^\s*(?:integer|real|logical|character|double\s+precision)?\s*function\s+(\w+)`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		var funcName string
+		if m := subroutinePattern.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+		} else if m := funcPatternFortran.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+		}
+
+		if funcName != "" {
+			for _, pending := range pendingReqIDs {
+				results = append(results, TestRequirement{
+					ReqID:        pending.reqID,
+					TestFile:     filePath,
+					TestFunction: funcName,
+					LineNumber:   pending.lineNo,
+				})
+			}
+			pendingReqIDs = nil
+		}
+	}
+
+	return results, nil
+}
+
+// isFortranTestFile returns true if the file should be scanned for Fortran requirement markers.
+func isFortranTestFile(path string) bool {
+	base := filepath.Base(path)
+	return strings.HasSuffix(base, "_test.f90") || strings.HasSuffix(base, "_test.f95") ||
+		strings.HasSuffix(base, "_test.f03") || strings.HasPrefix(base, "test_") &&
+		(strings.HasSuffix(base, ".f90") || strings.HasSuffix(base, ".f95") || strings.HasSuffix(base, ".f03"))
+}
+
+// extractPHPMarkersFromFile extracts requirement markers from PHP test files.
+// It recognizes two marker styles:
+//   - // rtmx:req REQ-ID comment markers
+//   - @req("REQ-ID") docblock annotation
+func extractPHPMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	docblockPattern := regexp.MustCompile(`@req\("(REQ-[A-Z0-9-]+)"\)`)
+	classPattern := regexp.MustCompile(`^\s*class\s+(\w+)`)
+	methodPattern := regexp.MustCompile(`^\s*(?:public\s+|protected\s+|private\s+)?(?:static\s+)?function\s+(\w+)\s*\(`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+	currentClass := ""
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := classPattern.FindStringSubmatch(line); len(m) > 1 {
+			currentClass = m[1]
+		}
+
+		if m := docblockPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if len(pendingReqIDs) > 0 {
+			if methodMatch := methodPattern.FindStringSubmatch(line); methodMatch != nil {
+				funcName := methodMatch[1]
+				if currentClass != "" {
+					funcName = currentClass + "." + funcName
+				}
+				for _, pending := range pendingReqIDs {
+					results = append(results, TestRequirement{
+						ReqID:        pending.reqID,
+						TestFile:     filePath,
+						TestFunction: funcName,
+						LineNumber:   pending.lineNo,
+					})
+				}
+				pendingReqIDs = nil
+			}
+		}
+	}
+
+	return results, nil
+}
+
+// isPHPTestFile returns true if the file should be scanned for PHP requirement markers.
+func isPHPTestFile(path string) bool {
+	base := filepath.Base(path)
+	if !strings.HasSuffix(base, ".php") {
+		return false
+	}
+	name := base[:len(base)-4]
+	return strings.HasSuffix(name, "Test") || strings.HasSuffix(name, "Tests")
+}
+
+// extractElixirMarkersFromFile extracts requirement markers from Elixir test files.
+// It recognizes two marker styles:
+//   - # rtmx:req REQ-ID comment markers
+//   - @tag req: "REQ-ID" module attribute
+func extractElixirMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	tagPattern := regexp.MustCompile(`@tag\s+req:\s*"(REQ-[A-Z0-9-]+)"`)
+	testPattern := regexp.MustCompile(`^\s*test\s+"([^"]+)"`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := tagPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if testMatch := testPattern.FindStringSubmatch(line); testMatch != nil {
+			funcName := testMatch[1]
+			for _, pending := range pendingReqIDs {
+				results = append(results, TestRequirement{
+					ReqID:        pending.reqID,
+					TestFile:     filePath,
+					TestFunction: funcName,
+					LineNumber:   pending.lineNo,
+				})
+			}
+			pendingReqIDs = nil
+		}
+	}
+
+	return results, nil
+}
+
+// isElixirTestFile returns true if the file should be scanned for Elixir requirement markers.
+func isElixirTestFile(path string) bool {
+	return strings.HasSuffix(filepath.Base(path), "_test.exs")
+}
+
+// extractRMarkersFromFile extracts requirement markers from R test files.
+// It recognizes:
+//   - # rtmx:req REQ-ID comment markers
+func extractRMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	testThatPattern := regexp.MustCompile(`test_that\s*\(\s*["']([^"']+)["']`)
+	funcPattern := regexp.MustCompile(`^\s*(\w+)\s*<-\s*function\s*\(`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		var funcName string
+		if m := testThatPattern.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+		} else if m := funcPattern.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+		}
+
+		if funcName != "" {
+			for _, pending := range pendingReqIDs {
+				results = append(results, TestRequirement{
+					ReqID:        pending.reqID,
+					TestFile:     filePath,
+					TestFunction: funcName,
+					LineNumber:   pending.lineNo,
+				})
+			}
+			pendingReqIDs = nil
+		}
+	}
+
+	return results, nil
+}
+
+// isRTestFile returns true if the file should be scanned for R requirement markers.
+func isRTestFile(path string) bool {
+	base := filepath.Base(path)
+	if !strings.HasSuffix(base, ".R") && !strings.HasSuffix(base, ".r") {
+		return false
+	}
+	name := base[:len(base)-2]
+	return strings.HasPrefix(base, "test_") || strings.HasSuffix(name, "_test") || strings.HasPrefix(base, "test-")
+}
+
+// extractJuliaMarkersFromFile extracts requirement markers from Julia test files.
+// It recognizes two marker styles:
+//   - # rtmx:req REQ-ID comment markers
+//   - @req("REQ-ID") macro
+func extractJuliaMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	macroPattern := regexp.MustCompile(`@req\("(REQ-[A-Z0-9-]+)"\)`)
+	testsetPattern := regexp.MustCompile(`@testset\s+"([^"]+)"`)
+	funcPattern := regexp.MustCompile(`^\s*function\s+(\w+)`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := macroPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		var funcName string
+		if m := testsetPattern.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+		} else if m := funcPattern.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+		}
+
+		if funcName != "" {
+			for _, pending := range pendingReqIDs {
+				results = append(results, TestRequirement{
+					ReqID:        pending.reqID,
+					TestFile:     filePath,
+					TestFunction: funcName,
+					LineNumber:   pending.lineNo,
+				})
+			}
+			pendingReqIDs = nil
+		}
+	}
+
+	return results, nil
+}
+
+// isJuliaTestFile returns true if the file should be scanned for Julia requirement markers.
+func isJuliaTestFile(path string) bool {
+	base := filepath.Base(path)
+	if !strings.HasSuffix(base, ".jl") {
+		return false
+	}
+	return strings.HasPrefix(base, "test_") || strings.HasSuffix(base, "_test.jl")
+}
+
+// extractKotlinMarkersFromFile extracts requirement markers from Kotlin test files.
+// It recognizes two marker styles:
+//   - // rtmx:req REQ-ID comment markers
+//   - @Req("REQ-ID") annotation
+func extractKotlinMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	annotationPattern := regexp.MustCompile(`@Req\("(REQ-[A-Z0-9-]+)"\)`)
+	classPattern := regexp.MustCompile(`^\s*class\s+(\w+)`)
+	funPattern := regexp.MustCompile(`^\s*(?:fun|suspend\s+fun)\s+(\w+)\s*\(`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+	currentClass := ""
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := classPattern.FindStringSubmatch(line); len(m) > 1 {
+			currentClass = m[1]
+		}
+
+		if m := annotationPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if len(pendingReqIDs) > 0 {
+			if funMatch := funPattern.FindStringSubmatch(line); funMatch != nil {
+				funcName := funMatch[1]
+				if currentClass != "" {
+					funcName = currentClass + "." + funcName
+				}
+				for _, pending := range pendingReqIDs {
+					results = append(results, TestRequirement{
+						ReqID:        pending.reqID,
+						TestFile:     filePath,
+						TestFunction: funcName,
+						LineNumber:   pending.lineNo,
+					})
+				}
+				pendingReqIDs = nil
+			}
+		}
+	}
+
+	return results, nil
+}
+
+// isKotlinTestFile returns true if the file should be scanned for Kotlin requirement markers.
+func isKotlinTestFile(path string) bool {
+	base := filepath.Base(path)
+	if !strings.HasSuffix(base, ".kt") {
+		return false
+	}
+	name := base[:len(base)-3]
+	return strings.HasSuffix(name, "Test") || strings.HasSuffix(name, "Tests")
+}
+
+// extractScalaMarkersFromFile extracts requirement markers from Scala test files.
+// It recognizes two marker styles:
+//   - // rtmx:req REQ-ID comment markers
+//   - @req("REQ-ID") annotation
+func extractScalaMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	annotationPattern := regexp.MustCompile(`@req\("(REQ-[A-Z0-9-]+)"\)`)
+	classPattern := regexp.MustCompile(`^\s*class\s+(\w+)`)
+	defPattern := regexp.MustCompile(`^\s*def\s+(\w+)`)
+	testStringPattern := regexp.MustCompile(`^\s*(?:test|it)\s*\(\s*"([^"]+)"`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+	currentClass := ""
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := classPattern.FindStringSubmatch(line); len(m) > 1 {
+			currentClass = m[1]
+		}
+
+		if m := annotationPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		var funcName string
+		if m := testStringPattern.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+		} else if m := defPattern.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+			if currentClass != "" {
+				funcName = currentClass + "." + funcName
+			}
+		}
+
+		if funcName != "" && len(pendingReqIDs) > 0 {
+			for _, pending := range pendingReqIDs {
+				results = append(results, TestRequirement{
+					ReqID:        pending.reqID,
+					TestFile:     filePath,
+					TestFunction: funcName,
+					LineNumber:   pending.lineNo,
+				})
+			}
+			pendingReqIDs = nil
+		}
+	}
+
+	return results, nil
+}
+
+// isScalaTestFile returns true if the file should be scanned for Scala requirement markers.
+func isScalaTestFile(path string) bool {
+	base := filepath.Base(path)
+	if !strings.HasSuffix(base, ".scala") {
+		return false
+	}
+	name := base[:len(base)-6]
+	return strings.HasSuffix(name, "Test") || strings.HasSuffix(name, "Spec") || strings.HasSuffix(name, "Tests")
+}
+
+// extractPerlMarkersFromFile extracts requirement markers from Perl test files.
+// It recognizes:
+//   - # rtmx:req REQ-ID comment markers
+func extractPerlMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	subPattern := regexp.MustCompile(`^\s*sub\s+(\w+)`)
+	subtestPattern := regexp.MustCompile(`subtest\s+["']([^"']+)["']`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		var funcName string
+		if m := subtestPattern.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+		} else if m := subPattern.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+		}
+
+		if funcName != "" {
+			for _, pending := range pendingReqIDs {
+				results = append(results, TestRequirement{
+					ReqID:        pending.reqID,
+					TestFile:     filePath,
+					TestFunction: funcName,
+					LineNumber:   pending.lineNo,
+				})
+			}
+			pendingReqIDs = nil
+		}
+	}
+
+	return results, nil
+}
+
+// isPerlTestFile returns true if the file should be scanned for Perl requirement markers.
+func isPerlTestFile(path string) bool {
+	base := filepath.Base(path)
+	if strings.HasSuffix(base, ".t") {
+		return true
+	}
+	if strings.HasSuffix(base, "_test.pl") || strings.HasPrefix(base, "test_") && strings.HasSuffix(base, ".pl") {
+		return true
+	}
+	return false
+}
+
+// extractLuaMarkersFromFile extracts requirement markers from Lua test files.
+// It recognizes:
+//   - -- rtmx:req REQ-ID comment markers
+func extractLuaMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`--\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	funcPattern := regexp.MustCompile(`^\s*(?:local\s+)?function\s+(\w+)`)
+	itPattern := regexp.MustCompile(`^\s*it\s*\(\s*["']([^"']+)["']`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		var funcName string
+		if m := itPattern.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+		} else if m := funcPattern.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+		}
+
+		if funcName != "" {
+			for _, pending := range pendingReqIDs {
+				results = append(results, TestRequirement{
+					ReqID:        pending.reqID,
+					TestFile:     filePath,
+					TestFunction: funcName,
+					LineNumber:   pending.lineNo,
+				})
+			}
+			pendingReqIDs = nil
+		}
+	}
+
+	return results, nil
+}
+
+// isLuaTestFile returns true if the file should be scanned for Lua requirement markers.
+func isLuaTestFile(path string) bool {
+	base := filepath.Base(path)
+	if !strings.HasSuffix(base, ".lua") {
+		return false
+	}
+	return strings.HasSuffix(base, "_test.lua") || strings.HasPrefix(base, "test_")
+}
+
+// extractHaskellMarkersFromFile extracts requirement markers from Haskell test files.
+// It recognizes:
+//   - -- rtmx:req REQ-ID comment markers
+func extractHaskellMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`--\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	itPattern := regexp.MustCompile(`^\s*it\s+"([^"]+)"`)
+	describePattern := regexp.MustCompile(`^\s*describe\s+"([^"]+)"`)
+	funcPattern := regexp.MustCompile(`^(\w+)\s+::`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		var funcName string
+		if m := itPattern.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+		} else if m := describePattern.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+		} else if m := funcPattern.FindStringSubmatch(line); len(m) > 1 {
+			funcName = m[1]
+		}
+
+		if funcName != "" {
+			for _, pending := range pendingReqIDs {
+				results = append(results, TestRequirement{
+					ReqID:        pending.reqID,
+					TestFile:     filePath,
+					TestFunction: funcName,
+					LineNumber:   pending.lineNo,
+				})
+			}
+			pendingReqIDs = nil
+		}
+	}
+
+	return results, nil
+}
+
+// isHaskellTestFile returns true if the file should be scanned for Haskell requirement markers.
+func isHaskellTestFile(path string) bool {
+	base := filepath.Base(path)
+	if !strings.HasSuffix(base, ".hs") {
+		return false
+	}
+	name := base[:len(base)-3]
+	return strings.HasSuffix(name, "Spec") || strings.HasSuffix(name, "Test")
+}
+
+// extractAssemblyMarkersFromFile extracts requirement markers from Assembly test files.
+// It recognizes:
+//   - ; rtmx:req REQ-ID comment markers
+func extractAssemblyMarkersFromFile(filePath string) ([]TestRequirement, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []TestRequirement
+	lines := strings.Split(string(data), "\n")
+
+	commentPattern := regexp.MustCompile(`;\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	labelPattern := regexp.MustCompile(`^(\w+):`)
+
+	var pendingReqIDs []struct {
+		reqID  string
+		lineNo int
+	}
+
+	for i, line := range lines {
+		lineNum := i + 1
+
+		if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
+			pendingReqIDs = append(pendingReqIDs, struct {
+				reqID  string
+				lineNo int
+			}{m[1], lineNum})
+			continue
+		}
+
+		if labelMatch := labelPattern.FindStringSubmatch(line); labelMatch != nil {
+			funcName := labelMatch[1]
+			for _, pending := range pendingReqIDs {
+				results = append(results, TestRequirement{
+					ReqID:        pending.reqID,
+					TestFile:     filePath,
+					TestFunction: funcName,
+					LineNumber:   pending.lineNo,
+				})
+			}
+			pendingReqIDs = nil
+		}
+	}
+
+	return results, nil
+}
+
+// isAssemblyTestFile returns true if the file should be scanned for Assembly requirement markers.
+func isAssemblyTestFile(path string) bool {
+	base := filepath.Base(path)
+	return strings.HasSuffix(base, "_test.asm") || strings.HasSuffix(base, "_test.s")
+}
+
 // scanConftestFiles finds and parses conftest.py marker registrations in a directory tree
 
 

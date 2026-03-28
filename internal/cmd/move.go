@@ -14,6 +14,8 @@ var (
 	moveTo     string
 	moveID     string
 	moveDryRun bool
+	moveBranch string
+	movePR     bool
 )
 
 var moveCmd = &cobra.Command{
@@ -54,11 +56,15 @@ func init() {
 	moveCmd.Flags().StringVar(&moveTo, "to", "", "target repo path (required)")
 	moveCmd.Flags().StringVar(&moveID, "id", "", "override target requirement ID")
 	moveCmd.Flags().BoolVar(&moveDryRun, "dry-run", false, "preview changes without writing")
+	moveCmd.Flags().StringVar(&moveBranch, "branch", "", "create branch in target repo")
+	moveCmd.Flags().BoolVar(&movePR, "pr", false, "create pull request after writing")
 	_ = moveCmd.MarkFlagRequired("to")
 
 	cloneCmd.Flags().StringVar(&moveTo, "to", "", "target repo path (required)")
 	cloneCmd.Flags().StringVar(&moveID, "id", "", "override target requirement ID")
 	cloneCmd.Flags().BoolVar(&moveDryRun, "dry-run", false, "preview changes without writing")
+	cloneCmd.Flags().StringVar(&moveBranch, "branch", "", "create branch in target repo")
+	cloneCmd.Flags().BoolVar(&movePR, "pr", false, "create pull request after writing")
 	_ = cloneCmd.MarkFlagRequired("to")
 
 	rootCmd.AddCommand(moveCmd)
@@ -117,6 +123,8 @@ func runMove(cmd *cobra.Command, args []string) error {
 		DstDir:   moveTo,
 		TargetID: moveID,
 		DryRun:   moveDryRun,
+		Branch:   moveBranch,
+		PR:       movePR,
 	}
 
 	result, err := sync.MoveRequirement(srcDB, dstDB, reqID, opts)
@@ -128,6 +136,12 @@ func runMove(cmd *cobra.Command, args []string) error {
 		cmd.Println("[dry-run] Move preview:")
 		cmd.Printf("  Source: %s -> external_id: %s\n", reqID, result.SourceExternalID)
 		cmd.Printf("  Target: %s -> external_id: %s\n", result.MovedID, result.TargetExternalID)
+		if result.BranchCreated {
+			cmd.Printf("  Branch: %s (would be created)\n", moveBranch)
+		}
+		if result.PRCreated {
+			cmd.Println("  PR: would be created")
+		}
 		return nil
 	}
 
@@ -144,6 +158,12 @@ func runMove(cmd *cobra.Command, args []string) error {
 	cmd.Printf("  Target external_id: %s\n", result.TargetExternalID)
 	if result.SpecFileCopied {
 		cmd.Println("  Spec file copied")
+	}
+	if result.BranchCreated {
+		cmd.Printf("  Branch: %s\n", moveBranch)
+	}
+	if result.PRCreated {
+		cmd.Printf("  PR: %s\n", result.PRURL)
 	}
 
 	return nil
@@ -167,6 +187,8 @@ func runClone(cmd *cobra.Command, args []string) error {
 		DstDir:   moveTo,
 		TargetID: moveID,
 		DryRun:   moveDryRun,
+		Branch:   moveBranch,
+		PR:       movePR,
 	}
 
 	result, err := sync.CloneRequirement(srcDB, dstDB, reqID, opts)
@@ -178,6 +200,12 @@ func runClone(cmd *cobra.Command, args []string) error {
 		cmd.Println("[dry-run] Clone preview:")
 		cmd.Printf("  Source: %s -> external_id: %s\n", reqID, result.SourceExternalID)
 		cmd.Printf("  Target: %s -> external_id: %s\n", result.ClonedID, result.TargetExternalID)
+		if result.BranchCreated {
+			cmd.Printf("  Branch: %s (would be created)\n", moveBranch)
+		}
+		if result.PRCreated {
+			cmd.Println("  PR: would be created")
+		}
 		return nil
 	}
 
@@ -194,6 +222,12 @@ func runClone(cmd *cobra.Command, args []string) error {
 	cmd.Printf("  Target external_id: %s\n", result.TargetExternalID)
 	if result.SpecFileCopied {
 		cmd.Println("  Spec file copied")
+	}
+	if result.BranchCreated {
+		cmd.Printf("  Branch: %s\n", moveBranch)
+	}
+	if result.PRCreated {
+		cmd.Printf("  PR: %s\n", result.PRURL)
 	}
 
 	return nil

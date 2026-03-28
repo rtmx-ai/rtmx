@@ -74,6 +74,7 @@ func init() {
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(backlogCmd)
 	rootCmd.AddCommand(healthCmd)
+	rootCmd.AddCommand(securityCmd)
 }
 
 func initConfig() {
