@@ -367,6 +367,21 @@ func scanTestDirectory(dir string) ([]TestRequirement, error) {
 			{isCobolTestFile, extractCobolMarkersFromFile},
 			{isMatlabTestFile, extractMatlabMarkersFromFile},
 			{isAdaTestFile, extractAdaMarkersFromFile},
+			{isJavaTestFile, extractJavaMarkersFromFile},
+			{isSwiftTestFile, extractSwiftMarkersFromFile},
+			{isDartTestFile, extractDartMarkersFromFile},
+			{isVerilogTestFile, extractVerilogMarkersFromFile},
+			{isFortranTestFile, extractFortranMarkersFromFile},
+			{isPHPTestFile, extractPHPMarkersFromFile},
+			{isElixirTestFile, extractElixirMarkersFromFile},
+			{isRTestFile, extractRMarkersFromFile},
+			{isJuliaTestFile, extractJuliaMarkersFromFile},
+			{isKotlinTestFile, extractKotlinMarkersFromFile},
+			{isScalaTestFile, extractScalaMarkersFromFile},
+			{isPerlTestFile, extractPerlMarkersFromFile},
+			{isLuaTestFile, extractLuaMarkersFromFile},
+			{isHaskellTestFile, extractHaskellMarkersFromFile},
+			{isAssemblyTestFile, extractAssemblyMarkersFromFile},
 		}
 
 		for _, scanner := range langScanners {

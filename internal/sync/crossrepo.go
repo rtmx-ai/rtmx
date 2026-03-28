@@ -3,10 +3,22 @@ package sync
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/rtmx-ai/rtmx/internal/database"
 )
+
+// CommandRunner abstracts command execution for testability.
+type CommandRunner func(dir string, name string, args ...string) ([]byte, error)
+
+// defaultCommandRunner runs a command in the given directory using os/exec.
+func defaultCommandRunner(dir string, name string, args ...string) ([]byte, error) {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	return cmd.CombinedOutput()
+}
 
 // CrossRepoOptions configures a cross-repo move or clone operation.
 type CrossRepoOptions struct {
@@ -22,6 +34,17 @@ type CrossRepoOptions struct {
 
 	// DryRun previews changes without writing.
 	DryRun bool
+
+	// Branch, if set, creates a Git branch in the target repo before writing.
+	Branch string
+
+	// PR, if true, creates a pull request after writing to the branch.
+	// Requires Branch to be set.
+	PR bool
+
+	// RunCmd is an optional command runner for testability.
+	// If nil, defaultCommandRunner is used.
+	RunCmd CommandRunner
 }
 
 // CrossRepoResult summarizes the outcome of a cross-repo operation.
@@ -43,6 +66,15 @@ type CrossRepoResult struct {
 
 	// SpecFileCopied indicates whether a spec file was copied.
 	SpecFileCopied bool
+
+	// BranchCreated indicates whether a branch was created in the target repo.
+	BranchCreated bool
+
+	// PRCreated indicates whether a pull request was created.
+	PRCreated bool
+
+	// PRURL is the URL of the created pull request, if any.
+	PRURL string
 }
 
 // isRtmxEnabled checks if a directory is an rtmx-enabled project.
@@ -114,6 +146,59 @@ func copySpecFile(srcDir, dstDir string, srcReq *database.Requirement, targetID 
 	return true, nil
 }
 
+// getRunner returns the command runner from opts, or the default.
+func getRunner(opts CrossRepoOptions) CommandRunner {
+	if opts.RunCmd != nil {
+		return opts.RunCmd
+	}
+	return defaultCommandRunner
+}
+
+// createBranch creates a new Git branch in the target directory.
+func createBranch(opts CrossRepoOptions) error {
+	run := getRunner(opts)
+	out, err := run(opts.DstDir, "git", "checkout", "-b", opts.Branch)
+	if err != nil {
+		return fmt.Errorf("failed to create branch %q: %s", opts.Branch, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// commitAndPR commits changes in the target repo and creates a PR.
+func commitAndPR(opts CrossRepoOptions, reqID, targetID string) (string, error) {
+	run := getRunner(opts)
+
+	// Stage all changes
+	if out, err := run(opts.DstDir, "git", "add", "-A"); err != nil {
+		return "", fmt.Errorf("failed to stage changes: %s", strings.TrimSpace(string(out)))
+	}
+
+	// Commit
+	commitMsg := fmt.Sprintf("req: Accept %s from %s", targetID, repoName(opts.SrcDir))
+	if out, err := run(opts.DstDir, "git", "commit", "-m", commitMsg); err != nil {
+		return "", fmt.Errorf("failed to commit: %s", strings.TrimSpace(string(out)))
+	}
+
+	// Push branch
+	if out, err := run(opts.DstDir, "git", "push", "-u", "origin", opts.Branch); err != nil {
+		return "", fmt.Errorf("failed to push branch: %s", strings.TrimSpace(string(out)))
+	}
+
+	// Create PR
+	prTitle := fmt.Sprintf("req: Accept %s from %s", targetID, repoName(opts.SrcDir))
+	prBody := fmt.Sprintf("## Requirement Transfer\n\n- **Requirement**: %s\n- **Source**: %s\n- **Source ID**: %s\n", targetID, repoName(opts.SrcDir), reqID)
+	out, err := run(opts.DstDir, "gh", "pr", "create",
+		"--title", prTitle,
+		"--body", prBody,
+		"--label", "requirement,cross-repo",
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to create PR: %s", strings.TrimSpace(string(out)))
+	}
+
+	return strings.TrimSpace(string(out)), nil
+}
+
 // MoveRequirement transfers a requirement from the source database to the destination database
 // with bidirectional provenance links via external_id.
 func MoveRequirement(srcDB, dstDB *database.Database, reqID string, opts CrossRepoOptions) (*CrossRepoResult, error) {
@@ -138,7 +223,27 @@ func MoveRequirement(srcDB, dstDB *database.Database, reqID string, opts CrossRe
 	}
 
 	if opts.DryRun {
+		// Annotate dry-run result with branch/PR intent
+		if opts.Branch != "" {
+			result.BranchCreated = true
+		}
+		if opts.PR {
+			result.PRCreated = true
+		}
 		return result, nil
+	}
+
+	// Create branch in target repo if requested
+	if opts.Branch != "" {
+		if err := createBranch(opts); err != nil {
+			return nil, err
+		}
+		result.BranchCreated = true
+	}
+
+	// Validate --pr requires --branch
+	if opts.PR && opts.Branch == "" {
+		return nil, fmt.Errorf("--pr requires --branch to be set")
 	}
 
 	// Clone the requirement for the destination
@@ -165,6 +270,16 @@ func MoveRequirement(srcDB, dstDB *database.Database, reqID string, opts CrossRe
 		return nil, fmt.Errorf("failed to copy spec file: %w", err)
 	}
 	result.SpecFileCopied = copied
+
+	// Create PR if requested (after database save happens in caller)
+	if opts.PR {
+		prURL, err := commitAndPR(opts, reqID, targetID)
+		if err != nil {
+			return nil, err
+		}
+		result.PRCreated = true
+		result.PRURL = prURL
+	}
 
 	return result, nil
 }
@@ -194,7 +309,27 @@ func CloneRequirement(srcDB, dstDB *database.Database, reqID string, opts CrossR
 	}
 
 	if opts.DryRun {
+		// Annotate dry-run result with branch/PR intent
+		if opts.Branch != "" {
+			result.BranchCreated = true
+		}
+		if opts.PR {
+			result.PRCreated = true
+		}
 		return result, nil
+	}
+
+	// Create branch in target repo if requested
+	if opts.Branch != "" {
+		if err := createBranch(opts); err != nil {
+			return nil, err
+		}
+		result.BranchCreated = true
+	}
+
+	// Validate --pr requires --branch
+	if opts.PR && opts.Branch == "" {
+		return nil, fmt.Errorf("--pr requires --branch to be set")
 	}
 
 	// Clone the requirement for the destination
@@ -221,6 +356,16 @@ func CloneRequirement(srcDB, dstDB *database.Database, reqID string, opts CrossR
 		return nil, fmt.Errorf("failed to copy spec file: %w", err)
 	}
 	result.SpecFileCopied = copied
+
+	// Create PR if requested (after database save happens in caller)
+	if opts.PR {
+		prURL, err := commitAndPR(opts, reqID, targetID)
+		if err != nil {
+			return nil, err
+		}
+		result.PRCreated = true
+		result.PRURL = prURL
+	}
 
 	return result, nil
 }
