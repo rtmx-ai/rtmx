@@ -8,7 +8,7 @@ import (
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
-func TestExtractJSMarkers(t *testing.T) {
+func TestExtractJavaScriptMarkers(t *testing.T) {
 	rtmx.Req(t, "REQ-LANG-006")
 
 	tests := []struct {
@@ -188,7 +188,7 @@ describe.rtmx("REQ-MIX-003", "describe block", () => {
 	}
 }
 
-func TestExtractJSMarkersFileNotFound(t *testing.T) {
+func TestExtractJavaScriptMarkersFileNotFound(t *testing.T) {
 	rtmx.Req(t, "REQ-LANG-006")
 
 	_, err := extractJSMarkersFromFile("/nonexistent/example.test.js")
