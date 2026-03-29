@@ -51,6 +51,9 @@ type RTMXConfig struct {
 
 	// Ziti configuration for zero-trust networking.
 	Ziti ZitiConfig `yaml:"ziti"`
+
+	// Integrity configuration for proof-of-verification enforcement.
+	Integrity IntegrityConfig `yaml:"integrity"`
 }
 
 // VerifyConfig contains verification settings.
@@ -221,6 +224,20 @@ type ZitiConfig struct {
 	Services    map[string]string `yaml:"services"`
 }
 
+// IntegrityConfig contains proof-of-verification enforcement settings.
+type IntegrityConfig struct {
+	// Enforcement controls whether proofs are required for status changes.
+	// Values: "none" (no enforcement), "warn" (log warnings), "strict" (reject without proof).
+	Enforcement string `yaml:"enforcement"`
+
+	// TrustPolicy controls which verifier keys are accepted.
+	// Values: "self", "team", "delegated", "web-of-trust".
+	TrustPolicy string `yaml:"trust_policy"`
+
+	// TrustedKeys maps verifier IDs to their HMAC key paths or inline keys.
+	TrustedKeys map[string]string `yaml:"trusted_keys,omitempty"`
+}
+
 // DefaultConfig returns a configuration with sensible defaults.
 func DefaultConfig() *Config {
 	return &Config{
@@ -294,6 +311,10 @@ func DefaultConfig() *Config {
 			Ziti: ZitiConfig{
 				IdentityDir: "~/.rtmx/ziti",
 				Services:    make(map[string]string),
+			},
+			Integrity: IntegrityConfig{
+				Enforcement: "none",
+				TrustPolicy: "self",
 			},
 		},
 	}
