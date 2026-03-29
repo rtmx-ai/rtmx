@@ -85,3 +85,23 @@ help:
 	@echo "RTMX Go CLI - Makefile targets"
 	@echo ""
 	@sed -n 's/^##//p' $(MAKEFILE_LIST) | column -t -s ':' | sed -e 's/^/  /'
+
+## ci: Run local CI matching GitHub CI (build, test, coverage, lint, vet, markers)
+ci:
+	@echo "=== Build ===" && go build -v ./... && echo "PASS Build"
+	@echo "=== Test + Coverage ===" && go test -race -coverprofile=coverage.out -covermode=atomic ./... && echo "PASS Test"
+	@echo "=== Coverage Threshold ===" && \
+		COVERAGE=$$(go tool cover -func=coverage.out | grep total | awk '{print $$3}' | tr -d '%') && \
+		echo "Total coverage: $${COVERAGE}%" && \
+		if [ $$(echo "$${COVERAGE} < 70" | bc -l) -eq 1 ]; then echo "FAIL Coverage below 70%"; exit 1; fi && \
+		echo "PASS Coverage"
+	@echo "=== Vet ===" && go vet ./... && echo "PASS Vet"
+	@echo "=== Marker Compliance ===" && \
+		TOTAL=$$(grep -r 'func Test' internal/ test/ pkg/ --include='*_test.go' -l | wc -l | tr -d ' ') && \
+		MARKED=$$(grep -r 'rtmx\.Req(t,' internal/ test/ pkg/ --include='*_test.go' -l | wc -l | tr -d ' ') && \
+		PCT=$$((MARKED * 100 / TOTAL)) && \
+		echo "Markers: $${MARKED}/$${TOTAL} ($${PCT}%)" && \
+		if [ "$$PCT" -lt 80 ]; then echo "FAIL Marker compliance below 80%"; exit 1; fi && \
+		echo "PASS Markers"
+	@echo "=== All CI checks passed ==="
+	@rm -f coverage.out
