@@ -1,0 +1,61 @@
+name: Benchmarks
+
+on:
+  schedule:
+    - cron: '0 4 * * *'  # 04:00 UTC daily
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  benchmark:
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [go]
+        # Expand as benchmarks are added:
+        # language: [go, python, rust, javascript, java, csharp]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build rtmx
+        run: make build
+
+      - name: Run benchmark
+        run: make -C benchmarks run LANG=${{ matrix.language }}
+
+      - name: Compare to baseline
+        run: make -C benchmarks compare LANG=${{ matrix.language }}
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: benchmark-${{ matrix.language }}
+          path: benchmarks/results/
+          retention-days: 90
+
+      - name: Create issue on regression
+        if: failure()
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const lang = '${{ matrix.language }}';
+            const title = `Benchmark regression: ${lang}`;
+            const body = `Nightly benchmark for **${lang}** detected a regression.\n\nSee [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for details.`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['benchmark', 'regression']
+            });

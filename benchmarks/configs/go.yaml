@@ -1,0 +1,11 @@
+language: go
+exemplar:
+  repo: cli/cli
+  ref: v2.60.0
+  license: MIT
+clone_depth: 1
+marker_patch: patches/go/cli-cli.patch
+expected_markers: 25
+scan_command: rtmx from-tests --format json .
+verify_command: go test -json ./...
+timeout_minutes: 10
