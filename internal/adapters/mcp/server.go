@@ -435,23 +435,6 @@ func (s *Server) toolBacklog(db *database.Database) interface{} {
 	}
 }
 
-// healthCheckResult mirrors the CLI health check output.
-type healthCheckResult struct {
-	Status string `json:"status"`
-	Checks []struct {
-		Name    string `json:"name"`
-		Status  string `json:"status"`
-		Message string `json:"message"`
-	} `json:"checks"`
-	Stats struct {
-		Total      int     `json:"total"`
-		Complete   int     `json:"complete"`
-		Partial    int     `json:"partial"`
-		Missing    int     `json:"missing"`
-		Completion float64 `json:"completion_percent"`
-	} `json:"stats"`
-}
-
 func (s *Server) toolHealth(db *database.Database) interface{} {
 	counts := db.StatusCounts()
 	total := db.Len()

@@ -84,12 +84,12 @@ func validateJiraServer(server string) error {
 		return fmt.Errorf("invalid Jira server URL: %w", err)
 	}
 	if u.Scheme != "https" {
-		return fmt.Errorf("Jira server URL must use HTTPS, got %q", u.Scheme)
+		return fmt.Errorf("jira server URL must use HTTPS, got %q", u.Scheme)
 	}
 	host := u.Hostname()
 	ip := net.ParseIP(host)
 	if ip != nil && isPrivateIP(ip) {
-		return fmt.Errorf("Jira server URL must not point to a private/link-local address: %s", host)
+		return fmt.Errorf("jira server URL must not point to a private/link-local address: %s", host)
 	}
 	return nil
 }

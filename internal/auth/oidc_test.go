@@ -445,7 +445,7 @@ func TestOIDCLogin(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil
 	}
 
@@ -1011,16 +1011,4 @@ func FuzzTokenSetParse(f *testing.F) {
 	})
 }
 
-// writeTestTokens is a helper that writes token data for testing.
-func writeTestTokens(t *testing.T, path string, tokens *TokenSet) {
-	t.Helper()
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		t.Fatalf("failed to create dir: %v", err)
-	}
-	data, _ := json.Marshal(tokens)
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		t.Fatalf("failed to write tokens: %v", err)
-	}
-}
 

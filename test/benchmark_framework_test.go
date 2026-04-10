@@ -143,7 +143,7 @@ func TestBenchmarkFramework(t *testing.T) {
 			t.Fatal(err)
 		}
 		doc := string(content)
-		if !(strings.Contains(doc, "apply") && strings.Contains(doc, "MARKER_PATCH")) {
+		if !strings.Contains(doc, "apply") || !strings.Contains(doc, "MARKER_PATCH") {
 			t.Error("run-benchmark.sh must apply marker patches")
 		}
 	})
