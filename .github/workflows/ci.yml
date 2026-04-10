@@ -179,6 +179,7 @@ jobs:
         run: ./rtmx status
 
       - name: Commit RTM updates
+        continue-on-error: true  # push may fail if branch protection requires signed commits
         run: |
           # Safety check: verify only database.csv was modified (REQ-SEC-010)
           CHANGED=$(git diff --name-only)
