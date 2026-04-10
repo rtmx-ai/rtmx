@@ -71,6 +71,32 @@ The schema is embedded in the Go CLI binary and also published at `https://rtmx.
 }
 ```
 
+### Example payload
+
+A minimal valid results file:
+
+```json
+[
+  {
+    "marker": {
+      "req_id": "REQ-INGEST-030",
+      "test_name": "test_foo",
+      "test_file": "tests/unit/test_foo.py"
+    },
+    "passed": true,
+    "duration_ms": 12.4
+  }
+]
+```
+
+For convenience, the Go CLI also accepts a flat form where marker
+fields appear at the top level and a `status` string in place of
+`passed` (see REQ-VERIFY-004):
+
+```json
+[{"req_id":"REQ-INGEST-030","test_name":"test_foo","test_file":"tests/unit/test_foo.py","status":"pass"}]
+```
+
 ### Alignment with OG rtmx
 
 The schema aligns with:
