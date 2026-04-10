@@ -377,7 +377,7 @@ func TestOIDCLogin(t *testing.T) {
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/.well-known/openid-configuration"):
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{
+			_, _ = fmt.Fprintf(w, `{
 				"authorization_endpoint": "%s/authorize",
 				"token_endpoint": "%s/token",
 				"userinfo_endpoint": "%s/userinfo",
@@ -502,7 +502,7 @@ func TestRefreshToken(t *testing.T) {
 		switch {
 		case strings.HasSuffix(r.URL.Path, "/.well-known/openid-configuration"):
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{
+			_, _ = fmt.Fprintf(w, `{
 				"authorization_endpoint": "%s/authorize",
 				"token_endpoint": "%s/token",
 				"issuer": "%s"
@@ -802,7 +802,7 @@ func findFreePort(t *testing.T) int {
 		t.Fatalf("failed to find free port: %v", err)
 	}
 	port := l.Addr().(*net.TCPAddr).Port
-	l.Close()
+	_ = l.Close()
 	return port
 }
 

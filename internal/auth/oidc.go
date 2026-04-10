@@ -137,7 +137,7 @@ func (c *OIDCClient) Discover(ctx context.Context) (*oidcDiscovery, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch OIDC discovery: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("OIDC discovery returned status %d", resp.StatusCode)
@@ -290,7 +290,7 @@ func (c *OIDCClient) RefreshToken(ctx context.Context) (*TokenSet, error) {
 	if err != nil {
 		return nil, fmt.Errorf("refresh request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -462,7 +462,7 @@ func (c *OIDCClient) exchangeCode(ctx context.Context, tokenEndpoint, code, veri
 	if err != nil {
 		return nil, fmt.Errorf("token request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -95,6 +95,6 @@ func getCommitDistance(from, to string) int {
 		return -1
 	}
 	var count int
-	fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &count)
+	_, _ = fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &count)
 	return count
 }

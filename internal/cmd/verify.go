@@ -51,7 +51,19 @@ Examples:
   rtmx verify ./internal/... --update  # Verify specific package
   rtmx verify --dry-run          # Show what would change
   rtmx verify --command "pytest -v"    # Use custom test command
-  rtmx verify --results results.json --update  # Cross-language results`,
+  rtmx verify --results results.json --update  # Cross-language results
+
+Results file format (--results):
+  A JSON array of result objects. Marker fields may be supplied
+  nested under "marker" (canonical) or flat at the top level. Either
+  a boolean "passed" or a string "status" ("pass"/"fail") is accepted.
+  Unknown fields are rejected.
+
+  Canonical:
+    [{"marker":{"req_id":"REQ-X-1","test_name":"t","test_file":"t.go"},"passed":true}]
+
+  Flat (also accepted):
+    [{"req_id":"REQ-X-1","test_name":"t","test_file":"t.go","status":"pass"}]`,
 	RunE: runVerify,
 }
 
@@ -241,11 +253,14 @@ func runVerifyFromResults(cmd *cobra.Command, db *database.Database) ([]Verifica
 		return nil, fmt.Errorf("failed to parse results file: %w", err)
 	}
 
-	// Validate results
+	// Validate results. Any failure is fatal so structurally bad
+	// payloads do not silently produce zero requirement matches
+	// (REQ-VERIFY-004).
 	if errs := results.Validate(parsed); len(errs) > 0 {
 		for _, e := range errs {
-			cmd.Printf("%s %v\n", output.Color("!", output.Yellow), e)
+			cmd.Printf("%s %v\n", output.Color("!", output.Red), e)
 		}
+		return nil, fmt.Errorf("results file failed validation: %d error(s)", len(errs))
 	}
 
 	cmd.Println("Processing RTMX results file...")

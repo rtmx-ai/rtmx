@@ -497,3 +497,133 @@ func TestGroupByRequirement(t *testing.T) {
 		t.Errorf("REQ-AUTH-002 got %d results, want 1", len(grouped["REQ-AUTH-002"]))
 	}
 }
+
+// REQ-VERIFY-004: lenient and strict results JSON parsing.
+//
+// Covers the v0.2.4 bug where flat-form payloads silently produced
+// zero-valued markers, plus the new strictness on unknown fields.
+func TestResultUnmarshalForms(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-004",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	tests := []struct {
+		name        string
+		input       string
+		wantErr     bool
+		errContains string
+		check       func(t *testing.T, r Result)
+	}{
+		{
+			name:  "canonical nested form",
+			input: `{"marker":{"req_id":"REQ-X-1","test_name":"t","test_file":"t.go"},"passed":true}`,
+			check: func(t *testing.T, r Result) {
+				if r.Marker.ReqID != "REQ-X-1" || r.Marker.TestName != "t" || r.Marker.TestFile != "t.go" || !r.Passed {
+					t.Errorf("nested decoded wrong: %+v", r)
+				}
+			},
+		},
+		{
+			name:  "flat form (bug repro from v0.2.4)",
+			input: `{"req_id":"REQ-INGEST-030","test_name":"test_foo","test_file":"tests/unit/test_foo.py","status":"pass"}`,
+			check: func(t *testing.T, r Result) {
+				if r.Marker.ReqID != "REQ-INGEST-030" {
+					t.Errorf("flat req_id not promoted: %+v", r)
+				}
+				if r.Marker.TestName != "test_foo" || r.Marker.TestFile != "tests/unit/test_foo.py" {
+					t.Errorf("flat test_name/test_file not promoted: %+v", r)
+				}
+				if !r.Passed {
+					t.Errorf("status pass should set Passed=true: %+v", r)
+				}
+			},
+		},
+		{
+			name:  "status fail maps to Passed=false",
+			input: `{"req_id":"REQ-X-1","test_name":"t","test_file":"t.go","status":"fail"}`,
+			check: func(t *testing.T, r Result) {
+				if r.Passed {
+					t.Errorf("status fail should set Passed=false")
+				}
+			},
+		},
+		{
+			name:        "unknown top-level field rejected",
+			input:       `{"reqid":"REQ-X-1","test_name":"t","test_file":"t.go","passed":true}`,
+			wantErr:     true,
+			errContains: "reqid",
+		},
+		{
+			name:        "unknown status string rejected",
+			input:       `{"req_id":"REQ-X-1","test_name":"t","test_file":"t.go","status":"weird"}`,
+			wantErr:     true,
+			errContains: "weird",
+		},
+		{
+			name:  "mixed nested and flat: nested wins",
+			input: `{"marker":{"req_id":"REQ-NESTED-1","test_name":"n","test_file":"n.go"},"req_id":"REQ-FLAT-1","passed":true}`,
+			check: func(t *testing.T, r Result) {
+				if r.Marker.ReqID != "REQ-NESTED-1" {
+					t.Errorf("nested should win, got %q", r.Marker.ReqID)
+				}
+			},
+		},
+		{
+			name:  "mixed nested and flat: flat fills blanks",
+			input: `{"marker":{"req_id":"REQ-NESTED-1"},"test_name":"flat_t","test_file":"flat.go","passed":true}`,
+			check: func(t *testing.T, r Result) {
+				if r.Marker.TestName != "flat_t" || r.Marker.TestFile != "flat.go" {
+					t.Errorf("flat should fill blanks, got %+v", r.Marker)
+				}
+			},
+		},
+		{
+			name:  "boolean passed wins over status",
+			input: `{"req_id":"REQ-X-1","test_name":"t","test_file":"t.go","passed":false,"status":"pass"}`,
+			check: func(t *testing.T, r Result) {
+				if r.Passed {
+					t.Errorf("explicit passed:false should win, got %+v", r)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var r Result
+			err := r.UnmarshalJSON([]byte(tt.input))
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil; result=%+v", r)
+				}
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("error %q does not contain %q", err.Error(), tt.errContains)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tt.check != nil {
+				tt.check(t, r)
+			}
+		})
+	}
+}
+
+// TestParseRejectsUnknownFieldArray ensures Parse propagates the strict
+// per-element decode error for the v0.2.4 bug repro shape with a typo.
+func TestParseRejectsUnknownFieldArray(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-004",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	input := `[{"reqid":"REQ-X-1","test_name":"t","test_file":"t.go","passed":true}]`
+	if _, err := Parse(strings.NewReader(input)); err == nil {
+		t.Fatal("expected Parse to reject unknown field, got nil")
+	}
+}
