@@ -37,3 +37,123 @@ jobs:
       - name: Test
         shell: bash
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck
+        run: govulncheck ./...
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: go
+
+      - uses: github/codeql-action/autobuild@v3
+
+      - uses: github/codeql-action/analyze@v3
+
+  marker-compliance:
+    name: Marker Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Check marker compliance
+        shell: bash
+        run: |
+          TOTAL=$(grep -r 'func Test' internal/ test/ pkg/ --include='*_test.go' -l | wc -l)
+          MARKED=$(grep -r 'rtmx\.Req(t,' internal/ test/ pkg/ --include='*_test.go' -l | wc -l)
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "No test files found"
+            exit 1
+          fi
+          PCT=$((MARKED * 100 / TOTAL))
+          echo "Test files with rtmx.Req markers: ${MARKED}/${TOTAL} (${PCT}%)"
+          THRESHOLD=80
+          if [ "$PCT" -lt "$THRESHOLD" ]; then
+            echo "::error::Marker compliance ${PCT}% is below ${THRESHOLD}% threshold"
+            exit 1
+          fi
+          echo "Marker compliance: ${PCT}% (threshold: 80%)"
+
+  install-script-test:
+    name: Install Script Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validate script syntax
+        run: bash -n scripts/install.sh
+
+      - name: Test error handling
+        run: |
+          # Should fail gracefully for non-existent version
+          RTMX_VERSION=v999.999.999 bash scripts/install.sh 2>&1 && exit 1 || true
+          echo "Install script correctly fails for non-existent version"
+
+  build-matrix:
+    name: Build Matrix
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          go build -ldflags="-s -w" -o rtmx-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }} ./cmd/rtmx
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: rtmx-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: rtmx-${{ matrix.goos }}-${{ matrix.goarch }}*
