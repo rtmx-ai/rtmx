@@ -38,6 +38,50 @@ jobs:
         shell: bash
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v5
+        with:
+          file: ./coverage.out
+          fail_ci_if_error: false
+
+      - name: Check coverage threshold
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          echo "Total coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "::error::Coverage ${COVERAGE}% is below 70% threshold"
+            exit 1
+          fi
+          echo "Coverage ${COVERAGE}% meets 70% threshold"
+
+      - name: Upload coverage to Coveralls
+        if: matrix.os == 'ubuntu-latest'
+        uses: coverallsapp/github-action@v2
+        with:
+          file: ./coverage.out
+          format: golang
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin
+
+      - name: golangci-lint
+        run: golangci-lint run ./...
+
   security:
     name: Security
     runs-on: ubuntu-latest
@@ -54,3 +98,323 @@ jobs:
 
       - name: Run govulncheck
         run: govulncheck ./...
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: go
+
+      - uses: github/codeql-action/autobuild@v3
+
+      - uses: github/codeql-action/analyze@v3
+
+  marker-compliance:
+    name: Marker Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Check marker compliance
+        shell: bash
+        run: |
+          TOTAL=$(grep -r 'func Test' internal/ test/ pkg/ --include='*_test.go' -l | wc -l)
+          MARKED=$(grep -r 'rtmx\.Req(t,' internal/ test/ pkg/ --include='*_test.go' -l | wc -l)
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "No test files found"
+            exit 1
+          fi
+          PCT=$((MARKED * 100 / TOTAL))
+          echo "Test files with rtmx.Req markers: ${MARKED}/${TOTAL} (${PCT}%)"
+          THRESHOLD=80
+          if [ "$PCT" -lt "$THRESHOLD" ]; then
+            echo "::error::Marker compliance ${PCT}% is below ${THRESHOLD}% threshold"
+            exit 1
+          fi
+          echo "Marker compliance: ${PCT}% (threshold: 80%)"
+
+  verify-requirements:
+    name: Verify Requirements
+    needs: [test, lint]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        continue-on-error: true
+
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ steps.app-token.outputs.token || github.token }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Build
+        run: go build -o rtmx ./cmd/rtmx
+
+      - name: Verify requirements
+        run: ./rtmx verify --update --verbose
+
+      - name: Show status
+        run: ./rtmx status
+
+      - name: Commit RTM updates
+        run: |
+          # Safety check: verify only database.csv was modified (REQ-SEC-010)
+          CHANGED=$(git diff --name-only)
+          if [ -z "$CHANGED" ]; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          if [ "$CHANGED" != ".rtmx/database.csv" ]; then
+            echo "::error::Unexpected files modified by verify: $CHANGED"
+            echo "Only .rtmx/database.csv should change. Refusing to commit."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .rtmx/database.csv
+          git commit -m "ci: Auto-update RTM status from test results"
+          git push
+
+  smoke-test:
+    name: Smoke Test
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Build binary
+        run: go build -o rtmx ./cmd/rtmx
+
+      - name: Smoke test core commands
+        run: |
+          set -e
+          echo "=== version ==="
+          ./rtmx version
+
+          echo "=== status ==="
+          ./rtmx status
+
+          echo "=== status --json ==="
+          ./rtmx status --json | jq .total
+
+          echo "=== status --fail-under ==="
+          ./rtmx status --fail-under 50
+
+          echo "=== backlog ==="
+          ./rtmx backlog | head -20
+
+          echo "=== backlog --json ==="
+          ./rtmx backlog --json | jq .total_missing
+
+          echo "=== health ==="
+          ./rtmx health
+
+          echo "=== health --json ==="
+          ./rtmx health --json | jq .status
+
+          echo "=== deps ==="
+          ./rtmx deps | head -20
+
+          echo "=== cycles ==="
+          ./rtmx cycles
+
+          echo "=== reconcile ==="
+          ./rtmx reconcile
+
+          echo "=== context ==="
+          ./rtmx context
+
+          echo "=== install --agents --list ==="
+          ./rtmx install --agents --list
+
+          echo "All smoke tests passed."
+
+  cross-language-e2e:
+    name: Cross-Language E2E
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build Go CLI
+        run: go build -o rtmx ./cmd/rtmx
+
+      - name: Install Python rtmx and pytest
+        run: pip install rtmx pytest
+
+      - name: Create test file
+        run: |
+          cat > /tmp/test_cross.py << 'PYEOF'
+          import pytest
+
+          @pytest.mark.req("REQ-VERIFY-001")
+          @pytest.mark.scope_unit
+          def test_cross_lang_passing():
+              assert True
+
+          @pytest.mark.req("REQ-VERIFY-002")
+          def test_cross_lang_also_passing():
+              assert True
+          PYEOF
+
+      - name: Run Python tests with RTMX output
+        run: pytest /tmp/test_cross.py --rtmx-output=/tmp/results.json -v
+
+      - name: Validate JSON output
+        run: python3 -m json.tool /tmp/results.json
+
+      - name: Verify with Go CLI
+        run: ./rtmx verify --results /tmp/results.json --dry-run --verbose
+
+  release-dry-run:
+    name: Release Dry Run
+    needs: [test, lint]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Install syft
+        run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: GoReleaser snapshot
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --snapshot --clean --skip=sign,publish,docker
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify artifacts
+        run: |
+          echo "=== Release artifacts ==="
+          ls -la dist/
+          echo ""
+          echo "=== Checksums ==="
+          cat dist/checksums.txt
+          echo ""
+          echo "=== Verify expected files ==="
+          test -f dist/checksums.txt || { echo "FAIL: missing checksums.txt"; exit 1; }
+          ls dist/rtmx_*_linux_amd64.tar.gz || { echo "FAIL: missing linux amd64 archive"; exit 1; }
+          ls dist/rtmx_*_linux_amd64.deb || { echo "FAIL: missing linux deb"; exit 1; }
+          echo "All release artifacts verified."
+
+  install-script-test:
+    name: Install Script Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validate script syntax
+        run: bash -n scripts/install.sh
+
+      - name: Test error handling
+        run: |
+          # Should fail graceable for non-existent version
+          RTMX_VERSION=v999.999.999 bash scripts/install.sh 2>&1 && exit 1 || true
+          echo "Install script correctly fails for non-existent version"
+
+  build-matrix:
+    name: Build Matrix
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          go build -ldflags="-s -w" -o rtmx-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }} ./cmd/rtmx
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: rtmx-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: rtmx-${{ matrix.goos }}-${{ matrix.goarch }}*
+
+  screenshots:
+    name: Screenshots
+    needs: [test, lint]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Build binary
+        run: go build -o rtmx ./cmd/rtmx
+
+      - name: Generate terminal screenshots
+        run: |
+          mkdir -p docs/screenshots
+          ./rtmx status > docs/screenshots/status.txt 2>&1 || true
+          ./rtmx backlog > docs/screenshots/backlog.txt 2>&1 || true
+          ./rtmx health > docs/screenshots/health.txt 2>&1 || true
+          ./rtmx deps > docs/screenshots/deps.txt 2>&1 || true
+          ./rtmx markers > docs/screenshots/markers.txt 2>&1 || true
+          echo "Generated screenshots:"
+          ls -la docs/screenshots/
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v5
+        with:
+          name: terminal-screenshots
+          path: docs/screenshots/
