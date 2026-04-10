@@ -90,13 +90,6 @@ func (o *SecurityOptions) readFile(path string) ([]byte, error) {
 	return os.ReadFile(path)
 }
 
-func (o *SecurityOptions) stat(path string) (os.FileInfo, error) {
-	if o.Stat != nil {
-		return o.Stat(path)
-	}
-	return os.Stat(path)
-}
-
 func (o *SecurityOptions) isGhAvailable() bool {
 	if o.GhAvailable != nil {
 		return *o.GhAvailable

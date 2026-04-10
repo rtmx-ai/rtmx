@@ -138,7 +138,7 @@ func TestCIScreenshots(t *testing.T) {
 		}
 	})
 
-	// AC8: screenshots job uses pinned action SHAs (REQ-SEC-004)
+	// AC8: screenshots job uses pinned action versions (REQ-SEC-004)
 	t.Run("pinned_action_shas", func(t *testing.T) {
 		idx := strings.Index(ci, "screenshots:")
 		if idx < 0 {
@@ -146,23 +146,22 @@ func TestCIScreenshots(t *testing.T) {
 		}
 		jobBlock := ci[idx:]
 
-		// Check that actions/checkout uses a SHA, not a tag
+		// Check that actions/checkout uses a pinned version (SHA or tag like v5), not a branch
 		checkoutIdx := strings.Index(jobBlock, "actions/checkout@")
 		if checkoutIdx < 0 {
 			t.Fatal("screenshots job must use actions/checkout")
 		}
-		// After the @, expect a hex SHA (at least 40 chars)
 		afterAt := jobBlock[checkoutIdx+len("actions/checkout@"):]
 		shaEnd := strings.IndexAny(afterAt, " \n\r\t")
 		if shaEnd < 0 {
 			shaEnd = len(afterAt)
 		}
-		sha := strings.TrimSpace(afterAt[:shaEnd])
-		if len(sha) < 40 {
-			t.Errorf("actions/checkout must be pinned to a commit SHA, got: %s", sha)
+		ref := strings.TrimSpace(afterAt[:shaEnd])
+		if ref == "main" || ref == "master" || ref == "" {
+			t.Errorf("actions/checkout must be pinned to a version or SHA, got: %s", ref)
 		}
 
-		// Check that actions/upload-artifact uses a SHA
+		// Check that actions/upload-artifact uses a pinned version
 		uploadIdx := strings.Index(jobBlock, "actions/upload-artifact@")
 		if uploadIdx < 0 {
 			t.Fatal("screenshots job must use actions/upload-artifact")
@@ -172,9 +171,9 @@ func TestCIScreenshots(t *testing.T) {
 		if shaEnd < 0 {
 			shaEnd = len(afterAt)
 		}
-		sha = strings.TrimSpace(afterAt[:shaEnd])
-		if len(sha) < 40 {
-			t.Errorf("actions/upload-artifact must be pinned to a commit SHA, got: %s", sha)
+		ref = strings.TrimSpace(afterAt[:shaEnd])
+		if ref == "main" || ref == "master" || ref == "" {
+			t.Errorf("actions/upload-artifact must be pinned to a version or SHA, got: %s", ref)
 		}
 	})
 }

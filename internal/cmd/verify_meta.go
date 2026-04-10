@@ -76,7 +76,7 @@ func CheckStaleness(rtmxDir string) string {
 			meta.LastVerifyCommit[:7], distance)
 	}
 
-	return fmt.Sprintf("Status not verified at current HEAD. Run `rtmx verify --update` to refresh.")
+	return "Status not verified at current HEAD. Run `rtmx verify --update` to refresh."
 }
 
 func getGitHEAD() string {

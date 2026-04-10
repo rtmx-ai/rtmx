@@ -45,7 +45,8 @@ func TestMCPServer(t *testing.T) {
 	// Use port 0 so the OS picks an available port
 	go func() {
 		if err := srv.Start(); err != nil && err != http.ErrServerClosed {
-			// Server shut down -- expected during test cleanup
+			// Server start failed unexpectedly; log for debugging.
+			_ = err
 		}
 	}()
 
@@ -276,7 +277,7 @@ func TestMCPServer(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GET request failed: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode != http.StatusMethodNotAllowed {
 			t.Errorf("expected 405, got %d", resp.StatusCode)
 		}
@@ -403,7 +404,7 @@ func rpcCall(t *testing.T, url, method string, params interface{}) map[string]in
 	if err != nil {
 		t.Fatalf("POST %s failed: %v", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {

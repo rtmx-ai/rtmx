@@ -135,27 +135,6 @@ func TestInputInjection(t *testing.T) {
 	})
 }
 
-// rewriteTransport redirects all requests to a local test server while
-// preserving the original URL path.
-type rewriteTransport struct {
-	base    string
-	wrapped http.RoundTripper
-	lastURL *string
-}
-
-func (t *rewriteTransport) Do(req *http.Request) (*http.Response, error) {
-	return t.RoundTrip(req)
-}
-
-func (t *rewriteTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Rewrite the request to point at the mock server but keep the path.
-	originalURL := req.URL.String()
-	*t.lastURL = originalURL
-	req.URL.Scheme = "http"
-	req.URL.Host = strings.TrimPrefix(t.base, "http://")
-	return t.wrapped.RoundTrip(req)
-}
-
 // TestPathTraversal proves that path traversal in sync remote configuration
 // allows reading files outside the intended remote directory.
 // REQ-SEC-008: Path traversal vulnerabilities
