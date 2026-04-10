@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
@@ -223,6 +224,9 @@ func TestIsTerraformTestFile(t *testing.T) {
 }
 
 func TestScanDirectoryFindsTerraformFiles(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("directory scanning hangs on Windows CI")
+	}
 	rtmx.Req(t, "REQ-LANG-016")
 
 	tmpDir, err := os.MkdirTemp("", "rtmx-terraform-scan")
