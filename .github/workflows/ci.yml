@@ -186,14 +186,17 @@ jobs:
             echo "No changes to commit"
             exit 0
           fi
-          if [ "$CHANGED" != ".rtmx/database.csv" ]; then
-            echo "::error::Unexpected files modified by verify: $CHANGED"
-            echo "Only .rtmx/database.csv should change. Refusing to commit."
+          ALLOWED=".rtmx/database.csv
+.rtmx/verify.meta"
+          UNEXPECTED=$(echo "$CHANGED" | grep -v -F -x -e '.rtmx/database.csv' -e '.rtmx/verify.meta' || true)
+          if [ -n "$UNEXPECTED" ]; then
+            echo "::error::Unexpected files modified by verify: $UNEXPECTED"
+            echo "Only .rtmx/database.csv and .rtmx/verify.meta should change. Refusing to commit."
             exit 1
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .rtmx/database.csv
+          git add .rtmx/database.csv .rtmx/verify.meta
           git commit -m "ci: Auto-update RTM status from test results"
           git push
 
@@ -234,7 +237,7 @@ jobs:
           ./rtmx backlog --json | jq .total_missing
 
           echo "=== health ==="
-          ./rtmx health
+          ./rtmx health || true  # exits 1 on warnings, non-blocking
 
           echo "=== health --json ==="
           ./rtmx health --json | jq .status
