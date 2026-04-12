@@ -337,12 +337,20 @@ func extractCppMarkersFromFile(filePath string) ([]TestRequirement, error) {
 //   - test_*.cpp files
 func isCppTestFile(path string) bool {
 	base := filepath.Base(path)
+	ext := filepath.Ext(base)
+	nameNoExt := base[:len(base)-len(ext)]
 
-	if strings.HasSuffix(base, "_test.cpp") || strings.HasSuffix(base, "_test.cc") ||
-		strings.HasSuffix(base, "_test.c") {
+	if ext != ".cpp" && ext != ".cc" && ext != ".c" {
+		return false
+	}
+	if strings.HasSuffix(nameNoExt, "_test") || strings.HasSuffix(nameNoExt, "-test") {
 		return true
 	}
-	if strings.HasPrefix(base, "test_") && strings.HasSuffix(base, ".cpp") {
+	if strings.HasPrefix(nameNoExt, "test_") || strings.HasPrefix(nameNoExt, "test-") {
+		return true
+	}
+	normalized := filepath.ToSlash(path)
+	if strings.Contains(normalized, "/test/") || strings.HasPrefix(normalized, "test/") {
 		return true
 	}
 	return false
@@ -1368,7 +1376,14 @@ func isLuaTestFile(path string) bool {
 	if !strings.HasSuffix(base, ".lua") {
 		return false
 	}
-	return strings.HasSuffix(base, "_test.lua") || strings.HasPrefix(base, "test_")
+	if strings.HasSuffix(base, "_test.lua") || strings.HasSuffix(base, "_spec.lua") || strings.HasPrefix(base, "test_") {
+		return true
+	}
+	normalized := filepath.ToSlash(path)
+	if strings.Contains(normalized, "/spec/") || strings.HasPrefix(normalized, "spec/") {
+		return true
+	}
+	return false
 }
 
 // extractHaskellMarkersFromFile extracts requirement markers from Haskell test files.
@@ -1513,6 +1528,7 @@ func extractRubyMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
 	rspecPattern := regexp.MustCompile(`it\s+["']([^"']+)["']\s*,\s*req:\s*["'](REQ-[A-Z0-9-]+)["']`)
 	funcPattern := regexp.MustCompile(`^\s*def\s+(test_\w+)`)
+	itPattern := regexp.MustCompile(`^\s*it\s+["']([^"']+)["']`)
 
 	var pendingReqIDs []struct {
 		reqID  string
@@ -1542,9 +1558,14 @@ func extractRubyMarkersFromFile(filePath string) ([]TestRequirement, error) {
 			continue
 		}
 
-		// Check for Ruby def method
+		// Check for Ruby def method or it block
+		var funcName string
 		if funcMatch := funcPattern.FindStringSubmatch(line); funcMatch != nil {
-			funcName := funcMatch[1]
+			funcName = funcMatch[1]
+		} else if itMatch := itPattern.FindStringSubmatch(line); itMatch != nil {
+			funcName = itMatch[1]
+		}
+		if funcName != "" && len(pendingReqIDs) > 0 {
 			for _, pending := range pendingReqIDs {
 				results = append(results, TestRequirement{
 					ReqID:        pending.reqID,
@@ -1571,6 +1592,14 @@ func isRubyTestFile(path string) bool {
 		return true
 	}
 	if strings.HasPrefix(base, "test_") {
+		return true
+	}
+	if strings.HasPrefix(base, "spec_") && base != "spec_helper.rb" {
+		return true
+	}
+	normalized := filepath.ToSlash(path)
+	if strings.Contains(normalized, "/test/") || strings.Contains(normalized, "/spec/") ||
+		strings.HasPrefix(normalized, "test/") || strings.HasPrefix(normalized, "spec/") {
 		return true
 	}
 	return false

@@ -1,0 +1,168 @@
+diff --git a/okio/src/jvmTest/kotlin/okio/BufferTest.kt b/okio/src/jvmTest/kotlin/okio/BufferTest.kt
+index 36e2689..2a9492c 100644
+--- a/okio/src/jvmTest/kotlin/okio/BufferTest.kt
++++ b/okio/src/jvmTest/kotlin/okio/BufferTest.kt
+@@ -38,6 +38,7 @@ import org.junit.Test
+  * BufferedSource behavior use BufferedSinkTest or BufferedSourceTest, respectively.
+  */
+ class BufferTest {
++  // rtmx:req REQ-BENCH-KT-001
+   @Test
+   fun readAndWriteUtf8() {
+     val buffer = Buffer()
+@@ -57,6 +58,7 @@ class BufferTest {
+   }
+ 
+   /** Buffer's toString is the same as ByteString's.  */
++  // rtmx:req REQ-BENCH-KT-002
+   @Test
+   fun bufferToString() {
+     assertEquals("[size=0]", Buffer().toString())
+@@ -81,6 +83,7 @@ class BufferTest {
+     )
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-003
+   @Test
+   fun multipleSegmentBuffers() {
+     val buffer = Buffer()
+@@ -99,6 +102,7 @@ class BufferTest {
+     assertEquals(0, buffer.size)
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-004
+   @Test
+   fun fillAndDrainPool() {
+     val buffer = Buffer()
+@@ -125,6 +129,7 @@ class BufferTest {
+     assertEquals(0, segmentPoolByteCount().toLong())
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-005
+   @Test
+   fun moveBytesBetweenBuffersShareSegment() {
+     val size: Int = SEGMENT_SIZE / 2 - 1
+@@ -132,6 +137,7 @@ class BufferTest {
+     assertEquals(Arrays.asList(size * 2), segmentSizes)
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-006
+   @Test
+   fun moveBytesBetweenBuffersReassignSegment() {
+     val size: Int = SEGMENT_SIZE / 2 + 1
+@@ -139,6 +145,7 @@ class BufferTest {
+     assertEquals(Arrays.asList(size, size), segmentSizes)
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-007
+   @Test
+   fun moveBytesBetweenBuffersMultipleSegments() {
+     val size: Int = 3 * SEGMENT_SIZE + 1
+@@ -173,6 +180,7 @@ class BufferTest {
+   }
+ 
+   /** The big part of source's first segment is being moved.  */
++  // rtmx:req REQ-BENCH-KT-008
+   @Test
+   fun writeSplitSourceBufferLeft() {
+     val writeSize: Int = SEGMENT_SIZE / 2 + 1
+@@ -186,6 +194,7 @@ class BufferTest {
+   }
+ 
+   /** The big part of source's first segment is staying put.  */
++  // rtmx:req REQ-BENCH-KT-009
+   @Test
+   fun writeSplitSourceBufferRight() {
+     val writeSize: Int = SEGMENT_SIZE / 2 - 1
+@@ -198,6 +207,7 @@ class BufferTest {
+     assertEquals(Arrays.asList<Int>(SEGMENT_SIZE - writeSize, SEGMENT_SIZE), segmentSizes(source))
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-010
+   @Test
+   fun writePrefixDoesntSplit() {
+     val sink = Buffer()
+diff --git a/okio/src/jvmTest/kotlin/okio/SocketTest.kt b/okio/src/jvmTest/kotlin/okio/SocketTest.kt
+index 2da9f2d..13c3ffa 100644
+--- a/okio/src/jvmTest/kotlin/okio/SocketTest.kt
++++ b/okio/src/jvmTest/kotlin/okio/SocketTest.kt
+@@ -63,6 +63,7 @@ class SocketTest(val factory: Factory = Factory.Default) {
+     }
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-001
+   @Test
+   fun happyPath() {
+     val bufferedSource = socket.source.buffer()
+@@ -83,6 +84,7 @@ class SocketTest(val factory: Factory = Factory.Default) {
+     assertThat(peer.read()).isEqualTo("four")
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-002
+   @Test
+   fun sourceIsReadableAfterSinkIsClosed() {
+     peer.closeSource()
+@@ -95,6 +97,7 @@ class SocketTest(val factory: Factory = Factory.Default) {
+     peer.closeSink()
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-003
+   @Test
+   fun sinkIsWritableAfterSourceIsClosed() {
+     peer.closeSink()
+@@ -109,6 +112,7 @@ class SocketTest(val factory: Factory = Factory.Default) {
+     peer.closeSource()
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-004
+   @Test
+   fun localCancelCausesSubsequentReadToFail() {
+     peer.write("Hello")
+@@ -120,6 +124,7 @@ class SocketTest(val factory: Factory = Factory.Default) {
+     }
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-005
+   @Test
+   fun localCancelCausesSubsequentWriteToFail() {
+     socket.cancel()
+@@ -131,6 +136,7 @@ class SocketTest(val factory: Factory = Factory.Default) {
+     }
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-006
+   @Test
+   fun peerCloseCausesSubsequentLocalReadToFail() {
+     peer.closeSink()
+@@ -141,6 +147,7 @@ class SocketTest(val factory: Factory = Factory.Default) {
+     }
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-007
+   @Test
+   fun peerCancelCausesSubsequentLocalReadToFail() {
+     peerSocket.cancel()
+@@ -151,6 +158,7 @@ class SocketTest(val factory: Factory = Factory.Default) {
+     }
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-008
+   @Test
+   fun readTimeout() {
+     val bufferedSource = socket.source.buffer()
+@@ -166,6 +174,7 @@ class SocketTest(val factory: Factory = Factory.Default) {
+   }
+ 
+   /** Make a large-enough write to saturate the outgoing write buffer. */
++  // rtmx:req REQ-BENCH-KT-009
+   @Test
+   fun writeTimeout() {
+     val bufferedSink = socket.sink.buffer()
+@@ -180,6 +189,7 @@ class SocketTest(val factory: Factory = Factory.Default) {
+     assertThat(duration).isBetween(250.milliseconds, 750.milliseconds)
+   }
+ 
++  // rtmx:req REQ-BENCH-KT-010
+   @Test
+   fun closeSourceDoesNotCloseJavaNetSocket() {
+     val javaNetSocket = (this.socket as? DefaultSocket)?.socket ?: return

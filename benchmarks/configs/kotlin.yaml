@@ -1,0 +1,11 @@
+language: kotlin
+exemplar:
+  repo: square/okio
+  ref: master
+  license: Apache-2.0
+clone_depth: 1
+marker_patch: patches/kotlin/okio.patch
+expected_markers: 20
+scan_command: rtmx from-tests --format json .
+verify_command: gradle test
+timeout_minutes: 10

@@ -1,0 +1,164 @@
+diff --git a/spec/config_spec.lua b/spec/config_spec.lua
+index f678dc4..2314fc6 100644
+--- a/spec/config_spec.lua
++++ b/spec/config_spec.lua
+@@ -25,10 +25,12 @@ local function nest(dir, func)
+ end
+ 
+ describe("config", function()
++   -- rtmx:req REQ-BENCH-LUA-001
+    it("has default path", function()
+       assert.is_string(config.default_path)
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-002
+    it("loads default config", function()
+       local conf = assert.is_table(config.load_config())
+       local config_stack = assert.is_table(config.stack_configs({conf}))
+@@ -43,6 +45,7 @@ describe("config", function()
+       assert.not_same(config_stack:get_options(P"spec/foo_spec.lua"), config_stack:get_options("foo_spec.lua"))
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-003
+    it("works with empty config", function()
+       local empty_config = assert.is_table(config.table_to_config({}))
+       local config_stack = assert.is_table(config.stack_configs({empty_config}))
+@@ -61,6 +64,7 @@ describe("config", function()
+       assert.same({{}}, config_stack:get_options("bar.lua"))
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-004
+    it("loads config from path", function()
+       local conf = assert.is_table(config.load_config(P"spec/configs/override_config.luacheckrc"))
+       local config_stack = assert.is_table(config.stack_configs({conf}))
+@@ -83,12 +87,14 @@ describe("config", function()
+       )
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-005
+    it("returns nil, error on missing config", function()
+       local conf, err = config.load_config(P"spec/configs/config_404.luacheckrc")
+       assert.is_nil(conf)
+       assert.equal("Couldn't find configuration file "..P"spec/configs/config_404.luacheckrc", err)
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-006
+    it("returns nil, error on config with bad syntax", function()
+       local conf, err = config.load_config(P"spec/configs/bad_config.luacheckrc")
+       assert.is_nil(conf)
+@@ -103,6 +109,7 @@ describe("config", function()
+       end)
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-007
+    it("returns nil, error on config with runtime issues", function()
+       local conf, err = config.load_config(P"spec/configs/runtime_bad_config.luacheckrc")
+       assert.is_nil(conf)
+@@ -117,6 +124,7 @@ describe("config", function()
+       end)
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-008
+    it("stack_configs returns nil, error on invalid config", function()
+       local conf = assert.is_table(config.load_config(P"spec/configs/invalid_config.luacheckrc"))
+       local config_stack, err = config.stack_configs({conf})
+@@ -133,6 +141,7 @@ describe("config", function()
+       end)
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-009
+    it("stack_configs returns nil, error on invalid custom std within config", function()
+       local conf = assert.is_table(config.load_config(P"spec/configs/bad_custom_std_config.luacheckrc"))
+       local config_stack, err = config.stack_configs({conf})
+@@ -142,6 +151,7 @@ describe("config", function()
+          ": invalid custom std 'my_std': in field .read_globals.foo.fields[1]: string expected as field name, got number", err)
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-010
+    it("stack_configs returns nil, error on config with invalid override", function()
+       local conf = assert.is_table(config.load_config(P"spec/configs/invalid_override_config.luacheckrc"))
+       local config_stack, err = config.stack_configs({conf})
+diff --git a/spec/luacheck_spec.lua b/spec/luacheck_spec.lua
+index c8efdd9..8979e67 100644
+--- a/spec/luacheck_spec.lua
++++ b/spec/luacheck_spec.lua
+@@ -16,6 +16,7 @@ local function strip_locations(report)
+ end
+ 
+ describe("luacheck", function()
++   -- rtmx:req REQ-BENCH-LUA-001
+    it("is an alias of luacheck.check_files", function()
+       assert.same(luacheck.check_files({
+          "spec/samples/good_code.lua",
+@@ -28,6 +29,7 @@ describe("luacheck", function()
+       }))
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-002
+    it("panics on bad files", function()
+       assert.has_error(function() luacheck("foo") end,
+          "bad argument #1 to 'luacheck.check_files' (table expected, got string)")
+@@ -35,6 +37,7 @@ describe("luacheck", function()
+          "bad argument #1 to 'luacheck.check_files' (array of paths or file handles expected, got number)")
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-003
+    it("panics on bad options", function()
+       assert.has_error(function() luacheck({"foo"}, "bar") end,
+          "bad argument #2 to 'luacheck.check_files' (option table expected, got string)")
+@@ -47,6 +50,7 @@ describe("luacheck", function()
+          "bad argument #2 to 'luacheck.check_files' (invalid options at index [1][2]: invalid value of option 'unused': boolean expected, got number)")
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-004
+    it("works on empty list", function()
+       assert.same({
+          warnings = 0,
+@@ -55,6 +59,7 @@ describe("luacheck", function()
+       }, strip_locations(luacheck({})))
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-005
+    it("works on files", function()
+       assert.same({
+          {},
+@@ -98,6 +103,7 @@ describe("luacheck", function()
+       })))
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-006
+    it("uses options", function()
+       assert.same({
+          {},
+@@ -134,6 +140,7 @@ describe("luacheck", function()
+       })))
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-007
+    it("uses option overrides", function()
+       assert.same({
+          {},
+@@ -174,6 +181,7 @@ describe("luacheck", function()
+ end)
+ 
+ describe("check_strings", function()
++   -- rtmx:req REQ-BENCH-LUA-008
+    it("panics on bad strings", function()
+       assert.has_error(function() luacheck.check_strings("foo") end,
+          "bad argument #1 to 'luacheck.check_strings' (table expected, got string)")
+@@ -181,6 +189,7 @@ describe("check_strings", function()
+          "bad argument #1 to 'luacheck.check_strings' (array of strings or tables expected, got number)")
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-009
+    it("panics on bad options", function()
+       assert.has_error(function() luacheck.check_strings({"foo"}, "bar") end,
+          "bad argument #2 to 'luacheck.check_strings' (option table expected, got string)")
+@@ -191,6 +200,7 @@ describe("check_strings", function()
+          "bad argument #2 to 'luacheck.check_strings' (invalid options at index [1]: invalid value of option 'unused': boolean expected, got number)")
+    end)
+ 
++   -- rtmx:req REQ-BENCH-LUA-010
+    it("works on empty list", function()
+       assert.same({
+          warnings = 0,

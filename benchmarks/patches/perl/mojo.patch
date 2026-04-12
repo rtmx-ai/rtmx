@@ -1,0 +1,164 @@
+diff --git a/t/mojo/request.t b/t/mojo/request.t
+index 1fba781..6c520a7 100644
+--- a/t/mojo/request.t
++++ b/t/mojo/request.t
+@@ -9,11 +9,13 @@ use Mojo::Message::Request;
+ use Mojo::URL;
+ use Mojo::Util qw(encode gzip);
+ 
++# rtmx:req REQ-BENCH-PERL-001
+ subtest 'Defaults' => sub {
+   my $req = Mojo::Message::Request->new;
+   is $req->max_message_size, 16777216, 'right default';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-002
+ subtest 'Request ID' => sub {
+   my $id = Mojo::Message::Request->new->request_id;
+   ok length $id >= 8, 'at least 8 characters';
+@@ -22,6 +24,7 @@ subtest 'Request ID' => sub {
+   isnt $id, $id2, 'different id';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-003
+ subtest 'Parse HTTP 1.1 message with huge "Cookie" header exceeding all limits' => sub {
+   my $req = Mojo::Message::Request->new;
+   my $finished;
+@@ -43,6 +46,7 @@ subtest 'Parse HTTP 1.1 message with huge "Cookie" header exceeding all limits'
+   is $req->cookie('a'), undef,     'no value';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-004
+ subtest 'Parse HTTP 1.1 message with huge "Cookie" header exceeding line limit' => sub {
+   my $req = Mojo::Message::Request->new;
+   is $req->headers->max_line_size, 8192, 'right size';
+@@ -60,6 +64,7 @@ subtest 'Parse HTTP 1.1 message with huge "Cookie" header exceeding line limit'
+   is $req->body,        '',    'no content';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-005
+ subtest 'Parse HTTP 1.1 message with huge "Cookie" header exceeding line limit (alternative)' => sub {
+   my $req = Mojo::Message::Request->new;
+   $req->parse("GET / HTTP/1.1\x0d\x0a");
+@@ -74,6 +79,7 @@ subtest 'Parse HTTP 1.1 message with huge "Cookie" header exceeding line limit (
+   is $req->body,        '',    'no content';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-006
+ subtest 'Parse HTTP 1.1 message with content exceeding line limit' => sub {
+   my $req = Mojo::Message::Request->new;
+   is $req->max_message_size, 16777216, 'right size';
+@@ -87,6 +93,7 @@ subtest 'Parse HTTP 1.1 message with content exceeding line limit' => sub {
+   is $req->body,    'a=b; ' x 131072, 'right content';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-007
+ subtest 'Parse broken start-line' => sub {
+   my $req = Mojo::Message::Request->new;
+   $req->parse("12345\x0d\x0a");
+@@ -95,6 +102,7 @@ subtest 'Parse broken start-line' => sub {
+   ok !$req->is_limit_exceeded, 'limit is not exceeded';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-008
+ subtest 'Parse broken HTTP 1.1 message with header exceeding line limit' => sub {
+   my $req = Mojo::Message::Request->new;
+   $req->parse("GET / HTTP/1.1\x0d\x0a");
+@@ -111,6 +119,7 @@ subtest 'Parse broken HTTP 1.1 message with header exceeding line limit' => sub
+   is $req->body,                   '',    'no content';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-009
+ subtest 'Parse broken HTTP 1.1 message with start-line exceeding line limit' => sub {
+   my $req = Mojo::Message::Request->new;
+   is $req->max_line_size,      8192, 'right size';
+@@ -125,6 +134,7 @@ subtest 'Parse broken HTTP 1.1 message with start-line exceeding line limit' =>
+   is $req->body,             '',                                 'no content';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-010
+ subtest 'Parse broken HTTP 1.1 message with start-line exceeding line limit (alternative)' => sub {
+   my $req = Mojo::Message::Request->new;
+   $req->parse('GET /');
+diff --git a/t/mojo/response.t b/t/mojo/response.t
+index e44bcde..12678b2 100644
+--- a/t/mojo/response.t
++++ b/t/mojo/response.t
+@@ -9,11 +9,13 @@ use Mojo::JSON qw(encode_json);
+ use Mojo::Message::Response;
+ use Mojo::Util qw(encode gzip);
+ 
++# rtmx:req REQ-BENCH-PERL-001
+ subtest 'Defaults' => sub {
+   my $res = Mojo::Message::Response->new;
+   is $res->max_message_size, 2147483648, 'right default';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-002
+ subtest 'Common status codes' => sub {
+   my $res = Mojo::Message::Response->new;
+   is $res->code(100)->default_message, 'Continue',                        'right message';
+@@ -82,6 +84,7 @@ subtest 'Common status codes' => sub {
+   is $res->default_message(100),       'Continue',                        'right message';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-003
+ subtest 'Status code ranges' => sub {
+   my $res = Mojo::Message::Response->new;
+   ok $res->code(101)->is_info,          'is in range';
+@@ -107,6 +110,7 @@ subtest 'Status code ranges' => sub {
+   ok !$res->code(undef)->is_success,    'no range';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-004
+ subtest 'Status code and message' => sub {
+   my $res = Mojo::Message::Response->new;
+   is $res->code,            undef,       'no status';
+@@ -124,6 +128,7 @@ subtest 'Status code and message' => sub {
+   is $res->code(1)->default_message, '', 'empty default message';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-005
+ subtest 'Parse HTTP 1.1 response start-line, no headers and body' => sub {
+   my $res = Mojo::Message::Response->new;
+   $res->parse("HTTP/1.1 200 OK\x0d\x0a\x0d\x0a");
+@@ -133,6 +138,7 @@ subtest 'Parse HTTP 1.1 response start-line, no headers and body' => sub {
+   is $res->version, '1.1', 'right version';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-006
+ subtest 'Parse HTTP 1.1 response start-line, no headers and body (small chunks)' => sub {
+   my $res = Mojo::Message::Response->new;
+   $res->parse('H');
+@@ -178,6 +184,7 @@ subtest 'Parse HTTP 1.1 response start-line, no headers and body (small chunks)'
+   is $res->version, '1.1', 'right version';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-007
+ subtest 'Parse HTTP 1.1 response start-line, no headers and body (no message)' => sub {
+   my $res = Mojo::Message::Response->new;
+   $res->parse("HTTP/1.1 200\x0d\x0a\x0d\x0a");
+@@ -187,6 +194,7 @@ subtest 'Parse HTTP 1.1 response start-line, no headers and body (no message)' =
+   is $res->version, '1.1', 'right version';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-008
+ subtest 'Parse HTTP 1.0 response start-line and headers but no body' => sub {
+   my $res = Mojo::Message::Response->new;
+   $res->parse("HTTP/1.0 404 Damn it\x0d\x0a");
+@@ -200,6 +208,7 @@ subtest 'Parse HTTP 1.0 response start-line and headers but no body' => sub {
+   is $res->headers->content_length, 0,            'right "Content-Length" value';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-009
+ subtest 'Parse full HTTP 1.0 response' => sub {
+   my $res = Mojo::Message::Response->new;
+   $res->parse("HTTP/1.0 500 Internal Server Error\x0d\x0a");
+@@ -215,6 +224,7 @@ subtest 'Parse full HTTP 1.0 response' => sub {
+   is $res->body,                    "Hello World!\n1234\nlalalala\n", 'right content';
+ };
+ 
++# rtmx:req REQ-BENCH-PERL-010
+ subtest 'Parse full HTTP 1.0 response (keep-alive)' => sub {
+   my $res = Mojo::Message::Response->new;
+   $res->parse("HTTP/1.0 500 Internal Server Error\x0d\x0a");
