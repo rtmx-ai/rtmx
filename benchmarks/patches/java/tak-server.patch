@@ -1,0 +1,191 @@
+diff --git a/src/takserver-core/src/test/java/tak/server/ProtoAndCotMessageConversionTests.java b/src/takserver-core/src/test/java/tak/server/ProtoAndCotMessageConversionTests.java
+index 4ca25e9..f6aea0f 100644
+--- a/src/takserver-core/src/test/java/tak/server/ProtoAndCotMessageConversionTests.java
++++ b/src/takserver-core/src/test/java/tak/server/ProtoAndCotMessageConversionTests.java
+@@ -56,6 +56,7 @@ public class ProtoAndCotMessageConversionTests {
+ 		return getSAXReader().read(new InputSource(new StringReader(xml)));
+ 	}
+ 	
++	// rtmx:req REQ-BENCH-TAK-009
+ 	@Test
+ 	public void parseCotChat() throws DocumentException  {
+ 		
+@@ -64,6 +65,7 @@ public class ProtoAndCotMessageConversionTests {
+ 		org.junit.Assert.assertEquals(cot.getUid(), "GeoChat.ANDROID-358982072593830.Green.2b4fb2c4-300d-41e6-9df3-f21b597b87e3");
+ 	}
+ 	
++	// rtmx:req REQ-BENCH-TAK-010
+ 	@Test
+ 	public void parseCotSA() throws DocumentException  {
+ 		
+@@ -73,6 +75,7 @@ public class ProtoAndCotMessageConversionTests {
+ 		org.junit.Assert.assertTrue("coolata".equals(cot.getCallsign()));
+ 	}
+ 	
++	// rtmx:req REQ-BENCH-TAK-011
+ 	@Test
+ 	public void ParseProtoSAFromString() throws DocumentException, ParserConfigurationException, SAXException  {
+ 		
+diff --git a/src/takserver-core/src/test/java/tak/server/XPathPerformanceTest.java b/src/takserver-core/src/test/java/tak/server/XPathPerformanceTest.java
+index a42e28f..532abe5 100644
+--- a/src/takserver-core/src/test/java/tak/server/XPathPerformanceTest.java
++++ b/src/takserver-core/src/test/java/tak/server/XPathPerformanceTest.java
+@@ -54,6 +54,7 @@ public class XPathPerformanceTest {
+ 	}
+ 
+ 
++	// rtmx:req REQ-BENCH-TAK-012
+ 	@Test
+ 	public void stringMatchTiming() {
+ 
+@@ -75,6 +76,7 @@ public class XPathPerformanceTest {
+ 
+ 	}
+ 
++	// rtmx:req REQ-BENCH-TAK-013
+ 	@Test
+ 	public void stringMatchTimingWithLowercase() {
+ 
+@@ -88,6 +90,7 @@ public class XPathPerformanceTest {
+ 
+ 	}
+ 
++	// rtmx:req REQ-BENCH-TAK-014
+ 	@Test
+ 	public void missionXpathTiming() throws DocumentException, ParserConfigurationException, SAXException {
+ 
+diff --git a/src/takserver-core/takserver-war/test/src/com/bbn/marti/dao/kml/ValidatorRegexTest.java b/src/takserver-core/takserver-war/test/src/com/bbn/marti/dao/kml/ValidatorRegexTest.java
+index 14ff817..92e2ee9 100644
+--- a/src/takserver-core/takserver-war/test/src/com/bbn/marti/dao/kml/ValidatorRegexTest.java
++++ b/src/takserver-core/takserver-war/test/src/com/bbn/marti/dao/kml/ValidatorRegexTest.java
+@@ -12,6 +12,7 @@ import org.junit.Test;
+ 
+ public class ValidatorRegexTest {
+ 
++	// rtmx:req REQ-BENCH-TAK-020
+ 	@Test
+ 	public void testCommonNameRegex() {
+ 	    
+diff --git a/src/takserver-core/takserver-war/test/src/com/bbn/marti/util/PeekingIteratorIOTest.java b/src/takserver-core/takserver-war/test/src/com/bbn/marti/util/PeekingIteratorIOTest.java
+index f138634..aa02bc6 100644
+--- a/src/takserver-core/takserver-war/test/src/com/bbn/marti/util/PeekingIteratorIOTest.java
++++ b/src/takserver-core/takserver-war/test/src/com/bbn/marti/util/PeekingIteratorIOTest.java
+@@ -54,6 +54,7 @@ public class PeekingIteratorIOTest {
+ 		iter = new PeekingIterator<Integer>(input.iterator());
+ 	}
+ 
++	// rtmx:req REQ-BENCH-TAK-006
+ 	@Test
+ 	public void inOrderTest() {
+ 		for (int i=0; i<input.size(); i++) {
+@@ -63,6 +64,7 @@ public class PeekingIteratorIOTest {
+ 		}
+ 	}
+ 
++	// rtmx:req REQ-BENCH-TAK-007
+ 	@Test(expected=NoSuchElementException.class)
+ 	public void peekDepletionTest() {
+ 		for (int i=0; i<input.size(); i++) {
+@@ -80,6 +82,7 @@ public class PeekingIteratorIOTest {
+ 		iter.next();
+ 	}
+ 
++	// rtmx:req REQ-BENCH-TAK-008
+ 	@Test
+ 	public void falseDepletionTest() {
+ 		for (int i=0; i<input.size(); i++) {
+diff --git a/src/takserver-core/takserver-war/test/src/com/bbn/marti/util/PeekingIteratorTest.java b/src/takserver-core/takserver-war/test/src/com/bbn/marti/util/PeekingIteratorTest.java
+index 4b2c9ce..87b8e27 100644
+--- a/src/takserver-core/takserver-war/test/src/com/bbn/marti/util/PeekingIteratorTest.java
++++ b/src/takserver-core/takserver-war/test/src/com/bbn/marti/util/PeekingIteratorTest.java
+@@ -23,12 +23,14 @@ public class PeekingIteratorTest {
+ 		iter = new PeekingIterator<Integer>(Arrays.asList(args).iterator());
+ 	}
+ 
++	// rtmx:req REQ-BENCH-TAK-001
+ 	@Test
+ 	public void emptyIteratorShouldHaveFalseHasNext() {
+ 		initIteratorWith();
+ 		Assert.assertFalse("Should be false", iter.hasNext());
+ 	}
+ 
++	// rtmx:req REQ-BENCH-TAK-002
+ 	@Test
+ 	public void emptyIteratorShouldHaveFalseHasNextRepeated() {
+ 		initIteratorWith();
+@@ -43,6 +45,7 @@ public class PeekingIteratorTest {
+ 		iter.peek();
+ 	}
+ 
++	// rtmx:req REQ-BENCH-TAK-003
+ 	@Test
+ 	public void emptyIteratorShouldBeEmptyPeekRepeated() {
+ 		initIteratorWith();
+@@ -61,6 +64,7 @@ public class PeekingIteratorTest {
+ 		iter.next();
+ 	}
+ 
++	// rtmx:req REQ-BENCH-TAK-004
+ 	@Test
+ 	public void emptyIteratorShouldBeEmptyNextRepeated() {
+ 		initIteratorWith();
+@@ -82,6 +86,7 @@ public class PeekingIteratorTest {
+ 		}
+ 	}
+ 	
++	// rtmx:req REQ-BENCH-TAK-005
+ 	@Test
+ 	public void midstreamRepeatedPeekShouldNotAdvance() {
+ 		initIteratorWith(0,1,2,3,4);
+diff --git a/src/takserver-fig-core/rol/src/test/java/mil/af/rl/rol/MissionPackageRolTests.java b/src/takserver-fig-core/rol/src/test/java/mil/af/rl/rol/MissionPackageRolTests.java
+index 866f2df..d3c8969 100644
+--- a/src/takserver-fig-core/rol/src/test/java/mil/af/rl/rol/MissionPackageRolTests.java
++++ b/src/takserver-fig-core/rol/src/test/java/mil/af/rl/rol/MissionPackageRolTests.java
+@@ -34,6 +34,7 @@ public class MissionPackageRolTests {
+     /*
+      * Execute ROL programs using a test implementation of CompoundRoleAssignmentRolVisitor
+      */
++    // rtmx:req REQ-BENCH-TAK-019
+     @Test
+     public void execute() throws Exception {
+ 
+diff --git a/src/takserver-fig-core/rol/src/test/java/mil/af/rl/rol/MissionRolTests.java b/src/takserver-fig-core/rol/src/test/java/mil/af/rl/rol/MissionRolTests.java
+index 8da01d7..16512be 100644
+--- a/src/takserver-fig-core/rol/src/test/java/mil/af/rl/rol/MissionRolTests.java
++++ b/src/takserver-fig-core/rol/src/test/java/mil/af/rl/rol/MissionRolTests.java
+@@ -32,6 +32,7 @@ public class MissionRolTests {
+     /*
+      * Execute ROL programs using a test implementation of CompoundRoleAssignmentRolVisitor
+      */
++    // rtmx:req REQ-BENCH-TAK-018
+     @Test
+     public void execute() throws Exception {
+ 
+diff --git a/src/takserver-fig-core/rol/src/test/java/mil/af/rl/rol/RolBuilderTests.java b/src/takserver-fig-core/rol/src/test/java/mil/af/rl/rol/RolBuilderTests.java
+index 26030e4..7999beb 100644
+--- a/src/takserver-fig-core/rol/src/test/java/mil/af/rl/rol/RolBuilderTests.java
++++ b/src/takserver-fig-core/rol/src/test/java/mil/af/rl/rol/RolBuilderTests.java
+@@ -33,6 +33,7 @@ public class RolBuilderTests {
+     
+     Logger logger = LoggerFactory.getLogger(RolBuilderTests.class);
+     
++    // rtmx:req REQ-BENCH-TAK-015
+     @Test
+     public void sparqlParameters() {
+         RolBuilder builder = new RolBuilder();
+@@ -49,6 +50,7 @@ public class RolBuilderTests {
+     }
+     
+     // validate that the builder creates parsable semantic subscription creation ROL
++    // rtmx:req REQ-BENCH-TAK-016
+     @Test
+     public void createAndParseSemanticSubscriptionRolCreateAndRemove() throws IOException {
+         
+@@ -90,6 +92,7 @@ public class RolBuilderTests {
+         
+     }
+     
++    // rtmx:req REQ-BENCH-TAK-017
+     @Test
+     public void createAndParseTypeBasedSubscription() throws IOException {
+         
