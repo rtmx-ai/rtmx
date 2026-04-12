@@ -1,0 +1,96 @@
+diff --git a/dv/uvm/icache/dv/tests/ibex_icache_base_test.sv b/dv/uvm/icache/dv/tests/ibex_icache_base_test.sv
+index fd58194..d9dd946 100644
+--- a/dv/uvm/icache/dv/tests/ibex_icache_base_test.sv
++++ b/dv/uvm/icache/dv/tests/ibex_icache_base_test.sv
+@@ -2,6 +2,7 @@
+ // Licensed under the Apache License, Version 2.0, see LICENSE for details.
+ // SPDX-License-Identifier: Apache-2.0
+ 
++// rtmx:req REQ-BENCH-SV-003
+ class ibex_icache_base_test extends dv_base_test #(
+     .CFG_T(ibex_icache_env_cfg),
+     .ENV_T(ibex_icache_env)
+@@ -10,15 +11,21 @@ class ibex_icache_base_test extends dv_base_test #(
+   `uvm_component_utils(ibex_icache_base_test)
+   `uvm_component_new
+ 
++  // rtmx:req REQ-BENCH-SV-004
+   // the base class dv_base_test creates the following instances:
+   // ibex_icache_env_cfg: cfg
+   // ibex_icache_env:     env
+ 
++  // rtmx:req REQ-BENCH-SV-001
++  // rtmx:req REQ-BENCH-SV-005
+   virtual function void build_phase(uvm_phase phase);
+     super.build_phase(phase);
++  // rtmx:req REQ-BENCH-SV-002
+   endfunction
+ 
++  // rtmx:req REQ-BENCH-SV-006
+   // the base class also looks up UVM_TEST_SEQ plusarg to create and run that seq in
+   // the run_phase; as such, nothing more needs to be done
+ 
++// rtmx:req REQ-BENCH-SV-007
+ endclass : ibex_icache_base_test
+diff --git a/dv/uvm/icache/dv/tests/ibex_icache_oldval_test.sv b/dv/uvm/icache/dv/tests/ibex_icache_oldval_test.sv
+index bb4bc2c..b3216b3 100644
+--- a/dv/uvm/icache/dv/tests/ibex_icache_oldval_test.sv
++++ b/dv/uvm/icache/dv/tests/ibex_icache_oldval_test.sv
+@@ -2,6 +2,7 @@
+ // Licensed under the Apache License, Version 2.0, see LICENSE for details.
+ // SPDX-License-Identifier: Apache-2.0
+ 
++// rtmx:req REQ-BENCH-SV-001
+ class ibex_icache_oldval_test extends ibex_icache_base_test;
+ 
+   `uvm_component_utils(ibex_icache_oldval_test)
+@@ -15,6 +16,7 @@ class ibex_icache_oldval_test extends ibex_icache_base_test;
+   //
+   // Note that we can't do this in the scoreboard itself, because it only makes sense when we know
+   // that we're doing lots of caching
++  // rtmx:req REQ-BENCH-SV-002
+   function void check_phase(uvm_phase phase);
+     int unsigned actual, possible;
+     int unsigned frac4;
+@@ -38,7 +40,9 @@ class ibex_icache_oldval_test extends ibex_icache_base_test;
+                          "one %0d times (%0d.%0d%%). This is less than the 5% minimum threshold."},
+                         possible, actual, frac4 / 10, frac4 % 10))
+ 
++  // rtmx:req REQ-BENCH-SV-003
+   endfunction : check_phase
+ 
++// rtmx:req REQ-BENCH-SV-004
+ endclass : ibex_icache_oldval_test
+ 
+diff --git a/formal/data_ind_timing/formal_tb.sv b/formal/data_ind_timing/formal_tb.sv
+index c4ae26e..d7dff5e 100644
+--- a/formal/data_ind_timing/formal_tb.sv
++++ b/formal/data_ind_timing/formal_tb.sv
+@@ -6,6 +6,7 @@
+ 
+ `include "prim_assert.sv"
+ 
++// rtmx:req REQ-BENCH-SV-001
+ module formal_tb (
+    // Top-level ports
+     input  logic             clk_i,
+diff --git a/formal/icache/formal_tb.sv b/formal/icache/formal_tb.sv
+index 73849f2..34d4728 100644
+--- a/formal/icache/formal_tb.sv
++++ b/formal/icache/formal_tb.sv
+@@ -15,6 +15,7 @@
+ `define ASSUME_ZERO_IN_RESET(name) \
+   `ASSUME(name``_zero_in_reset, `IMPLIES(!rst_ni, ~|(name)), clk_i, 1'b0)
+ 
++// rtmx:req REQ-BENCH-SV-001
+ module formal_tb
+   import ibex_pkg::*;
+ #(
+@@ -84,6 +85,7 @@ module formal_tb
+   assign line_step = {{ADDR_W-IC_LINE_W-1{1'b0}},1'b1,{IC_LINE_W{1'b0}}};
+ 
+   // We are bound into the DUT. This means we don't control the clock and reset directly, but we
++  // rtmx:req REQ-BENCH-SV-002
+   // still want to constrain rst_ni to reset the module at the start of time (for one cycle) and
+   // then stay high.
+   //

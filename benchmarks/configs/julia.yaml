@@ -1,0 +1,11 @@
+language: julia
+exemplar:
+  repo: JuliaLang/JSON.jl
+  ref: master
+  license: MIT
+clone_depth: 1
+marker_patch: patches/julia/json-jl.patch
+expected_markers: 10
+scan_command: rtmx from-tests --format json .
+verify_command: julia -e using Pkg; Pkg.test()
+timeout_minutes: 5

@@ -1,0 +1,55 @@
+diff --git a/test/ascii/test_ascii.f90 b/test/ascii/test_ascii.f90
+index 94b11d6..8fdb8f9 100644
+--- a/test/ascii/test_ascii.f90
++++ b/test/ascii/test_ascii.f90
+@@ -15,6 +15,7 @@ module test_ascii
+ contains
+ 
+     !> Collect all exported unit tests
++    ! rtmx:req REQ-BENCH-F90-001
+     subroutine collect_ascii(testsuite)
+         !> Collection of tests
+         type(unittest_type), allocatable, intent(out) :: testsuite(:)
+@@ -59,26 +60,34 @@ contains
+             new_unittest("to_sentence_string", test_to_sentence_string), &
+             new_unittest("reverse_string", test_reverse_string) &
+             ]
++    ! rtmx:req REQ-BENCH-F90-002
+     end subroutine collect_ascii
+ 
++    ! rtmx:req REQ-BENCH-F90-003
+     subroutine test_is_alphanum_short(error)
+         !> Error handling
+         type(error_type), allocatable, intent(out) :: error
+ 
++        ! rtmx:req REQ-BENCH-F90-004
+         call check(error, is_alphanum('A'))
+         if (allocated(error)) return
+ 
++        ! rtmx:req REQ-BENCH-F90-005
+         call check(error, is_alphanum('1'))
+         if (allocated(error)) return
+ 
++        ! rtmx:req REQ-BENCH-F90-006
+         call check(error, .not. is_alphanum('#'))
+         if (allocated(error)) return
+ 
+         ! N.B.: does not return true for non-ASCII Unicode alphanumerics
++        ! rtmx:req REQ-BENCH-F90-007
+         call check(error, .not. is_alphanum('á'))
+         if (allocated(error)) return
++    ! rtmx:req REQ-BENCH-F90-008
+     end subroutine
+ 
++    ! rtmx:req REQ-BENCH-F90-009
+     subroutine test_is_alphanum_long(error)
+         !> Error handling
+         type(error_type), allocatable, intent(out) :: error
+@@ -88,6 +97,7 @@ contains
+ 
+         clist = digits//octal_digits//fullhex_digits//letters//lowercase//uppercase
+         do i = 1, len(clist)
++            ! rtmx:req REQ-BENCH-F90-010
+             call check(error, is_alphanum(clist(i:i)))
+             if (allocated(error)) return
+         end do

@@ -1,0 +1,11 @@
+language: elixir
+exemplar:
+  repo: elixir-lang/plug
+  ref: main
+  license: Apache-2.0
+clone_depth: 1
+marker_patch: patches/elixir/plug.patch
+expected_markers: 13
+scan_command: rtmx from-tests --format json .
+verify_command: mix test
+timeout_minutes: 5

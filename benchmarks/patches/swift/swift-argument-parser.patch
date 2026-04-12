@@ -1,0 +1,84 @@
+diff --git a/Tests/ArgumentParserUnitTests/UsageGenerationTests.swift b/Tests/ArgumentParserUnitTests/UsageGenerationTests.swift
+index d7cfae8..1629042 100644
+--- a/Tests/ArgumentParserUnitTests/UsageGenerationTests.swift
++++ b/Tests/ArgumentParserUnitTests/UsageGenerationTests.swift
+@@ -31,6 +31,7 @@ func _testSynopsis<T: ParsableArguments>(
+ // MARK: -
+ 
+ extension UsageGenerationTests {
++  // rtmx:req REQ-BENCH-SWIFT-001
+   func testNameSynopsis() {
+     XCTAssertEqual(Name.long("foo").synopsisString, "--foo")
+     XCTAssertEqual(Name.short("f").synopsisString, "-f")
+@@ -44,6 +45,7 @@ extension UsageGenerationTests {
+     @Option() var title: String
+   }
+ 
++  // rtmx:req REQ-BENCH-SWIFT-002
+   func testSynopsis() {
+     _testSynopsis(
+       A.self, expected: "example --first-name <first-name> --title <title>")
+@@ -54,6 +56,7 @@ extension UsageGenerationTests {
+     @Option() var title: String?
+   }
+ 
++  // rtmx:req REQ-BENCH-SWIFT-003
+   func testSynopsisWithOptional() {
+     _testSynopsis(
+       B.self, expected: "example [--first-name <first-name>] [--title <title>]")
+@@ -64,6 +67,7 @@ extension UsageGenerationTests {
+     @Flag() var verbose: Int
+   }
+ 
++  // rtmx:req REQ-BENCH-SWIFT-004
+   func testFlagSynopsis() {
+     _testSynopsis(C.self, expected: "example [--log] [--verbose ...]")
+   }
+@@ -73,6 +77,7 @@ extension UsageGenerationTests {
+     @Argument() var title: String?
+   }
+ 
++  // rtmx:req REQ-BENCH-SWIFT-005
+   func testPositionalSynopsis() {
+     _testSynopsis(D.self, expected: "example <first-name> [<title>]")
+   }
+@@ -88,6 +93,7 @@ extension UsageGenerationTests {
+     var arg: String = "no-arg"
+   }
+ 
++  // rtmx:req REQ-BENCH-SWIFT-006
+   func testSynopsisWithDefaults() {
+     _testSynopsis(
+       E.self, expected: "example [--name <name>] [--count <count>] [<arg>]")
+@@ -98,6 +104,7 @@ extension UsageGenerationTests {
+     @Argument() var nameCounts: [Int] = []
+   }
+ 
++  // rtmx:req REQ-BENCH-SWIFT-007
+   func testSynopsisWithRepeats() {
+     _testSynopsis(
+       F.self, expected: "example [--name <name> ...] [<name-counts> ...]")
+@@ -111,6 +118,7 @@ extension UsageGenerationTests {
+     var homePath: String
+   }
+ 
++  // rtmx:req REQ-BENCH-SWIFT-008
+   func testSynopsisWithCustomization() {
+     _testSynopsis(
+       G.self, expected: "example [--file-path <path>] <user-home-path>")
+@@ -121,6 +129,7 @@ extension UsageGenerationTests {
+     @Argument(help: .hidden) var title: String?
+   }
+ 
++  // rtmx:req REQ-BENCH-SWIFT-009
+   func testSynopsisWithHidden() {
+     _testSynopsis(H.self, expected: "example")
+     _testSynopsis(
+@@ -149,6 +158,7 @@ extension UsageGenerationTests {
+     var color: Color = .red
+   }
+ 
++  // rtmx:req REQ-BENCH-SWIFT-010
+   func testSynopsisWithDefaultValueAndTransform() {
+     _testSynopsis(I.self, expected: "example [--color <color>]")
+   }

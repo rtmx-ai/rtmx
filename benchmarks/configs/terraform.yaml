@@ -1,0 +1,11 @@
+language: terraform
+exemplar:
+  repo: cloudposse/terraform-aws-vpc
+  ref: main
+  license: Apache-2.0
+clone_depth: 1
+marker_patch: patches/terraform/terraform-aws-vpc.patch
+expected_markers: 10
+scan_command: rtmx from-tests --format json .
+verify_command: terraform test
+timeout_minutes: 5

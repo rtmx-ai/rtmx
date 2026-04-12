@@ -1,0 +1,11 @@
+language: scala
+exemplar:
+  repo: circe/circe
+  ref: master
+  license: Apache-2.0
+clone_depth: 1
+marker_patch: patches/scala/circe.patch
+expected_markers: 10
+scan_command: rtmx from-tests --format json .
+verify_command: sbt test
+timeout_minutes: 10

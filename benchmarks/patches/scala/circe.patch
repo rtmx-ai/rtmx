@@ -1,0 +1,59 @@
+diff --git a/modules/benchmark/src/test/scala-2/io/circe/benchmark/NumberParsingBenchmarkSpec.scala b/modules/benchmark/src/test/scala-2/io/circe/benchmark/NumberParsingBenchmarkSpec.scala
+index c6af864..88a8210 100644
+--- a/modules/benchmark/src/test/scala-2/io/circe/benchmark/NumberParsingBenchmarkSpec.scala
++++ b/modules/benchmark/src/test/scala-2/io/circe/benchmark/NumberParsingBenchmarkSpec.scala
+@@ -27,44 +27,54 @@ class NumberParsingBenchmarkSpec extends FunSuite {
+   val expectedDouble = benchmark.inputDouble.toDouble
+   val expectedLong = benchmark.inputLong.toLong
+ 
++  // rtmx:req REQ-BENCH-SCALA-001
+   test("decodeBigDecimal should return the correct result") {
+     assertEquals(benchmark.decodeBigDecimal, Right(expectedBigDecimal))
+   }
+ 
++  // rtmx:req REQ-BENCH-SCALA-002
+   test("decodeBigInt should return the correct result") {
+     assertEquals(benchmark.decodeBigInt, Right(expectedBigInt))
+   }
+ 
++  // rtmx:req REQ-BENCH-SCALA-003
+   test("decodeDouble should return the correct result") {
+     assertEquals(benchmark.decodeDouble, Right(expectedDouble))
+   }
+ 
++  // rtmx:req REQ-BENCH-SCALA-004
+   test("decodeLong should return the correct result") {
+     assertEquals(benchmark.decodeLong, Right(expectedLong))
+   }
+ 
++  // rtmx:req REQ-BENCH-SCALA-005
+   test("parseBiggerDecimal should return the correct result") {
+     val expected = Json.fromJsonNumber(JsonNumber.fromDecimalStringUnsafe(benchmark.inputBiggerDecimal))
+ 
+     assertEquals(benchmark.parseBiggerDecimal, Right(expected))
+   }
+ 
++  // rtmx:req REQ-BENCH-SCALA-006
+   test("parseBigDecimal should return the correct result") {
+     assertEquals(benchmark.parseBigDecimal, Right(Json.fromBigDecimal(expectedBigDecimal)))
+   }
+ 
++  // rtmx:req REQ-BENCH-SCALA-007
+   test("parseBigInt should return the correct result") {
+     assertEquals(benchmark.parseBigInt, Right(Json.fromBigInt(expectedBigInt)))
+   }
+ 
++  // rtmx:req REQ-BENCH-SCALA-008
+   test("parseDouble should return the correct result") {
+     assertEquals(benchmark.parseDouble, Right(Json.fromDouble(expectedDouble).get))
+   }
+ 
++  // rtmx:req REQ-BENCH-SCALA-009
+   test("parseLong should return the correct result") {
+     assertEquals(benchmark.parseLong, Right(Json.fromLong(expectedLong)))
+   }
+ 
++  // rtmx:req REQ-BENCH-SCALA-010
+   test("decodeManyBigDecimals should return the correct result") {
+     assertEquals(benchmark.decodeManyBigDecimals, Right(List.fill(benchmark.count)(expectedBigDecimal)))
+   }

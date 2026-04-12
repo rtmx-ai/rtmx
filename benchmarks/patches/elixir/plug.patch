@@ -1,0 +1,104 @@
+diff --git a/test/plug/builder_test.exs b/test/plug/builder_test.exs
+index d40fa83..acb04c5 100644
+--- a/test/plug/builder_test.exs
++++ b/test/plug/builder_test.exs
+@@ -85,10 +85,12 @@ defmodule Plug.BuilderTest do
+   import Plug.Test
+   import Plug.Conn
+ 
++  # rtmx:req REQ-BENCH-EX-007
+   test "exports the init/1 function" do
+     assert Sample.init(:ok) == :ok
+   end
+ 
++  # rtmx:req REQ-BENCH-EX-008
+   test "builds plug stack in the order" do
+     conn = conn(:get, "/")
+ 
+@@ -106,12 +108,14 @@ defmodule Plug.BuilderTest do
+            ]
+   end
+ 
++  # rtmx:req REQ-BENCH-EX-009
+   test "allows call/2 to be overridden with super" do
+     conn = Overridable.call(conn(:get, "/"), [])
+     assert conn.assigns[:not_found] == :caught
+     assert conn.assigns[:entered_stack] == true
+   end
+ 
++  # rtmx:req REQ-BENCH-EX-010
+   test "halt/2 halts the plug stack" do
+     conn = Halter.call(conn(:get, "/"), [])
+     assert conn.halted
+@@ -121,6 +125,7 @@ defmodule Plug.BuilderTest do
+     refute conn.assigns[:end_of_chain_reached]
+   end
+ 
++  # rtmx:req REQ-BENCH-EX-011
+   test "an exception is raised if a plug doesn't return a connection" do
+     assert_raise RuntimeError, fn ->
+       FaultyModulePlug.call(conn(:get, "/"), [])
+@@ -131,6 +136,7 @@ defmodule Plug.BuilderTest do
+     end
+   end
+ 
++  # rtmx:req REQ-BENCH-EX-012
+   test "an exception is raised at compile time if a plug with no call/2 function is plugged" do
+     assert_raise ArgumentError, fn ->
+       defmodule BadPlug do
+@@ -144,6 +150,7 @@ defmodule Plug.BuilderTest do
+     end
+   end
+ 
++  # rtmx:req REQ-BENCH-EX-013
+   test "compile and runtime init modes" do
+     {:ok, _agent} = Agent.start_link(fn -> :compile end, name: :plug_init)
+ 
+diff --git a/test/plug_test.exs b/test/plug_test.exs
+index 5820049..1973223 100644
+--- a/test/plug_test.exs
++++ b/test/plug_test.exs
+@@ -39,6 +39,7 @@ defmodule PlugTest do
+   end
+ 
+   describe "forward" do
++    # rtmx:req REQ-BENCH-EX-001
+     test "strips segments of the path affecting path matching for the called plug" do
+       conn = Forward.call(conn(:get, "/prefix/more/segments"), [])
+       assert conn.resp_body =~ "script_name: prefix"
+@@ -57,6 +58,7 @@ defmodule PlugTest do
+   end
+ 
+   describe "run" do
++    # rtmx:req REQ-BENCH-EX-002
+     test "invokes plugs" do
+       conn = Plug.run(conn(:head, "/"), [{Plug.Head, []}])
+       assert conn.method == "GET"
+@@ -66,16 +68,19 @@ defmodule PlugTest do
+       assert conn.status == 200
+     end
+ 
++    # rtmx:req REQ-BENCH-EX-003
+     test "does not invoke plugs if halted" do
+       conn = Plug.run(%{conn(:get, "/") | halted: true}, [&raise(inspect(&1))])
+       assert conn.halted
+     end
+ 
++    # rtmx:req REQ-BENCH-EX-004
+     test "aborts if plug halts" do
+       conn = Plug.run(conn(:get, "/"), [&%{&1 | halted: true}, &raise(inspect(&1))])
+       assert conn.halted
+     end
+ 
++    # rtmx:req REQ-BENCH-EX-005
+     test "logs when halting" do
+       assert capture_log(fn ->
+                assert Plug.run(conn(:get, "/"), [{Halter, :opts}], log_on_halt: :error).halted
+@@ -88,6 +93,7 @@ defmodule PlugTest do
+              end) =~ "[error] Plug halted in #{inspect(halter)}"
+     end
+ 
++    # rtmx:req REQ-BENCH-EX-006
+     test "raise exception with invalid return" do
+       msg = "expected PlugTest.NotPlug to return Plug.Conn, got: %{}"
+ 
