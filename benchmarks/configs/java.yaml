@@ -1,0 +1,13 @@
+language: java
+exemplar:
+  repo: google/gson
+  ref: gson-parent-2.11.0
+  license: Apache-2.0
+clone_depth: 1
+setup_commands:
+  - mvn dependency:resolve -q
+marker_patch: patches/java/gson.patch
+expected_markers: 20
+scan_command: rtmx from-tests --format json .
+verify_command: mvn test -q -pl gson
+timeout_minutes: 10

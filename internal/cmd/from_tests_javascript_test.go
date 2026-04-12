@@ -215,6 +215,10 @@ func TestIsJSTestFile(t *testing.T) {
 		{"test.py", false},
 		{"README.md", false},
 		{"__tests__/app.ts", true},
+		{"test/http.ts", true},
+		{"test/retry.ts", true},
+		{"src/test/feature.js", true},
+		{"tests/unit.ts", true},
 	}
 
 	for _, tt := range tests {

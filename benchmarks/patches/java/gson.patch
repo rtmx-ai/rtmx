@@ -1,0 +1,170 @@
+diff --git a/gson/src/test/java/com/google/gson/GsonTest.java b/gson/src/test/java/com/google/gson/GsonTest.java
+index e51259e..d092b56 100644
+--- a/gson/src/test/java/com/google/gson/GsonTest.java
++++ b/gson/src/test/java/com/google/gson/GsonTest.java
+@@ -61,11 +61,13 @@ public final class GsonTest {
+   private static final ToNumberStrategy CUSTOM_NUMBER_TO_NUMBER_STRATEGY =
+       ToNumberPolicy.LAZILY_PARSED_NUMBER;
+ 
++  // rtmx:req REQ-BENCH-JAVA-001
+   @Test
+   public void testStrictnessDefault() {
+     assertThat(new Gson().strictness).isNull();
+   }
+ 
++  // rtmx:req REQ-BENCH-JAVA-002
+   @Test
+   public void testOverridesDefaultExcluder() {
+     Gson gson =
+@@ -142,6 +144,7 @@ public final class GsonTest {
+     }
+   }
+ 
++  // rtmx:req REQ-BENCH-JAVA-003
+   @Test
+   public void testGetAdapter_Null() {
+     Gson gson = new Gson();
+@@ -218,6 +221,7 @@ public final class GsonTest {
+    * CustomClass1} and lets one thread wait after the adapter for CustomClass2 has been obtained
+    * (which still refers to the nested unresolved FutureTypeAdapter for CustomClass1).
+    */
++  // rtmx:req REQ-BENCH-JAVA-004
+   @Test
+   public void testGetAdapter_FutureAdapterConcurrency() throws Exception {
+     /**
+@@ -320,6 +324,7 @@ public final class GsonTest {
+     assertThat(otherThreadAdapter.get().toJson(null)).isEqualTo("[[\"wrapped-nested\"]]");
+   }
+ 
++  // rtmx:req REQ-BENCH-JAVA-005
+   @Test
+   public void testGetDelegateAdapter() {
+     class DummyAdapter extends TypeAdapter<Number> {
+@@ -426,6 +431,7 @@ public final class GsonTest {
+   }
+ 
+   @SuppressWarnings({"deprecation", "InlineMeInliner"}) // for GsonBuilder.setLenient
++  // rtmx:req REQ-BENCH-JAVA-006
+   @Test
+   public void testNewJsonWriter_Custom() throws IOException {
+     StringWriter writer = new StringWriter();
+@@ -452,6 +458,7 @@ public final class GsonTest {
+     assertThat(writer.toString()).isEqualTo(")]}'\n{\n  \"test\": null,\n  \"<test2\": true\n}1");
+   }
+ 
++  // rtmx:req REQ-BENCH-JAVA-007
+   @Test
+   public void testNewJsonReader_Default() throws IOException {
+     String json = "test"; // String without quotes
+diff --git a/gson/src/test/java/com/google/gson/JsonObjectTest.java b/gson/src/test/java/com/google/gson/JsonObjectTest.java
+index da6931c..9ea0415 100644
+--- a/gson/src/test/java/com/google/gson/JsonObjectTest.java
++++ b/gson/src/test/java/com/google/gson/JsonObjectTest.java
+@@ -40,6 +40,7 @@ import org.junit.Test;
+  */
+ public class JsonObjectTest {
+ 
++  // rtmx:req REQ-BENCH-JAVA-008
+   @Test
+   public void testAddingAndRemovingObjectProperties() {
+     JsonObject jsonObj = new JsonObject();
+@@ -59,6 +60,7 @@ public class JsonObjectTest {
+     assertThat(jsonObj.remove(propertyName)).isNull();
+   }
+ 
++  // rtmx:req REQ-BENCH-JAVA-009
+   @Test
+   public void testAddingNullPropertyValue() {
+     String propertyName = "property";
+@@ -85,6 +87,7 @@ public class JsonObjectTest {
+     jsonObj.add("   \t", JsonNull.INSTANCE);
+   }
+ 
++  // rtmx:req REQ-BENCH-JAVA-010
+   @Test
+   public void testAddingBooleanProperties() {
+     String propertyName = "property";
+@@ -98,6 +101,7 @@ public class JsonObjectTest {
+     assertThat(jsonElement.getAsBoolean()).isTrue();
+   }
+ 
++  // rtmx:req REQ-BENCH-JAVA-011
+   @Test
+   public void testAddingStringProperties() {
+     String propertyName = "property";
+@@ -113,6 +117,7 @@ public class JsonObjectTest {
+     assertThat(jsonElement.getAsString()).isEqualTo(value);
+   }
+ 
++  // rtmx:req REQ-BENCH-JAVA-012
+   @Test
+   public void testAddingCharacterProperties() {
+     String propertyName = "property";
+@@ -133,6 +138,7 @@ public class JsonObjectTest {
+   }
+ 
+   /** From bug report http://code.google.com/p/google-gson/issues/detail?id=182 */
++  // rtmx:req REQ-BENCH-JAVA-013
+   @Test
+   public void testPropertyWithQuotes() {
+     JsonObject jsonObj = new JsonObject();
+@@ -155,6 +161,7 @@ public class JsonObjectTest {
+     assertThat(jsonObj.get("").getAsBoolean()).isTrue();
+   }
+ 
++  // rtmx:req REQ-BENCH-JAVA-014
+   @Test
+   public void testEqualsOnEmptyObject() {
+     MoreAsserts.assertEqualsAndHashCode(new JsonObject(), new JsonObject());
+diff --git a/gson/src/test/java/com/google/gson/stream/JsonReaderTest.java b/gson/src/test/java/com/google/gson/stream/JsonReaderTest.java
+index d614e53..365479f 100644
+--- a/gson/src/test/java/com/google/gson/stream/JsonReaderTest.java
++++ b/gson/src/test/java/com/google/gson/stream/JsonReaderTest.java
+@@ -41,6 +41,7 @@ import org.junit.Test;
+ @SuppressWarnings("resource")
+ public final class JsonReaderTest {
+ 
++  // rtmx:req REQ-BENCH-JAVA-015
+   @Test
+   public void testDefaultStrictness() {
+     JsonReader reader = new JsonReader(reader("{}"));
+@@ -48,6 +49,7 @@ public final class JsonReaderTest {
+   }
+ 
+   @SuppressWarnings("deprecation") // for JsonReader.setLenient
++  // rtmx:req REQ-BENCH-JAVA-016
+   @Test
+   public void testSetLenientTrue() {
+     JsonReader reader = new JsonReader(reader("{}"));
+@@ -63,6 +65,7 @@ public final class JsonReaderTest {
+     assertThat(reader.getStrictness()).isEqualTo(Strictness.LEGACY_STRICT);
+   }
+ 
++  // rtmx:req REQ-BENCH-JAVA-017
+   @Test
+   public void testSetStrictness() {
+     JsonReader reader = new JsonReader(reader("{}"));
+@@ -76,6 +79,7 @@ public final class JsonReaderTest {
+     assertThrows(NullPointerException.class, () -> reader.setStrictness(null));
+   }
+ 
++  // rtmx:req REQ-BENCH-JAVA-018
+   @Test
+   public void testEscapedNewlineNotAllowedInStrictMode() throws IOException {
+     String json = "\"\\\n\"";
+@@ -88,6 +92,7 @@ public final class JsonReaderTest {
+         .startsWith("Cannot escape a newline character in strict mode");
+   }
+ 
++  // rtmx:req REQ-BENCH-JAVA-019
+   @Test
+   public void testEscapedNewlineAllowedInDefaultMode() throws IOException {
+     String json = "\"\\\n\"";
+@@ -128,6 +133,7 @@ public final class JsonReaderTest {
+             "Unescaped control characters (\\u0000-\\u001F) are not allowed in strict mode");
+   }
+ 
++  // rtmx:req REQ-BENCH-JAVA-020
+   @Test
+   public void testStrictModeAllowsOtherControlCharacters() throws IOException {
+     // JSON specification only forbids control characters U+0000 - U+001F, other control characters

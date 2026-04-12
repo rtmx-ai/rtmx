@@ -1,0 +1,132 @@
+diff --git a/test/MediatR.Tests/PipelineTests.cs b/test/MediatR.Tests/PipelineTests.cs
+index 31241e5..6398f4c 100644
+--- a/test/MediatR.Tests/PipelineTests.cs
++++ b/test/MediatR.Tests/PipelineTests.cs
+@@ -240,6 +240,7 @@ public class Logger
+         public IList<string> Messages { get; } = new List<string>();
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-011
+     [Fact]
+     public async Task Should_wrap_with_behavior()
+     {
+@@ -275,6 +276,7 @@ public async Task Should_wrap_with_behavior()
+         });
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-012
+     [Fact]
+     public async Task Should_wrap_void_with_behavior()
+     {
+@@ -308,6 +310,7 @@ public async Task Should_wrap_void_with_behavior()
+         });
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-013
+     [Fact]
+     public async Task Should_wrap_generics_with_behavior()
+     {
+@@ -345,6 +348,7 @@ public async Task Should_wrap_generics_with_behavior()
+         });
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-014
+     [Fact]
+     public async Task Should_wrap_void_generics_with_behavior()
+     {
+@@ -381,6 +385,7 @@ public async Task Should_wrap_void_generics_with_behavior()
+         });
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-015
+     [Fact]
+     public async Task Should_handle_constrained_generics()
+     {
+diff --git a/test/MediatR.Tests/PublishTests.cs b/test/MediatR.Tests/PublishTests.cs
+index a9ca587..3f3eb67 100644
+--- a/test/MediatR.Tests/PublishTests.cs
++++ b/test/MediatR.Tests/PublishTests.cs
+@@ -48,6 +48,7 @@ public Task Handle(Ping notification, CancellationToken cancellationToken)
+         }
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-006
+     [Fact]
+     public async Task Should_resolve_main_handler()
+     {
+@@ -76,6 +77,7 @@ public async Task Should_resolve_main_handler()
+         result.ShouldContain("Ping Pung");
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-007
+     [Fact]
+     public async Task Should_resolve_main_handler_when_object_is_passed()
+     {
+@@ -163,6 +165,7 @@ public async Task Should_override_with_sequential_firing()
+         result.ShouldContain("Ping Pung");
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-008
+     [Fact]
+     public async Task Should_override_with_sequential_firing_through_injection()
+     {
+@@ -194,6 +197,7 @@ public async Task Should_override_with_sequential_firing_through_injection()
+         publisher.CallCount.ShouldBe(2);
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-009
+     [Fact]
+     public async Task Should_resolve_handlers_given_interface()
+     {
+@@ -224,6 +228,7 @@ public async Task Should_resolve_handlers_given_interface()
+         result.ShouldContain("Ping Pung");
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-010
+     [Fact]
+     public async Task Should_resolve_main_handler_by_specific_interface()
+     {
+diff --git a/test/MediatR.Tests/SendTests.cs b/test/MediatR.Tests/SendTests.cs
+index abbf771..cfad3eb 100644
+--- a/test/MediatR.Tests/SendTests.cs
++++ b/test/MediatR.Tests/SendTests.cs
+@@ -159,6 +159,7 @@ public Task<int> Handle(MultipleGenericTypeParameterRequest<T1, T2, T3> request,
+         }
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-001
+     [Fact]
+     public async Task Should_resolve_main_handler()
+     {
+@@ -167,6 +168,7 @@ public async Task Should_resolve_main_handler()
+         response.Message.ShouldBe("Ping Pong");
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-002
+     [Fact]
+     public async Task Should_resolve_main_void_handler()
+     {
+@@ -175,6 +177,7 @@ public async Task Should_resolve_main_void_handler()
+         _dependency.Called.ShouldBeTrue();
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-003
+     [Fact]
+     public async Task Should_resolve_main_handler_via_dynamic_dispatch()
+     {
+@@ -196,6 +199,7 @@ public async Task Should_resolve_main_void_handler_via_dynamic_dispatch()
+         _dependency.Called.ShouldBeTrue();
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-004
+     [Fact]
+     public async Task Should_resolve_main_handler_by_specific_interface()
+     {
+@@ -229,6 +233,7 @@ public async Task Should_resolve_generic_handler()
+         _dependency.Called.ShouldBeTrue();
+     }
+ 
++    // rtmx:req REQ-BENCH-CS-005
+     [Fact]
+     public async Task Should_resolve_generic_void_handler()
+     {

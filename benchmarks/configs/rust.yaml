@@ -1,0 +1,11 @@
+language: rust
+exemplar:
+  repo: rtmx-ai/aegis-cli
+  ref: v0.0.1-alpha
+  license: Apache-2.0
+clone_depth: 1
+marker_patch: patches/rust/aegis-cli.patch
+expected_markers: 30
+scan_command: rtmx from-tests --format json .
+verify_command: cargo test --workspace
+timeout_minutes: 15
