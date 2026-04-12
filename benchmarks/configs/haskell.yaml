@@ -1,0 +1,11 @@
+language: haskell
+exemplar:
+  repo: haskell/aeson
+  ref: master
+  license: BSD-3-Clause
+clone_depth: 1
+marker_patch: patches/haskell/aeson.patch
+expected_markers: 17
+scan_command: rtmx from-tests --format json .
+verify_command: cabal test
+timeout_minutes: 15

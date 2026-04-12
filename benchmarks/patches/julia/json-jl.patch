@@ -1,0 +1,34 @@
+diff --git a/test/lazy.jl b/test/lazy.jl
+index ae415bf..ebe2dd5 100644
+--- a/test/lazy.jl
++++ b/test/lazy.jl
+@@ -23,19 +23,29 @@ function makefile(nm, x)
+     return file
+ end
+ 
++# rtmx:req REQ-BENCH-JL-001
+ @testset "JSON.lazy" begin
+     for T in (String, SubString{String}, IOBuffer, Vector{UInt8}, File)
++        # rtmx:req REQ-BENCH-JL-002
+         @test JSON.gettype(JSON.lazy(make(T, "1"))) == JSON.JSONTypes.NUMBER
++        # rtmx:req REQ-BENCH-JL-003
+         @test JSON.gettype(JSON.lazy(make(T, "true"))) == JSON.JSONTypes.TRUE
++        # rtmx:req REQ-BENCH-JL-004
+         @test JSON.gettype(JSON.lazy(make(T, "false"))) == JSON.JSONTypes.FALSE
++        # rtmx:req REQ-BENCH-JL-005
+         @test JSON.gettype(JSON.lazy(make(T, "null"))) == JSON.JSONTypes.NULL
++        # rtmx:req REQ-BENCH-JL-006
+         @test JSON.gettype(JSON.lazy(make(T, "[]"))) == JSON.JSONTypes.ARRAY
++        # rtmx:req REQ-BENCH-JL-007
+         @test JSON.gettype(JSON.lazy(make(T, "{}"))) == JSON.JSONTypes.OBJECT
++        # rtmx:req REQ-BENCH-JL-008
+         @test JSON.gettype(JSON.lazy(make(T, "\"\""))) == JSON.JSONTypes.STRING
++        # rtmx:req REQ-BENCH-JL-009
+         @test_throws ArgumentError JSON.lazy(make(T, "a"))
+     end
+     # lazyfile
+     x = JSON.lazyfile(makefile("empty_object.json", "{}"))
++    # rtmx:req REQ-BENCH-JL-010
+     @test JSON.gettype(x) == JSON.JSONTypes.OBJECT
+     @test length(x) == 0
+     # LazyObject with all possible JSON types

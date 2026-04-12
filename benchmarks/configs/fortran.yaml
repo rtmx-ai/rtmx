@@ -1,0 +1,11 @@
+language: fortran
+exemplar:
+  repo: fortran-lang/stdlib
+  ref: master
+  license: MIT
+clone_depth: 1
+marker_patch: patches/fortran/stdlib.patch
+expected_markers: 10
+scan_command: rtmx from-tests --format json .
+verify_command: fpm test
+timeout_minutes: 10

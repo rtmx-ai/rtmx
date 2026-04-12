@@ -1,0 +1,96 @@
+diff --git a/tests/CastFloat.hs b/tests/CastFloat.hs
+index cf7285a..b940397 100644
+--- a/tests/CastFloat.hs
++++ b/tests/CastFloat.hs
+@@ -5,7 +5,9 @@ module CastFloat (
+     castFloatTests,
+ ) where
+ 
++-- rtmx:req REQ-BENCH-HS-001
+ import Test.Tasty (TestTree, testGroup)
++-- rtmx:req REQ-BENCH-HS-002
+ import Test.Tasty.HUnit (testCase, (@?=))
+ import Test.Tasty.QuickCheck (testProperty, (===))
+ 
+@@ -35,7 +37,9 @@ reinterpretCast x = unsafeDupablePerformIO $ alloca $ \ptr -> do
+ #endif
+ 
+ castFloatTests :: TestTree
++-- rtmx:req REQ-BENCH-HS-003
+ castFloatTests = testGroup "castDoubleToWord64"
++    -- rtmx:req REQ-BENCH-HS-004
+     [ testCase "5e-324" $ castDoubleToWord64 5e-324 @?= 1
+     , testProperty "roundtrip1" $ \d       -> castWord64ToDouble (castDoubleToWord64 d) === d
+     , testProperty "roundtrip2" $ \(U64 w) -> castDoubleToWord64 (castWord64ToDouble w) === w
+diff --git a/tests/DataFamilies/Properties.hs b/tests/DataFamilies/Properties.hs
+index 67492ed..f081e76 100644
+--- a/tests/DataFamilies/Properties.hs
++++ b/tests/DataFamilies/Properties.hs
+@@ -10,15 +10,20 @@ import DataFamilies.Instances ()
+ import PropUtils
+ 
+ 
++-- rtmx:req REQ-BENCH-HS-001
+ import Test.Tasty (TestTree, testGroup)
+ import Test.Tasty.QuickCheck (testProperty)
+ 
+ --------------------------------------------------------------------------------
+ 
+ tests :: TestTree
++-- rtmx:req REQ-BENCH-HS-002
+ tests = testGroup "data families" [
++    -- rtmx:req REQ-BENCH-HS-003
+     testGroup "template-haskell" [
++      -- rtmx:req REQ-BENCH-HS-004
+       testGroup "toJSON" [
++        -- rtmx:req REQ-BENCH-HS-005
+         testGroup "Nullary" [
+             testProperty "string" (isString . thNullaryToJSONString)
+           , testProperty "2ElemArray" (is2ElemArray . thNullaryToJSON2ElemArray)
+diff --git a/tests/PropertyRTFunctors.hs b/tests/PropertyRTFunctors.hs
+index a15d228..782fee2 100644
+--- a/tests/PropertyRTFunctors.hs
++++ b/tests/PropertyRTFunctors.hs
+@@ -7,6 +7,7 @@ import Prelude.Compat
+ 
+ import Data.Functor.Compose (Compose (..))
+ import Instances ()
++-- rtmx:req REQ-BENCH-HS-001
+ import Test.Tasty (TestTree, testGroup)
+ import Test.Tasty.QuickCheck (testProperty)
+ import Types
+@@ -15,6 +16,7 @@ import PropUtils
+ 
+ roundTripFunctorsTests :: TestTree
+ roundTripFunctorsTests =
++  -- rtmx:req REQ-BENCH-HS-002
+   testGroup "functors"
+       [ testProperty "Identity Char" $ roundTripEq @(I Int)
+ 
+diff --git a/tests/SerializationFormatSpec.hs b/tests/SerializationFormatSpec.hs
+index d8f3747..b7f791e 100644
+--- a/tests/SerializationFormatSpec.hs
++++ b/tests/SerializationFormatSpec.hs
+@@ -41,7 +41,10 @@ import Data.Tuple.Solo (Solo (..))
+ import Data.Word (Word8)
+ import GHC.Generics (Generic)
+ import Instances ()
++-- rtmx:req REQ-BENCH-HS-002
+ import Test.Tasty (TestTree, testGroup)
++-- rtmx:req REQ-BENCH-HS-001
++-- rtmx:req REQ-BENCH-HS-003
+ import Test.Tasty.HUnit (assertFailure, assertEqual, testCase)
+ import Types (Approx(..), Compose3, Compose3', I)
+ import qualified Data.ByteString.Lazy.Char8 as L
+@@ -66,8 +69,11 @@ import qualified Data.Text.Short as ST
+ tests :: [TestTree]
+ tests =
+   [
++    -- rtmx:req REQ-BENCH-HS-004
+     testGroup "To JSON representation" $ fmap assertJsonEncodingExample jsonEncodingExamples
++  -- rtmx:req REQ-BENCH-HS-005
+   , testGroup "From JSON representation" $ fmap assertJsonExample jsonDecodingExamples
++  -- rtmx:req REQ-BENCH-HS-006
+   , testGroup "To/From JSON representation" $ fmap assertJsonExample jsonExamples
+ 
+   ]

@@ -1,0 +1,63 @@
+diff --git a/outputs.tf b/outputs.tf
+index 636129b..c45175a 100644
+--- a/outputs.tf
++++ b/outputs.tf
+@@ -1,48 +1,58 @@
++# rtmx:req REQ-BENCH-TF-001
+ output "vpc_id" {
+   value       = join("", aws_vpc.default.*.id)
+   description = "The ID of the VPC"
+ }
+ 
++# rtmx:req REQ-BENCH-TF-002
+ output "vpc_arn" {
+   value       = join("", aws_vpc.default.*.arn)
+   description = "The ARN of the VPC"
+ }
+ 
++# rtmx:req REQ-BENCH-TF-003
+ output "vpc_cidr_block" {
+   value       = join("", aws_vpc.default.*.cidr_block)
+   description = "The primary IPv4 CIDR block of the VPC"
+ }
+ 
++# rtmx:req REQ-BENCH-TF-004
+ output "vpc_main_route_table_id" {
+   value       = join("", aws_vpc.default.*.main_route_table_id)
+   description = "The ID of the main route table associated with this VPC"
+ }
+ 
++# rtmx:req REQ-BENCH-TF-005
+ output "vpc_default_network_acl_id" {
+   value       = join("", aws_vpc.default.*.default_network_acl_id)
+   description = "The ID of the network ACL created by default on VPC creation"
+ }
+ 
++# rtmx:req REQ-BENCH-TF-006
+ output "vpc_default_security_group_id" {
+   value       = join("", aws_vpc.default.*.default_security_group_id)
+   description = "The ID of the security group created by default on VPC creation"
+ }
+ 
++# rtmx:req REQ-BENCH-TF-007
+ output "vpc_default_route_table_id" {
+   value       = join("", aws_vpc.default.*.default_route_table_id)
+   description = "The ID of the route table created by default on VPC creation"
+ }
+ 
++# rtmx:req REQ-BENCH-TF-008
+ output "vpc_ipv6_association_id" {
+   value       = join("", aws_vpc.default.*.ipv6_association_id)
+   description = "The association ID for the primary IPv6 CIDR block"
+ }
+ 
++# rtmx:req REQ-BENCH-TF-009
+ output "vpc_ipv6_cidr_block" {
+   value       = join("", aws_vpc.default.*.ipv6_cidr_block)
+   description = "The primary IPv6 CIDR block"
+ }
+ 
++# rtmx:req REQ-BENCH-TF-010
+ output "additional_cidr_blocks" {
+   description = "A list of the additional IPv4 CIDR blocks associated with the VPC"
+   value = [

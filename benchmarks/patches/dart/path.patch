@@ -1,0 +1,81 @@
+diff --git a/test/windows_test.dart b/test/windows_test.dart
+index 180f560..00db516 100644
+--- a/test/windows_test.dart
++++ b/test/windows_test.dart
+@@ -12,10 +12,12 @@ void main() {
+   final context =
+       path.Context(style: path.Style.windows, current: r'C:\root\path');
+ 
++  // rtmx:req REQ-BENCH-DART-001
+   test('separator', () {
+     expect(context.separator, '\\');
+   });
+ 
++  // rtmx:req REQ-BENCH-DART-002
+   test('extension', () {
+     expect(context.extension(''), '');
+     expect(context.extension('.'), '');
+@@ -39,6 +41,7 @@ void main() {
+     expect(() => context.extension(r'foo.bar.dart.js', -1), throwsRangeError);
+   });
+ 
++  // rtmx:req REQ-BENCH-DART-003
+   test('rootPrefix', () {
+     expect(context.rootPrefix(''), '');
+     expect(context.rootPrefix('a'), '');
+@@ -56,6 +59,7 @@ void main() {
+     expect(context.rootPrefix(r'/'), r'/');
+   });
+ 
++  // rtmx:req REQ-BENCH-DART-004
+   test('dirname', () {
+     expect(context.dirname(r''), '.');
+     expect(context.dirname(r'a'), '.');
+@@ -84,6 +88,7 @@ void main() {
+     expect(context.dirname(r'/'), r'/');
+   });
+ 
++  // rtmx:req REQ-BENCH-DART-005
+   test('basename', () {
+     expect(context.basename(r''), '');
+     expect(context.basename(r'.'), '.');
+@@ -114,6 +119,7 @@ void main() {
+     expect(context.basename(r'/'), r'/');
+   });
+ 
++  // rtmx:req REQ-BENCH-DART-006
+   test('basenameWithoutExtension', () {
+     expect(context.basenameWithoutExtension(''), '');
+     expect(context.basenameWithoutExtension('.'), '.');
+@@ -136,6 +142,7 @@ void main() {
+     expect(context.basenameWithoutExtension(r'C:\f h.ma pa.f s'), 'f h.ma pa');
+   });
+ 
++  // rtmx:req REQ-BENCH-DART-007
+   test('isAbsolute', () {
+     expect(context.isAbsolute(''), false);
+     expect(context.isAbsolute('.'), false);
+@@ -159,6 +166,7 @@ void main() {
+     expect(context.isAbsolute(r'\\server\share\path'), true);
+   });
+ 
++  // rtmx:req REQ-BENCH-DART-008
+   test('isRelative', () {
+     expect(context.isRelative(''), true);
+     expect(context.isRelative('.'), true);
+@@ -182,6 +190,7 @@ void main() {
+     expect(context.isRelative(r'\\server\share\path'), false);
+   });
+ 
++  // rtmx:req REQ-BENCH-DART-009
+   test('isRootRelative', () {
+     expect(context.isRootRelative(''), false);
+     expect(context.isRootRelative('.'), false);
+@@ -206,6 +215,7 @@ void main() {
+   });
+ 
+   group('join', () {
++    // rtmx:req REQ-BENCH-DART-010
+     test('allows up to sixteen parts', () {
+       expect(context.join('a'), 'a');
+       expect(context.join('a', 'b'), r'a\b');

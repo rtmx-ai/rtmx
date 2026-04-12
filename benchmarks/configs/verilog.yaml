@@ -1,0 +1,11 @@
+language: verilog
+exemplar:
+  repo: lowRISC/ibex
+  ref: master
+  license: Apache-2.0
+clone_depth: 1
+marker_patch: patches/verilog/ibex.patch
+expected_markers: 14
+scan_command: rtmx from-tests --format json .
+verify_command: fusesoc run
+timeout_minutes: 15
