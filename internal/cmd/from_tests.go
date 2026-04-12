@@ -413,6 +413,7 @@ func extractGoMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	currentFunc := ""
 
 	reqPattern := regexp.MustCompile(`rtmx\.Req\(t,\s*"(REQ-[^"]+)"`)
+	commentPattern := regexp.MustCompile(`//\s*(?:rtmx:req|@req)\s+(REQ-[A-Z0-9-]+)`)
 	funcPattern := regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
 
 	for i, line := range lines {
@@ -420,6 +421,13 @@ func extractGoMarkersFromFile(filePath string) ([]TestRequirement, error) {
 			currentFunc = m[1]
 		}
 		if m := reqPattern.FindStringSubmatch(line); len(m) > 1 {
+			results = append(results, TestRequirement{
+				ReqID:        m[1],
+				TestFile:     filePath,
+				TestFunction: currentFunc,
+				LineNumber:   i + 1,
+			})
+		} else if m := commentPattern.FindStringSubmatch(line); len(m) > 1 {
 			results = append(results, TestRequirement{
 				ReqID:        m[1],
 				TestFile:     filePath,

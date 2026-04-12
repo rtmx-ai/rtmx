@@ -86,3 +86,49 @@ REQ-003,CLI,Feature,Third requirement no marker,Works,,,Unit Test,MISSING,HIGH,1
 		}
 	})
 }
+
+func TestExtractGoCommentMarkers(t *testing.T) {
+	rtmx.Req(t, "REQ-BENCH-001")
+
+	goTest := `package example
+
+import "testing"
+
+func TestAuth(t *testing.T) {
+	// rtmx:req REQ-AUTH-001
+	t.Log("test auth")
+}
+
+func TestLogin(t *testing.T) {
+	// rtmx:req REQ-AUTH-002
+	t.Log("test login")
+}
+
+func TestNoMarker(t *testing.T) {
+	t.Log("no marker here")
+}
+`
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "auth_test.go")
+	_ = os.WriteFile(testFile, []byte(goTest), 0644)
+
+	markers, err := extractGoMarkersFromFile(testFile)
+	if err != nil {
+		t.Fatalf("extractGoMarkersFromFile() error = %v", err)
+	}
+	if len(markers) != 2 {
+		t.Fatalf("expected 2 markers, got %d", len(markers))
+	}
+	if markers[0].ReqID != "REQ-AUTH-001" {
+		t.Errorf("markers[0].ReqID = %q, want REQ-AUTH-001", markers[0].ReqID)
+	}
+	if markers[0].TestFunction != "TestAuth" {
+		t.Errorf("markers[0].TestFunction = %q, want TestAuth", markers[0].TestFunction)
+	}
+	if markers[1].ReqID != "REQ-AUTH-002" {
+		t.Errorf("markers[1].ReqID = %q, want REQ-AUTH-002", markers[1].ReqID)
+	}
+	if markers[1].TestFunction != "TestLogin" {
+		t.Errorf("markers[1].TestFunction = %q, want TestLogin", markers[1].TestFunction)
+	}
+}
