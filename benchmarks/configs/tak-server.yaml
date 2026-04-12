@@ -1,0 +1,11 @@
+language: java
+exemplar:
+  repo: TAK-Product-Center/Server
+  ref: 5.7-RELEASE-14
+  license: BSD
+clone_depth: 1
+marker_patch: patches/java/tak-server.patch
+expected_markers: 20
+scan_command: rtmx from-tests --format json .
+verify_command: gradle test
+timeout_minutes: 15
