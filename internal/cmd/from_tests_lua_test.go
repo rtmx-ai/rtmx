@@ -142,6 +142,9 @@ func TestIsLuaTestFile(t *testing.T) {
 	}{
 		{"game_test.lua", true},
 		{"test_game.lua", true},
+		{"luacheck_spec.lua", true},
+		{"config_spec.lua", true},
+		{"spec/feature_spec.lua", true},
 		{"game.lua", false},
 		{"game_test.py", false},
 	}

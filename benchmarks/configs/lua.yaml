@@ -1,0 +1,11 @@
+language: lua
+exemplar:
+  repo: lunarmodules/luacheck
+  ref: master
+  license: MIT
+clone_depth: 1
+marker_patch: patches/lua/luacheck.patch
+expected_markers: 20
+scan_command: rtmx from-tests --format json .
+verify_command: busted
+timeout_minutes: 5

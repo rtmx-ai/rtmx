@@ -1,0 +1,159 @@
+diff --git a/test/spec_request.rb b/test/spec_request.rb
+index 9a03856..5559ade 100644
+--- a/test/spec_request.rb
++++ b/test/spec_request.rb
+@@ -13,6 +13,7 @@ separate_testing do
+ end
+ 
+ class RackRequestTest < Minitest::Spec
++  # rtmx:req REQ-BENCH-RUBY-014
+   it "copies the env when duping" do
+     req = make_request(Rack::MockRequest.env_for("http://example.com:8080/"))
+ 
+@@ -23,26 +24,31 @@ class RackRequestTest < Minitest::Spec
+     refute_same req.env, req.dup.env
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-013
+   it 'can check if something has been set' do
+     req = make_request(Rack::MockRequest.env_for("http://example.com:8080/"))
+     refute req.has_header?("FOO")
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-012
+   it "can get a key from the env" do
+     req = make_request(Rack::MockRequest.env_for("http://example.com:8080/"))
+     assert_equal "example.com", req.get_header("SERVER_NAME")
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-011
+   it 'can calculate the authority' do
+     req = make_request(Rack::MockRequest.env_for("http://example.com:8080/"))
+     assert_equal "example.com:8080", req.authority
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-010
+   it 'can calculate the authority without a port' do
+     req = make_request(Rack::MockRequest.env_for("http://example.com/"))
+     assert_equal "example.com:80", req.authority
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-009
+   it 'can calculate the authority without a port on ssl' do
+     req = make_request(Rack::MockRequest.env_for("https://example.com/"))
+     assert_equal "example.com:443", req.authority
+diff --git a/test/spec_response.rb b/test/spec_response.rb
+index 8e8ac83..2e07d0d 100644
+--- a/test/spec_response.rb
++++ b/test/spec_response.rb
+@@ -7,6 +7,7 @@ separate_testing do
+ end
+ 
+ describe Rack::Response do
++  # rtmx:req REQ-BENCH-RUBY-008
+   it 'has standard constructor' do
+     headers = { "header" => "value" }
+     body = ["body"]
+@@ -18,12 +19,14 @@ describe Rack::Response do
+     response.body.must_equal body
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-007
+   it 'raises ArgumentError unless headers is a hash' do
+     lambda {
+       Rack::Response.new(nil, 200, Object.new)
+     }.must_raise(ArgumentError)
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-006
+   it 'has cache-control methods' do
+     response = Rack::Response.new
+     cc = 'foo'
+@@ -32,6 +35,7 @@ describe Rack::Response do
+     assert_equal cc, response.to_a[1]['cache-control']
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-005
+   it 'has an etag method' do
+     response = Rack::Response.new
+     etag = 'foo'
+@@ -40,6 +44,7 @@ describe Rack::Response do
+     assert_equal etag, response.to_a[1]['etag']
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-004
+   it 'has a content-type method' do
+     response = Rack::Response.new
+     content_type = 'foo'
+@@ -48,6 +53,7 @@ describe Rack::Response do
+     assert_equal content_type, response.to_a[1]['content-type']
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-003
+   it "have sensible default values" do
+     response = Rack::Response.new
+     status, header, body = response.finish
+@@ -66,6 +72,7 @@ describe Rack::Response do
+     }
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-002
+   it "can be written to inside finish block and it does not generate a content-length header" do
+     response = Rack::Response.new('foo')
+     response.write "bar"
+@@ -81,6 +88,7 @@ describe Rack::Response do
+     h['content-length'].must_be_nil
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-001
+   it "#write calls #<< on non-iterable body" do
+     content = []
+     body = proc{|x| content << x}
+diff --git a/test/spec_utils.rb b/test/spec_utils.rb
+index 2b7f39f..fe727f8 100644
+--- a/test/spec_utils.rb
++++ b/test/spec_utils.rb
+@@ -28,6 +28,7 @@ describe Rack::Utils do
+     assert_sets exp, Rack::Utils.build_nested_query(act)
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-020
+   it 'can be mixed in and used' do
+     instance = Class.new {
+       include Rack::Utils
+@@ -40,12 +41,14 @@ describe Rack::Utils do
+     assert_equal({ "foo" => "bar" }, instance.parse_query("foo=bar"))
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-019
+   it "round trip binary data" do
+     r = [218, 0].pack 'CC'
+     z = Rack::Utils.unescape(Rack::Utils.escape(r), Encoding::BINARY)
+     r.must_equal z
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-018
+   it "escape correctly" do
+     Rack::Utils.escape("fo<o>bar").must_equal "fo%3Co%3Ebar"
+     Rack::Utils.escape("a space").must_equal "a+space"
+@@ -53,6 +56,7 @@ describe Rack::Utils do
+       must_equal "q1%212%22%27w%245%267%2Fz8%29%3F%5C"
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-017
+   it "escape correctly for multibyte characters" do
+     matz_name = "\xE3\x81\xBE\xE3\x81\xA4\xE3\x82\x82\xE3\x81\xA8".unpack("a*")[0] # Matsumoto
+     matz_name.force_encoding(Encoding::UTF_8)
+@@ -62,10 +66,12 @@ describe Rack::Utils do
+     Rack::Utils.escape(matz_name_sep).must_equal '%E3%81%BE%E3%81%A4+%E3%82%82%E3%81%A8'
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-016
+   it "escape objects that responds to to_s" do
+     Rack::Utils.escape(:id).must_equal "id"
+   end
+ 
++  # rtmx:req REQ-BENCH-RUBY-015
+   it "escape non-UTF8 strings" do
+     Rack::Utils.escape("ø".encode("ISO-8859-1")).must_equal "%F8"
+   end

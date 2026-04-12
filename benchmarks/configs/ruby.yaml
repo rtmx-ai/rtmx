@@ -1,0 +1,11 @@
+language: ruby
+exemplar:
+  repo: rack/rack
+  ref: main
+  license: MIT
+clone_depth: 1
+marker_patch: patches/ruby/rack.patch
+expected_markers: 20
+scan_command: rtmx from-tests --format json .
+verify_command: bundle exec rake test
+timeout_minutes: 5

@@ -1,0 +1,166 @@
+diff --git a/Tests/ApplicationTest.php b/Tests/ApplicationTest.php
+index 0734d81..5d4b75e 100644
+--- a/Tests/ApplicationTest.php
++++ b/Tests/ApplicationTest.php
+@@ -137,6 +137,7 @@ class ApplicationTest extends TestCase
+         }
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-001
+     public function testConstructor()
+     {
+         $application = new Application('foo', 'bar');
+@@ -145,6 +146,7 @@ class ApplicationTest extends TestCase
+         $this->assertEquals(['help', 'list', '_complete', 'completion'], array_keys($application->all()), '__construct() registered the help and list commands by default');
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-002
+     public function testSetGetName()
+     {
+         $application = new Application();
+@@ -152,6 +154,7 @@ class ApplicationTest extends TestCase
+         $this->assertEquals('foo', $application->getName(), '->setName() sets the name of the application');
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-003
+     public function testSetGetVersion()
+     {
+         $application = new Application();
+@@ -159,12 +162,14 @@ class ApplicationTest extends TestCase
+         $this->assertEquals('bar', $application->getVersion(), '->setVersion() sets the version of the application');
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-004
+     public function testGetLongVersion()
+     {
+         $application = new Application('foo', 'bar');
+         $this->assertEquals('foo <info>bar</info>', $application->getLongVersion(), '->getLongVersion() returns the long version of the application');
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-005
+     public function testGetLongVersionWithContainer()
+     {
+         $container = new ContainerBuilder();
+@@ -177,6 +182,7 @@ class ApplicationTest extends TestCase
+         $this->assertStringContainsString('prod', $application->getLongVersion());
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-006
+     public function testContainerWiresEventDispatcher()
+     {
+         $container = new ContainerBuilder();
+@@ -189,6 +195,7 @@ class ApplicationTest extends TestCase
+         $this->assertInstanceOf(EventDispatcherInterface::class, $application->getDispatcher());
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-007
+     public function testContainerWiresCommandLoader()
+     {
+         $container = new ContainerBuilder();
+@@ -201,6 +208,7 @@ class ApplicationTest extends TestCase
+         $this->assertTrue($application->has('test:cmd'));
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-008
+     public function testContainerWiresEagerCommands()
+     {
+         $container = new ContainerBuilder();
+@@ -212,6 +220,7 @@ class ApplicationTest extends TestCase
+         $this->assertTrue($application->has('foo:bar'));
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-009
+     public function testPsrContainerWiresEagerCommands()
+     {
+         $fooCommand = new \FooCommand();
+@@ -227,6 +236,7 @@ class ApplicationTest extends TestCase
+         $this->assertTrue($application->has('foo:bar'));
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-010
+     public function testPsrContainerSkipsLazyCommands()
+     {
+         $fooCommand = new \FooCommand();
+diff --git a/Tests/Input/InputOptionTest.php b/Tests/Input/InputOptionTest.php
+index cb3001e..371b55e 100644
+--- a/Tests/Input/InputOptionTest.php
++++ b/Tests/Input/InputOptionTest.php
+@@ -23,6 +23,7 @@ use Symfony\Component\Console\Input\InputOption;
+ 
+ class InputOptionTest extends TestCase
+ {
++    // rtmx:req REQ-BENCH-PHP-001
+     public function testConstructor()
+     {
+         $option = new InputOption('foo');
+@@ -31,6 +32,7 @@ class InputOptionTest extends TestCase
+         $this->assertSame('foo', $option->getName(), '__construct() removes the leading -- of the option name');
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-002
+     public function testArrayModeWithoutValue()
+     {
+         $this->expectException(\InvalidArgumentException::class);
+@@ -38,6 +40,7 @@ class InputOptionTest extends TestCase
+         new InputOption('foo', 'f', InputOption::VALUE_IS_ARRAY);
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-003
+     public function testBooleanWithRequired()
+     {
+         $this->expectException(\InvalidArgumentException::class);
+@@ -45,6 +48,7 @@ class InputOptionTest extends TestCase
+         new InputOption('foo', 'f', InputOption::VALUE_REQUIRED | InputOption::VALUE_NEGATABLE);
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-004
+     public function testBooleanWithOptional()
+     {
+         $this->expectException(\InvalidArgumentException::class);
+@@ -52,6 +56,7 @@ class InputOptionTest extends TestCase
+         new InputOption('foo', 'f', InputOption::VALUE_OPTIONAL | InputOption::VALUE_NEGATABLE);
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-005
+     public function testShortcut()
+     {
+         $option = new InputOption('foo', 'f');
+@@ -78,6 +83,7 @@ class InputOptionTest extends TestCase
+         $this->assertSame('0|z', $option->getShortcut(), '-0 is an acceptable shortcut value when embedded in a string-list');
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-006
+     public function testModes()
+     {
+         $option = new InputOption('foo', 'f');
+@@ -106,6 +112,7 @@ class InputOptionTest extends TestCase
+         $this->assertTrue($option->isValueOptional(), '__construct() can take "InputOption::VALUE_OPTIONAL" as its mode');
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-007
+     public function testInvalidModes()
+     {
+         $this->expectException(\InvalidArgumentException::class);
+@@ -117,6 +124,7 @@ class InputOptionTest extends TestCase
+     #[DataProvider('provideCombiningInvalidModes')]
+     #[Group('legacy')]
+     #[IgnoreDeprecations]
++    // rtmx:req REQ-BENCH-PHP-008
+     public function testCombiningInvalidModesIsDeprecated(int $mode)
+     {
+         $this->expectUserDeprecationMessage('Since symfony/console 8.1: Option "foo" mode should be either none, required or optional.');
+@@ -132,12 +140,14 @@ class InputOptionTest extends TestCase
+         yield [InputOption::VALUE_NONE | InputOption::VALUE_REQUIRED | InputOption::VALUE_OPTIONAL];
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-009
+     public function testEmptyNameIsInvalid()
+     {
+         $this->expectException(\InvalidArgumentException::class);
+         new InputOption('');
+     }
+ 
++    // rtmx:req REQ-BENCH-PHP-010
+     public function testDoubleDashNameIsInvalid()
+     {
+         $this->expectException(\InvalidArgumentException::class);
