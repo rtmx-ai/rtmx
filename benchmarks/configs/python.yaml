@@ -1,0 +1,14 @@
+language: python
+exemplar:
+  repo: psf/requests
+  ref: v2.32.3
+  license: Apache-2.0
+clone_depth: 1
+setup_commands:
+  - python -m pip install -e ".[socks]" -q
+  - python -m pip install pytest trustme -q
+marker_patch: patches/python/requests.patch
+expected_markers: 20
+scan_command: rtmx from-tests --format json .
+verify_command: pytest tests/ -x -q --tb=short
+timeout_minutes: 5

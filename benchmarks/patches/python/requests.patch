@@ -1,0 +1,177 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+index 530a4c2..6630198 100644
+--- a/tests/conftest.py
++++ b/tests/conftest.py
+@@ -9,6 +9,9 @@ import threading
+ 
+ import pytest
+ 
++def pytest_configure(config):
++    config.addinivalue_line("markers", "req(id): RTMX requirement marker")
++
+ from requests.compat import urljoin
+ 
+ 
+diff --git a/tests/test_hooks.py b/tests/test_hooks.py
+index 7445525..00e5881 100644
+--- a/tests/test_hooks.py
++++ b/tests/test_hooks.py
+@@ -14,9 +14,11 @@ def hook(value):
+         ([hook, lambda x: None, hook], "ta"),
+     ),
+ )
++@pytest.mark.req("REQ-BENCH-PY-019")
+ def test_hooks(hooks_list, result):
+     assert hooks.dispatch_hook("response", {"response": hooks_list}, "Data") == result
+ 
+ 
++@pytest.mark.req("REQ-BENCH-PY-020")
+ def test_default_hooks():
+     assert hooks.default_hooks() == {"response": []}
+diff --git a/tests/test_requests.py b/tests/test_requests.py
+index b4e9fe9..c1b0541 100644
+--- a/tests/test_requests.py
++++ b/tests/test_requests.py
+@@ -80,6 +80,7 @@ except AttributeError:
+ class TestRequests:
+     digest_auth_algo = ("MD5", "SHA-256", "SHA-512")
+ 
++    @pytest.mark.req("REQ-BENCH-PY-001")
+     def test_entry_points(self):
+         requests.session
+         requests.session().get
+@@ -108,6 +109,7 @@ class TestRequests:
+         with pytest.raises(exception):
+             requests.get(url)
+ 
++    @pytest.mark.req("REQ-BENCH-PY-002")
+     def test_basic_building(self):
+         req = requests.Request()
+         req.url = "http://kennethreitz.org/"
+@@ -177,12 +179,14 @@ class TestRequests:
+         ).prepare()
+         assert request.url == "http://example.com/?test=foo"
+ 
++    @pytest.mark.req("REQ-BENCH-PY-003")
+     def test_binary_put(self):
+         request = requests.Request(
+             "PUT", "http://example.com", data="ööö".encode()
+         ).prepare()
+         assert isinstance(request.body, bytes)
+ 
++    @pytest.mark.req("REQ-BENCH-PY-004")
+     def test_whitespaces_are_removed_from_url(self):
+         # Test for issue #3696
+         request = requests.Request("GET", " http://example.com").prepare()
+@@ -198,6 +202,7 @@ class TestRequests:
+         r = s.send(r.prepare())
+         assert r.status_code == 200, f"failed for scheme {scheme}"
+ 
++    @pytest.mark.req("REQ-BENCH-PY-005")
+     def test_HTTP_200_OK_GET_ALTERNATIVE(self, httpbin):
+         r = requests.Request("GET", httpbin("get"))
+         s = requests.Session()
+@@ -207,6 +212,7 @@ class TestRequests:
+ 
+         assert r.status_code == 200
+ 
++    @pytest.mark.req("REQ-BENCH-PY-006")
+     def test_HTTP_302_ALLOW_REDIRECT_GET(self, httpbin):
+         r = requests.get(httpbin("redirect", "1"))
+         assert r.status_code == 200
+@@ -236,6 +242,7 @@ class TestRequests:
+         assert r.history[0].is_redirect
+         assert r.json()["data"] == byte_str.decode("utf-8")
+ 
++    @pytest.mark.req("REQ-BENCH-PY-007")
+     def test_HTTP_302_TOO_MANY_REDIRECTS(self, httpbin):
+         try:
+             requests.get(httpbin("relative-redirect", "50"))
+@@ -262,6 +269,7 @@ class TestRequests:
+                 "Expected custom max number of redirects to be respected but was not"
+             )
+ 
++    @pytest.mark.req("REQ-BENCH-PY-008")
+     def test_http_301_changes_post_to_get(self, httpbin):
+         r = requests.post(httpbin("status", "301"))
+         assert r.status_code == 200
+@@ -305,6 +313,7 @@ class TestRequests:
+         assert r.history[0].status_code == 303
+         assert r.history[0].is_redirect
+ 
++    @pytest.mark.req("REQ-BENCH-PY-009")
+     def test_header_and_body_removal_on_redirect(self, httpbin):
+         purged_headers = ("Content-Length", "Content-Type")
+         ses = requests.Session()
+@@ -353,6 +362,7 @@ class TestRequests:
+         assert r.history[0].request.url == httpbin("redirect-to?url=get") + fragment
+         assert r.url == httpbin("get") + fragment
+ 
++    @pytest.mark.req("REQ-BENCH-PY-010")
+     def test_HTTP_200_OK_GET_WITH_PARAMS(self, httpbin):
+         heads = {"User-agent": "Mozilla/5.0"}
+ 
+diff --git a/tests/test_structures.py b/tests/test_structures.py
+index e2fd5ba..6a25452 100644
+--- a/tests/test_structures.py
++++ b/tests/test_structures.py
+@@ -10,6 +10,7 @@ class TestCaseInsensitiveDict:
+         self.case_insensitive_dict = CaseInsensitiveDict()
+         self.case_insensitive_dict["Accept"] = "application/json"
+ 
++    @pytest.mark.req("REQ-BENCH-PY-016")
+     def test_list(self):
+         assert list(self.case_insensitive_dict) == ["Accept"]
+ 
+@@ -31,9 +32,11 @@ class TestCaseInsensitiveDict:
+             ("accept", "application/json")
+         ]
+ 
++    @pytest.mark.req("REQ-BENCH-PY-017")
+     def test_repr(self):
+         assert repr(self.case_insensitive_dict) == "{'Accept': 'application/json'}"
+ 
++    @pytest.mark.req("REQ-BENCH-PY-018")
+     def test_copy(self):
+         copy = self.case_insensitive_dict.copy()
+         assert copy is not self.case_insensitive_dict
+diff --git a/tests/test_utils.py b/tests/test_utils.py
+index 5e9b56e..7be6d63 100644
+--- a/tests/test_utils.py
++++ b/tests/test_utils.py
+@@ -123,11 +123,13 @@ class TestSuperLen:
+             member = tar.extractfile("test.txt")
+             assert super_len(member) == 4
+ 
++    @pytest.mark.req("REQ-BENCH-PY-011")
+     def test_super_len_with__len__(self):
+         foo = [1, 2, 3, 4]
+         len_foo = super_len(foo)
+         assert len_foo == 4
+ 
++    @pytest.mark.req("REQ-BENCH-PY-012")
+     def test_super_len_with_no__len__(self):
+         class LenFile:
+             def __init__(self):
+@@ -135,18 +137,21 @@ class TestSuperLen:
+ 
+         assert super_len(LenFile()) == 5
+ 
++    @pytest.mark.req("REQ-BENCH-PY-013")
+     def test_super_len_with_tell(self):
+         foo = StringIO.StringIO("12345")
+         assert super_len(foo) == 5
+         foo.read(2)
+         assert super_len(foo) == 3
+ 
++    @pytest.mark.req("REQ-BENCH-PY-014")
+     def test_super_len_with_fileno(self):
+         with open(__file__, "rb") as f:
+             length = super_len(f)
+             file_data = f.read()
+         assert length == len(file_data)
+ 
++    @pytest.mark.req("REQ-BENCH-PY-015")
+     def test_super_len_with_no_matches(self):
+         """Ensure that objects without any length methods default to 0"""
+         assert super_len(object()) == 0

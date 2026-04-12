@@ -1,0 +1,13 @@
+language: javascript
+exemplar:
+  repo: sindresorhus/got
+  ref: v14.4.5
+  license: MIT
+clone_depth: 1
+setup_commands:
+  - npm ci --ignore-scripts
+marker_patch: patches/javascript/got.patch
+expected_markers: 20
+scan_command: rtmx from-tests --format json .
+verify_command: npm test
+timeout_minutes: 5

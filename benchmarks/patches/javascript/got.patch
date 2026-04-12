@@ -1,0 +1,176 @@
+diff --git a/test/headers.ts b/test/headers.ts
+index 43e30fe..1ff1d9c 100644
+--- a/test/headers.ts
++++ b/test/headers.ts
+@@ -17,6 +17,7 @@ const echoHeaders: Handler = (request, response) => {
+ 	response.end(JSON.stringify(request.headers));
+ };
+ 
++// rtmx:req REQ-BENCH-JS-018
+ test('`user-agent`', withServer, async (t, server, got) => {
+ 	server.get('/', echoHeaders);
+ 
+@@ -31,6 +32,7 @@ test('`accept-encoding`', withServer, async (t, server, got) => {
+ 	t.is(headers['accept-encoding'], supportsBrotli ? 'gzip, deflate, br' : 'gzip, deflate');
+ });
+ 
++// rtmx:req REQ-BENCH-JS-019
+ test('does not override provided `accept-encoding`', withServer, async (t, server, got) => {
+ 	server.get('/', echoHeaders);
+ 
+@@ -69,6 +71,7 @@ test('does not set `accept-encoding` header when `options.decompress` is false',
+ 	t.false(Reflect.has(headers, 'accept-encoding'));
+ });
+ 
++// rtmx:req REQ-BENCH-JS-020
+ test('`accept` header with `json` option', withServer, async (t, server, got) => {
+ 	server.get('/', echoHeaders);
+ 
+diff --git a/test/http.ts b/test/http.ts
+index 57a56d7..324dfaa 100644
+--- a/test/http.ts
++++ b/test/http.ts
+@@ -32,6 +32,7 @@ const echoBody: Handler = async (request, response) => {
+ 	response.end(await getStream(request));
+ };
+ 
++// rtmx:req REQ-BENCH-JS-001
+ test('simple request', withServer, async (t, server, got) => {
+ 	server.get('/', (_request, response) => {
+ 		response.end('ok');
+@@ -40,6 +41,7 @@ test('simple request', withServer, async (t, server, got) => {
+ 	t.is((await got('')).body, 'ok');
+ });
+ 
++// rtmx:req REQ-BENCH-JS-002
+ test('empty response', withServer, async (t, server, got) => {
+ 	server.get('/', (_request, response) => {
+ 		response.end();
+@@ -72,6 +74,7 @@ test('http errors have `response` property', withServer, async (t, server, got)
+ 	t.is(error?.response.body, 'not');
+ });
+ 
++// rtmx:req REQ-BENCH-JS-003
+ test('status code 304 doesn\'t throw', withServer, async (t, server, got) => {
+ 	server.get('/', (_request, response) => {
+ 		response.statusCode = 304;
+@@ -102,6 +105,7 @@ test('invalid protocol throws', async t => {
+ 	});
+ });
+ 
++// rtmx:req REQ-BENCH-JS-004
+ test('custom `options.encoding`', withServer, async (t, server, got) => {
+ 	const string = 'ok';
+ 
+@@ -135,6 +139,7 @@ test('`got.stream(...).setEncoding(...)` works', withServer, async (t, server, g
+ 	t.is(data, Buffer.from(string).toString('base64'));
+ });
+ 
++// rtmx:req REQ-BENCH-JS-005
+ test('`searchParams` option', withServer, async (t, server, got) => {
+ 	server.get('/', (request, response) => {
+ 		t.is(request.query.recent, 'true');
+@@ -145,6 +150,7 @@ test('`searchParams` option', withServer, async (t, server, got) => {
+ 	t.is((await got({searchParams: 'recent=true'})).body, 'recent');
+ });
+ 
++// rtmx:req REQ-BENCH-JS-006
+ test('response contains url', withServer, async (t, server, got) => {
+ 	server.get('/', (_request, response) => {
+ 		response.end('ok');
+@@ -153,6 +159,7 @@ test('response contains url', withServer, async (t, server, got) => {
+ 	t.is((await got('')).url, `${server.url}/`);
+ });
+ 
++// rtmx:req REQ-BENCH-JS-007
+ test('response contains got options', withServer, async (t, server, got) => {
+ 	server.get('/', (_request, response) => {
+ 		response.end('ok');
+@@ -203,6 +210,7 @@ test('socket destroyed by the server throws ECONNRESET', withServer, async (t, s
+ 	});
+ });
+ 
++// rtmx:req REQ-BENCH-JS-008
+ test('the response contains timings property', withServer, async (t, server, got) => {
+ 	server.get('/', (_request, response) => {
+ 		response.end('ok');
+diff --git a/test/redirects.ts b/test/redirects.ts
+index 2c5d22e..7ce2c2f 100644
+--- a/test/redirects.ts
++++ b/test/redirects.ts
+@@ -42,6 +42,7 @@ const unixHostname: Handler = (_request, response) => {
+ 	response.end();
+ };
+ 
++// rtmx:req REQ-BENCH-JS-014
+ test('cannot redirect to UNIX protocol when UNIX sockets are enabled', withServer, async (t, server, got) => {
+ 	server.get('/protocol', unixProtocol);
+ 	server.get('/hostname', unixHostname);
+@@ -80,6 +81,7 @@ test('cannot redirect to UNIX protocol when UNIX sockets are not enabled', withS
+ 	});
+ });
+ 
++// rtmx:req REQ-BENCH-JS-015
+ test('follows redirect', withServer, async (t, server, got) => {
+ 	server.get('/', reachedHandler);
+ 	server.get('/finite', finiteHandler);
+@@ -89,6 +91,7 @@ test('follows redirect', withServer, async (t, server, got) => {
+ 	t.deepEqual(redirectUrls.map(String), [`${server.url}/`]);
+ });
+ 
++// rtmx:req REQ-BENCH-JS-016
+ test('does not follow redirect when followRedirect is a function and returns false', withServer, async (t, server, got) => {
+ 	server.get('/', reachedHandler);
+ 	server.get('/finite', finiteHandler);
+@@ -124,6 +127,7 @@ test('followRedirect gets plainResponse and does not follow', withServer, async
+ 	t.is(statusCode, 307);
+ });
+ 
++// rtmx:req REQ-BENCH-JS-017
+ test('follows 307, 308 redirect', withServer, async (t, server, got) => {
+ 	server.get('/', reachedHandler);
+ 
+diff --git a/test/retry.ts b/test/retry.ts
+index c615291..ffd5361 100644
+--- a/test/retry.ts
++++ b/test/retry.ts
+@@ -36,6 +36,7 @@ const createSocketTimeoutStream = (): http.ClientRequest => {
+ 	return stream as unknown as http.ClientRequest;
+ };
+ 
++// rtmx:req REQ-BENCH-JS-009
+ test('works on timeout', withServer, async (t, server, got) => {
+ 	let knocks = 0;
+ 	server.get('/', (_request, response) => {
+@@ -62,6 +63,7 @@ test('works on timeout', withServer, async (t, server, got) => {
+ 	})).body, 'who`s there?');
+ });
+ 
++// rtmx:req REQ-BENCH-JS-010
+ test('retry function gets iteration count', withServer, async (t, server, got) => {
+ 	let knocks = 0;
+ 	server.get('/', (_request, response) => {
+@@ -100,6 +102,7 @@ test('setting to `0` disables retrying', async t => {
+ 	});
+ });
+ 
++// rtmx:req REQ-BENCH-JS-011
+ test('custom retries', withServer, async (t, server, got) => {
+ 	server.get('/', (_request, response) => {
+ 		response.statusCode = 500;
+@@ -164,6 +167,7 @@ test('custom retries async', withServer, async (t, server, got) => {
+ 	t.true(hasTried);
+ });
+ 
++// rtmx:req REQ-BENCH-JS-012
+ test('custom error codes', async t => {
+ 	const errorCode = 'OH_SNAP';
+ 
+@@ -205,6 +209,7 @@ test('custom error codes', async t => {
+ 	t.is(error?.code, errorCode);
+ });
+ 
++// rtmx:req REQ-BENCH-JS-013
+ test('respects 413 Retry-After', withServer, async (t, server, got) => {
+ 	let lastTried413access = Date.now();
+ 	server.get('/', (_request, response) => {

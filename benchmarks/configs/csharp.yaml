@@ -1,0 +1,13 @@
+language: csharp
+exemplar:
+  repo: jbogard/MediatR
+  ref: v12.4.1
+  license: Apache-2.0
+clone_depth: 1
+setup_commands:
+  - dotnet restore
+marker_patch: patches/csharp/mediatr.patch
+expected_markers: 15
+scan_command: rtmx from-tests --format json .
+verify_command: dotnet test --no-build
+timeout_minutes: 10

@@ -111,9 +111,16 @@ func isJSTestFile(path string) bool {
 		}
 	}
 
-	// Check if inside a __tests__/ directory
-	if (ext == ".js" || ext == ".ts") && strings.Contains(filepath.ToSlash(path), "__tests__/") {
-		return true
+	// Check if inside a __tests__/, test/, or tests/ directory
+	if ext == ".js" || ext == ".ts" {
+		normalized := filepath.ToSlash(path)
+		if strings.Contains(normalized, "__tests__/") ||
+			strings.Contains(normalized, "/test/") ||
+			strings.Contains(normalized, "/tests/") ||
+			strings.HasPrefix(normalized, "test/") ||
+			strings.HasPrefix(normalized, "tests/") {
+			return true
+		}
 	}
 
 	return false
