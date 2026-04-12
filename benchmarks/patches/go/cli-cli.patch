@@ -1,0 +1,224 @@
+diff --git a/internal/config/config_test.go b/internal/config/config_test.go
+index fef87dd..f9d9155 100644
+--- a/internal/config/config_test.go
++++ b/internal/config/config_test.go
+@@ -17,6 +17,7 @@ func newTestConfig() *cfg {
+ }
+ 
+ func TestNewConfigProvidesFallback(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-001
+ 	var spiedCfg *ghConfig.Config
+ 	ghConfig.Read = func(fallback *ghConfig.Config) (*ghConfig.Config, error) {
+ 		spiedCfg = fallback
+@@ -64,6 +65,7 @@ func TestGetOrDefaultApplicationDefaults(t *testing.T) {
+ }
+ 
+ func TestGetOrDefaultNonExistentKey(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-002
+ 	// Given we have no top level configuration
+ 	cfg := newTestConfig()
+ 
+@@ -75,6 +77,7 @@ func TestGetOrDefaultNonExistentKey(t *testing.T) {
+ }
+ 
+ func TestGetOrDefaultNonExistentHostSpecificKey(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-003
+ 	// Given have no top level configuration
+ 	cfg := newTestConfig()
+ 
+@@ -86,6 +89,7 @@ func TestGetOrDefaultNonExistentHostSpecificKey(t *testing.T) {
+ }
+ 
+ func TestGetOrDefaultExistingTopLevelKey(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-004
+ 	// Given have a top level config entry
+ 	cfg := newTestConfig()
+ 	cfg.Set("", "top-level-key", "top-level-value")
+@@ -100,6 +104,7 @@ func TestGetOrDefaultExistingTopLevelKey(t *testing.T) {
+ }
+ 
+ func TestGetOrDefaultExistingHostSpecificKey(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-005
+ 	// Given have a host specific config entry
+ 	cfg := newTestConfig()
+ 	cfg.Set("github.com", "host-specific-key", "host-specific-value")
+@@ -114,6 +119,7 @@ func TestGetOrDefaultExistingHostSpecificKey(t *testing.T) {
+ }
+ 
+ func TestGetOrDefaultHostnameSpecificKeyFallsBackToTopLevel(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-006
+ 	// Given have a top level config entry
+ 	cfg := newTestConfig()
+ 	cfg.Set("", "key", "value")
+@@ -129,6 +135,7 @@ func TestGetOrDefaultHostnameSpecificKeyFallsBackToTopLevel(t *testing.T) {
+ }
+ 
+ func TestFallbackConfig(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-007
+ 	cfg := fallbackConfig()
+ 	requireKeyWithValue(t, cfg, []string{gitProtocolKey}, "https")
+ 	requireKeyWithValue(t, cfg, []string{editorKey}, "")
+diff --git a/pkg/cmd/auth/login/login_test.go b/pkg/cmd/auth/login/login_test.go
+index 3264ed9..c1224f4 100644
+--- a/pkg/cmd/auth/login/login_test.go
++++ b/pkg/cmd/auth/login/login_test.go
+@@ -34,6 +34,7 @@ func stubHomeDir(t *testing.T, dir string) {
+ }
+ 
+ func Test_NewCmdLogin(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-008
+ 	tests := []struct {
+ 		name        string
+ 		cli         string
+@@ -278,6 +279,7 @@ func Test_NewCmdLogin(t *testing.T) {
+ }
+ 
+ func Test_loginRun_nontty(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-009
+ 	tests := []struct {
+ 		name            string
+ 		opts            *LoginOptions
+@@ -494,6 +496,7 @@ func Test_loginRun_nontty(t *testing.T) {
+ }
+ 
+ func Test_loginRun_Survey(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-010
+ 	stubHomeDir(t, t.TempDir())
+ 
+ 	tests := []struct {
+@@ -806,6 +809,7 @@ func Test_loginRun_Survey(t *testing.T) {
+ }
+ 
+ func Test_promptForHostname(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-011
+ 	tests := []struct {
+ 		name          string
+ 		options       []string
+diff --git a/pkg/cmd/issue/create/create_test.go b/pkg/cmd/issue/create/create_test.go
+index 8e49700..2617c36 100644
+--- a/pkg/cmd/issue/create/create_test.go
++++ b/pkg/cmd/issue/create/create_test.go
+@@ -29,6 +29,7 @@ import (
+ )
+ 
+ func TestNewCmdCreate(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-012
+ 	tmpFile := filepath.Join(t.TempDir(), "my-body.md")
+ 	err := os.WriteFile(tmpFile, []byte("a body from file"), 0600)
+ 	require.NoError(t, err)
+@@ -251,6 +252,7 @@ func TestNewCmdCreate(t *testing.T) {
+ }
+ 
+ func Test_createRun(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-013
+ 	tests := []struct {
+ 		name        string
+ 		opts        CreateOptions
+@@ -543,6 +545,7 @@ func runCommandWithRootDirOverridden(rt http.RoundTripper, isTTY bool, cli strin
+ }
+ 
+ func TestIssueCreate(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-014
+ 	http := &httpmock.Registry{}
+ 	defer http.Verify(t)
+ 
+@@ -659,6 +662,7 @@ func TestIssueCreate_recover(t *testing.T) {
+ }
+ 
+ func TestIssueCreate_nonLegacyTemplate(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-015
+ 	http := &httpmock.Registry{}
+ 	defer http.Verify(t)
+ 
+diff --git a/pkg/cmd/issue/list/list_test.go b/pkg/cmd/issue/list/list_test.go
+index 852f0a4..1675cf9 100644
+--- a/pkg/cmd/issue/list/list_test.go
++++ b/pkg/cmd/issue/list/list_test.go
+@@ -70,6 +70,7 @@ func runCommand(rt http.RoundTripper, isTTY bool, cli string) (*test.CmdOut, err
+ }
+ 
+ func TestIssueList_nontty(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-016
+ 	http := &httpmock.Registry{}
+ 	defer http.Verify(t)
+ 
+@@ -116,6 +117,7 @@ func TestIssueList_tty(t *testing.T) {
+ }
+ 
+ func TestIssueList_tty_withFlags(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-017
+ 	http := &httpmock.Registry{}
+ 	defer http.Verify(t)
+ 
+@@ -161,6 +163,7 @@ func TestIssueList_tty_withAppFlag(t *testing.T) {
+ }
+ 
+ func TestIssueList_withInvalidLimitFlag(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-018
+ 	http := &httpmock.Registry{}
+ 	defer http.Verify(t)
+ 
+diff --git a/pkg/cmd/pr/create/create_test.go b/pkg/cmd/pr/create/create_test.go
+index 81684ff..7bf1aff 100644
+--- a/pkg/cmd/pr/create/create_test.go
++++ b/pkg/cmd/pr/create/create_test.go
+@@ -31,6 +31,7 @@ import (
+ )
+ 
+ func TestNewCmdCreate(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-019
+ 	tmpFile := filepath.Join(t.TempDir(), "my-body.md")
+ 	err := os.WriteFile(tmpFile, []byte("a body from file"), 0600)
+ 	require.NoError(t, err)
+@@ -322,6 +323,7 @@ func TestNewCmdCreate(t *testing.T) {
+ }
+ 
+ func Test_createRun(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-020
+ 	tests := []struct {
+ 		name            string
+ 		setup           func(*CreateOptions, *testing.T) func()
+@@ -1556,6 +1558,7 @@ func Test_createRun(t *testing.T) {
+ }
+ 
+ func Test_determineTrackingBranch(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-021
+ 	tests := []struct {
+ 		name     string
+ 		cmdStubs func(*run.CommandStubber)
+diff --git a/pkg/cmd/pr/list/list_test.go b/pkg/cmd/pr/list/list_test.go
+index ecd0326..f990115 100644
+--- a/pkg/cmd/pr/list/list_test.go
++++ b/pkg/cmd/pr/list/list_test.go
+@@ -73,6 +73,7 @@ func initFakeHTTP() *httpmock.Registry {
+ }
+ 
+ func TestPRList(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-022
+ 	http := initFakeHTTP()
+ 	defer http.Verify(t)
+ 
+@@ -96,6 +97,7 @@ func TestPRList(t *testing.T) {
+ }
+ 
+ func TestPRList_nontty(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-023
+ 	http := initFakeHTTP()
+ 	defer http.Verify(t)
+ 
+@@ -132,6 +134,7 @@ func TestPRList_filtering(t *testing.T) {
+ }
+ 
+ func TestPRList_filteringRemoveDuplicate(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-024
+ 	http := initFakeHTTP()
+ 	defer http.Verify(t)
+ 
+@@ -167,6 +170,7 @@ func TestPRList_filteringClosed(t *testing.T) {
+ }
+ 
+ func TestPRList_filteringHeadBranch(t *testing.T) {
++	// rtmx:req REQ-BENCH-GO-025
+ 	http := initFakeHTTP()
+ 	defer http.Verify(t)
+ 
