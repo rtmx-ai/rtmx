@@ -353,8 +353,10 @@ func runTests(cmd *cobra.Command, testPath string) (map[string]*TestResult, erro
 		}
 		testCmd = exec.Command(parts[0], parts[1:]...)
 	} else {
-		// Default: go test -json
-		testCmd = exec.Command("go", "test", "-json", testPath)
+		// Auto-detect project type from build files
+		cwd, _ := os.Getwd()
+		cmdName, cmdArgs := detectTestCommand(cwd)
+		testCmd = exec.Command(cmdName, cmdArgs...)
 	}
 
 	testCmd.Dir, _ = os.Getwd()
@@ -608,4 +610,36 @@ func boolToInt(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// detectTestCommand inspects the working directory for build files and returns
+// the appropriate test command and arguments for the detected project type.
+func detectTestCommand(dir string) (string, []string) {
+	exists := func(name string) bool {
+		_, err := os.Stat(filepath.Join(dir, name))
+		return err == nil
+	}
+
+	switch {
+	case exists("Cargo.toml"):
+		return "cargo", []string{"test", "--workspace"}
+	case exists("package.json"):
+		return "npm", []string{"test"}
+	case exists("pyproject.toml"), exists("setup.py"), exists("setup.cfg"):
+		return "pytest", []string{"-v"}
+	case exists("build.gradle"), exists("build.gradle.kts"):
+		return "gradle", []string{"test"}
+	case exists("pom.xml"):
+		return "mvn", []string{"test"}
+	case exists("mix.exs"):
+		return "mix", []string{"test"}
+	case exists("Gemfile"):
+		return "bundle", []string{"exec", "rake", "test"}
+	case exists("Package.swift"):
+		return "swift", []string{"test"}
+	case exists("pubspec.yaml"):
+		return "dart", []string{"test"}
+	default:
+		return "go", []string{"test", "-json", "./..."}
+	}
 }

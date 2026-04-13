@@ -1140,3 +1140,99 @@ exit 1
 	// Reset
 	verifyCommand = ""
 }
+
+func TestDetectTestCommand(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-034")
+
+	tests := []struct {
+		name     string
+		files    map[string]string // filename -> content
+		wantCmd  string
+		wantArgs []string
+	}{
+		{
+			name:     "Cargo.toml detects cargo test",
+			files:    map[string]string{"Cargo.toml": "[package]\nname = \"myapp\""},
+			wantCmd:  "cargo",
+			wantArgs: []string{"test", "--workspace"},
+		},
+		{
+			name:     "package.json detects npm test",
+			files:    map[string]string{"package.json": "{\"scripts\":{\"test\":\"jest\"}}"},
+			wantCmd:  "npm",
+			wantArgs: []string{"test"},
+		},
+		{
+			name:     "setup.py detects pytest",
+			files:    map[string]string{"setup.py": "from setuptools import setup"},
+			wantCmd:  "pytest",
+			wantArgs: []string{"-v"},
+		},
+		{
+			name:     "pyproject.toml detects pytest",
+			files:    map[string]string{"pyproject.toml": "[build-system]"},
+			wantCmd:  "pytest",
+			wantArgs: []string{"-v"},
+		},
+		{
+			name:     "build.gradle detects gradle test",
+			files:    map[string]string{"build.gradle": "apply plugin: 'java'"},
+			wantCmd:  "gradle",
+			wantArgs: []string{"test"},
+		},
+		{
+			name:     "pom.xml detects mvn test",
+			files:    map[string]string{"pom.xml": "<project></project>"},
+			wantCmd:  "mvn",
+			wantArgs: []string{"test"},
+		},
+		{
+			name:     "mix.exs detects mix test",
+			files:    map[string]string{"mix.exs": "defmodule MyApp do"},
+			wantCmd:  "mix",
+			wantArgs: []string{"test"},
+		},
+		{
+			name:     "Gemfile detects bundle exec rake test",
+			files:    map[string]string{"Gemfile": "source 'https://rubygems.org'"},
+			wantCmd:  "bundle",
+			wantArgs: []string{"exec", "rake", "test"},
+		},
+		{
+			name:     "go.mod falls back to go test",
+			files:    map[string]string{"go.mod": "module example.com/mymod"},
+			wantCmd:  "go",
+			wantArgs: []string{"test", "-json", "./..."},
+		},
+		{
+			name:     "no build files falls back to go test",
+			files:    map[string]string{},
+			wantCmd:  "go",
+			wantArgs: []string{"test", "-json", "./..."},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for name, content := range tt.files {
+				if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			cmd, args := detectTestCommand(dir)
+			if cmd != tt.wantCmd {
+				t.Errorf("detectTestCommand() cmd = %q, want %q", cmd, tt.wantCmd)
+			}
+			if len(args) != len(tt.wantArgs) {
+				t.Errorf("detectTestCommand() args = %v, want %v", args, tt.wantArgs)
+			} else {
+				for i, a := range args {
+					if a != tt.wantArgs[i] {
+						t.Errorf("detectTestCommand() args[%d] = %q, want %q", i, a, tt.wantArgs[i])
+					}
+				}
+			}
+		})
+	}
+}
