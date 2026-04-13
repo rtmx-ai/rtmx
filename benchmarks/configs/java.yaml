@@ -11,3 +11,4 @@ expected_markers: 20
 scan_command: rtmx from-tests --format json .
 verify_command: mvn test -q -pl gson
 timeout_minutes: 10
+expected_build_file: pom.xml

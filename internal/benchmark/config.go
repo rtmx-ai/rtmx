@@ -25,8 +25,9 @@ type BenchmarkConfig struct {
 	MarkerPatch     string         `yaml:"marker_patch"`
 	ExpectedMarkers int            `yaml:"expected_markers"`
 	ScanCommand     string         `yaml:"scan_command"`
-	VerifyCommand   string         `yaml:"verify_command"`
-	TimeoutMinutes  int            `yaml:"timeout_minutes"`
+	VerifyCommand     string         `yaml:"verify_command"`
+	TimeoutMinutes    int            `yaml:"timeout_minutes"`
+	ExpectedBuildFile string         `yaml:"expected_build_file,omitempty"`
 }
 
 // ParseConfig parses YAML data into a BenchmarkConfig.

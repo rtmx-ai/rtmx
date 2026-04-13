@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/rtmx-ai/rtmx/internal/benchmark"
+	"github.com/rtmx-ai/rtmx/internal/cmd"
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
@@ -155,6 +156,52 @@ func TestBenchmarkFramework(t *testing.T) {
 		}
 		if !strings.Contains(string(content), "rtmx from-tests") {
 			t.Error("run-benchmark.sh must run rtmx from-tests")
+		}
+	})
+
+	t.Run("detect_test_command_matches_configs", func(t *testing.T) {
+		// For each benchmark config with an expected_build_file, verify that
+		// DetectTestCommand returns a command consistent with the config's
+		// verify_command. This exercises the auto-detection fix for non-Go projects.
+		configs, err := filepath.Glob(filepath.Join(benchDir, "configs", "*.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(configs) == 0 {
+			t.Fatal("no benchmark configs found")
+		}
+
+		tested := 0
+		for _, cfgPath := range configs {
+			cfg, err := benchmark.LoadConfig(cfgPath)
+			if err != nil {
+				t.Errorf("LoadConfig(%s) error: %v", filepath.Base(cfgPath), err)
+				continue
+			}
+			if cfg.ExpectedBuildFile == "" {
+				continue
+			}
+
+			// Create a temp dir with the expected build file
+			dir := t.TempDir()
+			buildFile := filepath.Join(dir, cfg.ExpectedBuildFile)
+			if err := os.WriteFile(buildFile, []byte(""), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			detectedCmd, _ := cmd.DetectTestCommand(dir)
+
+			// The detected command should match the first word of verify_command
+			verifyFirst := strings.Fields(cfg.VerifyCommand)[0]
+			if detectedCmd != verifyFirst {
+				t.Errorf("config %s (build_file=%s): DetectTestCommand=%q, verify_command starts with %q",
+					filepath.Base(cfgPath), cfg.ExpectedBuildFile, detectedCmd, verifyFirst)
+			}
+			tested++
+		}
+
+		if tested < 5 {
+			t.Errorf("expected at least 5 configs with expected_build_file, got %d", tested)
 		}
 	})
 }
