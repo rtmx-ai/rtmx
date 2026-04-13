@@ -355,7 +355,7 @@ func runTests(cmd *cobra.Command, testPath string) (map[string]*TestResult, erro
 	} else {
 		// Auto-detect project type from build files
 		cwd, _ := os.Getwd()
-		cmdName, cmdArgs := detectTestCommand(cwd)
+		cmdName, cmdArgs := DetectTestCommand(cwd)
 		testCmd = exec.Command(cmdName, cmdArgs...)
 	}
 
@@ -612,9 +612,9 @@ func boolToInt(b bool) int {
 	return 0
 }
 
-// detectTestCommand inspects the working directory for build files and returns
+// DetectTestCommand inspects the working directory for build files and returns
 // the appropriate test command and arguments for the detected project type.
-func detectTestCommand(dir string) (string, []string) {
+func DetectTestCommand(dir string) (string, []string) {
 	exists := func(name string) bool {
 		_, err := os.Stat(filepath.Join(dir, name))
 		return err == nil

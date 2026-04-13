@@ -1220,16 +1220,16 @@ func TestDetectTestCommand(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			cmd, args := detectTestCommand(dir)
+			cmd, args := DetectTestCommand(dir)
 			if cmd != tt.wantCmd {
-				t.Errorf("detectTestCommand() cmd = %q, want %q", cmd, tt.wantCmd)
+				t.Errorf("DetectTestCommand() cmd = %q, want %q", cmd, tt.wantCmd)
 			}
 			if len(args) != len(tt.wantArgs) {
-				t.Errorf("detectTestCommand() args = %v, want %v", args, tt.wantArgs)
+				t.Errorf("DetectTestCommand() args = %v, want %v", args, tt.wantArgs)
 			} else {
 				for i, a := range args {
 					if a != tt.wantArgs[i] {
-						t.Errorf("detectTestCommand() args[%d] = %q, want %q", i, a, tt.wantArgs[i])
+						t.Errorf("DetectTestCommand() args[%d] = %q, want %q", i, a, tt.wantArgs[i])
 					}
 				}
 			}

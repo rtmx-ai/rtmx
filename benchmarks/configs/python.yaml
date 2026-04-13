@@ -12,3 +12,4 @@ expected_markers: 20
 scan_command: rtmx from-tests --format json .
 verify_command: pytest tests/ -x -q --tb=short
 timeout_minutes: 5
+expected_build_file: setup.py

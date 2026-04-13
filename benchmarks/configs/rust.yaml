@@ -9,3 +9,4 @@ expected_markers: 30
 scan_command: rtmx from-tests --format json .
 verify_command: cargo test --workspace
 timeout_minutes: 15
+expected_build_file: Cargo.toml
