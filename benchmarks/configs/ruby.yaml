@@ -9,3 +9,4 @@ expected_markers: 20
 scan_command: rtmx from-tests --format json .
 verify_command: bundle exec rake test
 timeout_minutes: 5
+expected_build_file: Gemfile

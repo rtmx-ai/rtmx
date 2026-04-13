@@ -9,3 +9,4 @@ expected_markers: 13
 scan_command: rtmx from-tests --format json .
 verify_command: mix test
 timeout_minutes: 5
+expected_build_file: mix.exs

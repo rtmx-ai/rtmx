@@ -9,3 +9,4 @@ expected_markers: 10
 scan_command: rtmx from-tests --format json .
 verify_command: dart test
 timeout_minutes: 5
+expected_build_file: pubspec.yaml

@@ -9,3 +9,4 @@ expected_markers: 20
 scan_command: rtmx from-tests --format json .
 verify_command: gradle test
 timeout_minutes: 10
+expected_build_file: build.gradle.kts

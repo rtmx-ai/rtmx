@@ -9,3 +9,4 @@ expected_markers: 25
 scan_command: rtmx from-tests --format json .
 verify_command: go test -json ./...
 timeout_minutes: 10
+expected_build_file: go.mod
