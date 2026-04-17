@@ -7,6 +7,9 @@
 
 set -euo pipefail
 
+# REQ-BENCH-010: Diagnostic-on-exit.
+trap 'echo "ERROR: ${BASH_SOURCE[0]}:${LINENO}: command \"${BASH_COMMAND}\" exited with status $?" >&2' ERR
+
 CURRENT="${1:?Usage: report.sh <current.json> <baseline.json>}"
 BASELINE="${2:?Usage: report.sh <current.json> <baseline.json>}"
 

@@ -12,18 +12,34 @@
 
 set -euo pipefail
 
+# REQ-BENCH-010: Diagnostic-on-exit. Print script:line:command:exit_code on
+# any error so CI logs always contain an actionable diagnostic.
+trap 'echo "ERROR: ${BASH_SOURCE[0]}:${LINENO}: command \"${BASH_COMMAND}\" exited with status $?" >&2' ERR
+
 CONFIG="${1:?Usage: run-benchmark.sh <config.yaml> <results_dir>}"
 RESULTS_DIR="${2:?Usage: run-benchmark.sh <config.yaml> <results_dir>}"
 
-# Parse config fields using grep/sed (no yq dependency)
+# Parse config fields using grep/sed (no yq dependency).
+# Returns empty string (not error) when field is absent -- callers use
+# validate_required to catch missing fields with actionable messages.
 get_field() {
-    grep "^${1}:" "$CONFIG" | head -1 | sed "s/^${1}:[[:space:]]*//"
+    grep "^${1}:" "$CONFIG" 2>/dev/null | head -1 | sed "s/^${1}:[[:space:]]*//" || true
 }
 
 get_nested_field() {
     local parent="$1"
     local child="$2"
-    awk "/^${parent}:/,/^[^ ]/" "$CONFIG" | grep "^  ${child}:" | head -1 | sed "s/^  ${child}:[[:space:]]*//"
+    # The previous awk range /^parent:/,/^[^ ]/ terminated on the parent line
+    # itself because ^[^ ] matches any line starting with a non-space character,
+    # including the parent line. This caused all nested field extraction to
+    # silently return empty strings, breaking every benchmark.
+    # Fix: use an explicit state machine that skips the parent line, collects
+    # indented children, and stops at the next top-level key.
+    awk -v p="$parent" '
+        $0 ~ "^"p":" { found=1; next }
+        found && /^[^ ]/ { exit }
+        found { print }
+    ' "$CONFIG" | grep "^  ${child}:" 2>/dev/null | head -1 | sed "s/^  ${child}:[[:space:]]*//" || true
 }
 
 LANGUAGE=$(get_field "language")
@@ -38,6 +54,23 @@ TIMEOUT_MINUTES=$(get_field "timeout_minutes")
 
 CLONE_DEPTH="${CLONE_DEPTH:-1}"
 TIMEOUT_MINUTES="${TIMEOUT_MINUTES:-10}"
+
+# REQ-BENCH-013: Validate required fields before any execution.
+# Missing fields cause exit 2 with an actionable message naming the config
+# and the field, instead of cascading into confusing downstream failures.
+validate_required() {
+    local field_name="$1"
+    local field_value="$2"
+    if [ -z "$field_value" ]; then
+        echo "ERROR: ${CONFIG} missing required field ${field_name}" >&2
+        exit 2
+    fi
+}
+validate_required "language" "$LANGUAGE"
+validate_required "exemplar.repo" "$REPO"
+validate_required "exemplar.ref" "$REF"
+validate_required "expected_markers" "$EXPECTED_MARKERS"
+validate_required "scan_command" "$SCAN_COMMAND"
 
 WORKDIR="workdir/${LANGUAGE}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -63,7 +96,7 @@ fi
 
 # Step 3: Run setup commands (if any in config)
 # Setup commands are parsed line by line from the setup_commands block
-SETUP_LINES=$(awk '/^setup_commands:/,/^[^ ]/' "$CONFIG" | grep '^ *- ' | sed 's/^ *- //')
+SETUP_LINES=$(awk '$0 ~ /^setup_commands:/ { found=1; next } found && /^[^ ]/ { exit } found { print }' "$CONFIG" | grep '^ *- ' | sed 's/^ *- //' || true)
 if [ -n "$SETUP_LINES" ]; then
     echo "  Running setup commands..."
     while IFS= read -r cmd; do
