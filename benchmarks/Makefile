@@ -8,12 +8,12 @@ SCRIPTS_DIR := scripts
 ## run: Run benchmark for a single language (LANG=go)
 run:
 	@echo "Running benchmark for $(LANG)..."
-	@$(SCRIPTS_DIR)/run-benchmark.sh $(CONFIGS_DIR)/$(LANG).yaml $(RESULTS_DIR)
+	$(SCRIPTS_DIR)/run-benchmark.sh $(CONFIGS_DIR)/$(LANG).yaml $(RESULTS_DIR)
 
 ## compare: Compare results to baseline for a single language (LANG=go)
 compare:
 	@echo "Comparing $(LANG) results to baseline..."
-	@$(SCRIPTS_DIR)/report.sh $(RESULTS_DIR)/$(LANG).json $(RESULTS_DIR)/baselines/$(LANG).json
+	$(SCRIPTS_DIR)/report.sh $(RESULTS_DIR)/$(LANG).json $(RESULTS_DIR)/baselines/$(LANG).json
 
 ## run-all: Run benchmarks for all configured languages
 run-all:

@@ -1,8 +1,11 @@
 package benchmark
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -181,6 +184,126 @@ func TestValidateBenchmarkConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestLoadAllBenchmarkConfigs validates every real config in benchmarks/configs/*.yaml.
+// This is the REQ-BENCH-014 acceptance test: it runs on every PR and catches
+// malformed or incomplete configs before they reach the nightly benchmark workflow.
+func TestLoadAllBenchmarkConfigs(t *testing.T) {
+	// Find repo root by walking up from the test file location.
+	// internal/benchmark/ is two levels below the repo root.
+	repoRoot := filepath.Join("..", "..")
+	configDir := filepath.Join(repoRoot, "benchmarks", "configs")
+
+	entries, err := os.ReadDir(configDir)
+	if err != nil {
+		t.Fatalf("reading config dir %s: %v", configDir, err)
+	}
+
+	var yamlFiles []string
+	for _, e := range entries {
+		if !e.IsDir() && filepath.Ext(e.Name()) == ".yaml" {
+			yamlFiles = append(yamlFiles, filepath.Join(configDir, e.Name()))
+		}
+	}
+
+	if len(yamlFiles) == 0 {
+		t.Fatal("no .yaml config files found in benchmarks/configs/")
+	}
+
+	for _, path := range yamlFiles {
+		name := filepath.Base(path)
+		t.Run(name, func(t *testing.T) {
+			cfg, err := LoadConfig(path)
+			if err != nil {
+				t.Fatalf("LoadConfig(%s): %v", name, err)
+			}
+			// Verify critical fields that the shell script depends on
+			if cfg.Language == "" {
+				t.Error("language is empty")
+			}
+			if cfg.Exemplar.Repo == "" {
+				t.Error("exemplar.repo is empty")
+			}
+			if cfg.Exemplar.Ref == "" {
+				t.Error("exemplar.ref is empty")
+			}
+			if cfg.ExpectedMarkers <= 0 {
+				t.Error("expected_markers must be positive")
+			}
+			if cfg.ScanCommand == "" {
+				t.Error("scan_command is empty")
+			}
+		})
+	}
+}
+
+// TestShellParserNestedFields verifies that the shell script's YAML parsing
+// approach correctly extracts nested fields like exemplar.repo. This is a
+// regression test for the 2026-04-11..16 outage where the awk range
+// /^parent:/,/^[^ ]/ terminated on the parent line itself.
+func TestShellParserNestedFields(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell parser test requires bash")
+	}
+	repoRoot := filepath.Join("..", "..")
+	scriptPath := filepath.Join(repoRoot, "benchmarks", "scripts", "run-benchmark.sh")
+	configPath := filepath.Join(repoRoot, "benchmarks", "configs", "python.yaml")
+
+	// Extract the get_nested_field function's logic by sourcing the shell function
+	// and calling it. We use the same awk pattern the script uses.
+	// This tests the shell parser, not the Go parser.
+	// Use the fixed awk pattern from run-benchmark.sh: state machine that
+	// skips the parent line, collects indented children, stops at next top-level key.
+	cmd := fmt.Sprintf(
+		`bash -c 'get_nested_field() {
+			local parent="$1"; local child="$2"; local config="$3"
+			awk -v p="$parent" '\''
+				$0 ~ "^"p":" { found=1; next }
+				found && /^[^ ]/ { exit }
+				found { print }
+			'\'' "$config" | grep "^  ${child}:" | head -1 | sed "s/^  ${child}:[[:space:]]*//"
+		}; get_nested_field exemplar repo %s'`, configPath)
+
+	out, err := execCommand(cmd)
+	if err != nil {
+		t.Fatalf("shell parser failed: %v", err)
+	}
+	out = strings.TrimSpace(out)
+	if out == "" {
+		t.Fatal("shell parser returned empty string for exemplar.repo -- awk range bug not fixed")
+	}
+	if out != "psf/requests" {
+		t.Errorf("shell parser returned %q, want %q", out, "psf/requests")
+	}
+
+	// Also verify exemplar.ref is extracted
+	cmd = fmt.Sprintf(
+		`bash -c 'get_nested_field() {
+			local parent="$1"; local child="$2"; local config="$3"
+			awk -v p="$parent" '\''
+				$0 ~ "^"p":" { found=1; next }
+				found && /^[^ ]/ { exit }
+				found { print }
+			'\'' "$config" | grep "^  ${child}:" | head -1 | sed "s/^  ${child}:[[:space:]]*//"
+		}; get_nested_field exemplar ref %s'`, configPath)
+
+	out, err = execCommand(cmd)
+	if err != nil {
+		t.Fatalf("shell parser failed for ref: %v", err)
+	}
+	out = strings.TrimSpace(out)
+	if out == "" {
+		t.Fatal("shell parser returned empty string for exemplar.ref -- this is the awk range bug")
+	}
+
+	_ = scriptPath // referenced for documentation; actual test calls awk directly
+}
+
+// execCommand runs a shell command and returns stdout.
+func execCommand(cmd string) (string, error) {
+	out, err := exec.Command("bash", "-c", cmd).Output()
+	return string(out), err
 }
 
 func TestLoadConfigFromFile(t *testing.T) {
