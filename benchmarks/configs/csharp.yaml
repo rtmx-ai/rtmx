@@ -8,6 +8,6 @@ setup_commands:
   - dotnet restore
 marker_patch: patches/csharp/mediatr.patch
 expected_markers: 15
-scan_command: rtmx from-tests --format json .
+scan_command: rtmx from-tests --show-all .
 verify_command: dotnet test --no-build
 timeout_minutes: 10

@@ -5,10 +5,10 @@ exemplar:
   license: MIT
 clone_depth: 1
 setup_commands:
-  - npm ci --ignore-scripts
+  - npm install --ignore-scripts
 marker_patch: patches/javascript/got.patch
 expected_markers: 20
-scan_command: rtmx from-tests --format json .
+scan_command: rtmx from-tests --show-all .
 verify_command: npm test
 timeout_minutes: 5
 expected_build_file: package.json
