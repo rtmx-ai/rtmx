@@ -1,9 +1,9 @@
 {
   "language": "python",
-  "marker_count": 20,
-  "markers_found": 20,
-  "tests_passed": 20,
+  "marker_count": ,
+  "markers_found": ,
+  "tests_passed": 0,
   "tests_failed": 0,
-  "verify_status": "pass",
+  "verify_status": "skip",
   "timestamp": "2026-04-12T00:00:00Z"
 }

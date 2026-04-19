@@ -1,4 +1,4 @@
-language: java
+language: tak-server
 exemplar:
   repo: TAK-Product-Center/Server
   ref: 5.7-RELEASE-14
