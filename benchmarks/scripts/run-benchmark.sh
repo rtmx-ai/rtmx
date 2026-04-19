@@ -76,6 +76,19 @@ WORKDIR="workdir/${LANGUAGE}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BENCH_DIR="$(dirname "$SCRIPT_DIR")"
 
+# Resolve the rtmx binary. make build puts it at bin/rtmx relative to repo root.
+RTMX_BIN="${BENCH_DIR}/../bin/rtmx"
+if [ ! -x "$RTMX_BIN" ]; then
+    echo "ERROR: rtmx binary not found at ${RTMX_BIN}" >&2
+    echo "  Run 'make build' first." >&2
+    exit 2
+fi
+RTMX_BIN="$(cd "$(dirname "$RTMX_BIN")" && pwd)/$(basename "$RTMX_BIN")"
+
+# Replace bare 'rtmx' in scan command with the absolute binary path so it
+# resolves correctly when run from within the cloned exemplar workdir.
+SCAN_COMMAND="${SCAN_COMMAND/rtmx/${RTMX_BIN}}"
+
 echo "Benchmark: ${LANGUAGE}"
 echo "  Exemplar: ${REPO} @ ${REF}"
 echo "  Expected markers: ${EXPECTED_MARKERS}"
@@ -108,8 +121,14 @@ fi
 # Step 4: Scan for markers
 echo "  Scanning for markers..."
 MARKER_COUNT=0
-if SCAN_OUTPUT=$(cd "$WORKDIR" && eval "$SCAN_COMMAND" 2>&1); then
+SCAN_EXIT=0
+SCAN_OUTPUT=$(cd "$WORKDIR" && eval "$SCAN_COMMAND" 2>&1) || SCAN_EXIT=$?
+if [ "$SCAN_EXIT" -eq 0 ]; then
     MARKER_COUNT=$(echo "$SCAN_OUTPUT" | grep -c "REQ-" || true)
+else
+    echo "  WARNING: scan command failed (exit ${SCAN_EXIT})" >&2
+    echo "  Command: ${SCAN_COMMAND}" >&2
+    echo "  Output: ${SCAN_OUTPUT:-(empty)}" >&2
 fi
 
 echo "  Markers found: ${MARKER_COUNT} (expected: ${EXPECTED_MARKERS})"

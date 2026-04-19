@@ -6,7 +6,7 @@ exemplar:
 clone_depth: 1
 marker_patch: patches/dart/path.patch
 expected_markers: 10
-scan_command: rtmx from-tests --format json .
+scan_command: rtmx from-tests --show-all .
 verify_command: dart test
 timeout_minutes: 5
 expected_build_file: pubspec.yaml

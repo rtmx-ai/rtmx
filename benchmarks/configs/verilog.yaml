@@ -6,6 +6,6 @@ exemplar:
 clone_depth: 1
 marker_patch: patches/verilog/ibex.patch
 expected_markers: 14
-scan_command: rtmx from-tests --format json .
+scan_command: rtmx from-tests --show-all .
 verify_command: fusesoc run
 timeout_minutes: 15
