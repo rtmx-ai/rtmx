@@ -6,6 +6,6 @@ exemplar:
 clone_depth: 1
 marker_patch: patches/cpp/fmt.patch
 expected_markers: 20
-scan_command: rtmx from-tests --format json .
+scan_command: rtmx from-tests --show-all .
 verify_command: cmake --build . && ctest
 timeout_minutes: 10

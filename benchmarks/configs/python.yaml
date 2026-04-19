@@ -9,7 +9,7 @@ setup_commands:
   - python -m pip install pytest trustme -q
 marker_patch: patches/python/requests.patch
 expected_markers: 20
-scan_command: rtmx from-tests --format json .
+scan_command: rtmx from-tests --show-all .
 verify_command: pytest tests/ -x -q --tb=short
 timeout_minutes: 5
 expected_build_file: setup.py

@@ -8,7 +8,7 @@ setup_commands:
   - mvn dependency:resolve -q
 marker_patch: patches/java/gson.patch
 expected_markers: 20
-scan_command: rtmx from-tests --format json .
+scan_command: rtmx from-tests --show-all .
 verify_command: mvn test -q -pl gson
 timeout_minutes: 10
 expected_build_file: pom.xml
