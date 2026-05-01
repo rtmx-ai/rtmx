@@ -178,6 +178,17 @@ func (r *Requirement) BlockingDeps(db *Database) []string {
 	return blocking
 }
 
+// TargetVersion returns the target release version for this requirement.
+// The sprint CSV column serves as the version targeting field.
+func (r *Requirement) TargetVersion() string {
+	return r.Sprint
+}
+
+// SetTargetVersion sets the target release version.
+func (r *Requirement) SetTargetVersion(v string) {
+	r.Sprint = v
+}
+
 // SetStartedDate sets the started date to today if not already set.
 func (r *Requirement) SetStartedDate() {
 	if r.StartedDate == "" {

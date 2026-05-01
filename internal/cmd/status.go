@@ -18,6 +18,7 @@ var (
 	statusVerbosity int
 	statusJSON      bool
 	statusFailUnder float64
+	statusVersion   string
 )
 
 var statusCmd = &cobra.Command{
@@ -44,6 +45,7 @@ func init() {
 	statusCmd.Flags().Float64Var(&statusFailUnder, "fail-under", 0, "fail if completion percentage is below threshold")
 	statusCmd.Flags().BoolVar(&statusVerify, "verify", false, "run verify --update before displaying status")
 	statusCmd.Flags().BoolVar(&statusNoWarn, "no-warn", false, "suppress staleness warning")
+	statusCmd.Flags().StringVar(&statusVersion, "version", "", "filter by target version (sprint field)")
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
@@ -86,6 +88,16 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	db, err := database.Load(dbPath)
 	if err != nil {
 		return fmt.Errorf("failed to load database: %w", err)
+	}
+
+	// Apply version filter if specified
+	if statusVersion != "" {
+		db = db.FilteredCopy(database.FilterOptions{TargetVersion: statusVersion})
+		if db.Len() == 0 {
+			cmd.Printf("No requirements assigned to version %s\n", statusVersion)
+			return nil
+		}
+		cmd.Printf("Filtered to version: %s (%d requirements)\n\n", statusVersion, db.Len())
 	}
 
 	// JSON output mode

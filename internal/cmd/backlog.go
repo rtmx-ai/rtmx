@@ -20,6 +20,7 @@ var (
 	backlogCategory string
 	backlogLimit    int
 	backlogJSON     bool
+	backlogVersion  string
 )
 
 var backlogCmd = &cobra.Command{
@@ -42,6 +43,7 @@ func init() {
 	backlogCmd.Flags().StringVar(&backlogCategory, "category", "", "filter by category")
 	backlogCmd.Flags().IntVarP(&backlogLimit, "limit", "n", 0, "limit number of results")
 	backlogCmd.Flags().BoolVar(&backlogJSON, "json", false, "output as JSON")
+	backlogCmd.Flags().StringVar(&backlogVersion, "version", "", "filter by target version (sprint field)")
 }
 
 func runBacklog(cmd *cobra.Command, args []string) error {
@@ -66,6 +68,11 @@ func runBacklog(cmd *cobra.Command, args []string) error {
 	db, err := database.Load(dbPath)
 	if err != nil {
 		return fmt.Errorf("failed to load database: %w", err)
+	}
+
+	// Apply version filter if specified
+	if backlogVersion != "" {
+		db = db.FilteredCopy(database.FilterOptions{TargetVersion: backlogVersion})
 	}
 
 	// Get incomplete requirements

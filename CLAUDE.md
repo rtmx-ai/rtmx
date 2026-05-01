@@ -126,6 +126,71 @@ Build with:
 go build -ldflags "-X github.com/rtmx-ai/rtmx/internal/cmd.Version=v0.1.0 ..."
 ```
 
+## Versioning Policy
+
+RTMX follows semantic versioning (MAJOR.MINOR.PATCH). The public surface
+that determines version bumps is: CLI commands and flags, CSV database
+format, config file format, exit codes, and --json output schema.
+
+### MAJOR bump (breaking change)
+
+A major bump is required when any of these change in a non-backward-compatible way:
+
+- Removal or rename of a CLI command or flag
+- Change to CSV column names or column order that breaks existing databases
+- Change to config file schema that rejects previously valid configs
+- Change to exit codes for existing commands
+- Change to --json output schema (field removal, type change, structural change)
+- Removal of a public Go API in pkg/rtmx/
+
+### MINOR bump (new feature, backward compatible)
+
+A minor bump is used when new functionality is added without breaking existing behavior:
+
+- New CLI commands or subcommands (e.g., `rtmx release`)
+- New flags on existing commands (e.g., `--version`)
+- New CSV columns (additive; existing databases still parse correctly)
+- New config file fields (additive; existing configs still valid)
+- New --json output fields (additive; existing consumers unaffected)
+- New database methods or FilterOptions fields
+- New schema plugin support
+
+### PATCH bump (bug fix, no new features)
+
+A patch bump is used for fixes that do not add or change public surface:
+
+- Bug fixes to existing commands
+- Test improvements and coverage increases
+- Documentation updates
+- CI/CD pipeline fixes
+- Performance improvements with no behavioral change
+- Internal refactoring with no public API change
+
+### Release Workflow
+
+Every tagged release must pass the release gate:
+
+```bash
+# 1. Assign requirements to the target version
+rtmx release assign v0.3.0 REQ-PLAN-003 REQ-PLAN-005 ...
+
+# 2. Implement and verify
+rtmx verify --update
+
+# 3. Check release scope
+rtmx release scope v0.3.0
+
+# 4. Gate the release (must exit 0)
+rtmx release gate v0.3.0
+
+# 5. Tag and push (pre-tag hook enforces gate)
+git tag -s v0.3.0 -m "v0.3.0: <summary>"
+git push origin v0.3.0
+```
+
+The `.githooks/pre-tag` hook runs `rtmx release gate` automatically.
+Tags that fail the gate are rejected.
+
 ## Compatibility Requirements
 
 - **Config files**: Must read rtmx.yaml/.rtmx/config.yaml identically to Python
