@@ -156,10 +156,10 @@ func runReleaseGate(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, req := range versionReqs {
-		switch {
-		case req.Status == database.StatusComplete:
+		switch req.Status {
+		case database.StatusComplete:
 			result.Complete++
-		case req.Status == database.StatusPartial:
+		case database.StatusPartial:
 			result.Partial++
 			result.Incomplete = append(result.Incomplete, GateDetail{
 				ReqID:    req.ReqID,
@@ -235,10 +235,10 @@ func runReleaseScope(cmd *cobra.Command, args []string) error {
 	var complete, partial, missing int
 	var totalEffort, remainingEffort float64
 	for _, req := range versionReqs {
-		switch {
-		case req.Status == database.StatusComplete:
+		switch req.Status {
+		case database.StatusComplete:
 			complete++
-		case req.Status == database.StatusPartial:
+		case database.StatusPartial:
 			partial++
 		default:
 			missing++
