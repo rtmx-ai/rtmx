@@ -40,10 +40,10 @@ lint:
 		{ echo "golangci-lint not found. Install: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b \$$(go env GOPATH)/bin"; exit 1; }
 	@command -v golangci-lint >/dev/null 2>&1 && golangci-lint run ./... || $(HOME)/go/bin/golangci-lint run ./...
 
-## hooks: Install pre-commit hooks
+## hooks: Install git hooks (pre-commit, pre-push release gate)
 hooks:
 	git config core.hooksPath .githooks
-	@echo "Pre-commit hooks installed from .githooks/"
+	@echo "Git hooks installed from .githooks/ (pre-commit, pre-push)"
 
 ## fmt: Format code
 fmt:

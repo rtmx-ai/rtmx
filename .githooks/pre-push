@@ -1,0 +1,60 @@
+#!/bin/sh
+# RTMX pre-push hook
+# Enforces release gate on version tag pushes.
+# Install: git config core.hooksPath .githooks
+# Or: make hooks
+#
+# When pushing a tag matching v[0-9]+.*, runs rtmx release gate
+# to verify all requirements assigned to that version are COMPLETE.
+# Rejects the push if the gate fails.
+
+set -e
+
+# Find rtmx binary
+RTMX=""
+if command -v rtmx >/dev/null 2>&1; then
+    RTMX="rtmx"
+elif [ -x "./bin/rtmx" ]; then
+    RTMX="./bin/rtmx"
+elif [ -x "$(go env GOPATH)/bin/rtmx" ]; then
+    RTMX="$(go env GOPATH)/bin/rtmx"
+fi
+
+# Read refs being pushed from stdin
+while read local_ref local_sha remote_ref remote_sha; do
+    # Check if this is a version tag push
+    case "$remote_ref" in
+        refs/tags/v[0-9]*)
+            VERSION=$(echo "$remote_ref" | sed 's|refs/tags/||')
+            echo "Release gate check for $VERSION..."
+
+            if [ -z "$RTMX" ]; then
+                echo "  WARN: rtmx binary not found, building..."
+                go build -o ./bin/rtmx ./cmd/rtmx 2>/dev/null
+                RTMX="./bin/rtmx"
+            fi
+
+            # Check if any requirements are assigned to this version
+            SCOPE=$($RTMX release scope "$VERSION" --no-color 2>&1) || true
+            if echo "$SCOPE" | grep -q "No requirements assigned"; then
+                echo "  WARN: No requirements assigned to $VERSION"
+                echo "  Proceeding without gate check."
+                continue
+            fi
+
+            # Run the release gate
+            if ! $RTMX release gate "$VERSION" --no-color; then
+                echo ""
+                echo "REJECTED: Release gate failed for $VERSION"
+                echo "Fix incomplete requirements or reassign them:"
+                echo "  rtmx release scope $VERSION"
+                echo "  rtmx release gate $VERSION"
+                exit 1
+            fi
+
+            echo "Release gate passed for $VERSION"
+            ;;
+    esac
+done
+
+exit 0
