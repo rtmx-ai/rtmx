@@ -23,6 +23,7 @@ var (
 	verifyVerbose bool
 	verifyCommand string
 	verifyResults string
+	verifyVersion string
 )
 
 var verifyCmd = &cobra.Command{
@@ -76,6 +77,7 @@ func init() {
 	verifyCmd.Flags().BoolVar(&verifyForce, "force", false, "override fail threshold for this invocation")
 	verifyCmd.Flags().StringVar(&verifyCommand, "command", "", "custom test command (default: go test -json)")
 	verifyCmd.Flags().StringVar(&verifyResults, "results", "", "RTMX results JSON file (cross-language)")
+	verifyCmd.Flags().StringVar(&verifyVersion, "version", "", "verify only requirements targeting this version")
 
 	rootCmd.AddCommand(verifyCmd)
 }
@@ -194,6 +196,13 @@ func runVerify(cmd *cobra.Command, args []string) error {
 					req := db.Get(r.ReqID)
 					if req != nil {
 						req.Status = r.NewStatus
+						// Auto-set dates on status transitions
+						if r.NewStatus == database.StatusPartial || r.NewStatus == database.StatusComplete {
+							req.SetStartedDate()
+						}
+						if r.NewStatus == database.StatusComplete {
+							req.SetCompletedDate()
+						}
 					}
 				}
 			}

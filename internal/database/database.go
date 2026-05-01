@@ -232,6 +232,9 @@ func (db *Database) Filter(opts FilterOptions) []*Requirement {
 		if opts.Assignee != "" && req.Assignee != opts.Assignee {
 			continue
 		}
+		if opts.TargetVersion != "" && req.TargetVersion() != opts.TargetVersion {
+			continue
+		}
 
 		results = append(results, req)
 	}
@@ -241,14 +244,15 @@ func (db *Database) Filter(opts FilterOptions) []*Requirement {
 
 // FilterOptions specifies criteria for filtering requirements.
 type FilterOptions struct {
-	Status     *Status
-	Priority   *Priority
-	Category   string
-	Phase      *int
-	HasTest    *bool
-	IsComplete *bool
-	IsBlocked  *bool
-	Assignee   string
+	Status        *Status
+	Priority      *Priority
+	Category      string
+	Phase         *int
+	HasTest       *bool
+	IsComplete    *bool
+	IsBlocked     *bool
+	Assignee      string
+	TargetVersion string
 }
 
 // StatusCounts returns a map of status to count.
@@ -328,6 +332,41 @@ func (db *Database) ByPhase() map[int][]*Requirement {
 		result[req.Phase] = append(result[req.Phase], req)
 	}
 	return result
+}
+
+// ByVersion returns requirements grouped by target version.
+// Requirements with no version are grouped under "".
+func (db *Database) ByVersion() map[string][]*Requirement {
+	result := make(map[string][]*Requirement)
+	for _, req := range db.All() {
+		result[req.TargetVersion()] = append(result[req.TargetVersion()], req)
+	}
+	return result
+}
+
+// FilteredCopy returns a new Database containing only requirements matching the filter.
+// The copy is not linked to the original file path.
+func (db *Database) FilteredCopy(opts FilterOptions) *Database {
+	filtered := NewDatabase()
+	for _, req := range db.Filter(opts) {
+		_ = filtered.Add(req)
+	}
+	return filtered
+}
+
+// Versions returns all unique target versions (non-empty), sorted.
+func (db *Database) Versions() []string {
+	seen := make(map[string]bool)
+	var versions []string
+	for _, req := range db.All() {
+		v := req.TargetVersion()
+		if v != "" && !seen[v] {
+			seen[v] = true
+			versions = append(versions, v)
+		}
+	}
+	sort.Strings(versions)
+	return versions
 }
 
 // Incomplete returns all incomplete requirements.
