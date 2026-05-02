@@ -217,7 +217,7 @@ func recordResult(t testing.TB, m *marker) {
 // extractTagValue extracts a value from a struct tag.
 func extractTagValue(v interface{}, tagName string) string {
 	val := reflect.ValueOf(v)
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		val = val.Elem()
 	}
 
