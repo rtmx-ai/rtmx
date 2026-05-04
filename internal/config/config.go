@@ -54,6 +54,9 @@ type RTMXConfig struct {
 
 	// Integrity configuration for proof-of-verification enforcement.
 	Integrity IntegrityConfig `yaml:"integrity"`
+
+	// VersionPolicy configuration for category-driven version increment rules.
+	VersionPolicy VersionPolicyConfig `yaml:"version_policy"`
 }
 
 // VerifyConfig contains verification settings.
@@ -222,6 +225,68 @@ type ZitiConfig struct {
 	Controller  string            `yaml:"controller"`
 	IdentityDir string            `yaml:"identity_dir"`
 	Services    map[string]string `yaml:"services"`
+}
+
+// VersionPolicyConfig maps requirement categories to semver increment levels.
+type VersionPolicyConfig struct {
+	// Categories maps category names to increment levels (major, minor, patch, none).
+	Categories map[string]string `yaml:"categories"`
+
+	// Subcategories maps "Category/Subcategory" to increment levels for finer control.
+	Subcategories map[string]string `yaml:"subcategories"`
+
+	// Default is the increment level for unmapped categories (default: "patch").
+	Default string `yaml:"default"`
+
+	// Enforcement controls policy check behavior: "off", "warn", "enforce".
+	Enforcement string `yaml:"enforcement"`
+
+	// BackwardCompatible when true fails the gate on major-level requirements
+	// unless the version tag is itself a major bump.
+	BackwardCompatible *bool `yaml:"backward_compatible,omitempty"`
+}
+
+// IncrementLevel returns the semver increment level for a category/subcategory pair.
+// Subcategory overrides take precedence over category-level mappings.
+func (v *VersionPolicyConfig) IncrementLevel(category, subcategory string) string {
+	if v == nil {
+		return "patch"
+	}
+	// Subcategory override (more specific)
+	if subcategory != "" && v.Subcategories != nil {
+		key := category + "/" + subcategory
+		if level, ok := v.Subcategories[key]; ok {
+			return level
+		}
+	}
+	// Category level
+	if v.Categories != nil {
+		if level, ok := v.Categories[category]; ok {
+			return level
+		}
+	}
+	// Default
+	if v.Default != "" {
+		return v.Default
+	}
+	return "patch"
+}
+
+// IsBackwardCompatible returns whether backward compatibility is enforced.
+// Defaults to true when not set.
+func (v *VersionPolicyConfig) IsBackwardCompatible() bool {
+	if v == nil || v.BackwardCompatible == nil {
+		return true
+	}
+	return *v.BackwardCompatible
+}
+
+// IsEnabled returns whether version policy checking is active.
+func (v *VersionPolicyConfig) IsEnabled() bool {
+	if v == nil {
+		return false
+	}
+	return v.Enforcement != "" && v.Enforcement != "off"
 }
 
 // IntegrityConfig contains proof-of-verification enforcement settings.
