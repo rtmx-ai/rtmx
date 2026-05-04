@@ -31,3 +31,48 @@ rtmx:
     19: "Mainstream Distribution"
     20: "Security Hardening"
     21: "Migration"
+    22: "Release Planning"
+    23: "Forecasting"
+    24: "Attribution"
+
+  # Version policy: maps requirement categories to semver increment levels.
+  # The release gate checks that the proposed version bump is sufficient
+  # for the highest-impact category in the release scope.
+  version_policy:
+    enforcement: warn           # off | warn | enforce
+    backward_compatible: true   # fail gate on major unless tag is major bump
+    default: patch
+
+    categories:
+      CLI:        minor    # new/changed commands or flags
+      DATA:       major    # CSV format or config schema changes
+      SYNC:       minor    # sync protocol changes
+      ADAPT:      minor    # adapter interface changes
+      OUTPUT:     minor    # output format changes
+      MCP:        minor    # MCP protocol changes
+      PLUGIN:     minor    # plugin framework changes
+      AUTH:       minor    # authentication changes
+      PLAN:       minor    # planning commands
+      VERIFY:     minor    # verification changes
+      GRAPH:      patch    # algorithm improvements
+      PARITY:     patch    # parity fixes
+      MIGRATION:  patch    # migration tooling
+      E2E:        patch    # test infrastructure
+      CI:         none     # CI/CD pipeline
+      TEST:       none     # test coverage
+      BENCH:      none     # benchmark infrastructure
+      SECURITY:   patch    # security hardening
+      DIST:       patch    # distribution changes
+      RELEASE:    none     # release process
+      ORCH:       minor    # orchestration commands
+      INTEGRITY:  patch    # integrity checks
+      LANG:       minor    # language extension support
+
+    subcategories:
+      CLI/Foundation:      major    # foundational CLI changes
+      DATA/Config:         major    # config schema changes
+      DATA/CSV:            major    # database format changes
+      PLAN/Display:        patch    # display-only changes
+      PLAN/Automation:     patch    # internal automation
+      PLAN/Versioning:     minor    # versioning policy
+      SECURITY/ZeroTrust:  minor    # new security features
