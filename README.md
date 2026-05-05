@@ -58,6 +58,10 @@ rtmx backlog
 
 # Run health check
 rtmx health
+
+# Generate RTMX results JSON from pytest markers and JUnit XML
+rtmx from-pytest tests/ --output .rtmx/cache/pytest-results.json
+rtmx verify --results .rtmx/cache/pytest-results.json --update
 ```
 
 ## Migrating from Python CLI

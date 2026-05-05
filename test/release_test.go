@@ -77,6 +77,7 @@ func TestV010Release(t *testing.T) {
 			"init",
 			"verify",
 			"from-tests",
+			"from-pytest",
 			"deps",
 			"cycles",
 		}
@@ -230,6 +231,7 @@ func TestV1Release(t *testing.T) {
 			"verify",
 			"from-go",
 			"from-tests",
+			"from-pytest",
 			"reconcile",
 			"context",
 			"install",
