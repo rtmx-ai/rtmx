@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -258,4 +259,168 @@ func TestReleaseAssign(t *testing.T) {
 			t.Errorf("REQ-001 version = %q, want empty", r1.TargetVersion())
 		}
 	})
+}
+
+func TestReleaseGateVersionPolicy(t *testing.T) {
+	rtmx.Req(t, "REQ-PLAN-014")
+
+	t.Run("policy_warn_insufficient_bump", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		rtmxDir := filepath.Join(tmpDir, ".rtmx")
+		_ = os.MkdirAll(rtmxDir, 0755)
+
+		cfgContent := `rtmx:
+  database: .rtmx/database.csv
+  schema: core
+  version_policy:
+    enforcement: warn
+    default: patch
+    categories:
+      CLI: minor
+      DATA: major
+      BENCH: none
+`
+		_ = os.WriteFile(filepath.Join(tmpDir, "rtmx.yaml"), []byte(cfgContent), 0644)
+
+		dbContent := testDBHeader +
+			"REQ-001,CLI,Commands,New command,Pass,mod,TestA,Unit Test,COMPLETE,HIGH,1,,1,,,,v0.4.0,,,,\n"
+		_ = os.WriteFile(filepath.Join(rtmxDir, "database.csv"), []byte(dbContent), 0644)
+
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := createReleaseTestCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetErr(buf)
+		cmd.SetArgs([]string{"release", "gate", "v0.4.0", "--no-color"})
+
+		err := cmd.Execute()
+		// Gate should pass (warn mode, all complete)
+		if err != nil {
+			t.Fatalf("gate should pass in warn mode: %v\nOutput: %s", err, buf.String())
+		}
+		out := buf.String()
+		if !strings.Contains(out, "Version policy") || !strings.Contains(out, "policy check") {
+			t.Errorf("expected version policy output, got:\n%s", out)
+		}
+		if !strings.Contains(out, "minor") {
+			t.Errorf("expected 'minor' bump level for CLI category, got:\n%s", out)
+		}
+	})
+
+	t.Run("policy_enforce_blocks_release", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		rtmxDir := filepath.Join(tmpDir, ".rtmx")
+		_ = os.MkdirAll(rtmxDir, 0755)
+
+		cfgContent := `rtmx:
+  database: .rtmx/database.csv
+  schema: core
+  version_policy:
+    enforcement: enforce
+    default: patch
+    categories:
+      DATA: major
+`
+		_ = os.WriteFile(filepath.Join(tmpDir, "rtmx.yaml"), []byte(cfgContent), 0644)
+
+		// DATA category = major, but version bump is v0.3.0 -> v0.3.1 (patch)
+		dbContent := testDBHeader +
+			"REQ-001,DATA,Config,Schema change,Pass,mod,TestA,Unit Test,COMPLETE,HIGH,1,,1,,,,v0.3.1,,,,\n"
+		_ = os.WriteFile(filepath.Join(rtmxDir, "database.csv"), []byte(dbContent), 0644)
+
+		// Create a git repo with a tag so the policy can compute the bump
+		initGitWithTag(t, tmpDir, "v0.3.0")
+
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := createReleaseTestCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetErr(buf)
+		cmd.SetArgs([]string{"release", "gate", "v0.3.1", "--no-color"})
+
+		err := cmd.Execute()
+		if err == nil {
+			t.Fatal("gate should fail in enforce mode with insufficient bump")
+		}
+		out := buf.String()
+		if !strings.Contains(out, "FAIL") {
+			t.Errorf("expected FAIL in output, got:\n%s", out)
+		}
+	})
+
+	t.Run("policy_off_skips_check", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		rtmxDir := filepath.Join(tmpDir, ".rtmx")
+		_ = os.MkdirAll(rtmxDir, 0755)
+
+		cfgContent := `rtmx:
+  database: .rtmx/database.csv
+  schema: core
+  version_policy:
+    enforcement: off
+`
+		_ = os.WriteFile(filepath.Join(tmpDir, "rtmx.yaml"), []byte(cfgContent), 0644)
+
+		dbContent := testDBHeader +
+			"REQ-001,CLI,Commands,Feature,Pass,mod,TestA,Unit Test,COMPLETE,HIGH,1,,1,,,,v0.5.0,,,,\n"
+		_ = os.WriteFile(filepath.Join(rtmxDir, "database.csv"), []byte(dbContent), 0644)
+
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := createReleaseTestCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetErr(buf)
+		cmd.SetArgs([]string{"release", "gate", "v0.5.0", "--no-color"})
+
+		err := cmd.Execute()
+		if err != nil {
+			t.Fatalf("gate should pass with policy off: %v", err)
+		}
+		if strings.Contains(buf.String(), "Version policy") {
+			t.Errorf("should not show version policy output when off, got:\n%s", buf.String())
+		}
+	})
+}
+
+// initGitWithTag creates a git repo with an initial commit, tag, then a second
+// commit so that HEAD~1 resolves to the tagged commit.
+func initGitWithTag(t *testing.T, dir, tag string) {
+	t.Helper()
+	cmds := [][]string{
+		{"git", "init"},
+		{"git", "config", "user.email", "test@test.com"},
+		{"git", "config", "user.name", "Test"},
+		{"git", "add", "."},
+		{"git", "commit", "-m", "initial", "--no-gpg-sign"},
+		{"git", "tag", tag},
+	}
+	for _, args := range cmds {
+		c := exec.Command(args[0], args[1:]...)
+		c.Dir = dir
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git command %v failed: %v\n%s", args, err, out)
+		}
+	}
+	// Create a second commit so HEAD~1 resolves to the tagged commit
+	markerPath := filepath.Join(dir, ".release-marker")
+	_ = os.WriteFile(markerPath, []byte("release"), 0644)
+	for _, args := range [][]string{
+		{"git", "add", ".release-marker"},
+		{"git", "commit", "-m", "post-tag", "--no-gpg-sign"},
+	} {
+		c := exec.Command(args[0], args[1:]...)
+		c.Dir = dir
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git command %v failed: %v\n%s", args, err, out)
+		}
+	}
 }
