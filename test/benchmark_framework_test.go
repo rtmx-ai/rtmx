@@ -205,3 +205,83 @@ func TestBenchmarkFramework(t *testing.T) {
 		}
 	})
 }
+
+// TestBenchmarkErrTrap validates that benchmark scripts install ERR traps
+// for diagnostic-on-exit behavior.
+// REQ-BENCH-010: run-benchmark.sh and report.sh shall install ERR trap
+func TestBenchmarkErrTrap(t *testing.T) {
+	rtmx.Req(t, "REQ-BENCH-010")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	scripts := []string{
+		"benchmarks/scripts/run-benchmark.sh",
+		"benchmarks/scripts/report.sh",
+	}
+
+	for _, script := range scripts {
+		t.Run(filepath.Base(script), func(t *testing.T) {
+			path := filepath.Join(projectRoot, script)
+			content, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("script not found: %v", err)
+			}
+			src := string(content)
+
+			if !strings.Contains(src, "trap ") || !strings.Contains(src, "ERR") {
+				t.Errorf("%s must install an ERR trap", script)
+			}
+			if !strings.Contains(src, "BASH_SOURCE") || !strings.Contains(src, "LINENO") {
+				t.Errorf("%s ERR trap must print script name and line number", script)
+			}
+			if !strings.Contains(src, "BASH_COMMAND") {
+				t.Errorf("%s ERR trap must print the failing command", script)
+			}
+		})
+	}
+}
+
+// TestBenchmarkConfigValidation validates that run-benchmark.sh validates
+// required config fields at entry with actionable error messages.
+// REQ-BENCH-013: Benchmark configs validated at entry
+func TestBenchmarkConfigValidation(t *testing.T) {
+	rtmx.Req(t, "REQ-BENCH-013")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	scriptPath := filepath.Join(projectRoot, "benchmarks/scripts/run-benchmark.sh")
+	content, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatalf("script not found: %v", err)
+	}
+	src := string(content)
+
+	t.Run("validate_required_function_exists", func(t *testing.T) {
+		if !strings.Contains(src, "validate_required") {
+			t.Error("run-benchmark.sh must define validate_required function")
+		}
+	})
+
+	t.Run("exits_with_code_2_on_missing_field", func(t *testing.T) {
+		if !strings.Contains(src, "exit 2") {
+			t.Error("validate_required must exit 2 on missing field")
+		}
+	})
+
+	requiredFields := []string{"language", "exemplar.repo", "exemplar.ref", "expected_markers", "scan_command"}
+	t.Run("validates_all_required_fields", func(t *testing.T) {
+		for _, field := range requiredFields {
+			if !strings.Contains(src, "validate_required \""+field+"\"") {
+				t.Errorf("run-benchmark.sh must validate required field: %s", field)
+			}
+		}
+	})
+}
