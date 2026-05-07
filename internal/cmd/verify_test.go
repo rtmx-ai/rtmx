@@ -1236,3 +1236,332 @@ func TestDetectTestCommand(t *testing.T) {
 		})
 	}
 }
+
+func TestVerifyAutoSetDates(t *testing.T) {
+	rtmx.Req(t, "REQ-PLAN-010")
+
+	t.Run("sets_started_date_on_partial", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		req := database.NewRequirement("REQ-001")
+		req.TestFunction = "TestFoo"
+		req.Status = database.StatusMissing
+		_ = db.Add(req)
+
+		// Simulate a failing test match -> MISSING stays MISSING (no date change)
+		testResults := map[string]*TestResult{
+			"pkg/TestFoo": {Package: "pkg", Test: "TestFoo", Failed: true},
+		}
+		results := mapTestsToRequirements(db, testResults)
+
+		// Apply updates like runVerify does
+		for _, r := range results {
+			if r.Updated {
+				dbReq := db.Get(r.ReqID)
+				if dbReq != nil {
+					dbReq.Status = r.NewStatus
+					if r.NewStatus == database.StatusPartial || r.NewStatus == database.StatusComplete {
+						dbReq.SetStartedDate()
+					}
+					if r.NewStatus == database.StatusComplete {
+						dbReq.SetCompletedDate()
+					}
+				}
+			}
+		}
+
+		// MISSING->MISSING: no date change
+		if req.StartedDate != "" {
+			t.Errorf("started_date should be empty for MISSING, got %q", req.StartedDate)
+		}
+	})
+
+	t.Run("sets_dates_on_complete", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		req := database.NewRequirement("REQ-001")
+		req.TestFunction = "TestFoo"
+		req.Status = database.StatusMissing
+		_ = db.Add(req)
+
+		testResults := map[string]*TestResult{
+			"pkg/TestFoo": {Package: "pkg", Test: "TestFoo", Passed: true},
+		}
+		results := mapTestsToRequirements(db, testResults)
+
+		for _, r := range results {
+			if r.Updated {
+				dbReq := db.Get(r.ReqID)
+				if dbReq != nil {
+					dbReq.Status = r.NewStatus
+					if r.NewStatus == database.StatusPartial || r.NewStatus == database.StatusComplete {
+						dbReq.SetStartedDate()
+					}
+					if r.NewStatus == database.StatusComplete {
+						dbReq.SetCompletedDate()
+					}
+				}
+			}
+		}
+
+		if req.StartedDate == "" {
+			t.Error("started_date should be set on COMPLETE transition")
+		}
+		if req.CompletedDate == "" {
+			t.Error("completed_date should be set on COMPLETE transition")
+		}
+	})
+
+	t.Run("preserves_existing_started_date", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		req := database.NewRequirement("REQ-001")
+		req.TestFunction = "TestFoo"
+		req.Status = database.StatusPartial
+		req.StartedDate = "2026-01-15"
+		_ = db.Add(req)
+
+		testResults := map[string]*TestResult{
+			"pkg/TestFoo": {Package: "pkg", Test: "TestFoo", Passed: true},
+		}
+		results := mapTestsToRequirements(db, testResults)
+
+		for _, r := range results {
+			if r.Updated {
+				dbReq := db.Get(r.ReqID)
+				if dbReq != nil {
+					dbReq.Status = r.NewStatus
+					if r.NewStatus == database.StatusPartial || r.NewStatus == database.StatusComplete {
+						dbReq.SetStartedDate()
+					}
+					if r.NewStatus == database.StatusComplete {
+						dbReq.SetCompletedDate()
+					}
+				}
+			}
+		}
+
+		if req.StartedDate != "2026-01-15" {
+			t.Errorf("started_date should be preserved, got %q", req.StartedDate)
+		}
+		if req.CompletedDate == "" {
+			t.Error("completed_date should be set on COMPLETE")
+		}
+	})
+}
+
+func TestVerifyAudit(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-005")
+
+	t.Run("unmatched_test_function", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		req := database.NewRequirement("REQ-001")
+		req.TestFunction = "TestNonExistent"
+		req.TestModule = "some_test.go"
+		req.Status = database.StatusMissing
+		_ = db.Add(req)
+
+		// No test results match REQ-001
+		var verifyResults []VerificationResult
+
+		audit := runAudit(db, verifyResults)
+
+		if len(audit.Unmatched) != 1 {
+			t.Fatalf("expected 1 unmatched, got %d", len(audit.Unmatched))
+		}
+		if audit.Unmatched[0].ReqID != "REQ-001" {
+			t.Errorf("unmatched ReqID = %q, want REQ-001", audit.Unmatched[0].ReqID)
+		}
+		if audit.Unmatched[0].Value != "TestNonExistent" {
+			t.Errorf("unmatched Value = %q, want TestNonExistent", audit.Unmatched[0].Value)
+		}
+	})
+
+	t.Run("stale_test_module_path", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		req := database.NewRequirement("REQ-001")
+		req.TestFunction = "TestFoo"
+		req.TestModule = "nonexistent/path/foo_test.go"
+		req.Status = database.StatusMissing
+		_ = db.Add(req)
+
+		var verifyResults []VerificationResult
+
+		audit := runAudit(db, verifyResults)
+
+		if len(audit.StalePaths) != 1 {
+			t.Fatalf("expected 1 stale path, got %d", len(audit.StalePaths))
+		}
+		if audit.StalePaths[0].Value != "nonexistent/path/foo_test.go" {
+			t.Errorf("stale path Value = %q, want nonexistent/path/foo_test.go", audit.StalePaths[0].Value)
+		}
+	})
+
+	t.Run("unverified_complete", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		req := database.NewRequirement("REQ-001")
+		req.TestFunction = "TestFoo"
+		req.TestModule = "foo_test.go"
+		req.Status = database.StatusComplete
+		_ = db.Add(req)
+
+		// No test results for REQ-001
+		var verifyResults []VerificationResult
+
+		audit := runAudit(db, verifyResults)
+
+		if len(audit.UnverifiedComplete) != 1 {
+			t.Fatalf("expected 1 unverified complete, got %d", len(audit.UnverifiedComplete))
+		}
+		if audit.UnverifiedComplete[0].ReqID != "REQ-001" {
+			t.Errorf("unverified ReqID = %q, want REQ-001", audit.UnverifiedComplete[0].ReqID)
+		}
+	})
+
+	t.Run("empty_test_references", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		req := database.NewRequirement("REQ-001")
+		req.TestFunction = ""
+		req.TestModule = ""
+		req.Status = database.StatusMissing
+		_ = db.Add(req)
+
+		var verifyResults []VerificationResult
+
+		audit := runAudit(db, verifyResults)
+
+		if len(audit.EmptyRefs) != 1 {
+			t.Fatalf("expected 1 empty ref, got %d", len(audit.EmptyRefs))
+		}
+		if audit.EmptyRefs[0].ReqID != "REQ-001" {
+			t.Errorf("empty ref ReqID = %q, want REQ-001", audit.EmptyRefs[0].ReqID)
+		}
+	})
+
+	t.Run("matched_requirement_not_flagged", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		req := database.NewRequirement("REQ-001")
+		req.TestFunction = "TestFoo"
+		req.TestModule = "foo_test.go"
+		req.Status = database.StatusComplete
+		_ = db.Add(req)
+
+		// REQ-001 was matched in verification
+		verifyResults := []VerificationResult{
+			{ReqID: "REQ-001", TestsPassed: 1, NewStatus: database.StatusComplete},
+		}
+
+		audit := runAudit(db, verifyResults)
+
+		if len(audit.Unmatched) != 0 {
+			t.Errorf("expected 0 unmatched, got %d", len(audit.Unmatched))
+		}
+		if len(audit.UnverifiedComplete) != 0 {
+			t.Errorf("expected 0 unverified complete, got %d", len(audit.UnverifiedComplete))
+		}
+	})
+
+	t.Run("mixed_findings", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		// Matched requirement -- should not appear in findings
+		r1 := database.NewRequirement("REQ-001")
+		r1.TestFunction = "TestMatched"
+		r1.TestModule = "matched_test.go"
+		r1.Status = database.StatusComplete
+		_ = db.Add(r1)
+
+		// Unmatched with test_function
+		r2 := database.NewRequirement("REQ-002")
+		r2.TestFunction = "TestOrphan"
+		r2.TestModule = "orphan_test.go"
+		r2.Status = database.StatusMissing
+		_ = db.Add(r2)
+
+		// Empty references
+		r3 := database.NewRequirement("REQ-003")
+		r3.Status = database.StatusMissing
+		_ = db.Add(r3)
+
+		// COMPLETE but unmatched
+		r4 := database.NewRequirement("REQ-004")
+		r4.TestFunction = "TestGhost"
+		r4.Status = database.StatusComplete
+		_ = db.Add(r4)
+
+		verifyResults := []VerificationResult{
+			{ReqID: "REQ-001", TestsPassed: 1, NewStatus: database.StatusComplete},
+		}
+
+		audit := runAudit(db, verifyResults)
+
+		if len(audit.Unmatched) != 2 { // REQ-002 and REQ-004
+			t.Errorf("expected 2 unmatched, got %d", len(audit.Unmatched))
+		}
+		if len(audit.EmptyRefs) != 1 { // REQ-003
+			t.Errorf("expected 1 empty ref, got %d", len(audit.EmptyRefs))
+		}
+		if len(audit.UnverifiedComplete) != 1 { // REQ-004
+			t.Errorf("expected 1 unverified complete, got %d", len(audit.UnverifiedComplete))
+		}
+	})
+}
+
+func TestVerifyUnmatchedWarning(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-006")
+
+	t.Run("warning_when_unmatched", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		req := database.NewRequirement("REQ-001")
+		req.TestFunction = "TestOrphan"
+		req.Status = database.StatusMissing
+		_ = db.Add(req)
+
+		var verifyResults []VerificationResult
+
+		count := countUnmatchedRefs(db, verifyResults)
+		if count != 1 {
+			t.Errorf("countUnmatchedRefs = %d, want 1", count)
+		}
+	})
+
+	t.Run("no_warning_when_all_matched", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		req := database.NewRequirement("REQ-001")
+		req.TestFunction = "TestFoo"
+		req.Status = database.StatusComplete
+		_ = db.Add(req)
+
+		verifyResults := []VerificationResult{
+			{ReqID: "REQ-001", TestsPassed: 1},
+		}
+
+		count := countUnmatchedRefs(db, verifyResults)
+		if count != 0 {
+			t.Errorf("countUnmatchedRefs = %d, want 0", count)
+		}
+	})
+
+	t.Run("no_warning_for_empty_refs", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		req := database.NewRequirement("REQ-001")
+		req.TestFunction = "" // No test function set
+		req.Status = database.StatusMissing
+		_ = db.Add(req)
+
+		var verifyResults []VerificationResult
+
+		count := countUnmatchedRefs(db, verifyResults)
+		if count != 0 {
+			t.Errorf("countUnmatchedRefs = %d, want 0 (empty refs should not count)", count)
+		}
+	})
+}
