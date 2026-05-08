@@ -433,3 +433,104 @@ func TestSchemaRegistry(t *testing.T) {
 		}
 	})
 }
+
+func TestPhoenixSchema(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-005")
+
+	t.Run("extends_core", func(t *testing.T) {
+		if len(PhoenixSchema.Columns) <= len(CoreSchema.Columns) {
+			t.Errorf("Phoenix should have more columns than core: %d vs %d",
+				len(PhoenixSchema.Columns), len(CoreSchema.Columns))
+		}
+	})
+
+	t.Run("has_25_plus_extension_columns", func(t *testing.T) {
+		extra := len(PhoenixSchema.Columns) - len(CoreSchema.Columns)
+		if extra < 25 {
+			t.Errorf("Phoenix should add 25+ columns, got %d", extra)
+		}
+	})
+
+	t.Run("core_columns_preserved", func(t *testing.T) {
+		coreNames := CoreSchema.ColumnNames()
+		phoenixNames := PhoenixSchema.ColumnNames()
+		for i, name := range coreNames {
+			if phoenixNames[i] != name {
+				t.Errorf("column %d: Phoenix has %q, core has %q", i, phoenixNames[i], name)
+			}
+		}
+	})
+
+	t.Run("scope_columns_are_bool", func(t *testing.T) {
+		for _, col := range PhoenixSchema.Columns {
+			if strings.HasPrefix(col.Name, "scope_") && col.Type != TypeBool {
+				t.Errorf("scope column %q should be bool, got %v", col.Name, col.Type)
+			}
+		}
+	})
+
+	t.Run("technique_columns_are_bool", func(t *testing.T) {
+		for _, col := range PhoenixSchema.Columns {
+			if strings.HasPrefix(col.Name, "technique_") && col.Type != TypeBool {
+				t.Errorf("technique column %q should be bool, got %v", col.Name, col.Type)
+			}
+		}
+	})
+
+	t.Run("env_columns_are_bool", func(t *testing.T) {
+		for _, col := range PhoenixSchema.Columns {
+			if strings.HasPrefix(col.Name, "env_") && col.Type != TypeBool {
+				t.Errorf("env column %q should be bool, got %v", col.Name, col.Type)
+			}
+		}
+	})
+
+	t.Run("metric_columns_are_float", func(t *testing.T) {
+		metrics := map[string]bool{"baseline_metric": true, "current_metric": true, "target_metric": true, "lead_time_weeks": true}
+		for _, col := range PhoenixSchema.Columns {
+			if metrics[col.Name] && col.Type != TypeFloat {
+				t.Errorf("metric column %q should be float, got %v", col.Name, col.Type)
+			}
+		}
+	})
+
+	t.Run("registered_as_phoenix", func(t *testing.T) {
+		s := Get("phoenix")
+		if s == nil {
+			t.Fatal("phoenix schema should be registered")
+		}
+		if s.Name != "phoenix" {
+			t.Errorf("Name = %q, want phoenix", s.Name)
+		}
+	})
+
+	t.Run("for_config_phoenix", func(t *testing.T) {
+		s, err := ForConfig("phoenix")
+		if err != nil {
+			t.Fatalf("ForConfig phoenix: %v", err)
+		}
+		if s.Name != "phoenix" {
+			t.Errorf("Name = %q, want phoenix", s.Name)
+		}
+	})
+
+	t.Run("validates_phoenix_row", func(t *testing.T) {
+		row := map[string]string{
+			"req_id":              "REQ-SW-001",
+			"category":            "SOFTWARE",
+			"requirement_text":    "Process radar signal",
+			"status":              "COMPLETE",
+			"scope_unit":          "true",
+			"technique_nominal":   "true",
+			"env_simulation":      "true",
+			"baseline_metric":     "1.5",
+			"current_metric":      "0.8",
+			"target_metric":       "1.0",
+			"dal_level":           "B",
+		}
+		errs := PhoenixSchema.Validate(row)
+		if len(errs) != 0 {
+			t.Errorf("valid phoenix row should pass, got: %v", errs)
+		}
+	})
+}
