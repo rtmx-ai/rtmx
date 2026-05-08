@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -531,6 +533,167 @@ func TestPhoenixSchema(t *testing.T) {
 		errs := PhoenixSchema.Validate(row)
 		if len(errs) != 0 {
 			t.Errorf("valid phoenix row should pass, got: %v", errs)
+		}
+	})
+}
+
+func TestSchemaExtend(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-005")
+
+	t.Run("load_custom_schema_from_yaml", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		yamlContent := `name: my-project
+extends: core
+columns:
+  - name: risk_level
+    type: enum
+    values: [LOW, MEDIUM, HIGH, CRITICAL]
+    description: Risk assessment level
+  - name: review_date
+    type: date
+    description: Last review date
+  - name: compliance_ref
+    type: string
+    description: Compliance reference number
+`
+		schemaPath := filepath.Join(tmpDir, "schema.yaml")
+		_ = os.WriteFile(schemaPath, []byte(yamlContent), 0644)
+
+		s, err := LoadCustomSchema(schemaPath)
+		if err != nil {
+			t.Fatalf("LoadCustomSchema failed: %v", err)
+		}
+
+		if s.Name != "my-project" {
+			t.Errorf("Name = %q, want my-project", s.Name)
+		}
+
+		// Should have core columns + 3 custom
+		if len(s.Columns) != len(CoreSchema.Columns)+3 {
+			t.Errorf("expected %d columns, got %d", len(CoreSchema.Columns)+3, len(s.Columns))
+		}
+
+		if !s.HasColumn("risk_level") {
+			t.Error("should have risk_level column")
+		}
+		if !s.HasColumn("review_date") {
+			t.Error("should have review_date column")
+		}
+	})
+
+	t.Run("custom_schema_validates_custom_columns", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		yamlContent := `name: test-schema
+columns:
+  - name: severity
+    type: enum
+    values: [LOW, HIGH]
+`
+		_ = os.WriteFile(filepath.Join(tmpDir, "schema.yaml"), []byte(yamlContent), 0644)
+
+		s, err := LoadCustomSchema(filepath.Join(tmpDir, "schema.yaml"))
+		if err != nil {
+			t.Fatalf("load failed: %v", err)
+		}
+
+		// Valid
+		row := map[string]string{
+			"req_id": "REQ-X-001", "category": "X", "requirement_text": "T",
+			"severity": "HIGH",
+		}
+		errs := s.Validate(row)
+		if len(errs) != 0 {
+			t.Errorf("valid row should pass, got: %v", errs)
+		}
+
+		// Invalid enum value
+		row["severity"] = "INVALID"
+		errs = s.Validate(row)
+		if len(errs) != 1 || !strings.Contains(errs[0].Error(), "severity") {
+			t.Errorf("invalid severity should fail, got: %v", errs)
+		}
+	})
+
+	t.Run("default_extends_core", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		yamlContent := `columns:
+  - name: custom_field
+    type: string
+`
+		_ = os.WriteFile(filepath.Join(tmpDir, "schema.yaml"), []byte(yamlContent), 0644)
+
+		s, err := LoadCustomSchema(filepath.Join(tmpDir, "schema.yaml"))
+		if err != nil {
+			t.Fatalf("load failed: %v", err)
+		}
+
+		if s.Name != "custom" {
+			t.Errorf("Name = %q, want custom (default)", s.Name)
+		}
+		// Should have core + 1
+		if len(s.Columns) != len(CoreSchema.Columns)+1 {
+			t.Errorf("expected %d columns, got %d", len(CoreSchema.Columns)+1, len(s.Columns))
+		}
+	})
+
+	t.Run("unknown_base_errors", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		yamlContent := `extends: nonexistent
+columns: []
+`
+		_ = os.WriteFile(filepath.Join(tmpDir, "schema.yaml"), []byte(yamlContent), 0644)
+
+		_, err := LoadCustomSchema(filepath.Join(tmpDir, "schema.yaml"))
+		if err == nil {
+			t.Fatal("unknown base should error")
+		}
+		if !strings.Contains(err.Error(), "not found") {
+			t.Errorf("error should mention not found, got: %v", err)
+		}
+	})
+
+	t.Run("all_column_types_parsed", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		yamlContent := `columns:
+  - name: c_string
+    type: string
+  - name: c_int
+    type: int
+  - name: c_float
+    type: float
+  - name: c_bool
+    type: bool
+  - name: c_date
+    type: date
+  - name: c_enum
+    type: enum
+    values: [A, B]
+  - name: c_set
+    type: set
+    values: [X, Y]
+`
+		_ = os.WriteFile(filepath.Join(tmpDir, "schema.yaml"), []byte(yamlContent), 0644)
+
+		s, err := LoadCustomSchema(filepath.Join(tmpDir, "schema.yaml"))
+		if err != nil {
+			t.Fatalf("load failed: %v", err)
+		}
+
+		expected := map[string]ColumnType{
+			"c_string": TypeString,
+			"c_int":    TypeInt,
+			"c_float":  TypeFloat,
+			"c_bool":   TypeBool,
+			"c_date":   TypeDate,
+			"c_enum":   TypeEnum,
+			"c_set":    TypeSet,
+		}
+		for _, col := range s.Columns {
+			if want, ok := expected[col.Name]; ok {
+				if col.Type != want {
+					t.Errorf("column %q type = %v, want %v", col.Name, col.Type, want)
+				}
+			}
 		}
 	})
 }
