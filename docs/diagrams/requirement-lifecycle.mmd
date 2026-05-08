@@ -1,0 +1,18 @@
+stateDiagram-v2
+    [*] --> missing : rtmx init / add row
+    missing --> partial : some linked tests pass
+    missing --> complete : all linked tests pass
+    partial --> complete : remaining tests pass
+    complete --> partial : test regression
+    partial --> missing : all tests removed
+    complete --> missing : all tests removed
+
+    note right of missing
+        No linked tests pass
+    end note
+    note right of partial
+        Some linked tests pass
+    end note
+    note right of complete
+        All linked tests pass
+    end note
