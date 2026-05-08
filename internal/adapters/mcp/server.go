@@ -271,6 +271,11 @@ func (s *Server) handleToolsList() interface{} {
 			Description: "Show requirement markers found in test files",
 			InputSchema: emptyObj,
 		},
+		{
+			Name:        "next",
+			Description: "Show independent work webs and highest-priority unblocked requirement",
+			InputSchema: emptyObj,
+		},
 	}
 
 	return map[string]interface{}{"tools": tools}
@@ -306,6 +311,8 @@ func (s *Server) handleToolsCall(params json.RawMessage) (interface{}, *rpcError
 		data = s.toolVerify(db)
 	case "markers":
 		data = s.toolMarkers(db)
+	case "next":
+		data = s.toolNext(db)
 	default:
 		return nil, &rpcError{Code: errNoMethod, Message: fmt.Sprintf("unknown tool: %s", call.Name)}
 	}
@@ -727,5 +734,71 @@ func (s *Server) toolMarkers(db *database.Database) interface{} {
 		Missing:   db.Len() - withTests,
 		Items:     items,
 	}
+}
+
+// nextWebResult is a single web in the next tool output.
+type nextWebResult struct {
+	ID          int      `json:"id"`
+	Size        int      `json:"size"`
+	Unblocked   int      `json:"unblocked"`
+	Blocked     int      `json:"blocked"`
+	EffortWeeks float64  `json:"effort_weeks"`
+	Members     []string `json:"members"`
+	TopItem     string   `json:"top_item,omitempty"`
+	TopPriority string   `json:"top_priority,omitempty"`
+}
+
+// nextResult is the JSON output for the next tool.
+type nextResult struct {
+	TotalWebs        int             `json:"total_webs"`
+	TotalIncomplete  int             `json:"total_incomplete"`
+	TotalEffortWeeks float64         `json:"total_effort_weeks"`
+	Webs             []nextWebResult `json:"webs"`
+}
+
+func (s *Server) toolNext(db *database.Database) interface{} {
+	g := graph.NewGraph(db)
+	webs := g.DetectWebs()
+
+	result := nextResult{
+		TotalWebs: len(webs),
+		Webs:      make([]nextWebResult, 0, len(webs)),
+	}
+
+	for i, web := range webs {
+		result.TotalIncomplete += len(web.IDs)
+		result.TotalEffortWeeks += web.TotalEffort
+
+		wr := nextWebResult{
+			ID:          i + 1,
+			Size:        len(web.IDs),
+			Unblocked:   len(web.Unblocked),
+			Blocked:     len(web.Blocked),
+			EffortWeeks: web.TotalEffort,
+			Members:     web.IDs,
+		}
+
+		// Find top-priority unblocked item
+		if len(web.Unblocked) > 0 {
+			var bestReq *database.Requirement
+			for _, id := range web.Unblocked {
+				r := db.Get(id)
+				if r == nil {
+					continue
+				}
+				if bestReq == nil || r.Priority.Weight() < bestReq.Priority.Weight() {
+					bestReq = r
+				}
+			}
+			if bestReq != nil {
+				wr.TopItem = bestReq.ReqID
+				wr.TopPriority = string(bestReq.Priority)
+			}
+		}
+
+		result.Webs = append(result.Webs, wr)
+	}
+
+	return result
 }
 

@@ -91,9 +91,9 @@ func TestMCPServer(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected tools array, got %T", result["tools"])
 		}
-		// We expose 6 tools
-		if len(tools) != 6 {
-			t.Errorf("expected 6 tools, got %d", len(tools))
+		// We expose 7 tools
+		if len(tools) != 7 {
+			t.Errorf("expected 7 tools, got %d", len(tools))
 		}
 		// Verify tool names
 		names := make(map[string]bool)
@@ -102,7 +102,7 @@ func TestMCPServer(t *testing.T) {
 			name, _ := tm["name"].(string)
 			names[name] = true
 		}
-		for _, expected := range []string{"status", "backlog", "health", "deps", "verify", "markers"} {
+		for _, expected := range []string{"status", "backlog", "health", "deps", "verify", "markers", "next"} {
 			if !names[expected] {
 				t.Errorf("missing tool: %s", expected)
 			}
@@ -437,4 +437,110 @@ func extractToolText(t *testing.T, resp map[string]interface{}) string {
 	}
 
 	return text
+}
+
+// TestMCPReadTools validates all 7 read-only MCP tools produce valid JSON
+// and are safe under concurrent access.
+// REQ-MCP-003: Production-grade read-only tools for RTM operations.
+func TestMCPReadTools(t *testing.T) {
+	rtmx.Req(t, "REQ-MCP-003")
+
+	tmpDir := t.TempDir()
+	rtmxDir := filepath.Join(tmpDir, ".rtmx")
+	_ = os.MkdirAll(rtmxDir, 0o755)
+
+	dbPath := filepath.Join(rtmxDir, "database.csv")
+	writeTestDB(t, dbPath)
+	writeTestConfig(t, filepath.Join(tmpDir, "rtmx.yaml"))
+
+	cfg, err := config.LoadFromDir(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	srv := NewServer(dbPath, cfg, WithHost("127.0.0.1"), WithPort(0))
+	go func() {
+		if err := srv.Start(); err != nil && err != http.ErrServerClosed {
+			_ = err
+		}
+	}()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for srv.Addr() == "" && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if srv.Addr() == "" {
+		t.Fatal("server did not start")
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+	}()
+
+	baseURL := fmt.Sprintf("http://%s/mcp", srv.Addr())
+
+	// All 7 tools must return valid JSON via tools/call
+	allTools := []string{"status", "backlog", "health", "deps", "verify", "markers", "next"}
+
+	t.Run("all_tools_return_valid_json", func(t *testing.T) {
+		for _, tool := range allTools {
+			t.Run(tool, func(t *testing.T) {
+				resp := rpcCall(t, baseURL, "tools/call", map[string]interface{}{
+					"name": tool,
+				})
+				text := extractToolText(t, resp)
+				var parsed interface{}
+				if err := json.Unmarshal([]byte(text), &parsed); err != nil {
+					t.Errorf("tool %s returned invalid JSON: %v\nText: %s", tool, err, text)
+				}
+			})
+		}
+	})
+
+	t.Run("next_tool_returns_webs", func(t *testing.T) {
+		resp := rpcCall(t, baseURL, "tools/call", map[string]interface{}{
+			"name": "next",
+		})
+		text := extractToolText(t, resp)
+
+		var nr nextResult
+		if err := json.Unmarshal([]byte(text), &nr); err != nil {
+			t.Fatalf("failed to parse next result: %v", err)
+		}
+		// Test DB has 3 requirements, 2 incomplete -> should have webs
+		if nr.TotalIncomplete != 2 {
+			t.Errorf("expected 2 incomplete, got %d", nr.TotalIncomplete)
+		}
+	})
+
+	t.Run("concurrent_access_safe", func(t *testing.T) {
+		// Fire 20 concurrent requests across all tools to verify no races
+		const concurrency = 20
+		errs := make(chan error, concurrency)
+
+		for i := 0; i < concurrency; i++ {
+			tool := allTools[i%len(allTools)]
+			go func(toolName string) {
+				body := fmt.Sprintf(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"%s"}}`, toolName)
+				resp, err := http.Post(baseURL, "application/json", bytes.NewBufferString(body))
+				if err != nil {
+					errs <- fmt.Errorf("%s: request failed: %w", toolName, err)
+					return
+				}
+				defer func() { _ = resp.Body.Close() }()
+				if resp.StatusCode != http.StatusOK {
+					errs <- fmt.Errorf("%s: status %d", toolName, resp.StatusCode)
+					return
+				}
+				errs <- nil
+			}(tool)
+		}
+
+		for i := 0; i < concurrency; i++ {
+			if err := <-errs; err != nil {
+				t.Errorf("concurrent request failed: %v", err)
+			}
+		}
+	})
 }
