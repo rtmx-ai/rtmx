@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rtmx-ai/rtmx/internal/cmd"
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
@@ -213,38 +214,23 @@ func TestV1Release(t *testing.T) {
 		}
 	})
 
-	// Test 3: All required v1.0 commands exist
-	t.Run("all_required_commands", func(t *testing.T) {
-		cmd := exec.Command(binaryPath, "--help")
-		output, err := cmd.CombinedOutput()
+	// Test 3: All registered commands reachable from help
+	// Uses RegisteredCommands() instead of a hardcoded list so this
+	// test never goes stale. See TestCommandSurface for full coverage.
+	t.Run("all_registered_commands_in_help", func(t *testing.T) {
+		helpCmd := exec.Command(binaryPath, "--help")
+		output, err := helpCmd.CombinedOutput()
 		if err != nil {
 			_ = err // help may exit non-zero
 		}
 
-		requiredCommands := []string{
-			"status",
-			"backlog",
-			"health",
-			"deps",
-			"cycles",
-			"verify",
-			"from-go",
-			"from-tests",
-			"reconcile",
-			"context",
-			"install",
-			"diff",
-			"docs",
-			"config",
-			"makefile",
-			"analyze",
-			"bootstrap",
-			"setup",
-		}
-
-		for _, cmdName := range requiredCommands {
+		registered := cmd.RegisteredCommands()
+		for _, cmdName := range registered {
+			if cmdName == "help" || cmdName == "completion" {
+				continue
+			}
 			if !bytes.Contains(output, []byte(cmdName)) {
-				t.Errorf("Help missing required command: %s", cmdName)
+				t.Errorf("Help missing registered command: %s", cmdName)
 			}
 		}
 	})
