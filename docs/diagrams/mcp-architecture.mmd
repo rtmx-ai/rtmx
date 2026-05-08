@@ -1,0 +1,36 @@
+flowchart LR
+    subgraph agents["AI Agents"]
+        A1["Claude Code"]
+        A2["Cursor"]
+        A3["Custom Agent"]
+    end
+
+    subgraph mcp["rtmx mcp-server"]
+        T1["status"]
+        T2["backlog"]
+        T3["next"]
+        T4["verify"]
+        T5["health"]
+        T6["markers"]
+        T7["deps"]
+    end
+
+    subgraph repo["Git Repository"]
+        DB[".rtmx/database.csv"]
+        Tests["Test files"]
+    end
+
+    A1 -- "JSON-RPC" --> mcp
+    A2 -- "JSON-RPC" --> mcp
+    A3 -- "JSON-RPC" --> mcp
+    mcp --> DB
+    mcp --> Tests
+
+    style agents fill:#1c1917,stroke:#6ee7b7,color:#fff
+    style mcp fill:#064e3b,stroke:#10b981,color:#fff
+    style repo fill:#1c1917,stroke:#404040,color:#fff
+    style A1 fill:#1c1917,stroke:#6ee7b7,color:#fff
+    style A2 fill:#1c1917,stroke:#6ee7b7,color:#fff
+    style A3 fill:#1c1917,stroke:#6ee7b7,color:#fff
+    style DB fill:#064e3b,stroke:#10b981,color:#fff
+    style Tests fill:#064e3b,stroke:#10b981,color:#fff
