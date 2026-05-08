@@ -448,9 +448,12 @@ func runClaudeInstall(cmd *cobra.Command) error {
 	hooksPath := filepath.Join(claudeDir, "hooks.json")
 
 	if installRemove {
-		cmd.Printf("%s\n", output.Color("Removing Claude Code hooks...", output.Bold))
+		cmd.Printf("%s\n", output.Color("Removing Claude Code hooks and skills...", output.Bold))
 		if installDryRun {
 			cmd.Printf("  Would remove: %s\n", hooksPath)
+			for name := range claudeSkillDefinitions() {
+				cmd.Printf("  Would remove: %s\n", filepath.Join(claudeDir, "skills", name))
+			}
 		} else {
 			if _, err := os.Stat(hooksPath); os.IsNotExist(err) {
 				cmd.Printf("  %s\n", output.Color("No hooks.json to remove", output.Dim))
@@ -461,9 +464,15 @@ func runClaudeInstall(cmd *cobra.Command) error {
 					cmd.Printf("  %s %s\n", output.Color("Removed:", output.Green), hooksPath)
 				}
 			}
+			for name := range claudeSkillDefinitions() {
+				skillDir := filepath.Join(claudeDir, "skills", name)
+				if err := os.RemoveAll(skillDir); err == nil {
+					cmd.Printf("  %s %s\n", output.Color("Removed:", output.Green), skillDir)
+				}
+			}
 		}
 		cmd.Println()
-		cmd.Printf("%s\n", output.Color("Claude Code hooks removed", output.Green))
+		cmd.Printf("%s\n", output.Color("Claude Code hooks and skills removed", output.Green))
 		return nil
 	}
 
@@ -484,13 +493,105 @@ func runClaudeInstall(cmd *cobra.Command) error {
 		cmd.Printf("  %s %s\n", output.Color("Created:", output.Green), hooksPath)
 	}
 
+	// Install skill pack
 	cmd.Println()
-	cmd.Printf("%s\n", output.Color("Claude Code hooks installed", output.Green))
+	cmd.Printf("%s\n", output.Color("Installing Claude Code skill pack...", output.Bold))
+
+	skills := claudeSkillDefinitions()
+	for name, content := range skills {
+		skillDir := filepath.Join(claudeDir, "skills", name)
+		skillPath := filepath.Join(skillDir, "SKILL.md")
+
+		if installDryRun {
+			cmd.Printf("  Would create: %s\n", skillPath)
+		} else {
+			if err := os.MkdirAll(skillDir, 0755); err != nil {
+				return fmt.Errorf("failed to create skill directory %s: %w", name, err)
+			}
+			if err := os.WriteFile(skillPath, []byte(content), 0644); err != nil {
+				return fmt.Errorf("failed to write skill %s: %w", name, err)
+			}
+			cmd.Printf("  %s %s\n", output.Color("Created:", output.Green), skillPath)
+		}
+	}
+
 	cmd.Println()
-	cmd.Println("The PreToolUse hook will inject RTM context into Claude Code conversations.")
+	cmd.Printf("%s\n", output.Color("Claude Code hooks and skills installed", output.Green))
+	cmd.Println()
+	cmd.Printf("Available slash commands: %s\n", output.Color("/rtmx-status /rtmx-backlog /rtmx-next /rtmx-verify /rtmx-claim", output.Cyan))
 	cmd.Println("Use 'rtmx install --claude --remove' to uninstall.")
 
 	return nil
+}
+
+// claudeSkillDefinitions returns the skill pack for Claude Code.
+// Each key is a directory name under .claude/skills/, each value is SKILL.md content.
+func claudeSkillDefinitions() map[string]string {
+	return map[string]string{
+		"rtmx-status": `---
+name: rtmx-status
+description: Show RTM completion status with progress bars, category breakdown, and version grouping.
+argument-hint: "[-v|-vv|-vvv] [--by-version] [--json]"
+---
+
+Show the current RTM status. Pass arguments to control verbosity.
+
+` + "```!" + `
+rtmx status $ARGUMENTS
+` + "```" + `
+`,
+		"rtmx-backlog": `---
+name: rtmx-backlog
+description: Show prioritized backlog with critical path, quick wins, and blocking analysis.
+argument-hint: "[--json] [--version VERSION]"
+---
+
+Show the prioritized backlog of incomplete requirements.
+
+` + "```!" + `
+rtmx backlog $ARGUMENTS
+` + "```" + `
+`,
+		"rtmx-next": `---
+name: rtmx-next
+description: Show independent work webs and pick the next highest-priority unblocked requirement.
+argument-hint: "[--one] [--json]"
+---
+
+Analyze the dependency graph for parallelizable work. Use --one to pick a single requirement.
+
+` + "```!" + `
+rtmx next $ARGUMENTS
+` + "```" + `
+`,
+		"rtmx-verify": `---
+name: rtmx-verify
+description: Run tests and update RTM status based on results. Use --audit to check for stale test references.
+argument-hint: "[--update] [--audit] [--dry-run]"
+---
+
+Verify requirements by running tests and updating the RTM database.
+
+` + "```!" + `
+rtmx verify $ARGUMENTS
+` + "```" + `
+`,
+		"rtmx-claim": `---
+name: rtmx-claim
+description: Claim a requirement for work. Prevents other agents from working on the same requirement.
+argument-hint: "<req-id>"
+arguments: [req_id]
+---
+
+Claim requirement $req_id for this agent session.
+
+` + "```!" + `
+rtmx next --one --json
+` + "```" + `
+
+If a specific requirement ID was provided, claim it. Otherwise use the output above to identify the highest-priority unblocked requirement and begin working on it.
+`,
+	}
 }
 
 func runHooksInstall(cmd *cobra.Command) error {
