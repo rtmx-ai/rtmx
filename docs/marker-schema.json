@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rtmx.ai/schemas/marker-v1.json",
+  "title": "RTMX Marker Annotation",
+  "description": "Language-agnostic requirement marker annotation for test functions. Each marker links a test to a requirement in the RTM database.",
+  "type": "object",
+  "required": ["req_id", "test_name", "test_file"],
+  "properties": {
+    "req_id": {
+      "type": "string",
+      "pattern": "^REQ-[A-Z]+-[0-9]+$",
+      "description": "Requirement identifier matching the RTM database (e.g., REQ-AUTH-001)"
+    },
+    "test_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Test function or method name (e.g., TestLogin, test_login)"
+    },
+    "test_file": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Relative path to the test file (e.g., tests/test_auth.py)"
+    },
+    "scope": {
+      "type": "string",
+      "enum": ["unit", "integration", "system", "acceptance"],
+      "description": "Test scope classification"
+    },
+    "technique": {
+      "type": "string",
+      "enum": ["nominal", "parametric", "monte_carlo", "stress", "boundary"],
+      "description": "Testing technique classification"
+    },
+    "env": {
+      "type": "string",
+      "enum": ["simulation", "hil", "anechoic", "field"],
+      "description": "Execution environment classification"
+    },
+    "line": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Source line number where the marker appears"
+    }
+  },
+  "additionalProperties": false
+}
