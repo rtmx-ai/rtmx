@@ -348,3 +348,88 @@ func TestCoreSchema(t *testing.T) {
 		}
 	})
 }
+
+func TestSchemaRegistry(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-005")
+
+	t.Run("core_registered_by_default", func(t *testing.T) {
+		s := Get("core")
+		if s == nil {
+			t.Fatal("core schema should be registered by default")
+		}
+		if s.Name != "core" {
+			t.Errorf("Name = %q, want core", s.Name)
+		}
+	})
+
+	t.Run("get_unknown_returns_nil", func(t *testing.T) {
+		s := Get("nonexistent")
+		if s != nil {
+			t.Error("unknown schema should return nil")
+		}
+	})
+
+	t.Run("names_includes_core", func(t *testing.T) {
+		names := Names()
+		found := false
+		for _, n := range names {
+			if n == "core" {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("Names() should include core, got %v", names)
+		}
+	})
+
+	t.Run("for_config_default_core", func(t *testing.T) {
+		s, err := ForConfig("")
+		if err != nil {
+			t.Fatalf("ForConfig empty should default to core: %v", err)
+		}
+		if s.Name != "core" {
+			t.Errorf("ForConfig empty = %q, want core", s.Name)
+		}
+	})
+
+	t.Run("for_config_explicit", func(t *testing.T) {
+		s, err := ForConfig("core")
+		if err != nil {
+			t.Fatalf("ForConfig core: %v", err)
+		}
+		if s.Name != "core" {
+			t.Errorf("Name = %q, want core", s.Name)
+		}
+	})
+
+	t.Run("for_config_unknown_errors", func(t *testing.T) {
+		_, err := ForConfig("unknown")
+		if err == nil {
+			t.Fatal("ForConfig unknown should error")
+		}
+		if !strings.Contains(err.Error(), "unknown schema") {
+			t.Errorf("error should mention 'unknown schema', got: %v", err)
+		}
+	})
+
+	t.Run("register_custom_schema", func(t *testing.T) {
+		custom := New("test-custom-"+t.Name(), []Column{
+			{Name: "id", Type: TypeString, Required: true},
+		})
+		Register(custom)
+		defer func() {
+			// Clean up
+			registry.mu.Lock()
+			delete(registry.schemas, custom.Name)
+			registry.mu.Unlock()
+		}()
+
+		got := Get(custom.Name)
+		if got == nil {
+			t.Fatal("registered schema should be retrievable")
+		}
+		if got.Name != custom.Name {
+			t.Errorf("Name = %q, want %q", got.Name, custom.Name)
+		}
+	})
+}
