@@ -9,12 +9,14 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"sync"
 
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/database"
 	"github.com/rtmx-ai/rtmx/internal/graph"
+	"github.com/rtmx-ai/rtmx/internal/orchestration"
 )
 
 // Server is an MCP server that exposes RTMX tools via JSON-RPC 2.0 over HTTP.
@@ -23,6 +25,7 @@ type Server struct {
 	port     int
 	dbPath   string
 	cfg      *config.Config
+	claims   *orchestration.ClaimStore
 	mu       sync.RWMutex
 	server   *http.Server
 	listener net.Listener
@@ -52,6 +55,9 @@ func NewServer(dbPath string, cfg *config.Config, opts ...Option) *Server {
 	for _, opt := range opts {
 		opt(s)
 	}
+	// Initialize claims store alongside database
+	claimsDir := filepath.Join(filepath.Dir(dbPath), "claims")
+	s.claims, _ = orchestration.NewClaimStore(claimsDir)
 	return s
 }
 
@@ -276,6 +282,43 @@ func (s *Server) handleToolsList() interface{} {
 			Description: "Show independent work webs and highest-priority unblocked requirement",
 			InputSchema: emptyObj,
 		},
+		{
+			Name:        "claim",
+			Description: "Claim a requirement for an agent (mutation: requires agent_id)",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"req_id":   map[string]interface{}{"type": "string", "description": "Requirement ID to claim"},
+					"agent_id": map[string]interface{}{"type": "string", "description": "Agent identity claiming the requirement"},
+				},
+				"required": []string{"req_id", "agent_id"},
+			},
+		},
+		{
+			Name:        "release",
+			Description: "Release a claimed requirement (mutation: requires agent_id)",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"req_id":   map[string]interface{}{"type": "string", "description": "Requirement ID to release"},
+					"agent_id": map[string]interface{}{"type": "string", "description": "Agent identity releasing the requirement"},
+				},
+				"required": []string{"req_id", "agent_id"},
+			},
+		},
+		{
+			Name:        "release_assign",
+			Description: "Assign requirements to a target version (mutation: requires agent_id)",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"version":  map[string]interface{}{"type": "string", "description": "Target version (e.g., v0.4.0)"},
+					"req_ids":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Requirement IDs to assign"},
+					"agent_id": map[string]interface{}{"type": "string", "description": "Agent identity performing the assignment"},
+				},
+				"required": []string{"version", "req_ids", "agent_id"},
+			},
+		},
 	}
 
 	return map[string]interface{}{"tools": tools}
@@ -313,6 +356,12 @@ func (s *Server) handleToolsCall(params json.RawMessage) (interface{}, *rpcError
 		data = s.toolMarkers(db)
 	case "next":
 		data = s.toolNext(db)
+	case "claim":
+		return s.toolClaim(call.Arguments)
+	case "release":
+		return s.toolRelease(call.Arguments)
+	case "release_assign":
+		return s.toolReleaseAssign(db, call.Arguments)
 	default:
 		return nil, &rpcError{Code: errNoMethod, Message: fmt.Sprintf("unknown tool: %s", call.Name)}
 	}
@@ -800,5 +849,101 @@ func (s *Server) toolNext(db *database.Database) interface{} {
 	}
 
 	return result
+}
+
+// ----- Mutation tools -----
+
+func (s *Server) toolClaim(args map[string]interface{}) (interface{}, *rpcError) {
+	reqID, _ := args["req_id"].(string)
+	agentID, _ := args["agent_id"].(string)
+
+	if reqID == "" || agentID == "" {
+		return errorResult("req_id and agent_id are required"), nil
+	}
+	if s.claims == nil {
+		return errorResult("claims store not initialized"), nil
+	}
+
+	claim, err := s.claims.Claim(reqID, agentID)
+	if err != nil {
+		return errorResult(err.Error()), nil
+	}
+
+	data, _ := json.Marshal(claim)
+	return toolResult{
+		Content: []toolContent{{Type: "text", Text: string(data)}},
+	}, nil
+}
+
+func (s *Server) toolRelease(args map[string]interface{}) (interface{}, *rpcError) {
+	reqID, _ := args["req_id"].(string)
+	agentID, _ := args["agent_id"].(string)
+
+	if reqID == "" || agentID == "" {
+		return errorResult("req_id and agent_id are required"), nil
+	}
+	if s.claims == nil {
+		return errorResult("claims store not initialized"), nil
+	}
+
+	if err := s.claims.Release(reqID, agentID); err != nil {
+		return errorResult(err.Error()), nil
+	}
+
+	result := map[string]interface{}{
+		"released": reqID,
+		"agent_id": agentID,
+	}
+	data, _ := json.Marshal(result)
+	return toolResult{
+		Content: []toolContent{{Type: "text", Text: string(data)}},
+	}, nil
+}
+
+func (s *Server) toolReleaseAssign(db *database.Database, args map[string]interface{}) (interface{}, *rpcError) {
+	version, _ := args["version"].(string)
+	agentID, _ := args["agent_id"].(string)
+	reqIDsRaw, _ := args["req_ids"].([]interface{})
+
+	if version == "" || agentID == "" || len(reqIDsRaw) == 0 {
+		return errorResult("version, agent_id, and req_ids are required"), nil
+	}
+
+	var assigned []string
+	var errs []string
+
+	for _, raw := range reqIDsRaw {
+		id, ok := raw.(string)
+		if !ok {
+			continue
+		}
+		req := db.Get(id)
+		if req == nil {
+			errs = append(errs, fmt.Sprintf("%s: not found", id))
+			continue
+		}
+		req.SetTargetVersion(version)
+		assigned = append(assigned, id)
+	}
+
+	// Save the database
+	if len(assigned) > 0 {
+		if err := db.Save(s.dbPath); err != nil {
+			return errorResult(fmt.Sprintf("failed to save database: %v", err)), nil
+		}
+	}
+
+	result := map[string]interface{}{
+		"version":  version,
+		"assigned": assigned,
+		"agent_id": agentID,
+	}
+	if len(errs) > 0 {
+		result["errors"] = errs
+	}
+	data, _ := json.Marshal(result)
+	return toolResult{
+		Content: []toolContent{{Type: "text", Text: string(data)}},
+	}, nil
 }
 

@@ -91,9 +91,9 @@ func TestMCPServer(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected tools array, got %T", result["tools"])
 		}
-		// We expose 7 tools
-		if len(tools) != 7 {
-			t.Errorf("expected 7 tools, got %d", len(tools))
+		// We expose 10 tools (7 read + 3 mutation)
+		if len(tools) != 10 {
+			t.Errorf("expected 10 tools, got %d", len(tools))
 		}
 		// Verify tool names
 		names := make(map[string]bool)
@@ -102,7 +102,7 @@ func TestMCPServer(t *testing.T) {
 			name, _ := tm["name"].(string)
 			names[name] = true
 		}
-		for _, expected := range []string{"status", "backlog", "health", "deps", "verify", "markers", "next"} {
+		for _, expected := range []string{"status", "backlog", "health", "deps", "verify", "markers", "next", "claim", "release", "release_assign"} {
 			if !names[expected] {
 				t.Errorf("missing tool: %s", expected)
 			}
