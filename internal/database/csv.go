@@ -146,6 +146,8 @@ func ReadCSV(r io.Reader) (*Database, error) {
 	}
 
 	db := NewDatabase()
+	db.originalHeader = make([]string, len(header))
+	copy(db.originalHeader, header)
 
 	// Read rows
 	lineNum := 1

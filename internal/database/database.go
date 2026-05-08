@@ -16,6 +16,9 @@ type Database struct {
 	// path is the file path this database was loaded from.
 	path string
 
+	// originalHeader stores the CSV header as loaded from disk.
+	originalHeader []string
+
 	// dirty tracks if the database has been modified.
 	dirty bool
 }
@@ -41,6 +44,18 @@ func (db *Database) SetPath(path string) {
 // IsDirty returns true if the database has unsaved changes.
 func (db *Database) IsDirty() bool {
 	return db.dirty
+}
+
+// Header returns the column names from the loaded CSV file.
+// If the database was created programmatically (not loaded from file),
+// returns standardColumns.
+func (db *Database) Header() []string {
+	if len(db.originalHeader) > 0 {
+		return db.originalHeader
+	}
+	header := make([]string, len(standardColumns))
+	copy(header, standardColumns)
+	return header
 }
 
 // MarkClean marks the database as saved.
