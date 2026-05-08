@@ -232,3 +232,119 @@ func TestSchemaLoad(t *testing.T) {
 		}
 	})
 }
+
+func TestCoreSchema(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-005")
+
+	// standardColumns from internal/database/csv.go -- kept in sync here
+	// to verify CoreSchema matches without creating an import dependency.
+	standardColumns := []string{
+		"req_id", "category", "subcategory", "requirement_text",
+		"target_value", "test_module", "test_function", "validation_method",
+		"status", "priority", "phase", "notes", "effort_weeks",
+		"dependencies", "blocks", "assignee", "sprint",
+		"started_date", "completed_date", "requirement_file", "external_id",
+	}
+
+	t.Run("column_count_matches", func(t *testing.T) {
+		if len(CoreSchema.Columns) != len(standardColumns) {
+			t.Errorf("CoreSchema has %d columns, standardColumns has %d",
+				len(CoreSchema.Columns), len(standardColumns))
+		}
+	})
+
+	t.Run("column_names_match", func(t *testing.T) {
+		names := CoreSchema.ColumnNames()
+		for i, want := range standardColumns {
+			if i >= len(names) {
+				t.Errorf("missing column %d: %s", i, want)
+				continue
+			}
+			if names[i] != want {
+				t.Errorf("column %d: got %q, want %q", i, names[i], want)
+			}
+		}
+	})
+
+	t.Run("required_columns", func(t *testing.T) {
+		required := map[string]bool{"req_id": true, "category": true, "requirement_text": true}
+		for _, col := range CoreSchema.Columns {
+			if required[col.Name] && !col.Required {
+				t.Errorf("column %q should be required", col.Name)
+			}
+			if !required[col.Name] && col.Required {
+				t.Errorf("column %q should not be required", col.Name)
+			}
+		}
+	})
+
+	t.Run("typed_columns", func(t *testing.T) {
+		expectedTypes := map[string]ColumnType{
+			"phase":          TypeInt,
+			"effort_weeks":   TypeFloat,
+			"status":         TypeEnum,
+			"priority":       TypeEnum,
+			"started_date":   TypeDate,
+			"completed_date": TypeDate,
+			"dependencies":   TypeSet,
+			"blocks":         TypeSet,
+		}
+		for _, col := range CoreSchema.Columns {
+			if want, ok := expectedTypes[col.Name]; ok {
+				if col.Type != want {
+					t.Errorf("column %q type = %v, want %v", col.Name, col.Type, want)
+				}
+			}
+		}
+	})
+
+	t.Run("validates_valid_row", func(t *testing.T) {
+		row := map[string]string{
+			"req_id":           "REQ-GO-001",
+			"category":         "CLI",
+			"requirement_text": "Build as static binary",
+			"status":           "COMPLETE",
+			"priority":         "HIGH",
+			"phase":            "1",
+			"effort_weeks":     "2.5",
+			"started_date":     "2026-01-15",
+			"dependencies":     "REQ-GO-002|REQ-GO-003",
+		}
+		errs := CoreSchema.Validate(row)
+		if len(errs) != 0 {
+			t.Errorf("valid row should pass, got: %v", errs)
+		}
+	})
+
+	t.Run("rejects_invalid_status", func(t *testing.T) {
+		row := map[string]string{
+			"req_id":           "REQ-GO-001",
+			"category":         "CLI",
+			"requirement_text": "Test",
+			"status":           "INVALID",
+		}
+		errs := CoreSchema.Validate(row)
+		if len(errs) != 1 || !strings.Contains(errs[0].Error(), "status") {
+			t.Errorf("invalid status should fail, got: %v", errs)
+		}
+	})
+
+	t.Run("rejects_invalid_phase", func(t *testing.T) {
+		row := map[string]string{
+			"req_id":           "REQ-GO-001",
+			"category":         "CLI",
+			"requirement_text": "Test",
+			"phase":            "abc",
+		}
+		errs := CoreSchema.Validate(row)
+		if len(errs) != 1 || !strings.Contains(errs[0].Error(), "phase") {
+			t.Errorf("invalid phase should fail, got: %v", errs)
+		}
+	})
+
+	t.Run("schema_name", func(t *testing.T) {
+		if CoreSchema.Name != "core" {
+			t.Errorf("Name = %q, want core", CoreSchema.Name)
+		}
+	})
+}
