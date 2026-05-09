@@ -34,6 +34,29 @@ jobs:
       - name: Compare to baseline
         run: make -C benchmarks compare LANG=${{ matrix.language }}
 
+      - name: Write step summary
+        if: always()
+        run: |
+          LANG="${{ matrix.language }}"
+          RESULT="benchmarks/results/${LANG}.json"
+          if [ -f "$RESULT" ]; then
+            MARKERS=$(jq '.markers_found // 0' "$RESULT")
+            PASSED=$(jq '.tests_passed // 0' "$RESULT")
+            FAILED=$(jq '.tests_failed // 0' "$RESULT")
+            STATUS=$(jq -r '.verify_status // "unknown"' "$RESULT")
+            echo "## Benchmark: ${LANG}" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Metric | Value |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Markers found | ${MARKERS} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Tests passed | ${PASSED} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Tests failed | ${FAILED} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Verify status | ${STATUS} |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Benchmark: ${LANG}" >> "$GITHUB_STEP_SUMMARY"
+            echo "No results file found." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5

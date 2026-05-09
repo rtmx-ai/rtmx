@@ -801,9 +801,50 @@ func runAgentInstall(cmd *cobra.Command) error {
 		}
 	}
 
+	// Cursor MCP config (REQ-PLUGIN-003a)
+	for _, agent := range targetAgents {
+		if agent == "cursor" {
+			if err := installCursorMCP(cmd, cwd); err != nil {
+				cmd.Printf("  %s Cursor MCP: %v\n", output.Color("Error:", output.Red), err)
+			}
+		}
+	}
+
 	cmd.Println()
 	cmd.Printf("%s\n", output.Color("✓ Installation complete", output.Green))
 
+	return nil
+}
+
+const cursorMCPJSON = `{
+  "mcpServers": {
+    "rtmx": {
+      "command": "rtmx",
+      "args": ["mcp-server", "--port", "0"],
+      "env": {}
+    }
+  }
+}
+`
+
+func installCursorMCP(cmd *cobra.Command, cwd string) error {
+	cursorDir := filepath.Join(cwd, ".cursor")
+	mcpPath := filepath.Join(cursorDir, "mcp.json")
+
+	if installDryRun {
+		cmd.Printf("  Would create: %s\n", mcpPath)
+		return nil
+	}
+
+	if err := os.MkdirAll(cursorDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .cursor directory: %w", err)
+	}
+
+	if err := os.WriteFile(mcpPath, []byte(cursorMCPJSON), 0644); err != nil {
+		return fmt.Errorf("failed to write mcp.json: %w", err)
+	}
+
+	cmd.Printf("  %s %s\n", output.Color("Created:", output.Green), mcpPath)
 	return nil
 }
 

@@ -494,3 +494,84 @@ func TestBenchmarkBaselineProvenance(t *testing.T) {
 		t.Error("no baseline files found")
 	}
 }
+
+// TestBenchmarkDryRun validates that run-benchmark.sh supports --dry-run
+// to validate config without cloning.
+// REQ-BENCH-015: --dry-run validates config without cloning
+func TestBenchmarkDryRun(t *testing.T) {
+	rtmx.Req(t, "REQ-BENCH-015")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	scriptPath := filepath.Join(projectRoot, "benchmarks", "scripts", "run-benchmark.sh")
+	content, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatalf("script not found: %v", err)
+	}
+	src := string(content)
+
+	if !strings.Contains(src, "--dry-run") {
+		t.Error("run-benchmark.sh must support --dry-run flag")
+	}
+	if !strings.Contains(src, "DRY RUN") {
+		t.Error("run-benchmark.sh --dry-run must print DRY RUN message")
+	}
+}
+
+// TestBenchmarkToleranceBands validates that report.sh supports configurable
+// tolerance via RTMX_BENCH_TOLERANCE environment variable.
+// REQ-BENCH-025: Configurable tolerance bands
+func TestBenchmarkToleranceBands(t *testing.T) {
+	rtmx.Req(t, "REQ-BENCH-025")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	scriptPath := filepath.Join(projectRoot, "benchmarks", "scripts", "report.sh")
+	content, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatalf("script not found: %v", err)
+	}
+	src := string(content)
+
+	if !strings.Contains(src, "RTMX_BENCH_TOLERANCE") {
+		t.Error("report.sh must support RTMX_BENCH_TOLERANCE env var")
+	}
+	if !strings.Contains(src, "tolerance") {
+		t.Error("report.sh must mention tolerance in output")
+	}
+}
+
+// TestBenchmarkStepSummary validates that the benchmark workflow writes
+// to GITHUB_STEP_SUMMARY.
+// REQ-BENCH-026: Step summary on every run
+func TestBenchmarkStepSummary(t *testing.T) {
+	rtmx.Req(t, "REQ-BENCH-026")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	wfPath := filepath.Join(projectRoot, ".github", "workflows", "benchmark.yml")
+	content, err := os.ReadFile(wfPath)
+	if err != nil {
+		t.Fatalf("benchmark workflow not found: %v", err)
+	}
+	src := string(content)
+
+	if !strings.Contains(src, "GITHUB_STEP_SUMMARY") {
+		t.Error("benchmark.yml must write to GITHUB_STEP_SUMMARY")
+	}
+	if !strings.Contains(strings.ToLower(src), "step summary") {
+		t.Error("benchmark.yml must have a step summary step")
+	}
+}

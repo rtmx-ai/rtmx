@@ -72,6 +72,17 @@ validate_required "exemplar.ref" "$REF"
 validate_required "expected_markers" "$EXPECTED_MARKERS"
 validate_required "scan_command" "$SCAN_COMMAND"
 
+# REQ-BENCH-015: --dry-run validates config without cloning
+if [ "${3:-}" = "--dry-run" ]; then
+    echo "DRY RUN: config ${CONFIG} validated successfully"
+    echo "  language:         ${LANGUAGE}"
+    echo "  exemplar.repo:    ${REPO}"
+    echo "  exemplar.ref:     ${REF}"
+    echo "  expected_markers: ${EXPECTED_MARKERS}"
+    echo "  scan_command:     ${SCAN_COMMAND}"
+    exit 0
+fi
+
 WORKDIR="workdir/${LANGUAGE}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BENCH_DIR="$(dirname "$SCRIPT_DIR")"

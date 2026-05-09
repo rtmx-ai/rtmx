@@ -764,3 +764,46 @@ func TestInstallClaudeCode(t *testing.T) {
 		}
 	})
 }
+
+func TestInstallCursor(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-003")
+
+	t.Run("creates_mcp_json", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		// Create .cursorrules so cursor is detected
+		_ = os.WriteFile(filepath.Join(tmpDir, ".cursorrules"), []byte("# cursor rules"), 0644)
+
+		cmd := newTestRootCmd()
+		_, err := executeCommand(cmd, "install", "--agents", "cursor", "--yes")
+		if err != nil {
+			t.Fatalf("install --agents cursor failed: %v", err)
+		}
+
+		mcpPath := filepath.Join(tmpDir, ".cursor", "mcp.json")
+		data, err := os.ReadFile(mcpPath)
+		if err != nil {
+			t.Fatalf("mcp.json not created: %v", err)
+		}
+
+		var mcpConfig map[string]interface{}
+		if err := json.Unmarshal(data, &mcpConfig); err != nil {
+			t.Fatalf("mcp.json is not valid JSON: %v", err)
+		}
+
+		servers, ok := mcpConfig["mcpServers"].(map[string]interface{})
+		if !ok {
+			t.Fatal("mcp.json should have mcpServers object")
+		}
+		rtmxServer, ok := servers["rtmx"].(map[string]interface{})
+		if !ok {
+			t.Fatal("mcp.json should have mcpServers.rtmx")
+		}
+		if rtmxServer["command"] != "rtmx" {
+			t.Errorf("command = %v, want rtmx", rtmxServer["command"])
+		}
+	})
+}
