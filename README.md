@@ -50,12 +50,12 @@ flowchart TD
     E --> F["rtmx status\nTeam sees progress"]
     F -.-> B
 
-    style A fill:#064e3b,stroke:#10b981,color:#fff
-    style B fill:#064e3b,stroke:#10b981,color:#fff
-    style C fill:#1c1917,stroke:#6ee7b7,color:#fff
-    style D fill:#78350f,stroke:#fbbf24,color:#fff
-    style E fill:#064e3b,stroke:#10b981,color:#fff
-    style F fill:#064e3b,stroke:#10b981,color:#fff
+    style A fill:#d1fae5,stroke:#059669,color:#065f46
+    style B fill:#d1fae5,stroke:#059669,color:#065f46
+    style C fill:#e5e7eb,stroke:#6b7280,color:#1f2937
+    style D fill:#fef3c7,stroke:#d97706,color:#92400e
+    style E fill:#d1fae5,stroke:#059669,color:#065f46
+    style F fill:#d1fae5,stroke:#059669,color:#065f46
 ```
 
 An agent runs `rtmx next --one`, gets a specific requirement, writes code
@@ -67,23 +67,23 @@ No human triages, assigns, or updates a ticket.
 ```mermaid
 block-beta
     columns 1
-    block:header["database.csv  --  Pull Request #42"]
+    block:header["database.csv -- Pull Request #42"]
         columns 1
     end
-    block:removed["- REQ-AUTH-003,auth,mfa,TOTP-based MFA,...,missing,,"]
+    block:removed["- REQ-AUTH-003, auth, mfa, TOTP-based MFA, ..., missing"]
         columns 1
     end
-    block:added["+ REQ-AUTH-003,auth,mfa,TOTP-based MFA,...,complete,test_totp_flow,"]
+    block:added["+ REQ-AUTH-003, auth, mfa, TOTP-based MFA, ..., complete, test_totp_flow"]
         columns 1
     end
-    block:context["  REQ-AUTH-004,auth,session,Session timeout,...,partial,,"]
+    block:context["  REQ-AUTH-004, auth, session, Session timeout, ..., partial"]
         columns 1
     end
 
-    style header fill:#1c1917,stroke:#404040,color:#9ca3af
-    style removed fill:#450a0a,stroke:#dc2626,color:#fca5a5
-    style added fill:#052e16,stroke:#16a34a,color:#86efac
-    style context fill:#1c1917,stroke:#404040,color:#9ca3af
+    style header fill:#e5e7eb,stroke:#6b7280,color:#111827
+    style removed fill:#fee2e2,stroke:#ef4444,color:#7f1d1d
+    style added fill:#dcfce7,stroke:#22c55e,color:#14532d
+    style context fill:#f3f4f6,stroke:#d1d5db,color:#374151
 ```
 
 - **Human-readable diffs** in PRs -- one row changed, one requirement done
@@ -97,12 +97,14 @@ block-beta
 ```mermaid
 flowchart LR
     subgraph agents["AI Agents"]
+        direction TB
         A1["Claude Code"]
         A2["Cursor"]
         A3["Custom Agent"]
     end
 
     subgraph mcp["rtmx mcp-server"]
+        direction TB
         T1["status"]
         T2["backlog"]
         T3["next"]
@@ -113,6 +115,7 @@ flowchart LR
     end
 
     subgraph repo["Git Repository"]
+        direction TB
         DB[".rtmx/database.csv"]
         Tests["Test files"]
     end
@@ -123,14 +126,14 @@ flowchart LR
     mcp --> DB
     mcp --> Tests
 
-    style agents fill:#1c1917,stroke:#6ee7b7,color:#fff
-    style mcp fill:#064e3b,stroke:#10b981,color:#fff
-    style repo fill:#1c1917,stroke:#404040,color:#fff
-    style A1 fill:#1c1917,stroke:#6ee7b7,color:#fff
-    style A2 fill:#1c1917,stroke:#6ee7b7,color:#fff
-    style A3 fill:#1c1917,stroke:#6ee7b7,color:#fff
-    style DB fill:#064e3b,stroke:#10b981,color:#fff
-    style Tests fill:#064e3b,stroke:#10b981,color:#fff
+    style agents fill:#f0fdf4,stroke:#059669,color:#065f46
+    style mcp fill:#d1fae5,stroke:#10b981,color:#065f46
+    style repo fill:#f3f4f6,stroke:#6b7280,color:#111827
+    style A1 fill:#f0fdf4,stroke:#059669,color:#065f46
+    style A2 fill:#f0fdf4,stroke:#059669,color:#065f46
+    style A3 fill:#f0fdf4,stroke:#059669,color:#065f46
+    style DB fill:#d1fae5,stroke:#10b981,color:#065f46
+    style Tests fill:#d1fae5,stroke:#10b981,color:#065f46
 ```
 
 7 read-only tools plus mutation tools with agent authorization and atomic
@@ -165,11 +168,11 @@ and testing instructions.
 
 ### Migrating from Python CLI
 
-> **Deprecation Notice:** The Python `rtmx` CLI (`pip install rtmx`) is deprecated
-> and will reach end-of-life on 2026-09-25.
+> **Deprecation Notice:** The Python `rtmx` CLI is deprecated and will reach
+> end-of-life on 2026-09-25. Run `pip uninstall rtmx` and switch to the Go
+> binary above.
 
-Install the Go CLI, verify with `rtmx status`, then `pip uninstall rtmx`.
-Full migration guide: [docs/MIGRATION.md](docs/MIGRATION.md).
+See [docs/MIGRATION.md](docs/MIGRATION.md) for full migration steps.
 
 ## Support
 
