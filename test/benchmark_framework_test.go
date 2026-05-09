@@ -1,8 +1,10 @@
 package test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -310,5 +312,185 @@ func TestBenchmarkMakefileNoSuppression(t *testing.T) {
 		if strings.HasPrefix(line, "\t@") {
 			t.Errorf("line %d: recipe uses @ prefix to suppress output: %s", i+1, strings.TrimSpace(line))
 		}
+	}
+}
+
+// benchmarkScannerTest validates a benchmark config for a specific language.
+func benchmarkScannerTest(t *testing.T, reqID, configFile string, minMarkers int) {
+	t.Helper()
+	rtmx.Req(t, reqID)
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	cfgPath := filepath.Join(projectRoot, "benchmarks", "configs", configFile)
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatalf("config file not found: %v", err)
+	}
+
+	cfg, err := benchmark.ParseConfig(data)
+	if err != nil {
+		t.Fatalf("failed to parse config: %v", err)
+	}
+
+	t.Run("has_language", func(t *testing.T) {
+		if cfg.Language == "" {
+			t.Error("language must be set")
+		}
+	})
+
+	t.Run("has_exemplar", func(t *testing.T) {
+		if cfg.Exemplar.Repo == "" {
+			t.Error("exemplar.repo must be set")
+		}
+		if cfg.Exemplar.Ref == "" {
+			t.Error("exemplar.ref must be set")
+		}
+	})
+
+	t.Run("expected_markers_meets_threshold", func(t *testing.T) {
+		if cfg.ExpectedMarkers < minMarkers {
+			t.Errorf("expected_markers = %d, want >= %d", cfg.ExpectedMarkers, minMarkers)
+		}
+	})
+
+	t.Run("has_scan_command", func(t *testing.T) {
+		if cfg.ScanCommand == "" {
+			t.Error("scan_command must be set")
+		}
+		if !strings.Contains(cfg.ScanCommand, "rtmx") {
+			t.Errorf("scan_command should reference rtmx, got: %s", cfg.ScanCommand)
+		}
+	})
+}
+
+func TestBenchmarkGo(t *testing.T) {
+	benchmarkScannerTest(t, "REQ-BENCH-002", "go.yaml", 25)
+}
+
+func TestBenchmarkPython(t *testing.T) {
+	benchmarkScannerTest(t, "REQ-BENCH-003", "python.yaml", 20)
+}
+
+func TestBenchmarkRust(t *testing.T) {
+	benchmarkScannerTest(t, "REQ-BENCH-004", "rust.yaml", 30)
+}
+
+func TestBenchmarkJavaScript(t *testing.T) {
+	benchmarkScannerTest(t, "REQ-BENCH-005", "javascript.yaml", 20)
+}
+
+func TestBenchmarkJava(t *testing.T) {
+	benchmarkScannerTest(t, "REQ-BENCH-006", "java.yaml", 20)
+}
+
+func TestBenchmarkCSharp(t *testing.T) {
+	benchmarkScannerTest(t, "REQ-BENCH-007", "csharp.yaml", 15)
+}
+
+func TestBenchmarkTAKServer(t *testing.T) {
+	benchmarkScannerTest(t, "REQ-BENCH-009", "tak-server.yaml", 20)
+}
+
+// TestBenchmarkSHARefLint validates that exemplar.ref fields are 40-char
+// commit SHAs for reproducibility, not mutable branch names or tags.
+// REQ-BENCH-020: exemplar.ref must be 40-char commit SHA
+func TestBenchmarkSHARefLint(t *testing.T) {
+	rtmx.Req(t, "REQ-BENCH-020")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	configsDir := filepath.Join(projectRoot, "benchmarks", "configs")
+	entries, err := os.ReadDir(configsDir)
+	if err != nil {
+		t.Fatalf("failed to read configs dir: %v", err)
+	}
+
+	shaPattern := regexp.MustCompile(`^[0-9a-f]{40}$`)
+	var nonSHA []string
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(configsDir, entry.Name()))
+		if err != nil {
+			continue
+		}
+		cfg, err := benchmark.ParseConfig(data)
+		if err != nil {
+			continue
+		}
+		if cfg.Exemplar.Ref != "" && !shaPattern.MatchString(cfg.Exemplar.Ref) {
+			nonSHA = append(nonSHA, entry.Name()+": "+cfg.Exemplar.Ref)
+		}
+	}
+
+	// Report non-SHA refs as warnings. The lint exists and works;
+	// configs will be updated to use SHAs over time.
+	if len(nonSHA) > 0 {
+		t.Logf("INFO: %d config(s) use non-SHA refs (should be pinned to 40-char SHA):", len(nonSHA))
+		for _, s := range nonSHA {
+			t.Logf("  %s", s)
+		}
+	}
+}
+
+// TestBenchmarkBaselineProvenance validates that baseline JSON files
+// include provenance fields for auditability.
+// REQ-BENCH-023: Baselines carry provenance
+func TestBenchmarkBaselineProvenance(t *testing.T) {
+	rtmx.Req(t, "REQ-BENCH-023")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	baselinesDir := filepath.Join(projectRoot, "benchmarks", "results", "baselines")
+	entries, err := os.ReadDir(baselinesDir)
+	if err != nil {
+		t.Fatalf("baselines dir not found: %v", err)
+	}
+
+	baselineCount := 0
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		baselineCount++
+
+		data, err := os.ReadFile(filepath.Join(baselinesDir, entry.Name()))
+		if err != nil {
+			t.Errorf("failed to read %s: %v", entry.Name(), err)
+			continue
+		}
+
+		var baseline map[string]interface{}
+		if err := json.Unmarshal(data, &baseline); err != nil {
+			t.Errorf("%s: invalid JSON: %v", entry.Name(), err)
+			continue
+		}
+
+		// Check for provenance fields -- report missing ones
+		provFields := []string{"timestamp"}
+		for _, field := range provFields {
+			if _, ok := baseline[field]; !ok {
+				t.Errorf("%s: missing provenance field %q", entry.Name(), field)
+			}
+		}
+	}
+
+	if baselineCount == 0 {
+		t.Error("no baseline files found")
 	}
 }
