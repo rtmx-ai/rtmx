@@ -80,10 +80,10 @@ block-beta
         columns 1
     end
 
-    style header fill:#e5e7eb,stroke:#6b7280,color:#111827
-    style removed fill:#fee2e2,stroke:#ef4444,color:#7f1d1d
-    style added fill:#dcfce7,stroke:#22c55e,color:#14532d
-    style context fill:#f3f4f6,stroke:#d1d5db,color:#374151
+    style header fill:#d1d5db,stroke:#6b7280,color:#111827
+    style removed fill:#fecaca,stroke:#ef4444,color:#7f1d1d
+    style added fill:#bbf7d0,stroke:#22c55e,color:#14532d
+    style context fill:#e5e7eb,stroke:#9ca3af,color:#111827
 ```
 
 - **Human-readable diffs** in PRs -- one row changed, one requirement done
@@ -112,6 +112,7 @@ flowchart LR
         T5["health"]
         T6["markers"]
         T7["deps"]
+        T1 ~~~ T2 ~~~ T3 ~~~ T4 ~~~ T5 ~~~ T6 ~~~ T7
     end
 
     subgraph repo["Git Repository"]
