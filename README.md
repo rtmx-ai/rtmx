@@ -168,9 +168,11 @@ and testing instructions.
 
 ### Migrating from Python CLI
 
-The Python `rtmx` CLI (`pip install rtmx`) is deprecated and will reach
-end-of-life on 2026-09-25. See [docs/MIGRATION.md](docs/MIGRATION.md)
-for migration steps.
+> **Deprecation Notice:** The Python `rtmx` CLI is deprecated and will reach
+> end-of-life on 2026-09-25. Run `pip uninstall rtmx` and switch to the Go
+> binary above.
+
+See [docs/MIGRATION.md](docs/MIGRATION.md) for full migration steps.
 
 ## Support
 
