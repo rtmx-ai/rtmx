@@ -262,11 +262,8 @@ func displaySummaryStatus(cmd *cobra.Command, db *database.Database, cfg *config
 	cmd.Println(output.Header("RTM Status Check", width))
 	cmd.Println()
 
-	// Progress bar - scale to terminal width with room for label and percentage
-	barWidth := width - 20 // "Requirements: " (14) + "  " (2) + percent (~6)
-	if barWidth < 20 {
-		barWidth = 20
-	}
+	// Progress bar capped at MaxBarWidth for visual consistency
+	barWidth := output.ClampBarWidth(width - 20)
 	pct := db.CompletionPercentage()
 	cmd.Printf("Requirements: %s  %s\n", output.ProgressBar(pct, barWidth), output.FormatPercent(pct))
 	cmd.Println()
@@ -334,11 +331,8 @@ func displayCategoryStatus(cmd *cobra.Command, db *database.Database, cfg *confi
 	cmd.Println(output.Header("RTM Status Check", width))
 	cmd.Println()
 
-	// Progress bar
-	barWidth := width - 20
-	if barWidth < 20 {
-		barWidth = 20
-	}
+	// Progress bar capped at MaxBarWidth
+	barWidth := output.ClampBarWidth(width - 20)
 	pct := db.CompletionPercentage()
 	cmd.Printf("Requirements: %s  %s\n", output.ProgressBar(pct, barWidth), output.FormatPercent(pct))
 	cmd.Println()
@@ -439,10 +433,7 @@ func displayPhaseStatus(cmd *cobra.Command, db *database.Database, cfg *config.C
 
 		// Scale category progress bar to terminal width
 		// "  " + cat(12) + ": " + bar + " " + pct(6) + " (" + N + " reqs)"
-		catBarWidth := width - 40
-		if catBarWidth < 10 {
-			catBarWidth = 10
-		}
+		catBarWidth := output.ClampBarWidth(width - 40)
 
 		for _, cat := range cats {
 			reqs := catMap[cat]
@@ -466,12 +457,9 @@ func displayDetailedStatus(cmd *cobra.Command, db *database.Database, cfg *confi
 	cmd.Println()
 
 	// Overall summary first - scale bar to terminal width
-	overallBarWidth := width - 35 // "Overall: " (9) + "  " (2) + pct (6) + " (NNN requirements)" (~18)
-	if overallBarWidth < 20 {
-		overallBarWidth = 20
-	}
+	overallBarWidth := output.ClampBarWidth(width - 35)
 	pct := db.CompletionPercentage()
-	cmd.Printf("Overall: %s  %s (%d requirements)\n",
+	cmd.Printf("Overall: %s  %s  (%d requirements)\n",
 		output.ProgressBar(pct, overallBarWidth), output.FormatPercent(pct), db.Len())
 	cmd.Println()
 
@@ -552,22 +540,16 @@ func displayVersionStatus(cmd *cobra.Command, db *database.Database, _ *config.C
 	cmd.Println()
 
 	// Overall summary
-	overallBarWidth := width - 35
-	if overallBarWidth < 20 {
-		overallBarWidth = 20
-	}
+	overallBarWidth := output.ClampBarWidth(width - 35)
 	pct := db.CompletionPercentage()
-	cmd.Printf("Overall: %s  %s (%d requirements)\n",
+	cmd.Printf("Overall: %s  %s  (%d requirements)\n",
 		output.ProgressBar(pct, overallBarWidth), output.FormatPercent(pct), db.Len())
 	cmd.Println()
 
 	byVersion := db.ByVersion()
 	versions := db.Versions()
 
-	barWidth := width - 40
-	if barWidth < 20 {
-		barWidth = 20
-	}
+	barWidth := output.ClampBarWidth(width - 40)
 
 	for _, ver := range versions {
 		reqs := byVersion[ver]

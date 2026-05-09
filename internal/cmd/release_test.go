@@ -42,7 +42,13 @@ func createReleaseTestCmd() *cobra.Command {
 	}
 	unassign.Flags().BoolVar(&releaseDryRun, "dry-run", false, "")
 
-	rel.AddCommand(gate, assign, unassign)
+	scope := &cobra.Command{
+		Use:  "scope",
+		Args: cobra.ExactArgs(1),
+		RunE: runReleaseScope,
+	}
+
+	rel.AddCommand(gate, assign, unassign, scope)
 	root.AddCommand(rel)
 	root.PersistentFlags().BoolVar(&noColor, "no-color", true, "")
 	return root
@@ -423,4 +429,64 @@ func initGitWithTag(t *testing.T, dir, tag string) {
 			t.Fatalf("git command %v failed: %v\n%s", args, err, out)
 		}
 	}
+}
+
+func TestReleaseScope(t *testing.T) {
+	rtmx.Req(t, "REQ-PLAN-006")
+
+	dbContent := testDBHeader +
+		"REQ-001,CLI,Commands,Feature one,Pass,mod,TestA,Unit Test,COMPLETE,HIGH,1,,1.0,,,,v0.4.0,,,,\n" +
+		"REQ-002,CLI,Commands,Feature two,Pass,mod,TestB,Unit Test,MISSING,HIGH,1,,2.0,,,,v0.4.0,,,,\n" +
+		"REQ-003,DATA,Config,Feature three,Pass,mod,TestC,Unit Test,MISSING,P0,1,,0.5,REQ-001,,,v0.4.0,,,,\n"
+
+	t.Run("shows_scope_summary", func(t *testing.T) {
+		tmpDir := setupReleaseTestProject(t, dbContent)
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := createReleaseTestCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"release", "scope", "v0.4.0", "--no-color"})
+
+		err := cmd.Execute()
+		if err != nil {
+			t.Fatalf("release scope failed: %v\nOutput: %s", err, buf.String())
+		}
+
+		out := buf.String()
+		if !strings.Contains(out, "v0.4.0") {
+			t.Errorf("expected version in output, got:\n%s", out)
+		}
+		if !strings.Contains(out, "3") { // 3 total requirements
+			t.Errorf("expected requirement count, got:\n%s", out)
+		}
+		if !strings.Contains(out, "Complete") {
+			t.Errorf("expected Complete label, got:\n%s", out)
+		}
+		if !strings.Contains(out, "Remaining") || !strings.Contains(out, "effort") {
+			t.Errorf("expected effort info, got:\n%s", out)
+		}
+	})
+
+	t.Run("empty_version", func(t *testing.T) {
+		tmpDir := setupReleaseTestProject(t, dbContent)
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := createReleaseTestCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"release", "scope", "v9.9.9", "--no-color"})
+
+		err := cmd.Execute()
+		if err != nil {
+			t.Fatalf("release scope empty should not error: %v", err)
+		}
+		if !strings.Contains(buf.String(), "No requirements") {
+			t.Errorf("expected 'No requirements' message, got:\n%s", buf.String())
+		}
+	})
 }

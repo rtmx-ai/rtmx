@@ -285,3 +285,30 @@ func TestBenchmarkConfigValidation(t *testing.T) {
 		}
 	})
 }
+
+// TestBenchmarkMakefileNoSuppression validates that the benchmarks Makefile
+// does not suppress script invocations with @ prefix.
+// REQ-BENCH-011: Makefile shall not suppress script invocation
+func TestBenchmarkMakefileNoSuppression(t *testing.T) {
+	rtmx.Req(t, "REQ-BENCH-011")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	makefilePath := filepath.Join(projectRoot, "benchmarks", "Makefile")
+	content, err := os.ReadFile(makefilePath)
+	if err != nil {
+		t.Fatalf("benchmarks/Makefile not found: %v", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	for i, line := range lines {
+		// Recipe lines start with a tab
+		if strings.HasPrefix(line, "\t@") {
+			t.Errorf("line %d: recipe uses @ prefix to suppress output: %s", i+1, strings.TrimSpace(line))
+		}
+	}
+}
