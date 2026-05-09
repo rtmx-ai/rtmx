@@ -4,6 +4,13 @@ on:
   schedule:
     - cron: '0 4 * * *'  # 04:00 UTC daily
   workflow_dispatch: {}
+  # REQ-BENCH-016: PR-level smoke benchmark on relevant paths
+  pull_request:
+    paths:
+      - 'benchmarks/**'
+      - 'internal/cmd/from_tests*'
+      - 'internal/cmd/from_go*'
+      - 'pkg/rtmx/**'
 
 permissions:
   contents: read
@@ -65,18 +72,46 @@ jobs:
           path: benchmarks/results/
           retention-days: 90
 
-      - name: Create issue on regression
+      # REQ-BENCH-017: Distinguish infra failure from benchmark regression
+      - name: Classify failure
+        id: classify
         if: failure()
+        run: |
+          LANG="${{ matrix.language }}"
+          RESULT="benchmarks/results/${LANG}.json"
+          if [ -f "$RESULT" ]; then
+            echo "type=regression" >> "$GITHUB_OUTPUT"
+          else
+            echo "type=infra" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create issue on failure
+        if: failure() && github.event_name == 'schedule'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const lang = '${{ matrix.language }}';
-            const title = `Benchmark regression: ${lang}`;
-            const body = `Nightly benchmark for **${lang}** detected a regression.\n\nSee [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for details.`;
+            const failType = '${{ steps.classify.outputs.type }}';
+            const isInfra = failType === 'infra';
+            const title = isInfra
+              ? `Benchmark infra failure: ${lang}`
+              : `Benchmark regression: ${lang}`;
+            const labels = isInfra
+              ? ['benchmark', 'infra']
+              : ['benchmark', 'regression'];
+            const body = [
+              `**Type:** ${isInfra ? 'Infrastructure failure' : 'Benchmark regression'}`,
+              `**Language:** ${lang}`,
+              `**Run:** [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              '',
+              isInfra
+                ? 'No results file was produced. Likely a clone, build, or network failure.'
+                : 'Results file exists but comparison to baseline detected a regression.',
+            ].join('\n');
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: title,
-              body: body,
-              labels: ['benchmark', 'regression']
+              title,
+              body,
+              labels,
             });

@@ -575,3 +575,125 @@ func TestBenchmarkStepSummary(t *testing.T) {
 		t.Error("benchmark.yml must have a step summary step")
 	}
 }
+
+// TestBenchmarkInfraVsRegression validates that the workflow distinguishes
+// infrastructure failures from benchmark regressions.
+// REQ-BENCH-017: Workflow distinguishes infra failure from regression
+func TestBenchmarkInfraVsRegression(t *testing.T) {
+	rtmx.Req(t, "REQ-BENCH-017")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	wfPath := filepath.Join(projectRoot, ".github", "workflows", "benchmark.yml")
+	content, err := os.ReadFile(wfPath)
+	if err != nil {
+		t.Fatalf("benchmark workflow not found: %v", err)
+	}
+	src := string(content)
+
+	if !strings.Contains(src, "classify") || !strings.Contains(src, "Classify failure") {
+		t.Error("workflow must have a failure classification step")
+	}
+	if !strings.Contains(src, "infra") {
+		t.Error("workflow must distinguish infra failures")
+	}
+	if !strings.Contains(src, "regression") {
+		t.Error("workflow must distinguish regression failures")
+	}
+}
+
+// TestBenchmarkPRSmoke validates that benchmarks run on PRs touching
+// relevant paths.
+// REQ-BENCH-016: PR-level smoke benchmark
+func TestBenchmarkPRSmoke(t *testing.T) {
+	rtmx.Req(t, "REQ-BENCH-016")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	wfPath := filepath.Join(projectRoot, ".github", "workflows", "benchmark.yml")
+	content, err := os.ReadFile(wfPath)
+	if err != nil {
+		t.Fatalf("benchmark workflow not found: %v", err)
+	}
+	src := string(content)
+
+	if !strings.Contains(src, "pull_request") {
+		t.Error("workflow must trigger on pull_request")
+	}
+	if !strings.Contains(src, "benchmarks/**") {
+		t.Error("workflow must filter on benchmarks/** path")
+	}
+	if !strings.Contains(src, "from_tests") {
+		t.Error("workflow must filter on from_tests path changes")
+	}
+}
+
+// TestBenchmarkCloneRetry validates that run-benchmark.sh retries clone
+// on failure with backoff.
+// REQ-BENCH-022: Clone and setup retry
+func TestBenchmarkCloneRetry(t *testing.T) {
+	rtmx.Req(t, "REQ-BENCH-022")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	scriptPath := filepath.Join(projectRoot, "benchmarks", "scripts", "run-benchmark.sh")
+	content, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatalf("script not found: %v", err)
+	}
+	src := string(content)
+
+	if !strings.Contains(src, "attempt") && !strings.Contains(src, "retry") {
+		t.Error("run-benchmark.sh must implement clone retry")
+	}
+	if !strings.Contains(src, "sleep") {
+		t.Error("run-benchmark.sh must implement backoff between retries")
+	}
+	if !strings.Contains(src, "network-failure") {
+		t.Error("run-benchmark.sh must record network-failure on exhausted retries")
+	}
+}
+
+// TestBenchmarkBlessWorkflow validates the dispatchable bless workflow exists.
+// REQ-BENCH-024: Dispatchable benchmarks-bless workflow
+func TestBenchmarkBlessWorkflow(t *testing.T) {
+	rtmx.Req(t, "REQ-BENCH-024")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	wfPath := filepath.Join(projectRoot, ".github", "workflows", "benchmark-bless.yml")
+	content, err := os.ReadFile(wfPath)
+	if err != nil {
+		t.Fatalf("benchmark-bless.yml not found: %v", err)
+	}
+	src := string(content)
+
+	if !strings.Contains(src, "workflow_dispatch") {
+		t.Error("bless workflow must be dispatchable")
+	}
+	if !strings.Contains(src, "provenance") {
+		t.Error("bless workflow must add provenance fields")
+	}
+	if !strings.Contains(src, "source_run_id") {
+		t.Error("bless workflow must include source_run_id provenance")
+	}
+	if !strings.Contains(src, "rtmx_version") {
+		t.Error("bless workflow must include rtmx_version provenance")
+	}
+}
