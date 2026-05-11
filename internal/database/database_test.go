@@ -253,6 +253,83 @@ func TestDatabaseFilter(t *testing.T) {
 	}
 }
 
+func TestFilterByVersion(t *testing.T) {
+	rtmx.Req(t, "REQ-PLAN-003")
+
+	db := NewDatabase()
+
+	r1 := NewRequirement("REQ-001")
+	r1.SetTargetVersion("v0.3.0")
+	r1.Status = StatusComplete
+	_ = db.Add(r1)
+
+	r2 := NewRequirement("REQ-002")
+	r2.SetTargetVersion("v0.3.0")
+	r2.Status = StatusMissing
+	_ = db.Add(r2)
+
+	r3 := NewRequirement("REQ-003")
+	r3.SetTargetVersion("v0.4.0")
+	r3.Status = StatusComplete
+	_ = db.Add(r3)
+
+	r4 := NewRequirement("REQ-004")
+	// No version assigned
+	r4.Status = StatusComplete
+	_ = db.Add(r4)
+
+	t.Run("filter_by_version", func(t *testing.T) {
+		filtered := db.Filter(FilterOptions{TargetVersion: "v0.3.0"})
+		if len(filtered) != 2 {
+			t.Fatalf("Filter by v0.3.0: got %d, want 2", len(filtered))
+		}
+		ids := map[string]bool{}
+		for _, r := range filtered {
+			ids[r.ReqID] = true
+		}
+		if !ids["REQ-001"] || !ids["REQ-002"] {
+			t.Errorf("expected REQ-001 and REQ-002, got %v", ids)
+		}
+	})
+
+	t.Run("filter_by_different_version", func(t *testing.T) {
+		filtered := db.Filter(FilterOptions{TargetVersion: "v0.4.0"})
+		if len(filtered) != 1 {
+			t.Fatalf("Filter by v0.4.0: got %d, want 1", len(filtered))
+		}
+		if filtered[0].ReqID != "REQ-003" {
+			t.Errorf("expected REQ-003, got %s", filtered[0].ReqID)
+		}
+	})
+
+	t.Run("filter_nonexistent_version", func(t *testing.T) {
+		filtered := db.Filter(FilterOptions{TargetVersion: "v9.9.9"})
+		if len(filtered) != 0 {
+			t.Errorf("Filter by nonexistent version: got %d, want 0", len(filtered))
+		}
+	})
+
+	t.Run("versions_list", func(t *testing.T) {
+		versions := db.Versions()
+		if len(versions) != 2 {
+			t.Fatalf("Versions: got %d, want 2", len(versions))
+		}
+	})
+
+	t.Run("by_version_grouping", func(t *testing.T) {
+		grouped := db.ByVersion()
+		if len(grouped["v0.3.0"]) != 2 {
+			t.Errorf("ByVersion[v0.3.0]: got %d, want 2", len(grouped["v0.3.0"]))
+		}
+		if len(grouped["v0.4.0"]) != 1 {
+			t.Errorf("ByVersion[v0.4.0]: got %d, want 1", len(grouped["v0.4.0"]))
+		}
+		if len(grouped[""]) != 1 {
+			t.Errorf("ByVersion[\"\"]: got %d, want 1", len(grouped[""]))
+		}
+	})
+}
+
 func TestCSVRoundTrip(t *testing.T) {
 	// Create a database
 	db := NewDatabase()

@@ -72,6 +72,17 @@ validate_required "exemplar.ref" "$REF"
 validate_required "expected_markers" "$EXPECTED_MARKERS"
 validate_required "scan_command" "$SCAN_COMMAND"
 
+# REQ-BENCH-015: --dry-run validates config without cloning
+if [ "${3:-}" = "--dry-run" ]; then
+    echo "DRY RUN: config ${CONFIG} validated successfully"
+    echo "  language:         ${LANGUAGE}"
+    echo "  exemplar.repo:    ${REPO}"
+    echo "  exemplar.ref:     ${REF}"
+    echo "  expected_markers: ${EXPECTED_MARKERS}"
+    echo "  scan_command:     ${SCAN_COMMAND}"
+    exit 0
+fi
+
 WORKDIR="workdir/${LANGUAGE}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BENCH_DIR="$(dirname "$SCRIPT_DIR")"
@@ -93,13 +104,27 @@ echo "Benchmark: ${LANGUAGE}"
 echo "  Exemplar: ${REPO} @ ${REF}"
 echo "  Expected markers: ${EXPECTED_MARKERS}"
 
-# Step 1: Clone at pinned ref
+# Step 1: Clone at pinned ref (REQ-BENCH-022: retry up to 2 times with backoff)
 rm -rf "$WORKDIR"
 mkdir -p "$WORKDIR"
 echo "  Cloning ${REPO}..."
-git clone --depth "${CLONE_DEPTH}" --branch "${REF}" "https://github.com/${REPO}.git" "$WORKDIR" 2>/dev/null || \
-git clone --depth "${CLONE_DEPTH}" "https://github.com/${REPO}.git" "$WORKDIR" 2>/dev/null && \
-    git -C "$WORKDIR" checkout "${REF}" 2>/dev/null
+CLONE_OK=0
+for attempt in 1 2 3; do
+    if git clone --depth "${CLONE_DEPTH}" --branch "${REF}" "https://github.com/${REPO}.git" "$WORKDIR" 2>/dev/null || \
+       (git clone --depth "${CLONE_DEPTH}" "https://github.com/${REPO}.git" "$WORKDIR" 2>/dev/null && \
+        git -C "$WORKDIR" checkout "${REF}" 2>/dev/null); then
+        CLONE_OK=1
+        break
+    fi
+    echo "  Clone attempt ${attempt} failed, retrying in $((attempt * 5))s..."
+    rm -rf "$WORKDIR"
+    mkdir -p "$WORKDIR"
+    sleep $((attempt * 5))
+done
+if [ "$CLONE_OK" -eq 0 ]; then
+    echo "ERROR: Failed to clone ${REPO} after 3 attempts (network-failure)" >&2
+    exit 2
+fi
 
 # Step 2: Apply marker patch (if specified and exists)
 if [ -n "${MARKER_PATCH}" ] && [ -f "${BENCH_DIR}/${MARKER_PATCH}" ]; then

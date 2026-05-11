@@ -86,6 +86,86 @@ func TestCompareResults(t *testing.T) {
 	}
 }
 
+func TestSyncRegression(t *testing.T) {
+	tests := []struct {
+		name       string
+		baseline   BenchmarkResult
+		current    BenchmarkResult
+		wantCount  int
+		wantFields []string
+	}{
+		{
+			name: "sync_items_dropped",
+			baseline: BenchmarkResult{
+				Language: "go", MarkerCount: 25, SyncService: "github",
+				SyncItemsFound: 50, SyncStatus: "pass",
+			},
+			current: BenchmarkResult{
+				Language: "go", MarkerCount: 25, SyncService: "github",
+				SyncItemsFound: 30, SyncStatus: "pass",
+			},
+			wantCount:  1,
+			wantFields: []string{"sync_items_found"},
+		},
+		{
+			name: "sync_status_regression",
+			baseline: BenchmarkResult{
+				Language: "go", MarkerCount: 25, SyncService: "github",
+				SyncItemsFound: 50, SyncStatus: "pass",
+			},
+			current: BenchmarkResult{
+				Language: "go", MarkerCount: 25, SyncService: "github",
+				SyncItemsFound: 50, SyncStatus: "fail",
+			},
+			wantCount:  1,
+			wantFields: []string{"sync_status"},
+		},
+		{
+			name: "no_sync_no_regression",
+			baseline: BenchmarkResult{
+				Language: "go", MarkerCount: 25,
+			},
+			current: BenchmarkResult{
+				Language: "go", MarkerCount: 25,
+			},
+			wantCount: 0,
+		},
+		{
+			name: "sync_items_improved",
+			baseline: BenchmarkResult{
+				Language: "go", MarkerCount: 25, SyncService: "github",
+				SyncItemsFound: 30, SyncStatus: "pass",
+			},
+			current: BenchmarkResult{
+				Language: "go", MarkerCount: 25, SyncService: "github",
+				SyncItemsFound: 50, SyncStatus: "pass",
+			},
+			wantCount: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			report := CompareResults(tt.baseline, tt.current)
+			if len(report.Regressions) != tt.wantCount {
+				t.Errorf("got %d regressions, want %d: %+v", len(report.Regressions), tt.wantCount, report.Regressions)
+			}
+			for _, wantField := range tt.wantFields {
+				found := false
+				for _, r := range report.Regressions {
+					if r.Field == wantField {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected regression on field %q not found", wantField)
+				}
+			}
+		})
+	}
+}
+
 func TestRegressionReportHasRegressions(t *testing.T) {
 	t.Run("no regressions", func(t *testing.T) {
 		report := RegressionReport{Language: "go"}

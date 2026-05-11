@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/database"
@@ -29,10 +30,11 @@ Examples:
 }
 
 var (
-	releaseGateVerify   bool
-	releaseGateJSON     bool
-	releaseAllowBreak   bool
-	releaseDryRun       bool
+	releaseGateVerify    bool
+	releaseGateJSON      bool
+	releaseAllowBreak    bool
+	releaseDryRun        bool
+	releaseForecastJSON  bool
 )
 
 var releaseGateCmd = &cobra.Command{
@@ -72,6 +74,20 @@ var releaseUnassignCmd = &cobra.Command{
 	RunE:  runReleaseUnassign,
 }
 
+var releaseForecastCmd = &cobra.Command{
+	Use:   "forecast <version>",
+	Short: "Project completion date based on velocity",
+	Long: `Project a completion date for a release version based on historical
+velocity and remaining effort. Remaining effort is the sum of effort_weeks
+for incomplete requirements assigned to the version.
+
+Examples:
+    rtmx release forecast v0.4.0
+    rtmx release forecast v0.4.0 --json`,
+	Args: cobra.ExactArgs(1),
+	RunE: runReleaseForecast,
+}
+
 func init() {
 	releaseGateCmd.Flags().BoolVar(&releaseGateVerify, "verify", false, "run test verification before gate check")
 	releaseGateCmd.Flags().BoolVar(&releaseGateJSON, "json", false, "output as JSON")
@@ -79,10 +95,13 @@ func init() {
 	releaseAssignCmd.Flags().BoolVar(&releaseDryRun, "dry-run", false, "preview changes without writing")
 	releaseUnassignCmd.Flags().BoolVar(&releaseDryRun, "dry-run", false, "preview changes without writing")
 
+	releaseForecastCmd.Flags().BoolVar(&releaseForecastJSON, "json", false, "output as JSON")
+
 	releaseCmd.AddCommand(releaseGateCmd)
 	releaseCmd.AddCommand(releaseScopeCmd)
 	releaseCmd.AddCommand(releaseAssignCmd)
 	releaseCmd.AddCommand(releaseUnassignCmd)
+	releaseCmd.AddCommand(releaseForecastCmd)
 	rootCmd.AddCommand(releaseCmd)
 }
 
@@ -559,6 +578,120 @@ func runReleaseUnassign(cmd *cobra.Command, args []string) error {
 	} else if releaseDryRun {
 		cmd.Printf("\nDry run: %d requirement(s) would be unassigned\n", updated)
 	}
+
+	return nil
+}
+
+// ForecastResult holds the result of a release forecast.
+type ForecastResult struct {
+	Version          string  `json:"version"`
+	RemainingEffort  float64 `json:"remaining_effort_weeks"`
+	Velocity         float64 `json:"velocity"`
+	ProjectedWeeks   float64 `json:"projected_weeks"`
+	ProjectedDate    string  `json:"projected_date"`
+	Confidence       string  `json:"confidence"`
+	UnmeasuredCount  int     `json:"unmeasured_count,omitempty"`
+	InsufficientData bool    `json:"insufficient_data,omitempty"`
+}
+
+func runReleaseForecast(cmd *cobra.Command, args []string) error {
+	if noColor {
+		output.DisableColor()
+	}
+
+	ver := args[0]
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+
+	db, _, err := loadDB(cwd)
+	if err != nil {
+		return err
+	}
+
+	versionReqs := db.Filter(database.FilterOptions{TargetVersion: ver})
+	if len(versionReqs) == 0 {
+		if releaseForecastJSON {
+			result := ForecastResult{Version: ver, InsufficientData: true}
+			data, _ := json.MarshalIndent(result, "", "  ")
+			cmd.Println(string(data))
+		} else {
+			cmd.Printf("No requirements assigned to version %s\n", ver)
+		}
+		return nil
+	}
+
+	// Compute remaining effort and unmeasured count
+	var remainingEffort float64
+	var unmeasured int
+	for _, req := range versionReqs {
+		if req.Status != database.StatusComplete {
+			if req.EffortWeeks > 0 {
+				remainingEffort += req.EffortWeeks
+			} else {
+				unmeasured++
+			}
+		}
+	}
+
+	// Get velocity from all requirements
+	velocity := ComputeVelocity(db.All(), 0)
+
+	result := ForecastResult{
+		Version:         ver,
+		RemainingEffort: remainingEffort,
+		UnmeasuredCount: unmeasured,
+	}
+
+	if velocity.InsufficientData || velocity.Velocity <= 0 {
+		result.InsufficientData = true
+		result.Confidence = "none"
+	} else {
+		result.Velocity = velocity.Velocity
+		result.ProjectedWeeks = remainingEffort / velocity.Velocity
+		projected := time.Now().AddDate(0, 0, int(result.ProjectedWeeks*7))
+		result.ProjectedDate = projected.Format("2006-01-02")
+
+		// Confidence qualifier
+		switch {
+		case velocity.CompletedCount >= 20 && unmeasured == 0:
+			result.Confidence = "high"
+		case velocity.CompletedCount >= 5:
+			result.Confidence = "medium"
+		default:
+			result.Confidence = "low"
+		}
+	}
+
+	if releaseForecastJSON {
+		data, _ := json.MarshalIndent(result, "", "  ")
+		cmd.Println(string(data))
+		return nil
+	}
+
+	width := 60
+	cmd.Println(output.Header(fmt.Sprintf("Release Forecast: %s", ver), width))
+	cmd.Println()
+
+	if result.InsufficientData {
+		cmd.Println("  Insufficient velocity data for reliable forecast.")
+		cmd.Println("  Requirements need both effort_weeks and completed_date.")
+	} else {
+		cmd.Printf("  Remaining effort:    %.1f weeks\n", result.RemainingEffort)
+		cmd.Printf("  Velocity:            %.2f effort-weeks/calendar-week\n", result.Velocity)
+		cmd.Printf("  Projected weeks:     %.1f\n", result.ProjectedWeeks)
+		cmd.Printf("  Projected date:      %s\n",
+			output.Color(result.ProjectedDate, output.Green))
+		cmd.Printf("  Confidence:          %s\n", result.Confidence)
+	}
+
+	if result.UnmeasuredCount > 0 {
+		cmd.Println()
+		cmd.Printf("  %s %d requirement(s) without effort_weeks (unmeasured scope)\n",
+			output.Color("!", output.Yellow), result.UnmeasuredCount)
+	}
+	cmd.Println()
 
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/database"
 	"github.com/rtmx-ai/rtmx/internal/output"
+	"github.com/rtmx-ai/rtmx/internal/schema"
 	"github.com/spf13/cobra"
 )
 
@@ -110,7 +111,7 @@ func runHealth(cmd *cobra.Command, args []string) error {
 	}
 
 	// Run health checks
-	result := runHealthChecks(db)
+	result := runHealthChecks(db, cfg)
 
 	// Output
 	if healthJSON {
@@ -119,7 +120,7 @@ func runHealth(cmd *cobra.Command, args []string) error {
 	return outputHealthText(cmd, result)
 }
 
-func runHealthChecks(db *database.Database) *HealthResult {
+func runHealthChecks(db *database.Database, cfg *config.Config) *HealthResult {
 	result := &HealthResult{
 		Checks: make([]HealthCheck, 0),
 	}
@@ -242,6 +243,9 @@ func runHealthChecks(db *database.Database) *HealthResult {
 	// Check 6: Status consistency (REQ-GO-074)
 	// Detect COMPLETE requirements that depend on MISSING or PARTIAL dependencies
 	checkStatusConsistency(db, result)
+
+	// Check 7: Schema conformance (REQ-PLUGIN-053)
+	checkSchemaConformance(db, cfg, result)
 
 	// Calculate summary
 	for _, check := range result.Checks {
@@ -394,6 +398,45 @@ func checkStatusConsistency(db *database.Database, result *HealthResult) {
 			Name:    "status_consistency",
 			Status:  CheckPass,
 			Message: "No status consistency issues",
+		})
+	}
+}
+
+func checkSchemaConformance(db *database.Database, cfg *config.Config, result *HealthResult) {
+	schemaName := cfg.RTMX.Schema
+	s, err := schema.ForConfig(schemaName)
+	if err != nil {
+		result.Checks = append(result.Checks, HealthCheck{
+			Name:    "schema_conformance",
+			Status:  CheckWarn,
+			Message: fmt.Sprintf("Schema check skipped: %v", err),
+		})
+		return
+	}
+
+	// Validate header
+	header := db.Header()
+	missing, extra := s.ValidateHeader(header)
+
+	if len(missing) == 0 && len(extra) == 0 {
+		result.Checks = append(result.Checks, HealthCheck{
+			Name:    "schema_conformance",
+			Status:  CheckPass,
+			Message: fmt.Sprintf("Database conforms to %q schema (%d columns)", s.Name, len(s.Columns)),
+		})
+	} else if len(missing) > 0 {
+		result.Checks = append(result.Checks, HealthCheck{
+			Name:       "schema_conformance",
+			Status:     CheckFail,
+			IsBlocking: true,
+			Message:    fmt.Sprintf("Schema %q: %d missing column(s): %v", s.Name, len(missing), missing),
+		})
+	} else {
+		// Extra columns only -- warn but don't fail (extensible design)
+		result.Checks = append(result.Checks, HealthCheck{
+			Name:    "schema_conformance",
+			Status:  CheckWarn,
+			Message: fmt.Sprintf("Schema %q: %d extra column(s) beyond standard: %v", s.Name, len(extra), extra),
 		})
 	}
 }

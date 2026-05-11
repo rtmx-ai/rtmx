@@ -4,6 +4,13 @@ on:
   schedule:
     - cron: '0 4 * * *'  # 04:00 UTC daily
   workflow_dispatch: {}
+  # REQ-BENCH-016: PR-level smoke benchmark on relevant paths
+  pull_request:
+    paths:
+      - 'benchmarks/**'
+      - 'internal/cmd/from_tests*'
+      - 'internal/cmd/from_go*'
+      - 'pkg/rtmx/**'
 
 permissions:
   contents: read
@@ -34,6 +41,29 @@ jobs:
       - name: Compare to baseline
         run: make -C benchmarks compare LANG=${{ matrix.language }}
 
+      - name: Write step summary
+        if: always()
+        run: |
+          LANG="${{ matrix.language }}"
+          RESULT="benchmarks/results/${LANG}.json"
+          if [ -f "$RESULT" ]; then
+            MARKERS=$(jq '.markers_found // 0' "$RESULT")
+            PASSED=$(jq '.tests_passed // 0' "$RESULT")
+            FAILED=$(jq '.tests_failed // 0' "$RESULT")
+            STATUS=$(jq -r '.verify_status // "unknown"' "$RESULT")
+            echo "## Benchmark: ${LANG}" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Metric | Value |" >> "$GITHUB_STEP_SUMMARY"
+            echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Markers found | ${MARKERS} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Tests passed | ${PASSED} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Tests failed | ${FAILED} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "| Verify status | ${STATUS} |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Benchmark: ${LANG}" >> "$GITHUB_STEP_SUMMARY"
+            echo "No results file found." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
@@ -42,18 +72,163 @@ jobs:
           path: benchmarks/results/
           retention-days: 90
 
-      - name: Create issue on regression
+      # REQ-BENCH-017: Distinguish infra failure from benchmark regression
+      - name: Classify failure
+        id: classify
         if: failure()
+        run: |
+          LANG="${{ matrix.language }}"
+          RESULT="benchmarks/results/${LANG}.json"
+          if [ -f "$RESULT" ]; then
+            echo "type=regression" >> "$GITHUB_OUTPUT"
+          else
+            echo "type=infra" >> "$GITHUB_OUTPUT"
+          fi
+
+      # REQ-BENCH-021: Cache exemplar clone between runs
+      - name: Restore exemplar cache
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
+        with:
+          path: benchmarks/workdir/${{ matrix.language }}
+          key: benchmark-exemplar-${{ matrix.language }}-${{ hashFiles(format('benchmarks/configs/{0}.yaml', matrix.language)) }}
+
+      # REQ-BENCH-018: Deduplicate benchmark issues by title
+      - name: Create or update issue on failure
+        if: failure() && github.event_name == 'schedule'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const lang = '${{ matrix.language }}';
-            const title = `Benchmark regression: ${lang}`;
-            const body = `Nightly benchmark for **${lang}** detected a regression.\n\nSee [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for details.`;
-            await github.rest.issues.create({
+            const failType = '${{ steps.classify.outputs.type }}';
+            const isInfra = failType === 'infra';
+            const title = isInfra
+              ? `Benchmark infra failure: ${lang}`
+              : `Benchmark regression: ${lang}`;
+            const labels = isInfra
+              ? ['benchmark', 'infra']
+              : ['benchmark', 'regression'];
+            const body = [
+              `**Type:** ${isInfra ? 'Infrastructure failure' : 'Benchmark regression'}`,
+              `**Language:** ${lang}`,
+              `**Run:** [workflow run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              '',
+              isInfra
+                ? 'No results file was produced. Likely a clone, build, or network failure.'
+                : 'Results file exists but comparison to baseline detected a regression.',
+            ].join('\n');
+
+            // Search for existing open issue with same title and labels
+            const { data: existing } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: title,
-              body: body,
-              labels: ['benchmark', 'regression']
+              state: 'open',
+              labels: labels.join(','),
             });
+            const match = existing.find(i => i.title === title);
+
+            if (match) {
+              // Post comment on existing issue instead of creating duplicate
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: match.number,
+                body: `Recurring failure detected.\n\n${body}`,
+              });
+              core.info(`Commented on existing issue #${match.number}`);
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels,
+              });
+            }
+
+      # REQ-BENCH-027: Consecutive-failure escalation (P1 after N=2 failures)
+      - name: Escalate on consecutive failures
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const lang = '${{ matrix.language }}';
+            const threshold = 2;
+
+            // Count comments on existing open benchmark issue for this language
+            // Each nightly failure adds a comment, so comment count + 1 = consecutive failures
+            const labels = ['benchmark'];
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: labels.join(','),
+            });
+            const match = issues.find(i => i.title.includes(lang));
+
+            if (match) {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: match.number,
+              });
+              // Count recurring failure comments (each adds one)
+              const failureComments = comments.filter(c => c.body && c.body.includes('Recurring failure'));
+              const consecutiveFailures = failureComments.length + 1; // +1 for current
+
+              if (consecutiveFailures >= threshold) {
+                // Check if blocker label already exists
+                const hasBlocker = match.labels.some(l => l.name === 'blocker');
+                if (!hasBlocker) {
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: match.number,
+                    labels: ['blocker'],
+                  });
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: match.number,
+                    body: `P1 ESCALATION: ${consecutiveFailures} consecutive nightly failures for ${lang}.\n\n/cc @rtmx-ai/engineering`,
+                  });
+                  core.warning(`P1 escalation: ${consecutiveFailures} consecutive failures for ${lang}`);
+                }
+              }
+            }
+
+      # REQ-BENCH-019: Auto-close benchmark issues on recovery
+      - name: Auto-close issues on recovery
+        if: success() && github.event_name == 'schedule'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const lang = '${{ matrix.language }}';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            // Search for open benchmark issues matching this language
+            for (const label of ['regression', 'infra']) {
+              const { data: issues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                labels: `benchmark,${label}`,
+              });
+              for (const issue of issues) {
+                if (issue.title.includes(lang)) {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    body: `Resolved by green nightly run: [workflow run](${runUrl})`,
+                  });
+                  await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    state: 'closed',
+                    state_reason: 'completed',
+                  });
+                  core.info(`Closed issue #${issue.number}`);
+                }
+              }
+            }

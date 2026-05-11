@@ -34,12 +34,24 @@ fi
 LANG=$(jq -r '.language' "$CURRENT")
 echo "Comparing ${LANG} benchmark results..."
 
+# REQ-BENCH-025: Configurable tolerance bands (percentage).
+# RTMX_BENCH_TOLERANCE sets the allowed regression percentage (default: 0 = strict).
+TOLERANCE="${RTMX_BENCH_TOLERANCE:-0}"
+
 REGRESSIONS=0
 
-# Check marker count
+# Check marker count (with tolerance)
 BASELINE_MARKERS=$(jq '.marker_count' "$BASELINE")
 CURRENT_MARKERS=$(jq '.markers_found' "$CURRENT")
-if [ "$CURRENT_MARKERS" -lt "$BASELINE_MARKERS" ]; then
+if [ "$TOLERANCE" -gt 0 ] 2>/dev/null; then
+    THRESHOLD=$(( BASELINE_MARKERS - (BASELINE_MARKERS * TOLERANCE / 100) ))
+    if [ "$CURRENT_MARKERS" -lt "$THRESHOLD" ]; then
+        echo "  REGRESSION: marker count ${CURRENT_MARKERS} below threshold ${THRESHOLD} (baseline ${BASELINE_MARKERS}, tolerance ${TOLERANCE}%)"
+        REGRESSIONS=$((REGRESSIONS + 1))
+    else
+        echo "  OK: markers ${CURRENT_MARKERS} >= threshold ${THRESHOLD} (baseline ${BASELINE_MARKERS}, tolerance ${TOLERANCE}%)"
+    fi
+elif [ "$CURRENT_MARKERS" -lt "$BASELINE_MARKERS" ]; then
     echo "  REGRESSION: marker count dropped from ${BASELINE_MARKERS} to ${CURRENT_MARKERS}"
     REGRESSIONS=$((REGRESSIONS + 1))
 else

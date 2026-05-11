@@ -77,6 +77,16 @@ func init() {
 	rootCmd.AddCommand(securityCmd)
 }
 
+// RegisteredCommands returns the names of all commands registered on rootCmd.
+// Used by E2E tests to verify the command surface without hardcoding.
+func RegisteredCommands() []string {
+	var names []string
+	for _, c := range rootCmd.Commands() {
+		names = append(names, c.Name())
+	}
+	return names
+}
+
 func initConfig() {
 	// Config loading is handled by individual commands via config.LoadFromDir()
 	// The --config flag is reserved for future use

@@ -514,3 +514,214 @@ def test_real_test():
 		t.Errorf("Expected REQ-TEST-001, got %s", markers[0].ReqID)
 	}
 }
+
+// TestPytestPlugin validates that the Go CLI provides full Python pytest
+// integration: marker extraction from @pytest.mark.req decorators,
+// scope/technique/env marker recognition, conftest.py fixture scanning,
+// and verify --results consumption of pytest output.
+// REQ-LANG-004: Python pytest integration with requirement markers
+func TestPytestPlugin(t *testing.T) {
+	rtmx.Req(t, "REQ-LANG-004")
+
+	t.Run("extracts_pytest_mark_req_decorators", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		testContent := `import pytest
+
+@pytest.mark.req("REQ-AUTH-001")
+@pytest.mark.scope_integration
+@pytest.mark.technique_nominal
+@pytest.mark.env_simulation
+def test_login():
+    pass
+
+@pytest.mark.req("REQ-AUTH-002")
+def test_logout():
+    pass
+`
+		testFile := filepath.Join(tmpDir, "test_auth.py")
+		_ = os.WriteFile(testFile, []byte(testContent), 0644)
+
+		markers, err := extractMarkersFromFile(testFile)
+		if err != nil {
+			t.Fatalf("extraction failed: %v", err)
+		}
+
+		if len(markers) != 2 {
+			t.Fatalf("expected 2 markers, got %d", len(markers))
+		}
+
+		// Find REQ-AUTH-001 and verify scope/technique/env
+		for _, m := range markers {
+			if m.ReqID == "REQ-AUTH-001" {
+				if m.TestFunction != "test_login" {
+					t.Errorf("test_function = %q, want test_login", m.TestFunction)
+				}
+				hasScope := false
+				hasTechnique := false
+				hasEnv := false
+				for _, mk := range m.Markers {
+					if mk == "scope_integration" {
+						hasScope = true
+					}
+					if mk == "technique_nominal" {
+						hasTechnique = true
+					}
+					if mk == "env_simulation" {
+						hasEnv = true
+					}
+				}
+				if !hasScope {
+					t.Error("expected scope_integration marker")
+				}
+				if !hasTechnique {
+					t.Error("expected technique_nominal marker")
+				}
+				if !hasEnv {
+					t.Error("expected env_simulation marker")
+				}
+			}
+		}
+	})
+
+	t.Run("extracts_class_method_markers", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		testContent := `import pytest
+
+class TestUserAPI:
+    @pytest.mark.req("REQ-API-001")
+    def test_create_user(self):
+        pass
+
+    @pytest.mark.req("REQ-API-002")
+    def test_delete_user(self):
+        pass
+`
+		testFile := filepath.Join(tmpDir, "test_api.py")
+		_ = os.WriteFile(testFile, []byte(testContent), 0644)
+
+		markers, err := extractMarkersFromFile(testFile)
+		if err != nil {
+			t.Fatalf("extraction failed: %v", err)
+		}
+
+		if len(markers) != 2 {
+			t.Fatalf("expected 2 markers, got %d", len(markers))
+		}
+
+		// Class method should include class name
+		for _, m := range markers {
+			if m.ReqID == "REQ-API-001" {
+				if !strings.Contains(m.TestFunction, "TestUserAPI") {
+					t.Errorf("test_function should include class name, got %q", m.TestFunction)
+				}
+			}
+		}
+	})
+
+	t.Run("conftest_fixture_markers", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		conftestContent := `import pytest
+
+@pytest.mark.req("REQ-FIX-001")
+@pytest.fixture
+def auth_client():
+    return Client()
+`
+		confFile := filepath.Join(tmpDir, "conftest.py")
+		_ = os.WriteFile(confFile, []byte(conftestContent), 0644)
+
+		markers, err := extractMarkersFromFile(confFile)
+		if err != nil {
+			t.Fatalf("conftest extraction failed: %v", err)
+		}
+
+		if len(markers) != 1 {
+			t.Fatalf("expected 1 marker from conftest fixture, got %d", len(markers))
+		}
+		if markers[0].ReqID != "REQ-FIX-001" {
+			t.Errorf("expected REQ-FIX-001, got %s", markers[0].ReqID)
+		}
+	})
+
+	t.Run("verify_consumes_pytest_results_json", func(t *testing.T) {
+		// Verify --results accepts the RTMX JSON format that a pytest
+		// plugin would produce
+		tmpDir := setupTestProject(t, testDBHeader+
+			"REQ-PY-001,LANG,Python,Python req,Pass,test_auth.py,test_login,Unit Test,MISSING,HIGH,1,,1,,,,,,,\n"+
+			"REQ-PY-002,LANG,Python,Another req,Pass,test_auth.py,test_logout,Unit Test,MISSING,HIGH,1,,1,,,,,,,\n")
+
+		resultsJSON := `[
+  {"marker":{"req_id":"REQ-PY-001","test_name":"test_login","test_file":"test_auth.py"},"passed":true},
+  {"marker":{"req_id":"REQ-PY-002","test_name":"test_logout","test_file":"test_auth.py"},"passed":false}
+]`
+		resultsPath := filepath.Join(tmpDir, "results.json")
+		_ = os.WriteFile(resultsPath, []byte(resultsJSON), 0644)
+
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newPytestVerifyCmd()
+		buf := new(strings.Builder)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"verify", "--results", resultsPath, "--dry-run"})
+
+		_ = cmd.Execute() // May return error due to failing test (REQ-PY-002)
+
+		out := buf.String()
+		// Verify the pipeline processed both results
+		if !strings.Contains(out, "REQ-PY-001") {
+			t.Errorf("expected REQ-PY-001 in output, got:\n%s", out)
+		}
+		// REQ-PY-001 should be promoted to COMPLETE
+		if !strings.Contains(out, "COMPLETE") {
+			t.Errorf("expected COMPLETE status change, got:\n%s", out)
+		}
+		// Should show both passing and failing
+		if !strings.Contains(out, "PASSING") {
+			t.Errorf("expected PASSING count, got:\n%s", out)
+		}
+	})
+
+	t.Run("async_test_functions", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		testContent := `import pytest
+
+@pytest.mark.req("REQ-ASYNC-001")
+async def test_async_handler():
+    await some_async_call()
+`
+		testFile := filepath.Join(tmpDir, "test_async.py")
+		_ = os.WriteFile(testFile, []byte(testContent), 0644)
+
+		markers, err := extractMarkersFromFile(testFile)
+		if err != nil {
+			t.Fatalf("extraction failed: %v", err)
+		}
+
+		if len(markers) != 1 {
+			t.Fatalf("expected 1 marker for async test, got %d", len(markers))
+		}
+		if markers[0].TestFunction != "test_async_handler" {
+			t.Errorf("expected test_async_handler, got %s", markers[0].TestFunction)
+		}
+	})
+}
+
+func newPytestVerifyCmd() *cobra.Command {
+	root := &cobra.Command{Use: "rtmx", SilenceUsage: true, SilenceErrors: true}
+	var results string
+	var dryRun bool
+	verify := &cobra.Command{
+		Use:  "verify",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			verifyResults = results
+			verifyDryRun = dryRun
+			return runVerify(cmd, args)
+		},
+	}
+	verify.Flags().StringVar(&results, "results", "", "")
+	verify.Flags().BoolVar(&dryRun, "dry-run", false, "")
+	root.AddCommand(verify)
+	return root
+}

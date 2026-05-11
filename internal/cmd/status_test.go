@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rtmx-ai/rtmx/internal/output"
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 	"github.com/spf13/cobra"
 )
@@ -329,8 +330,8 @@ func TestStatusFailUnder(t *testing.T) {
 	rootCmd := createStatusTestCmd()
 	buf := new(bytes.Buffer)
 	rootCmd.SetOut(buf)
-	// Use 100% threshold - should always fail since project is incomplete
-	rootCmd.SetArgs([]string{"status", "--fail-under", "100"})
+	// Use 101% threshold - impossible to meet, always triggers failure
+	rootCmd.SetArgs([]string{"status", "--fail-under", "101"})
 
 	err := rootCmd.Execute()
 	if err == nil {
@@ -392,10 +393,10 @@ func TestStatusJSONWithFailUnder(t *testing.T) {
 	rootCmd := createStatusTestCmd()
 	buf := new(bytes.Buffer)
 	rootCmd.SetOut(buf)
-	rootCmd.SetArgs([]string{"status", "--json", "--fail-under", "100"})
+	rootCmd.SetArgs([]string{"status", "--json", "--fail-under", "101"})
 
 	err := rootCmd.Execute()
-	// Should fail because of threshold
+	// Should fail because 101% is impossible to meet
 	if err == nil {
 		t.Fatal("expected error when below threshold")
 	}
@@ -548,6 +549,7 @@ func createStatusTestCmd() *cobra.Command {
 	var verbosity int
 	var jsonOutput bool
 	var failUnder float64
+	var byVersion bool
 	statusCmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show RTM completion status",
@@ -555,13 +557,253 @@ func createStatusTestCmd() *cobra.Command {
 			statusVerbosity = verbosity
 			statusJSON = jsonOutput
 			statusFailUnder = failUnder
+			statusByVersion = byVersion
 			return runStatus(cmd, args)
 		},
 	}
 	statusCmd.Flags().CountVarP(&verbosity, "verbose", "v", "increase verbosity")
 	statusCmd.Flags().BoolVar(&jsonOutput, "json", false, "output as JSON")
 	statusCmd.Flags().Float64Var(&failUnder, "fail-under", 0, "fail if completion below threshold")
+	statusCmd.Flags().BoolVar(&byVersion, "by-version", false, "show status by version")
 	root.AddCommand(statusCmd)
 
 	return root
+}
+
+func TestStatusByVersion(t *testing.T) {
+	rtmx.Req(t, "REQ-PLAN-004")
+
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".rtmx"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	cfgContent := "rtmx:\n  database: database.csv\n"
+	_ = os.WriteFile(filepath.Join(dir, ".rtmx", "config.yaml"), []byte(cfgContent), 0644)
+
+	csvContent := `req_id,category,requirement_text,status,priority,phase,sprint
+REQ-001,CLI,Feature one,COMPLETE,HIGH,1,v0.3.0
+REQ-002,CLI,Feature two,COMPLETE,HIGH,1,v0.3.0
+REQ-003,PLAN,Feature three,MISSING,HIGH,2,v0.4.0
+REQ-004,PLAN,Feature four,COMPLETE,MEDIUM,2,
+`
+	_ = os.WriteFile(filepath.Join(dir, "database.csv"), []byte(csvContent), 0644)
+
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(dir)
+	defer func() { _ = os.Chdir(oldWd) }()
+
+	rootCmd := createStatusTestCmd()
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetArgs([]string{"status", "--by-version"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("status --by-version failed: %v\nOutput: %s", err, buf.String())
+	}
+
+	out := buf.String()
+
+	if !strings.Contains(out, "by Version") {
+		t.Errorf("expected 'by Version' header, got:\n%s", out)
+	}
+	if !strings.Contains(out, "v0.3.0") {
+		t.Errorf("expected v0.3.0 in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "v0.4.0") {
+		t.Errorf("expected v0.4.0 in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "(none)") {
+		t.Errorf("expected (none) for unversioned, got:\n%s", out)
+	}
+	// v0.3.0 should show 2/2 complete
+	if !strings.Contains(out, "2/2") {
+		t.Errorf("expected 2/2 for v0.3.0, got:\n%s", out)
+	}
+}
+
+func TestBacklogDisplayAssignee(t *testing.T) {
+	rtmx.Req(t, "REQ-PLAN-001")
+
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".rtmx"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	cfgContent := "rtmx:\n  database: database.csv\n"
+	_ = os.WriteFile(filepath.Join(dir, ".rtmx", "config.yaml"), []byte(cfgContent), 0644)
+
+	csvContent := `req_id,category,requirement_text,status,priority,phase,assignee,sprint
+REQ-001,CLI,Feature one,MISSING,HIGH,1,alice,v0.4.0
+REQ-002,CLI,Feature two,MISSING,MEDIUM,1,,v0.3.0
+`
+	_ = os.WriteFile(filepath.Join(dir, "database.csv"), []byte(csvContent), 0644)
+
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(dir)
+	defer func() { _ = os.Chdir(oldWd) }()
+
+	rootCmd := createBacklogTestCmd()
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetArgs([]string{"backlog"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("backlog failed: %v\nOutput: %s", err, buf.String())
+	}
+
+	out := buf.String()
+
+	// Remaining table should show Version and Assignee columns
+	if !strings.Contains(out, "Version") {
+		t.Errorf("expected Version column header, got:\n%s", out)
+	}
+	if !strings.Contains(out, "Assignee") {
+		t.Errorf("expected Assignee column header, got:\n%s", out)
+	}
+	if !strings.Contains(out, "alice") {
+		t.Errorf("expected assignee 'alice' in output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "v0.4.0") {
+		t.Errorf("expected version 'v0.4.0' in output, got:\n%s", out)
+	}
+}
+
+func TestStatusDatesDisplay(t *testing.T) {
+	rtmx.Req(t, "REQ-PLAN-002")
+
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".rtmx"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	cfgContent := "rtmx:\n  database: database.csv\n  phases:\n    1: Foundation\n"
+	_ = os.WriteFile(filepath.Join(dir, ".rtmx", "config.yaml"), []byte(cfgContent), 0644)
+
+	csvContent := `req_id,category,requirement_text,status,priority,phase,started_date,completed_date,sprint
+REQ-001,CLI,Feature one,COMPLETE,HIGH,1,2026-04-01,2026-04-15,v0.3.0
+REQ-002,CLI,Feature two,MISSING,HIGH,1,2026-05-01,,
+`
+	_ = os.WriteFile(filepath.Join(dir, "database.csv"), []byte(csvContent), 0644)
+
+	oldWd, _ := os.Getwd()
+	_ = os.Chdir(dir)
+	defer func() { _ = os.Chdir(oldWd) }()
+
+	rootCmd := createStatusTestCmd()
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetArgs([]string{"status", "-vvv"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("status -vvv failed: %v\nOutput: %s", err, buf.String())
+	}
+
+	out := buf.String()
+
+	// Should show date range for completed requirement
+	if !strings.Contains(out, "2026-04-01..2026-04-15") {
+		t.Errorf("expected date range '2026-04-01..2026-04-15' in output, got:\n%s", out)
+	}
+	// Should show started date for in-progress requirement
+	if !strings.Contains(out, "started:2026-05-01") {
+		t.Errorf("expected 'started:2026-05-01' in output, got:\n%s", out)
+	}
+	// Should show version
+	if !strings.Contains(out, "v0.3.0") {
+		t.Errorf("expected version 'v0.3.0' in output, got:\n%s", out)
+	}
+}
+
+func TestStatusBarAlignment(t *testing.T) {
+	rtmx.Req(t, "REQ-OUTPUT-001")
+
+	t.Run("clamp_bar_width", func(t *testing.T) {
+		if output.ClampBarWidth(200) != output.MaxBarWidth {
+			t.Errorf("200 should clamp to %d, got %d", output.MaxBarWidth, output.ClampBarWidth(200))
+		}
+		if output.ClampBarWidth(5) != 10 {
+			t.Errorf("5 should clamp to 10, got %d", output.ClampBarWidth(5))
+		}
+		if output.ClampBarWidth(40) != 40 {
+			t.Errorf("40 should stay 40, got %d", output.ClampBarWidth(40))
+		}
+	})
+
+	t.Run("percent_right_aligned", func(t *testing.T) {
+		// FormatPercent should produce fixed-width output (6 chars before ANSI)
+		p100 := output.FormatPercent(100.0)
+		p0 := output.FormatPercent(0.0)
+
+		// Strip ANSI codes for length comparison
+		strip := func(s string) string {
+			result := ""
+			inEsc := false
+			for _, c := range s {
+				if c == '\033' {
+					inEsc = true
+					continue
+				}
+				if inEsc {
+					if c == 'm' {
+						inEsc = false
+					}
+					continue
+				}
+				result += string(c)
+			}
+			return result
+		}
+
+		if len(strip(p100)) != len(strip(p0)) {
+			t.Errorf("FormatPercent should produce fixed-width: 100.0%% len=%d, 0.0%% len=%d",
+				len(strip(p100)), len(strip(p0)))
+		}
+	})
+
+	t.Run("wide_terminal_bars_capped", func(t *testing.T) {
+		output.SetTerminalWidthOverride(300)
+		defer output.SetTerminalWidthOverride(0)
+
+		dir := t.TempDir()
+		_ = os.MkdirAll(filepath.Join(dir, ".rtmx"), 0755)
+		_ = os.WriteFile(filepath.Join(dir, ".rtmx", "config.yaml"),
+			[]byte("rtmx:\n  database: database.csv\n"), 0644)
+		csvContent := `req_id,category,requirement_text,status,priority,phase
+REQ-001,CLI,Feature,COMPLETE,HIGH,1
+REQ-002,CLI,Feature two,MISSING,HIGH,1
+`
+		_ = os.WriteFile(filepath.Join(dir, "database.csv"), []byte(csvContent), 0644)
+
+		oldWd, _ := os.Getwd()
+		_ = os.Chdir(dir)
+		defer func() { _ = os.Chdir(oldWd) }()
+
+		cmd := createStatusTestCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"status"})
+
+		_ = cmd.Execute()
+		out := buf.String()
+
+		// Count the bar characters. With MaxBarWidth=60, no line should have
+		// more than 60 consecutive bar chars (block elements).
+		for _, line := range strings.Split(out, "\n") {
+			barCount := 0
+			for _, c := range line {
+				if c == '\u2588' || c == '\u2591' { // filled or empty block
+					barCount++
+				} else {
+					if barCount > output.MaxBarWidth {
+						t.Errorf("bar width %d exceeds max %d in line: %s", barCount, output.MaxBarWidth, line)
+					}
+					barCount = 0
+				}
+			}
+			if barCount > output.MaxBarWidth {
+				t.Errorf("bar width %d exceeds max %d", barCount, output.MaxBarWidth)
+			}
+		}
+	})
 }

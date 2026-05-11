@@ -1,0 +1,84 @@
+name: Benchmark Bless
+
+# REQ-BENCH-024: Dispatchable workflow to regenerate baselines with provenance.
+on:
+  workflow_dispatch:
+    inputs:
+      language:
+        description: 'Language to bless (or "all")'
+        required: true
+        default: 'all'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: benchmark-bless
+  cancel-in-progress: false
+
+jobs:
+  bless:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: go.mod
+
+      - name: Build rtmx
+        run: make build
+
+      - name: Run benchmarks
+        run: |
+          if [ "${{ inputs.language }}" = "all" ]; then
+            make -C benchmarks run-all
+          else
+            make -C benchmarks run LANG=${{ inputs.language }}
+          fi
+
+      - name: Update baselines with provenance
+        run: |
+          RTMX_VERSION=$(./bin/rtmx version 2>/dev/null | head -1 || echo "unknown")
+          for result in benchmarks/results/*.json; do
+            lang=$(basename "$result" .json)
+            baseline="benchmarks/results/baselines/${lang}.json"
+            if [ -f "$result" ]; then
+              # Add provenance fields
+              jq --arg run_id "${{ github.run_id }}" \
+                 --arg version "$RTMX_VERSION" \
+                 --arg sha "${{ github.sha }}" \
+                 --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                 '. + {source_run_id: $run_id, rtmx_version: $version, exemplar_sha: $sha, generated_at: $ts}' \
+                 "$result" > "$baseline"
+              echo "Blessed: ${lang}"
+            fi
+          done
+
+      - name: Create PR
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const branch = `benchmark-bless-${Date.now()}`;
+            execSync(`git config user.name "github-actions[bot]"`);
+            execSync(`git config user.email "github-actions[bot]@users.noreply.github.com"`);
+            execSync(`git checkout -b ${branch}`);
+            execSync(`git add benchmarks/results/baselines/`);
+            try {
+              execSync(`git commit -m "chore: bless benchmark baselines with provenance" --no-gpg-sign`);
+              execSync(`git push origin ${branch}`);
+              await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: 'chore: bless benchmark baselines',
+                body: 'Regenerated benchmark baselines with provenance fields.\n\nTriggered by workflow_dispatch.',
+                head: branch,
+                base: 'main',
+              });
+            } catch (e) {
+              console.log('No changes to commit or PR creation failed:', e.message);
+            }

@@ -88,6 +88,17 @@ func getGitHEAD() string {
 	return strings.TrimSpace(string(out))
 }
 
+// GetGitAuthor returns the git author of the most recent commit that modified
+// the given file path. Returns empty string on any error.
+func GetGitAuthor(filePath string) string {
+	cmd := exec.Command("git", "log", "-1", "--format=%an", "--", filePath)
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
 func getCommitDistance(from, to string) int {
 	cmd := exec.Command("git", "rev-list", "--count", from+".."+to)
 	out, err := cmd.Output()

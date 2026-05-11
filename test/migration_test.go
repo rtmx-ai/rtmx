@@ -9,6 +9,65 @@ import (
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
+// TestPyPIDeprecation validates that the Python rtmx PyPI package is
+// deprecated to a minimal pytest plugin.
+// REQ-MIG-003: Python rtmx PyPI package deprecated to minimal pytest plugin
+func TestPyPIDeprecation(t *testing.T) {
+	rtmx.Req(t, "REQ-MIG-003")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	// AC1: Deprecation manifest exists with sunset date
+	t.Run("deprecation_manifest_complete", func(t *testing.T) {
+		content, err := os.ReadFile(filepath.Join(projectRoot, "deprecation.json"))
+		if err != nil {
+			t.Fatal("deprecation.json must exist")
+		}
+		manifest := string(content)
+		if !strings.Contains(manifest, "deprecated_package") {
+			t.Error("manifest must identify deprecated package")
+		}
+		if !strings.Contains(manifest, "sunset_date") {
+			t.Error("manifest must have sunset_date")
+		}
+		if !strings.Contains(manifest, "replacement_install") {
+			t.Error("manifest must document replacement install command")
+		}
+	})
+
+	// AC2: Python CLI is not on main branch
+	t.Run("python_cli_removed", func(t *testing.T) {
+		if _, err := os.Stat(filepath.Join(projectRoot, "src", "rtmx", "cli", "main.py")); err == nil {
+			t.Error("Python CLI (src/rtmx/cli/main.py) must not exist on main")
+		}
+	})
+
+	// AC3: README documents deprecation
+	t.Run("readme_documents_deprecation", func(t *testing.T) {
+		content, err := os.ReadFile(filepath.Join(projectRoot, "README.md"))
+		if err != nil {
+			t.Fatal("README.md must exist")
+		}
+		readme := string(content)
+		if !strings.Contains(readme, "deprecated") {
+			t.Error("README must mention Python CLI deprecation")
+		}
+	})
+
+	// AC4: Migration guide available
+	t.Run("migration_guide_exists", func(t *testing.T) {
+		_, errDocs := os.Stat(filepath.Join(projectRoot, "docs", "MIGRATION.md"))
+		_, errReadme := os.ReadFile(filepath.Join(projectRoot, "README.md"))
+		if errDocs != nil && errReadme != nil {
+			t.Error("migration guide must exist in docs/MIGRATION.md or README.md")
+		}
+	})
+}
+
 // TestTrunkMigration validates that the rtmx main branch has been
 // migrated to the Go implementation.
 // REQ-MIG-002: Main branch migration to Go

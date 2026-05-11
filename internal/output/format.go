@@ -164,7 +164,7 @@ func StatusIcon(status string) string {
 
 // FormatPercent formats a percentage with color.
 func FormatPercent(percent float64) string {
-	text := fmt.Sprintf("%.1f%%", percent)
+	text := fmt.Sprintf("%6s", fmt.Sprintf("%.1f%%", percent))
 	var color string
 	switch {
 	case percent >= 80:
