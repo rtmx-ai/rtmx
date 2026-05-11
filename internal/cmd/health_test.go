@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rtmx-ai/rtmx/internal/config"
+	"github.com/rtmx-ai/rtmx/internal/database"
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 	"github.com/spf13/cobra"
 )
@@ -433,4 +435,115 @@ func TestHealthStatusConsistencyJSONDetails(t *testing.T) {
 	if detail["dep_status"] != "MISSING" {
 		t.Errorf("expected dep_status=MISSING, got %v", detail["dep_status"])
 	}
+}
+
+func TestHealthSchemaCheck(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-005")
+
+	t.Run("passes_with_standard_schema", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		_ = os.MkdirAll(filepath.Join(tmpDir, ".rtmx"), 0755)
+
+		cfgContent := "rtmx:\n  database: database.csv\n  schema: core\n"
+		_ = os.WriteFile(filepath.Join(tmpDir, ".rtmx", "config.yaml"), []byte(cfgContent), 0644)
+
+		csvContent := `req_id,category,subcategory,requirement_text,target_value,test_module,test_function,validation_method,status,priority,phase,notes,effort_weeks,dependencies,blocks,assignee,sprint,started_date,completed_date,requirement_file,external_id
+REQ-001,CLI,Foundation,Test requirement,Pass,mod,TestA,Unit Test,COMPLETE,HIGH,1,,,,,,,,,
+`
+		_ = os.WriteFile(filepath.Join(tmpDir, "database.csv"), []byte(csvContent), 0644)
+
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := createHealthTestCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"health"})
+
+		_ = cmd.Execute()
+		out := buf.String()
+
+		if !strings.Contains(out, "schema") && !strings.Contains(out, "Schema") {
+			t.Errorf("expected schema check in output, got:\n%s", out)
+		}
+	})
+
+	t.Run("warns_with_extra_columns", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		_ = os.MkdirAll(filepath.Join(tmpDir, ".rtmx"), 0755)
+
+		cfgContent := "rtmx:\n  database: database.csv\n  schema: core\n"
+		_ = os.WriteFile(filepath.Join(tmpDir, ".rtmx", "config.yaml"), []byte(cfgContent), 0644)
+
+		csvContent := `req_id,category,subcategory,requirement_text,target_value,test_module,test_function,validation_method,status,priority,phase,notes,effort_weeks,dependencies,blocks,assignee,sprint,started_date,completed_date,requirement_file,external_id,custom_field
+REQ-001,CLI,Foundation,Test,Pass,mod,TestA,Unit Test,COMPLETE,HIGH,1,,,,,,,,,,hello
+`
+		_ = os.WriteFile(filepath.Join(tmpDir, "database.csv"), []byte(csvContent), 0644)
+
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cfg, _ := config.LoadFromDir(tmpDir)
+		db, _ := database.Load(filepath.Join(tmpDir, "database.csv"))
+
+		result := runHealthChecks(db, cfg)
+
+		foundSchema := false
+		for _, check := range result.Checks {
+			if check.Name == "schema_conformance" {
+				foundSchema = true
+				if check.Status != CheckWarn {
+					t.Errorf("extra columns should WARN, got %s: %s", check.Status, check.Message)
+				}
+				if !strings.Contains(check.Message, "extra") {
+					t.Errorf("message should mention extra columns, got: %s", check.Message)
+				}
+			}
+		}
+		if !foundSchema {
+			t.Error("schema_conformance check not found")
+		}
+	})
+
+	t.Run("passes_json_includes_schema", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		_ = os.MkdirAll(filepath.Join(tmpDir, ".rtmx"), 0755)
+
+		cfgContent := "rtmx:\n  database: database.csv\n  schema: core\n"
+		_ = os.WriteFile(filepath.Join(tmpDir, ".rtmx", "config.yaml"), []byte(cfgContent), 0644)
+
+		csvContent := `req_id,category,subcategory,requirement_text,target_value,test_module,test_function,validation_method,status,priority,phase,notes,effort_weeks,dependencies,blocks,assignee,sprint,started_date,completed_date,requirement_file,external_id
+REQ-001,CLI,Foundation,Test,Pass,mod,TestA,Unit Test,COMPLETE,HIGH,1,,,,,,,,,
+`
+		_ = os.WriteFile(filepath.Join(tmpDir, "database.csv"), []byte(csvContent), 0644)
+
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := createHealthTestCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"health", "--json"})
+
+		_ = cmd.Execute()
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+			t.Fatalf("invalid JSON: %v", err)
+		}
+		checks, _ := result["checks"].([]interface{})
+		foundSchema := false
+		for _, c := range checks {
+			cm, _ := c.(map[string]interface{})
+			if cm["name"] == "schema_conformance" {
+				foundSchema = true
+			}
+		}
+		if !foundSchema {
+			t.Error("JSON output should include schema_conformance check")
+		}
+	})
 }

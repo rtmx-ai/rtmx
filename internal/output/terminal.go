@@ -6,6 +6,20 @@ const DefaultTerminalWidth = 80
 // MinTerminalWidth is the minimum supported width for rendering.
 const MinTerminalWidth = 40
 
+// MaxBarWidth caps progress bar width to prevent visual sprawl on wide terminals.
+const MaxBarWidth = 60
+
+// ClampBarWidth clamps a computed bar width to [10, MaxBarWidth].
+func ClampBarWidth(width int) int {
+	if width > MaxBarWidth {
+		return MaxBarWidth
+	}
+	if width < 10 {
+		return 10
+	}
+	return width
+}
+
 // termWidthOverride allows tests to override terminal width detection.
 // When non-zero, TerminalWidth() returns this value instead of detecting.
 var termWidthOverride int
@@ -69,9 +83,7 @@ func PhaseProgressLine(phase int, name string, pct float64, complete, partial, m
 		availableForBar = totalWidth - fixedWidth - prefixDW
 	}
 
-	if availableForBar < minBarWidth {
-		availableForBar = minBarWidth
-	}
+	availableForBar = ClampBarWidth(availableForBar)
 
 	bar := ProgressBar(pct, availableForBar)
 

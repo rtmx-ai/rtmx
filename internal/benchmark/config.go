@@ -16,18 +16,27 @@ type ExemplarConfig struct {
 	License string `yaml:"license"`
 }
 
+// SyncConfig describes optional issue-backend sync validation.
+type SyncConfig struct {
+	Service       string            `yaml:"service"`
+	Repo          string            `yaml:"repo"`
+	Query         map[string]string `yaml:"query,omitempty"`
+	ExpectedItems int               `yaml:"expected_items"`
+}
+
 // BenchmarkConfig describes a single language benchmark.
 type BenchmarkConfig struct {
-	Language        string         `yaml:"language"`
-	Exemplar        ExemplarConfig `yaml:"exemplar"`
-	CloneDepth      int            `yaml:"clone_depth"`
-	SetupCommands   []string       `yaml:"setup_commands"`
-	MarkerPatch     string         `yaml:"marker_patch"`
-	ExpectedMarkers int            `yaml:"expected_markers"`
-	ScanCommand     string         `yaml:"scan_command"`
+	Language          string         `yaml:"language"`
+	Exemplar          ExemplarConfig `yaml:"exemplar"`
+	CloneDepth        int            `yaml:"clone_depth"`
+	SetupCommands     []string       `yaml:"setup_commands"`
+	MarkerPatch       string         `yaml:"marker_patch"`
+	ExpectedMarkers   int            `yaml:"expected_markers"`
+	ScanCommand       string         `yaml:"scan_command"`
 	VerifyCommand     string         `yaml:"verify_command"`
 	TimeoutMinutes    int            `yaml:"timeout_minutes"`
 	ExpectedBuildFile string         `yaml:"expected_build_file,omitempty"`
+	Sync              *SyncConfig    `yaml:"sync,omitempty"`
 }
 
 // ParseConfig parses YAML data into a BenchmarkConfig.

@@ -80,3 +80,81 @@ func TestIntegrityFramework(t *testing.T) {
 		}
 	})
 }
+
+// TestStaleTestReferences validates that all test_module and test_function
+// fields in the RTM database reference files and functions that actually
+// exist in the codebase. Prevents silent verify skips from stale references.
+// REQ-INT-004: Stale test reference lint
+func TestStaleTestReferences(t *testing.T) {
+	rtmx.Req(t, "REQ-INT-004")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	dbPath := filepath.Join(projectRoot, ".rtmx", "database.csv")
+	content, err := os.ReadFile(dbPath)
+	if err != nil {
+		t.Fatalf("failed to read database: %v", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	if len(lines) < 2 {
+		t.Fatal("database has no data rows")
+	}
+
+	// Parse header to find column indices
+	header := strings.Split(lines[0], ",")
+	colIdx := map[string]int{}
+	for i, col := range header {
+		colIdx[col] = i
+	}
+
+	moduleIdx := colIdx["test_module"]
+	reqIdx := colIdx["req_id"]
+	statusIdx := colIdx["status"]
+
+	var staleModules []string
+
+	for _, line := range lines[1:] {
+		if line == "" {
+			continue
+		}
+		fields := strings.Split(line, ",")
+		if len(fields) <= moduleIdx {
+			continue
+		}
+
+		reqID := fields[reqIdx]
+		testModule := fields[moduleIdx]
+		status := fields[statusIdx]
+
+		// MISSING requirements may have aspirational test paths --
+		// only lint COMPLETE and PARTIAL requirements where the path
+		// should actually exist.
+		if status == "MISSING" || status == "NOT_STARTED" {
+			continue
+		}
+
+		if testModule == "" {
+			continue
+		}
+
+		// Skip non-file references (glob patterns, directories without extension)
+		if strings.Contains(testModule, "*") {
+			continue
+		}
+
+		modulePath := filepath.Join(projectRoot, testModule)
+		if _, err := os.Stat(modulePath); err != nil {
+			staleModules = append(staleModules, reqID+": "+testModule)
+		}
+	}
+
+	if len(staleModules) > 0 {
+		t.Errorf("found %d stale test_module paths in COMPLETE/PARTIAL requirements:\n  %s",
+			len(staleModules), strings.Join(staleModules, "\n  "))
+	}
+}

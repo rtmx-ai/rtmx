@@ -4,13 +4,16 @@ import "fmt"
 
 // BenchmarkResult captures the outcome of running a single language benchmark.
 type BenchmarkResult struct {
-	Language     string `json:"language"`
-	MarkerCount  int    `json:"marker_count"`
-	MarkersFound int    `json:"markers_found"`
-	TestsPassed  int    `json:"tests_passed"`
-	TestsFailed  int    `json:"tests_failed"`
-	VerifyStatus string `json:"verify_status"`
-	Timestamp    string `json:"timestamp"`
+	Language       string `json:"language"`
+	MarkerCount    int    `json:"marker_count"`
+	MarkersFound   int    `json:"markers_found"`
+	TestsPassed    int    `json:"tests_passed"`
+	TestsFailed    int    `json:"tests_failed"`
+	VerifyStatus   string `json:"verify_status"`
+	Timestamp      string `json:"timestamp"`
+	SyncService    string `json:"sync_service,omitempty"`
+	SyncItemsFound int    `json:"sync_items_found,omitempty"`
+	SyncStatus     string `json:"sync_status,omitempty"`
 }
 
 // Regression describes a single metric that regressed between baseline and current.
@@ -58,6 +61,26 @@ func CompareResults(baseline, current BenchmarkResult) RegressionReport {
 			Current:  current.VerifyStatus,
 			Message:  fmt.Sprintf("verify status changed from %q to %q", baseline.VerifyStatus, current.VerifyStatus),
 		})
+	}
+
+	// Sync regression: item count dropped
+	if baseline.SyncService != "" && current.SyncService != "" {
+		if current.SyncItemsFound < baseline.SyncItemsFound {
+			report.Regressions = append(report.Regressions, Regression{
+				Field:    "sync_items_found",
+				Baseline: baseline.SyncItemsFound,
+				Current:  current.SyncItemsFound,
+				Message:  fmt.Sprintf("sync items dropped from %d to %d", baseline.SyncItemsFound, current.SyncItemsFound),
+			})
+		}
+		if current.SyncStatus != baseline.SyncStatus && current.SyncStatus == "fail" {
+			report.Regressions = append(report.Regressions, Regression{
+				Field:    "sync_status",
+				Baseline: baseline.SyncStatus,
+				Current:  current.SyncStatus,
+				Message:  fmt.Sprintf("sync status changed from %q to %q", baseline.SyncStatus, current.SyncStatus),
+			})
+		}
 	}
 
 	return report

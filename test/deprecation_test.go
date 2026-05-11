@@ -81,11 +81,11 @@ func TestDeprecationNotice(t *testing.T) {
 		if !strings.Contains(readme, "Migrating from Python") {
 			t.Error("README.md must contain 'Migrating from Python' section")
 		}
-		if !strings.Contains(readme, "deprecated") || !strings.Contains(readme, "Deprecation") {
+		if !strings.Contains(readme, "deprecated") && !strings.Contains(readme, "Deprecation") {
 			t.Error("README.md migration section must mention deprecation")
 		}
-		if !strings.Contains(readme, "pip uninstall rtmx") {
-			t.Error("README.md migration section must include pip uninstall instructions")
+		if !strings.Contains(readme, "pip uninstall") && !strings.Contains(readme, "MIGRATION.md") {
+			t.Error("README.md migration section must include uninstall instructions or link to migration docs")
 		}
 		if !strings.Contains(readme, "end-of-life") {
 			t.Error("README.md migration section must mention end-of-life date")

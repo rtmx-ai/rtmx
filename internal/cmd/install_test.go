@@ -643,3 +643,361 @@ func TestInstallNewAgentCreatesFile(t *testing.T) {
 		})
 	}
 }
+
+func TestInstallClaudeCode(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-001")
+
+	t.Run("creates_skill_pack", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		out, err := executeCommand(cmd, "install", "--claude")
+		if err != nil {
+			t.Fatalf("install --claude failed: %v\nOutput: %s", err, out)
+		}
+
+		// Verify all 5 skills were created
+		expectedSkills := []string{"rtmx-status", "rtmx-backlog", "rtmx-next", "rtmx-verify", "rtmx-claim"}
+		for _, name := range expectedSkills {
+			skillPath := filepath.Join(tmpDir, ".claude", "skills", name, "SKILL.md")
+			data, err := os.ReadFile(skillPath)
+			if err != nil {
+				t.Errorf("skill %s not created: %v", name, err)
+				continue
+			}
+			content := string(data)
+			// Each skill should have frontmatter
+			if !strings.Contains(content, "---") {
+				t.Errorf("skill %s missing YAML frontmatter", name)
+			}
+			// Each skill should have a name field
+			if !strings.Contains(content, "name: "+name) {
+				t.Errorf("skill %s missing name field", name)
+			}
+			// Each skill should have a description
+			if !strings.Contains(content, "description:") {
+				t.Errorf("skill %s missing description", name)
+			}
+		}
+	})
+
+	t.Run("skill_content_invokes_rtmx", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		_, _ = executeCommand(cmd, "install", "--claude")
+
+		// Each skill should reference rtmx commands
+		skillCommands := map[string]string{
+			"rtmx-status":  "rtmx status",
+			"rtmx-backlog": "rtmx backlog",
+			"rtmx-next":    "rtmx next",
+			"rtmx-verify":  "rtmx verify",
+			"rtmx-claim":   "rtmx next",
+		}
+
+		for name, expectedCmd := range skillCommands {
+			skillPath := filepath.Join(tmpDir, ".claude", "skills", name, "SKILL.md")
+			data, err := os.ReadFile(skillPath)
+			if err != nil {
+				t.Errorf("skill %s not found: %v", name, err)
+				continue
+			}
+			if !strings.Contains(string(data), expectedCmd) {
+				t.Errorf("skill %s should reference '%s'", name, expectedCmd)
+			}
+		}
+	})
+
+	t.Run("remove_cleans_skills", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		// Install first
+		cmd := newTestRootCmd()
+		_, _ = executeCommand(cmd, "install", "--claude")
+
+		// Verify skills exist
+		skillDir := filepath.Join(tmpDir, ".claude", "skills", "rtmx-status")
+		if _, err := os.Stat(skillDir); err != nil {
+			t.Fatalf("skill not created for removal test: %v", err)
+		}
+
+		// Remove
+		cmd = newTestRootCmd()
+		_, err := executeCommand(cmd, "install", "--claude", "--remove")
+		if err != nil {
+			t.Fatalf("install --claude --remove failed: %v", err)
+		}
+
+		// Skills should be gone
+		for _, name := range []string{"rtmx-status", "rtmx-backlog", "rtmx-next", "rtmx-verify", "rtmx-claim"} {
+			dir := filepath.Join(tmpDir, ".claude", "skills", name)
+			if _, err := os.Stat(dir); !os.IsNotExist(err) {
+				t.Errorf("skill %s should be removed after --remove", name)
+			}
+		}
+	})
+
+	t.Run("output_lists_commands", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		out, _ := executeCommand(cmd, "install", "--claude")
+
+		// Output should mention the available slash commands
+		for _, name := range []string{"/rtmx-status", "/rtmx-backlog", "/rtmx-next", "/rtmx-verify", "/rtmx-claim"} {
+			if !strings.Contains(out, name) {
+				t.Errorf("output should mention %s, got:\n%s", name, out)
+			}
+		}
+	})
+}
+
+func TestInstallCoder(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-003",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	t.Run("creates_setup_script", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		_, err := executeCommand(cmd, "install", "--coder")
+		if err != nil {
+			t.Fatalf("install --coder failed: %v", err)
+		}
+
+		scriptPath := filepath.Join(tmpDir, "templates", "coder", "setup.sh")
+		data, err := os.ReadFile(scriptPath)
+		if err != nil {
+			t.Fatalf("Expected setup.sh to exist: %v", err)
+		}
+		content := string(data)
+		if !strings.Contains(content, "mcp-server") {
+			t.Error("setup.sh should reference MCP server")
+		}
+		if !strings.Contains(content, "http") {
+			t.Error("setup.sh should use HTTP transport")
+		}
+	})
+
+	t.Run("dry_run_does_not_write", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		out, err := executeCommand(cmd, "install", "--coder", "--dry-run")
+		if err != nil {
+			t.Fatalf("install --coder --dry-run failed: %v", err)
+		}
+		if !strings.Contains(out, "Would create") {
+			t.Error("dry-run should mention 'Would create'")
+		}
+		scriptPath := filepath.Join(tmpDir, "templates", "coder", "setup.sh")
+		if _, err := os.Stat(scriptPath); !os.IsNotExist(err) {
+			t.Error("dry-run should not create files")
+		}
+	})
+}
+
+func TestInstallCodex(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-003",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	t.Run("creates_tool_definition", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		_, err := executeCommand(cmd, "install", "--codex")
+		if err != nil {
+			t.Fatalf("install --codex failed: %v", err)
+		}
+
+		toolPath := filepath.Join(tmpDir, "templates", "codex", "rtmx-tools.json")
+		data, err := os.ReadFile(toolPath)
+		if err != nil {
+			t.Fatalf("Expected rtmx-tools.json to exist: %v", err)
+		}
+
+		// Verify valid JSON
+		var tools map[string]interface{}
+		if err := json.Unmarshal(data, &tools); err != nil {
+			t.Fatalf("rtmx-tools.json is not valid JSON: %v", err)
+		}
+		content := string(data)
+		if !strings.Contains(content, "--json") {
+			t.Error("tool definition should use --json for structured output")
+		}
+	})
+}
+
+func TestInstallGastown(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-003",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	t.Run("creates_plugin_config", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		_, err := executeCommand(cmd, "install", "--gastown")
+		if err != nil {
+			t.Fatalf("install --gastown failed: %v", err)
+		}
+
+		pluginPath := filepath.Join(tmpDir, "templates", "gastown", "rtmx-plugin.json")
+		data, err := os.ReadFile(pluginPath)
+		if err != nil {
+			t.Fatalf("Expected rtmx-plugin.json to exist: %v", err)
+		}
+
+		var config map[string]interface{}
+		if err := json.Unmarshal(data, &config); err != nil {
+			t.Fatalf("rtmx-plugin.json is not valid JSON: %v", err)
+		}
+		if config["name"] != "rtmx" {
+			t.Errorf("Expected name 'rtmx', got %v", config["name"])
+		}
+		content := string(data)
+		if !strings.Contains(content, "mcp-server") {
+			t.Error("plugin config should reference mcp-server")
+		}
+	})
+}
+
+func TestInstallGeminiCLI(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-002",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	t.Run("creates_extension_config", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		_, err := executeCommand(cmd, "install", "--gemini-cli")
+		if err != nil {
+			t.Fatalf("install --gemini-cli failed: %v", err)
+		}
+
+		configPath := filepath.Join(tmpDir, "templates", "gemini-cli", "rtmx-extension.json")
+		data, err := os.ReadFile(configPath)
+		if err != nil {
+			t.Fatalf("Expected rtmx-extension.json to exist: %v", err)
+		}
+
+		var config map[string]interface{}
+		if err := json.Unmarshal(data, &config); err != nil {
+			t.Fatalf("rtmx-extension.json is not valid JSON: %v", err)
+		}
+		if config["name"] != "rtmx" {
+			t.Errorf("Expected name 'rtmx', got %v", config["name"])
+		}
+		content := string(data)
+		if !strings.Contains(content, "stdio") {
+			t.Error("extension config should use stdio transport")
+		}
+		if !strings.Contains(content, "mcp") {
+			t.Error("extension config should reference MCP")
+		}
+	})
+
+	t.Run("dry_run_no_write", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		out, err := executeCommand(cmd, "install", "--gemini-cli", "--dry-run")
+		if err != nil {
+			t.Fatalf("install --gemini-cli --dry-run failed: %v", err)
+		}
+
+		if !strings.Contains(out, "DRY RUN") {
+			t.Error("dry-run should print DRY RUN notice")
+		}
+
+		configPath := filepath.Join(tmpDir, "templates", "gemini-cli", "rtmx-extension.json")
+		if _, err := os.Stat(configPath); !os.IsNotExist(err) {
+			t.Error("dry-run should not create files")
+		}
+	})
+}
+
+func TestInstallCursor(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-003")
+
+	t.Run("creates_mcp_json", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		// Create .cursorrules so cursor is detected
+		_ = os.WriteFile(filepath.Join(tmpDir, ".cursorrules"), []byte("# cursor rules"), 0644)
+
+		cmd := newTestRootCmd()
+		_, err := executeCommand(cmd, "install", "--agents", "cursor", "--yes")
+		if err != nil {
+			t.Fatalf("install --agents cursor failed: %v", err)
+		}
+
+		mcpPath := filepath.Join(tmpDir, ".cursor", "mcp.json")
+		data, err := os.ReadFile(mcpPath)
+		if err != nil {
+			t.Fatalf("mcp.json not created: %v", err)
+		}
+
+		var mcpConfig map[string]interface{}
+		if err := json.Unmarshal(data, &mcpConfig); err != nil {
+			t.Fatalf("mcp.json is not valid JSON: %v", err)
+		}
+
+		servers, ok := mcpConfig["mcpServers"].(map[string]interface{})
+		if !ok {
+			t.Fatal("mcp.json should have mcpServers object")
+		}
+		rtmxServer, ok := servers["rtmx"].(map[string]interface{})
+		if !ok {
+			t.Fatal("mcp.json should have mcpServers.rtmx")
+		}
+		if rtmxServer["command"] != "rtmx" {
+			t.Errorf("command = %v, want rtmx", rtmxServer["command"])
+		}
+	})
+}

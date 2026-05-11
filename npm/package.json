@@ -1,0 +1,29 @@
+{
+  "name": "rtmx",
+  "version": "0.3.0",
+  "description": "Requirements traceability management CLI -- track what you built, tested, and what's next",
+  "bin": {
+    "rtmx": "bin/rtmx"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "keywords": [
+    "rtmx",
+    "requirements",
+    "traceability",
+    "testing",
+    "cli",
+    "devops"
+  ],
+  "author": "RTMX Engineering <dev@rtmx.ai>",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rtmx-ai/rtmx"
+  },
+  "homepage": "https://rtmx.ai",
+  "engines": {
+    "node": ">=16"
+  }
+}

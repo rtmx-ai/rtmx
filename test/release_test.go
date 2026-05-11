@@ -312,11 +312,11 @@ func TestV1Release(t *testing.T) {
 
 	// Test 8: --fail-under flag works (exit 1 when below threshold)
 	t.Run("fail_under_fails", func(t *testing.T) {
-		cmd := exec.Command(binaryPath, "status", "--fail-under", "100")
+		cmd := exec.Command(binaryPath, "status", "--fail-under", "101")
 		cmd.Dir = projectRoot
 		output, err := cmd.CombinedOutput()
 		if err == nil {
-			t.Error("status --fail-under 100 should fail but exited 0")
+			t.Error("status --fail-under 101 should fail but exited 0")
 		}
 		_ = output
 	})

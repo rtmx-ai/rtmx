@@ -345,16 +345,13 @@ func displayAllBacklog(cmd *cobra.Command, reqs []*database.Requirement, db *dat
 
 func displayCriticalTable(cmd *cobra.Command, reqs []*database.Requirement, db *database.Database, cfg *config.Config) error {
 	g := graph.NewGraph(db)
-	table := output.NewTable("#", "Status", "Requirement", "Description", "Effort", "Blocks", "Phase")
+	table := output.NewTable("#", "Status", "Requirement", "Description", "Effort", "Blocks", "Version", "Assignee")
 
 	for i, r := range reqs {
 		icon := output.StatusIcon(r.Status.String())
 		transitive := countBlockedTransitive(r.ReqID, g)
 		direct := countBlocked(r, db)
 		blocksStr := formatBlocksColumn(transitive, direct)
-
-		phaseDesc := cfg.PhaseDescription(r.Phase)
-		phaseStr := fmt.Sprintf("Phase %d (%s)", r.Phase, phaseDesc)
 
 		effortStr := ""
 		if r.EffortWeeks > 0 {
@@ -368,7 +365,8 @@ func displayCriticalTable(cmd *cobra.Command, reqs []*database.Requirement, db *
 			output.TruncateCell(r.RequirementText, 35),
 			effortStr,
 			blocksStr,
-			output.TruncateCell(phaseStr, 30),
+			r.TargetVersion(),
+			r.Assignee,
 		)
 	}
 
@@ -430,9 +428,9 @@ func displayBlockersTable(cmd *cobra.Command, reqs []*database.Requirement, db *
 	return nil
 }
 
-func displayRemainingTable(cmd *cobra.Command, reqs []*database.Requirement, db *database.Database, cfg *config.Config) error {
+func displayRemainingTable(cmd *cobra.Command, reqs []*database.Requirement, db *database.Database, _ *config.Config) error {
 	g := graph.NewGraph(db)
-	table := output.NewTable("#", "Status", "Requirement", "Description", "Priority", "Blocks", "⊘", "Phase")
+	table := output.NewTable("#", "Status", "Requirement", "Description", "Priority", "Blocks", "⊘", "Version", "Assignee")
 
 	actionable := 0
 	blocked := 0
@@ -441,9 +439,6 @@ func displayRemainingTable(cmd *cobra.Command, reqs []*database.Requirement, db 
 		icon := output.StatusIcon(r.Status.String())
 		transitive := countBlockedTransitive(r.ReqID, g)
 		direct := countBlocked(r, db)
-
-		phaseDesc := cfg.PhaseDescription(r.Phase)
-		phaseStr := fmt.Sprintf("Phase %d (%s)", r.Phase, phaseDesc)
 
 		// Check if blocked by incomplete dependencies
 		blockingDeps := r.BlockingDeps(db)
@@ -463,7 +458,8 @@ func displayRemainingTable(cmd *cobra.Command, reqs []*database.Requirement, db 
 			string(r.Priority),
 			formatBlocksColumn(transitive, direct),
 			blockedMarker,
-			output.TruncateCell(phaseStr, 26),
+			r.TargetVersion(),
+			r.Assignee,
 		)
 	}
 
