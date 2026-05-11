@@ -7,7 +7,7 @@ class Rtmx < Formula
   desc "Requirements traceability management CLI -- track what you built, tested, and what's next"
   homepage "https://rtmx.ai"
   url "https://github.com/rtmx-ai/rtmx/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "PLACEHOLDER_SHA256"
+  sha256 "8184dc96bad52ce6e29d8d5d8b74b3b4aab39a0319d86f4ec5096ed682f1a401"
   license "Apache-2.0"
   head "https://github.com/rtmx-ai/rtmx.git", branch: "main"
 
