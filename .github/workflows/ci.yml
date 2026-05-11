@@ -384,7 +384,7 @@ jobs:
           go build -ldflags="-s -w" -o rtmx-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }} ./cmd/rtmx
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: rtmx-${{ matrix.goos }}-${{ matrix.goarch }}
           path: rtmx-${{ matrix.goos }}-${{ matrix.goarch }}*
@@ -417,7 +417,7 @@ jobs:
           ls -la docs/screenshots/
 
       - name: Upload screenshots
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: terminal-screenshots
           path: docs/screenshots/
