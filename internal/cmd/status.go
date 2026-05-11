@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/database"
@@ -20,7 +19,6 @@ var (
 	statusJSON      bool
 	statusFailUnder float64
 	statusVersion   string
-	statusByVersion bool
 )
 
 var statusCmd = &cobra.Command{
@@ -48,7 +46,6 @@ func init() {
 	statusCmd.Flags().BoolVar(&statusVerify, "verify", false, "run verify --update before displaying status")
 	statusCmd.Flags().BoolVar(&statusNoWarn, "no-warn", false, "suppress staleness warning")
 	statusCmd.Flags().StringVar(&statusVersion, "version", "", "filter by target version (sprint field)")
-	statusCmd.Flags().BoolVar(&statusByVersion, "by-version", false, "show status grouped by target version")
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
@@ -109,19 +106,15 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	// Display status based on verbosity
-	if statusByVersion {
-		err = displayVersionStatus(cmd, db, cfg)
-	} else {
-		switch {
-		case statusVerbosity >= 3:
-			err = displayDetailedStatus(cmd, db, cfg)
-		case statusVerbosity >= 2:
-			err = displayPhaseStatus(cmd, db, cfg)
-		case statusVerbosity >= 1:
-			err = displayCategoryStatus(cmd, db, cfg)
-		default:
-			err = displaySummaryStatus(cmd, db, cfg)
-		}
+	switch {
+	case statusVerbosity >= 3:
+		err = displayDetailedStatus(cmd, db, cfg)
+	case statusVerbosity >= 2:
+		err = displayPhaseStatus(cmd, db, cfg)
+	case statusVerbosity >= 1:
+		err = displayCategoryStatus(cmd, db, cfg)
+	default:
+		err = displaySummaryStatus(cmd, db, cfg)
 	}
 
 	if err != nil {
@@ -262,8 +255,11 @@ func displaySummaryStatus(cmd *cobra.Command, db *database.Database, cfg *config
 	cmd.Println(output.Header("RTM Status Check", width))
 	cmd.Println()
 
-	// Progress bar capped at MaxBarWidth for visual consistency
-	barWidth := output.ClampBarWidth(width - 20)
+	// Progress bar - scale to terminal width with room for label and percentage
+	barWidth := width - 20 // "Requirements: " (14) + "  " (2) + percent (~6)
+	if barWidth < 20 {
+		barWidth = 20
+	}
 	pct := db.CompletionPercentage()
 	cmd.Printf("Requirements: %s  %s\n", output.ProgressBar(pct, barWidth), output.FormatPercent(pct))
 	cmd.Println()
@@ -331,8 +327,11 @@ func displayCategoryStatus(cmd *cobra.Command, db *database.Database, cfg *confi
 	cmd.Println(output.Header("RTM Status Check", width))
 	cmd.Println()
 
-	// Progress bar capped at MaxBarWidth
-	barWidth := output.ClampBarWidth(width - 20)
+	// Progress bar
+	barWidth := width - 20
+	if barWidth < 20 {
+		barWidth = 20
+	}
 	pct := db.CompletionPercentage()
 	cmd.Printf("Requirements: %s  %s\n", output.ProgressBar(pct, barWidth), output.FormatPercent(pct))
 	cmd.Println()
@@ -433,7 +432,10 @@ func displayPhaseStatus(cmd *cobra.Command, db *database.Database, cfg *config.C
 
 		// Scale category progress bar to terminal width
 		// "  " + cat(12) + ": " + bar + " " + pct(6) + " (" + N + " reqs)"
-		catBarWidth := output.ClampBarWidth(width - 40)
+		catBarWidth := width - 40
+		if catBarWidth < 10 {
+			catBarWidth = 10
+		}
 
 		for _, cat := range cats {
 			reqs := catMap[cat]
@@ -457,9 +459,12 @@ func displayDetailedStatus(cmd *cobra.Command, db *database.Database, cfg *confi
 	cmd.Println()
 
 	// Overall summary first - scale bar to terminal width
-	overallBarWidth := output.ClampBarWidth(width - 35)
+	overallBarWidth := width - 35 // "Overall: " (9) + "  " (2) + pct (6) + " (NNN requirements)" (~18)
+	if overallBarWidth < 20 {
+		overallBarWidth = 20
+	}
 	pct := db.CompletionPercentage()
-	cmd.Printf("Overall: %s  %s  (%d requirements)\n",
+	cmd.Printf("Overall: %s  %s (%d requirements)\n",
 		output.ProgressBar(pct, overallBarWidth), output.FormatPercent(pct), db.Len())
 	cmd.Println()
 
@@ -489,29 +494,11 @@ func displayDetailedStatus(cmd *cobra.Command, db *database.Database, cfg *confi
 			// Truncate requirement text
 			text := output.Truncate(req.RequirementText, 40)
 
-			// Build suffix with assignee, version, dates
-			var suffix []string
-			if v := req.TargetVersion(); v != "" {
-				suffix = append(suffix, v)
-			}
-			if req.Assignee != "" {
-				suffix = append(suffix, "@"+req.Assignee)
-			}
-			if req.StartedDate != "" && req.CompletedDate != "" {
-				suffix = append(suffix, req.StartedDate+".."+req.CompletedDate)
-			} else if req.StartedDate != "" {
-				suffix = append(suffix, "started:"+req.StartedDate)
-			}
-
-			line := fmt.Sprintf("  %s %s [%s] %s",
+			cmd.Printf("  %s %s [%s] %s\n",
 				icon,
 				output.Color(output.PadRight(req.ReqID, 15), output.Cyan),
 				output.Color(string(req.Priority), priorityColor),
 				text)
-			if len(suffix) > 0 {
-				line += "  " + output.Color(strings.Join(suffix, " "), output.Dim)
-			}
-			cmd.Println(line)
 		}
 		cmd.Println()
 	}
@@ -531,74 +518,4 @@ func phaseCompletion(reqs []*database.Requirement) float64 {
 	}
 
 	return total / float64(len(reqs))
-}
-
-func displayVersionStatus(cmd *cobra.Command, db *database.Database, _ *config.Config) error {
-	width := output.TerminalWidth()
-
-	cmd.Println(output.Header("RTM Status by Version", width))
-	cmd.Println()
-
-	// Overall summary
-	overallBarWidth := output.ClampBarWidth(width - 35)
-	pct := db.CompletionPercentage()
-	cmd.Printf("Overall: %s  %s  (%d requirements)\n",
-		output.ProgressBar(pct, overallBarWidth), output.FormatPercent(pct), db.Len())
-	cmd.Println()
-
-	byVersion := db.ByVersion()
-	versions := db.Versions()
-
-	barWidth := output.ClampBarWidth(width - 40)
-
-	for _, ver := range versions {
-		reqs := byVersion[ver]
-		verPct := phaseCompletion(reqs)
-
-		var complete, partial, missing int
-		var totalEffort, remainingEffort float64
-		for _, r := range reqs {
-			switch r.Status {
-			case database.StatusComplete:
-				complete++
-			case database.StatusPartial:
-				partial++
-			default:
-				missing++
-			}
-			totalEffort += r.EffortWeeks
-			if r.Status != database.StatusComplete {
-				remainingEffort += r.EffortWeeks
-			}
-		}
-
-		cmd.Printf("  %s  %s  %s  (%d/%d complete",
-			output.Color(output.PadRight(ver, 10), output.Cyan),
-			output.ProgressBar(verPct, barWidth),
-			output.FormatPercent(verPct),
-			complete, len(reqs))
-		if remainingEffort > 0 {
-			cmd.Printf(", %.1fw remaining", remainingEffort)
-		}
-		cmd.Println(")")
-	}
-
-	// Unversioned
-	if unversioned := byVersion[""]; len(unversioned) > 0 {
-		uPct := phaseCompletion(unversioned)
-		var uComplete int
-		for _, r := range unversioned {
-			if r.Status == database.StatusComplete {
-				uComplete++
-			}
-		}
-		cmd.Printf("  %s  %s  %s  (%d/%d complete)\n",
-			output.Color(output.PadRight("(none)", 10), output.Dim),
-			output.ProgressBar(uPct, barWidth),
-			output.FormatPercent(uPct),
-			uComplete, len(unversioned))
-	}
-
-	cmd.Println()
-	return nil
 }

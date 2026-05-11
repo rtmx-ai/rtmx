@@ -626,6 +626,7 @@ rtmx diff BASELINE [CURRENT]             Compare RTM versions (for PRs)
 
 ```
 rtmx from-tests [--update]               Sync from pytest markers
+rtmx from-pytest [--output results.json] Generate RTMX results from pytest
 rtmx bootstrap [--from-tests] [--merge]  Generate from artifacts
 rtmx install [--all] [--dry-run]         Install agent prompts
 rtmx sync {github|jira} [--import]       Sync with external services

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rtmx-ai/rtmx/internal/cmd"
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
@@ -78,6 +77,7 @@ func TestV010Release(t *testing.T) {
 			"init",
 			"verify",
 			"from-tests",
+			"from-pytest",
 			"deps",
 			"cycles",
 		}
@@ -214,23 +214,39 @@ func TestV1Release(t *testing.T) {
 		}
 	})
 
-	// Test 3: All registered commands reachable from help
-	// Uses RegisteredCommands() instead of a hardcoded list so this
-	// test never goes stale. See TestCommandSurface for full coverage.
-	t.Run("all_registered_commands_in_help", func(t *testing.T) {
-		helpCmd := exec.Command(binaryPath, "--help")
-		output, err := helpCmd.CombinedOutput()
+	// Test 3: All required v1.0 commands exist
+	t.Run("all_required_commands", func(t *testing.T) {
+		cmd := exec.Command(binaryPath, "--help")
+		output, err := cmd.CombinedOutput()
 		if err != nil {
 			_ = err // help may exit non-zero
 		}
 
-		registered := cmd.RegisteredCommands()
-		for _, cmdName := range registered {
-			if cmdName == "help" || cmdName == "completion" {
-				continue
-			}
+		requiredCommands := []string{
+			"status",
+			"backlog",
+			"health",
+			"deps",
+			"cycles",
+			"verify",
+			"from-go",
+			"from-tests",
+			"from-pytest",
+			"reconcile",
+			"context",
+			"install",
+			"diff",
+			"docs",
+			"config",
+			"makefile",
+			"analyze",
+			"bootstrap",
+			"setup",
+		}
+
+		for _, cmdName := range requiredCommands {
 			if !bytes.Contains(output, []byte(cmdName)) {
-				t.Errorf("Help missing registered command: %s", cmdName)
+				t.Errorf("Help missing required command: %s", cmdName)
 			}
 		}
 	})
@@ -296,12 +312,11 @@ func TestV1Release(t *testing.T) {
 
 	// Test 8: --fail-under flag works (exit 1 when below threshold)
 	t.Run("fail_under_fails", func(t *testing.T) {
-		// Use 101% -- impossible to meet, always triggers failure
-		cmd := exec.Command(binaryPath, "status", "--fail-under", "101")
+		cmd := exec.Command(binaryPath, "status", "--fail-under", "100")
 		cmd.Dir = projectRoot
 		output, err := cmd.CombinedOutput()
 		if err == nil {
-			t.Error("status --fail-under 101 should fail but exited 0")
+			t.Error("status --fail-under 100 should fail but exited 0")
 		}
 		_ = output
 	})

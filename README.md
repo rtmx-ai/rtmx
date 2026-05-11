@@ -24,33 +24,19 @@ go install github.com/rtmx-ai/rtmx/cmd/rtmx@latest
 ```
 
 Or download a binary from [releases](https://github.com/rtmx-ai/rtmx/releases).
-Linux `.deb` and `.rpm` packages are included in every release.
-
-## Quick Start
-
-```bash
-rtmx init                  # create .rtmx/ with config and database
-rtmx setup                 # detect tests, populate database, install hooks
-rtmx status                # see where you stand
-```
 
 ## What It Does
 
 | Command | What it does |
 |---------|-------------|
 | `rtmx status` | Completion dashboard across all requirements and phases |
-| `rtmx backlog` | Prioritized work items with critical path analysis |
 | `rtmx next --one` | Pick the highest-priority unblocked requirement |
 | `rtmx verify` | Run tests and cross-reference against requirements |
 | `rtmx health` | Lint your RTM: orphaned tests, circular deps, stale refs |
-| `rtmx assign` | Assign requirements to team members |
-| `rtmx release gate` | Gate a release on requirement completion |
-| `rtmx velocity` | Show team velocity from completed requirements |
-| `rtmx mcp-server` | MCP tools for AI agents over JSON-RPC |
-| `rtmx serve` | Web dashboard with REST API |
-| `rtmx tui` | Terminal dashboard |
+| `rtmx backlog` | Prioritized work items with critical path analysis |
+| `rtmx mcp-server` | 7 tools for AI agents over JSON-RPC (read + write) |
 
-42 commands total. Run `rtmx --help` for the full list.
+33 commands total. Run `rtmx --help` for the full list.
 
 ## The AI Workflow
 
@@ -76,40 +62,28 @@ An agent runs `rtmx next --one`, gets a specific requirement, writes code
 and tests against the spec, and `rtmx verify` confirms the work is done.
 No human triages, assigns, or updates a ticket.
 
-### Multi-Agent Orchestration
-
-Multiple agents work in parallel on independent requirement webs:
-
-```bash
-rtmx next --batch --agent-id agent-1 --worktree   # claim web + git worktree
-rtmx next --batch --agent-id agent-2 --worktree   # different web, no conflicts
-rtmx merge --web 1                                 # validate + merge when done
-```
-
-Claims are file-based and atomic. No external coordination service needed.
-
 ## Why CSV in Git
 
 ```mermaid
 block-beta
     columns 1
-    block:header["database.csv  --  Pull Request #42"]
+    block:header["database.csv -- Pull Request #42"]
         columns 1
     end
-    block:removed["- REQ-AUTH-003,auth,mfa,TOTP-based MFA,...,missing,,"]
+    block:removed["- REQ-AUTH-003, auth, mfa, TOTP-based MFA, ..., missing"]
         columns 1
     end
-    block:added["+ REQ-AUTH-003,auth,mfa,TOTP-based MFA,...,complete,test_totp_flow,"]
+    block:added["+ REQ-AUTH-003, auth, mfa, TOTP-based MFA, ..., complete, test_totp_flow"]
         columns 1
     end
-    block:context["  REQ-AUTH-004,auth,session,Session timeout,...,partial,,"]
+    block:context["  REQ-AUTH-004, auth, session, Session timeout, ..., partial"]
         columns 1
     end
 
-    style header fill:#f3f4f6,stroke:#9ca3af,color:#374151
-    style removed fill:#fecaca,stroke:#dc2626,color:#991b1b
-    style added fill:#bbf7d0,stroke:#16a34a,color:#166534
-    style context fill:#f9fafb,stroke:#d1d5db,color:#6b7280
+    style header fill:#6b7280,stroke:#4b5563,color:#ffffff
+    style removed fill:#dc2626,stroke:#b91c1c,color:#ffffff
+    style added fill:#16a34a,stroke:#15803d,color:#ffffff
+    style context fill:#9ca3af,stroke:#6b7280,color:#ffffff
 ```
 
 - **Human-readable diffs** in PRs -- one row changed, one requirement done
@@ -123,12 +97,14 @@ block-beta
 ```mermaid
 flowchart LR
     subgraph agents["AI Agents"]
+        direction TB
         A1["Claude Code"]
         A2["Cursor"]
         A3["Custom Agent"]
     end
 
     subgraph mcp["rtmx mcp-server"]
+        direction TB
         T1["status"]
         T2["backlog"]
         T3["next"]
@@ -136,9 +112,11 @@ flowchart LR
         T5["health"]
         T6["markers"]
         T7["deps"]
+        T1 ~~~ T2 ~~~ T3 ~~~ T4 ~~~ T5 ~~~ T6 ~~~ T7
     end
 
     subgraph repo["Git Repository"]
+        direction TB
         DB[".rtmx/database.csv"]
         Tests["Test files"]
     end
@@ -151,7 +129,7 @@ flowchart LR
 
     style agents fill:#f0fdf4,stroke:#059669,color:#065f46
     style mcp fill:#d1fae5,stroke:#10b981,color:#065f46
-    style repo fill:#f3f4f6,stroke:#6b7280,color:#1f2937
+    style repo fill:#f3f4f6,stroke:#6b7280,color:#111827
     style A1 fill:#f0fdf4,stroke:#059669,color:#065f46
     style A2 fill:#f0fdf4,stroke:#059669,color:#065f46
     style A3 fill:#f0fdf4,stroke:#059669,color:#065f46
@@ -159,15 +137,8 @@ flowchart LR
     style Tests fill:#d1fae5,stroke:#10b981,color:#065f46
 ```
 
-Read-only tools plus mutation tools with agent authorization and atomic
-claim/release for multi-agent coordination. One command to set up:
-
-```bash
-rtmx install --agents claude          # Claude Code / Cursor
-rtmx install --coder                  # Coder
-rtmx install --codex                  # OpenAI Codex CLI
-rtmx install --gemini-cli             # Gemini CLI
-```
+7 read-only tools plus mutation tools with agent authorization and atomic
+claim/release for multi-agent coordination. Run `rtmx mcp-server` to start.
 
 ## Test Verification
 
@@ -176,26 +147,12 @@ rtmx install --gemini-cli             # Gemini CLI
 Go, Python/pytest, Rust/Cargo, Node.js/npm, Java/Gradle, Java/Maven,
 Elixir/Mix, Swift, Dart, Ruby -- 10+ frameworks supported.
 
-## Schema Plugins
-
-Extend the database with domain-specific columns:
-
-```bash
-rtmx plugin list                          # core, phoenix, do178c, iso26262
-rtmx plugin install ./fedramp.yaml        # custom schema from YAML
-```
-
-Built-in schemas for defense/aerospace (Phoenix), airborne software (DO-178C),
-and automotive safety (ISO 26262). Create your own with a YAML file.
-
 ## Dogfooding
 
-RTMX manages its own requirements. 226 requirements across 24 phases,
-100% complete, auto-verified in CI on every push. Run `rtmx status`
-in this repo to see it.
+RTMX manages its own requirements. 219 requirements across 24 phases,
+auto-verified in CI on every push. Run `rtmx status` in this repo to see it.
 
-[Read the backstory](https://rtmx.ai/blog/show-hn-rtmx) -- how and why
-this tool was built.
+[Read the backstory](https://rtmx.ai/blog/show-hn-rtmx) -- how and why this tool was built.
 
 ## Technical Details
 
@@ -203,7 +160,6 @@ this tool was built.
 - Linux, macOS, Windows -- amd64 and arm64
 - 2 external dependencies (Cobra + YAML parser)
 - GPG-signed releases with SBOM
-- `.deb`, `.rpm`, Docker images, Homebrew, Scoop
 - Apache 2.0
 
 ## Contributing
@@ -213,9 +169,11 @@ and testing instructions.
 
 ### Migrating from Python CLI
 
-The Python `rtmx` CLI (`pip install rtmx`) is deprecated and will reach
-end-of-life on 2026-09-25. See [docs/MIGRATION.md](docs/MIGRATION.md)
-for migration steps.
+> **Deprecation Notice:** The Python `rtmx` CLI is deprecated and will reach
+> end-of-life on 2026-09-25. Run `pip uninstall rtmx` and switch to the Go
+> binary above.
+
+See [docs/MIGRATION.md](docs/MIGRATION.md) for full migration steps.
 
 ## Support
 

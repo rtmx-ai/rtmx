@@ -104,8 +104,8 @@ make snapshot
 make release-check
 
 # Release (triggered by tag)
-git tag -s v0.4.0 -m "v0.4.0: <summary>"
-git push origin v0.4.0
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
 ## Version Management
@@ -123,42 +123,14 @@ var (
 
 Build with:
 ```bash
-go build -ldflags "-X github.com/rtmx-ai/rtmx/internal/cmd.Version=v0.4.0 ..."
+go build -ldflags "-X github.com/rtmx-ai/rtmx/internal/cmd.Version=v0.1.0 ..."
 ```
-
-## Release History
-
-Latest: v0.3.0 (2026-05-02). 16 releases total via GoReleaser with signed
-binaries, SBOMs, and cross-platform artifacts (linux/darwin amd64+arm64,
-windows amd64+arm64, .deb, .rpm).
-
-Key milestones:
-- v0.1.0: Architectural transition from Python CLI to Go
-- v0.2.0: Multi-language scanner support, GitHub/Jira adapters
-- v0.3.0: Release planning, version filtering, gate verification
-
-Python CLI feature parity (REQ-GO-020) is achieved. Production readiness
-with release infrastructure (REQ-GO-047) is verified. The v1.0.0 milestone
-is redefined below.
 
 ## Versioning Policy
 
 RTMX follows semantic versioning (MAJOR.MINOR.PATCH). The public surface
 that determines version bumps is: CLI commands and flags, CSV database
 format, config file format, exit codes, and --json output schema.
-
-### v1.0.0 Scope
-
-v1.0.0 signals API stability. Before tagging 1.0, the following must be
-complete:
-- All PARTIAL requirements have passing tests (currently 4)
-- Release gate tests exist for `rtmx release gate/assign/scope`
-- Version policy enforcement (REQ-PLAN-014) has gate integration test
-- Verify audit (REQ-VERIFY-005) surfaces false positives/negatives
-
-Features beyond parity (orchestration, MCP, plugins, schema framework)
-are post-1.0 work tracked in the backlog. They do not block the 1.0
-stability guarantee.
 
 ### MAJOR bump (breaking change)
 
@@ -176,7 +148,7 @@ A major bump is required when any of these change in a non-backward-compatible w
 A minor bump is used when new functionality is added without breaking existing behavior:
 
 - New CLI commands or subcommands (e.g., `rtmx release`)
-- New flags on existing commands (e.g., `--audit`)
+- New flags on existing commands (e.g., `--version`)
 - New CSV columns (additive; existing databases still parse correctly)
 - New config file fields (additive; existing configs still valid)
 - New --json output fields (additive; existing consumers unaffected)
@@ -200,20 +172,20 @@ Every tagged release must pass the release gate:
 
 ```bash
 # 1. Assign requirements to the target version
-rtmx release assign v0.4.0 REQ-VERIFY-005 REQ-VERIFY-006 ...
+rtmx release assign v0.3.0 REQ-PLAN-003 REQ-PLAN-005 ...
 
 # 2. Implement and verify
 rtmx verify --update
 
-# 3. Audit for stale references
-rtmx verify --audit
+# 3. Check release scope
+rtmx release scope v0.3.0
 
 # 4. Gate the release (must exit 0)
-rtmx release gate v0.4.0
+rtmx release gate v0.3.0
 
 # 5. Tag and push (pre-tag hook enforces gate)
-git tag -s v0.4.0 -m "v0.4.0: <summary>"
-git push origin v0.4.0
+git tag -s v0.3.0 -m "v0.3.0: <summary>"
+git push origin v0.3.0
 ```
 
 The `.githooks/pre-tag` hook runs `rtmx release gate` automatically.

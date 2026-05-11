@@ -1,11 +1,13 @@
 flowchart LR
     subgraph agents["AI Agents"]
+        direction TB
         A1["Claude Code"]
         A2["Cursor"]
         A3["Custom Agent"]
     end
 
     subgraph mcp["rtmx mcp-server"]
+        direction TB
         T1["status"]
         T2["backlog"]
         T3["next"]
@@ -13,9 +15,11 @@ flowchart LR
         T5["health"]
         T6["markers"]
         T7["deps"]
+        T1 ~~~ T2 ~~~ T3 ~~~ T4 ~~~ T5 ~~~ T6 ~~~ T7
     end
 
     subgraph repo["Git Repository"]
+        direction TB
         DB[".rtmx/database.csv"]
         Tests["Test files"]
     end
@@ -28,7 +32,7 @@ flowchart LR
 
     style agents fill:#f0fdf4,stroke:#059669,color:#065f46
     style mcp fill:#d1fae5,stroke:#10b981,color:#065f46
-    style repo fill:#f3f4f6,stroke:#6b7280,color:#1f2937
+    style repo fill:#f3f4f6,stroke:#6b7280,color:#111827
     style A1 fill:#f0fdf4,stroke:#059669,color:#065f46
     style A2 fill:#f0fdf4,stroke:#059669,color:#065f46
     style A3 fill:#f0fdf4,stroke:#059669,color:#065f46

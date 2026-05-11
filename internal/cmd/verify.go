@@ -21,7 +21,6 @@ var (
 	verifyUpdate  bool
 	verifyDryRun  bool
 	verifyVerbose bool
-	verifyAudit   bool
 	verifyCommand string
 	verifyResults string
 	verifyVersion string
@@ -54,7 +53,6 @@ Examples:
   rtmx verify --dry-run          # Show what would change
   rtmx verify --command "pytest -v"    # Use custom test command
   rtmx verify --results results.json --update  # Cross-language results
-  rtmx verify --audit                # Show audit diagnostics for stale refs
 
 Results file format (--results):
   A JSON array of result objects. Marker fields may be supplied
@@ -80,7 +78,6 @@ func init() {
 	verifyCmd.Flags().StringVar(&verifyCommand, "command", "", "custom test command (default: go test -json)")
 	verifyCmd.Flags().StringVar(&verifyResults, "results", "", "RTMX results JSON file (cross-language)")
 	verifyCmd.Flags().StringVar(&verifyVersion, "version", "", "verify only requirements targeting this version")
-	verifyCmd.Flags().BoolVar(&verifyAudit, "audit", false, "show audit diagnostics for stale or unmatched test references")
 
 	rootCmd.AddCommand(verifyCmd)
 }
@@ -161,19 +158,6 @@ func runVerify(cmd *cobra.Command, args []string) error {
 	// Print results
 	printVerifyResults(cmd, verifyResultsList)
 
-	// Run audit diagnostics
-	if verifyAudit {
-		auditResult := runAudit(db, verifyResultsList)
-		printAuditResults(cmd, auditResult)
-	} else {
-		// Even without --audit, warn if there are unmatched references (REQ-VERIFY-006)
-		unmatchedCount := countUnmatchedRefs(db, verifyResultsList)
-		if unmatchedCount > 0 {
-			cmd.Printf("\n%s %d requirement(s) have test references that did not match any test result. Run with --audit for details.\n",
-				output.Color("Warning:", output.Yellow), unmatchedCount)
-		}
-	}
-
 	// Update database if requested
 	if verifyUpdate && !verifyDryRun {
 		updateCount := 0
@@ -218,12 +202,6 @@ func runVerify(cmd *cobra.Command, args []string) error {
 						}
 						if r.NewStatus == database.StatusComplete {
 							req.SetCompletedDate()
-							// REQ-PLAN-013: Auto-set assignee from git attribution
-							if req.Assignee == "" && req.TestModule != "" {
-								if author := GetGitAuthor(req.TestModule); author != "" {
-									req.Assignee = author
-								}
-							}
 						}
 					}
 				}
@@ -672,166 +650,5 @@ func DetectTestCommand(dir string) (string, []string) {
 		return "dart", []string{"test"}
 	default:
 		return "go", []string{"test", "-json", "./..."}
-	}
-}
-
-// AuditFinding represents a single audit diagnostic.
-type AuditFinding struct {
-	ReqID   string `json:"req_id"`
-	Kind    string `json:"kind"` // "unmatched", "stale_path", "unverified_complete", "empty_ref"
-	Field   string `json:"field,omitempty"`
-	Value   string `json:"value,omitempty"`
-	Detail  string `json:"detail,omitempty"`
-}
-
-// AuditResult holds all audit diagnostics.
-type AuditResult struct {
-	Unmatched          []AuditFinding `json:"unmatched_references"`
-	StalePaths         []AuditFinding `json:"stale_test_modules"`
-	UnverifiedComplete []AuditFinding `json:"unverified_complete"`
-	EmptyRefs          []AuditFinding `json:"empty_references"`
-}
-
-// runAudit checks for stale or missing test references in the database.
-func runAudit(db *database.Database, verifyResults []VerificationResult) AuditResult {
-	// Build set of req IDs that had a test match in this run
-	matched := make(map[string]bool)
-	for _, r := range verifyResults {
-		matched[r.ReqID] = true
-	}
-
-	var result AuditResult
-
-	for _, req := range db.All() {
-		hasModule := req.TestModule != ""
-		hasFunction := req.TestFunction != ""
-
-		// Check 1: Empty test references
-		if !hasModule && !hasFunction {
-			result.EmptyRefs = append(result.EmptyRefs, AuditFinding{
-				ReqID:  req.ReqID,
-				Kind:   "empty_ref",
-				Detail: "no test_module or test_function set",
-			})
-			continue
-		}
-
-		// Check 2: Stale test_module path
-		if hasModule {
-			if _, err := os.Stat(req.TestModule); err != nil {
-				result.StalePaths = append(result.StalePaths, AuditFinding{
-					ReqID:  req.ReqID,
-					Kind:   "stale_path",
-					Field:  "test_module",
-					Value:  req.TestModule,
-					Detail: "file does not exist",
-				})
-			}
-		}
-
-		// Check 3: Unmatched test_function (has reference but no test result)
-		if hasFunction && !matched[req.ReqID] {
-			detail := "no matching test result"
-			if hasModule {
-				if _, err := os.Stat(req.TestModule); err != nil {
-					detail = fmt.Sprintf("file missing: %s", req.TestModule)
-				} else {
-					detail = fmt.Sprintf("file exists (%s) but function not matched", req.TestModule)
-				}
-			}
-			result.Unmatched = append(result.Unmatched, AuditFinding{
-				ReqID:  req.ReqID,
-				Kind:   "unmatched",
-				Field:  "test_function",
-				Value:  req.TestFunction,
-				Detail: detail,
-			})
-		}
-
-		// Check 4: COMPLETE but no test match (potential false positive)
-		if req.Status == database.StatusComplete && !matched[req.ReqID] {
-			result.UnverifiedComplete = append(result.UnverifiedComplete, AuditFinding{
-				ReqID:  req.ReqID,
-				Kind:   "unverified_complete",
-				Field:  "test_function",
-				Value:  req.TestFunction,
-				Detail: "status is COMPLETE but no test matched in this run",
-			})
-		}
-	}
-
-	return result
-}
-
-// countUnmatchedRefs returns the number of requirements with test_function set
-// but no matching test result. Used for the default warning (REQ-VERIFY-006).
-func countUnmatchedRefs(db *database.Database, verifyResults []VerificationResult) int {
-	matched := make(map[string]bool)
-	for _, r := range verifyResults {
-		matched[r.ReqID] = true
-	}
-	count := 0
-	for _, req := range db.All() {
-		if req.TestFunction != "" && !matched[req.ReqID] {
-			count++
-		}
-	}
-	return count
-}
-
-func printAuditResults(cmd *cobra.Command, audit AuditResult) {
-	width := 60
-	cmd.Println()
-	cmd.Println(output.Header("Audit Diagnostics", width))
-
-	if len(audit.Unmatched) > 0 {
-		cmd.Println()
-		cmd.Printf("  Unmatched test references (%d):\n", len(audit.Unmatched))
-		for _, f := range audit.Unmatched {
-			cmd.Printf("    %s  test_function=%s  (%s)\n",
-				output.Color(f.ReqID, output.Cyan), f.Value, f.Detail)
-		}
-	}
-
-	if len(audit.StalePaths) > 0 {
-		cmd.Println()
-		cmd.Printf("  Stale test_module paths (%d):\n", len(audit.StalePaths))
-		for _, f := range audit.StalePaths {
-			cmd.Printf("    %s  %s\n",
-				output.Color(f.ReqID, output.Cyan), f.Value)
-		}
-	}
-
-	if len(audit.UnverifiedComplete) > 0 {
-		cmd.Println()
-		cmd.Printf("  Unverified COMPLETE requirements (%d):\n", len(audit.UnverifiedComplete))
-		for _, f := range audit.UnverifiedComplete {
-			funcInfo := "(no test_function)"
-			if f.Value != "" {
-				funcInfo = fmt.Sprintf("test_function=%s", f.Value)
-			}
-			cmd.Printf("    %s  %s\n",
-				output.Color(f.ReqID, output.Cyan), funcInfo)
-		}
-	}
-
-	if len(audit.EmptyRefs) > 0 {
-		cmd.Println()
-		cmd.Printf("  Empty test references (%d):\n", len(audit.EmptyRefs))
-		for _, f := range audit.EmptyRefs {
-			cmd.Printf("    %s  (no test_function set)\n",
-				output.Color(f.ReqID, output.Cyan))
-		}
-	}
-
-	total := len(audit.Unmatched) + len(audit.StalePaths) + len(audit.UnverifiedComplete) + len(audit.EmptyRefs)
-	if total == 0 {
-		cmd.Println()
-		cmd.Printf("  %s No audit findings.\n", output.Color("✓", output.Green))
-	} else {
-		cmd.Println()
-		cmd.Printf("  Summary: %d unmatched, %d stale paths, %d unverified, %d empty\n",
-			len(audit.Unmatched), len(audit.StalePaths),
-			len(audit.UnverifiedComplete), len(audit.EmptyRefs))
 	}
 }
