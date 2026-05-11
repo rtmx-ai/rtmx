@@ -306,6 +306,154 @@ func execCommand(cmd string) (string, error) {
 	return string(out), err
 }
 
+// TestSyncConfig validates SyncConfig parsing from YAML.
+// REQ-BENCH-008: Issue-backend sync validation in benchmarks.
+func TestSyncConfig(t *testing.T) {
+	t.Run("parses_sync_section", func(t *testing.T) {
+		yamlData := []byte(`
+language: go
+exemplar:
+  repo: cli/cli
+  ref: v2.60.0
+expected_markers: 25
+scan_command: rtmx from-tests --format json .
+sync:
+  service: github
+  repo: cli/cli
+  query:
+    labels: enhancement
+    state: open
+  expected_items: 50
+`)
+		cfg, err := ParseConfig(yamlData)
+		if err != nil {
+			t.Fatalf("ParseConfig failed: %v", err)
+		}
+		if cfg.Sync == nil {
+			t.Fatal("Sync config should not be nil")
+		}
+		if cfg.Sync.Service != "github" {
+			t.Errorf("Sync.Service = %q, want %q", cfg.Sync.Service, "github")
+		}
+		if cfg.Sync.Repo != "cli/cli" {
+			t.Errorf("Sync.Repo = %q, want %q", cfg.Sync.Repo, "cli/cli")
+		}
+		if cfg.Sync.ExpectedItems != 50 {
+			t.Errorf("Sync.ExpectedItems = %d, want %d", cfg.Sync.ExpectedItems, 50)
+		}
+		if cfg.Sync.Query["labels"] != "enhancement" {
+			t.Errorf("Sync.Query[labels] = %q, want %q", cfg.Sync.Query["labels"], "enhancement")
+		}
+	})
+
+	t.Run("nil_when_absent", func(t *testing.T) {
+		yamlData := []byte(`
+language: go
+exemplar:
+  repo: cli/cli
+  ref: v2.60.0
+expected_markers: 25
+scan_command: rtmx from-tests --format json .
+`)
+		cfg, err := ParseConfig(yamlData)
+		if err != nil {
+			t.Fatalf("ParseConfig failed: %v", err)
+		}
+		if cfg.Sync != nil {
+			t.Error("Sync config should be nil when not specified")
+		}
+	})
+}
+
+// TestYAMLParserRealParser validates that config parsing uses Go yaml.v3
+// (a real YAML parser) not grep/awk/sed, and handles deep nesting correctly.
+// REQ-BENCH-012: Real YAML parser for benchmark configs.
+func TestYAMLParserRealParser(t *testing.T) {
+	t.Run("nested_three_levels_deep", func(t *testing.T) {
+		// yaml.v3 handles arbitrary nesting; grep/awk fails here
+		yamlData := []byte(`
+language: go
+exemplar:
+  repo: cli/cli
+  ref: v2.60.0
+  nested:
+    deep_key: deep_value
+expected_markers: 25
+scan_command: rtmx from-tests --format json .
+`)
+		// ParseConfig should not error on deep nesting
+		cfg, err := ParseConfig(yamlData)
+		if err != nil {
+			t.Fatalf("ParseConfig with deep nesting failed: %v", err)
+		}
+		if cfg.Language != "go" {
+			t.Errorf("Language = %q, want %q", cfg.Language, "go")
+		}
+		if cfg.Exemplar.Repo != "cli/cli" {
+			t.Errorf("Exemplar.Repo = %q, want %q", cfg.Exemplar.Repo, "cli/cli")
+		}
+	})
+
+	t.Run("all_configs_parse_with_go_yaml_v3", func(t *testing.T) {
+		repoRoot := filepath.Join("..", "..")
+		configDir := filepath.Join(repoRoot, "benchmarks", "configs")
+		entries, err := os.ReadDir(configDir)
+		if err != nil {
+			t.Fatalf("reading config dir: %v", err)
+		}
+
+		parsed := 0
+		for _, e := range entries {
+			if e.IsDir() || filepath.Ext(e.Name()) != ".yaml" {
+				continue
+			}
+			path := filepath.Join(configDir, e.Name())
+			cfg, err := LoadConfig(path)
+			if err != nil {
+				t.Errorf("%s: LoadConfig failed: %v", e.Name(), err)
+				continue
+			}
+			// Verify nested exemplar fields parsed correctly (not empty)
+			if cfg.Exemplar.Repo == "" {
+				t.Errorf("%s: exemplar.repo is empty after Go yaml.v3 parse", e.Name())
+			}
+			if cfg.Exemplar.Ref == "" {
+				t.Errorf("%s: exemplar.ref is empty after Go yaml.v3 parse", e.Name())
+			}
+			parsed++
+		}
+		if parsed < 7 {
+			t.Errorf("expected at least 7 configs, parsed %d", parsed)
+		}
+	})
+
+	t.Run("shell_compatible_get_field_output", func(t *testing.T) {
+		// Verify that Go parser matches what the shell script's get_field would return
+		// for top-level fields (no nesting) -- a basic parity sanity check.
+		yamlData := []byte(`
+language: python
+exemplar:
+  repo: psf/requests
+  ref: v2.31.0
+expected_markers: 20
+scan_command: rtmx from-tests --format json .
+`)
+		cfg, err := ParseConfig(yamlData)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if cfg.Language != "python" {
+			t.Errorf("Language = %q, want %q", cfg.Language, "python")
+		}
+		if cfg.ExpectedMarkers != 20 {
+			t.Errorf("ExpectedMarkers = %d, want %d", cfg.ExpectedMarkers, 20)
+		}
+		if cfg.Exemplar.Repo != "psf/requests" {
+			t.Errorf("Exemplar.Repo = %q, want %q", cfg.Exemplar.Repo, "psf/requests")
+		}
+	})
+}
+
 func TestLoadConfigFromFile(t *testing.T) {
 	t.Run("valid file", func(t *testing.T) {
 		dir := t.TempDir()

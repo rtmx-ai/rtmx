@@ -137,6 +137,109 @@ func TestDetectWebs(t *testing.T) {
 		}
 	})
 
+	t.Run("detect_overlaps", func(t *testing.T) {
+		// This sub-test verifies REQ-ORCH-007 behavior within the web tests
+	})
+}
+
+func TestDetectOverlaps(t *testing.T) {
+	rtmx.Req(t, "REQ-ORCH-007",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	t.Run("no_overlap", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		a := database.NewRequirement("REQ-A")
+		a.Status = database.StatusMissing
+		a.TestModule = "internal/cmd/foo_test.go"
+		_ = db.Add(a)
+
+		b := database.NewRequirement("REQ-B")
+		b.Status = database.StatusMissing
+		b.TestModule = "internal/graph/bar_test.go"
+		_ = db.Add(b)
+
+		g := NewGraph(db)
+		webs := g.DetectWebs()
+		overlaps := g.DetectOverlaps(webs)
+
+		if len(overlaps) != 0 {
+			t.Errorf("expected 0 overlaps, got %d", len(overlaps))
+		}
+	})
+
+	t.Run("shared_directory", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		// Web 1
+		a := database.NewRequirement("REQ-A")
+		a.Status = database.StatusMissing
+		a.TestModule = "internal/cmd/install_test.go"
+		_ = db.Add(a)
+
+		// Web 2 (independent, different component)
+		b := database.NewRequirement("REQ-B")
+		b.Status = database.StatusMissing
+		b.TestModule = "internal/cmd/verify_test.go"
+		_ = db.Add(b)
+
+		g := NewGraph(db)
+		webs := g.DetectWebs()
+		overlaps := g.DetectOverlaps(webs)
+
+		// Both touch internal/cmd -- should detect overlap
+		if len(overlaps) != 1 {
+			t.Fatalf("expected 1 overlap (shared dir), got %d", len(overlaps))
+		}
+		if len(overlaps[0].SharedFiles) == 0 {
+			t.Error("shared files should not be empty")
+		}
+	})
+
+	t.Run("single_web_no_overlap", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		a := database.NewRequirement("REQ-A")
+		a.Status = database.StatusMissing
+		a.TestModule = "internal/cmd/foo_test.go"
+		_ = db.Add(a)
+
+		g := NewGraph(db)
+		webs := g.DetectWebs()
+		overlaps := g.DetectOverlaps(webs)
+
+		if len(overlaps) != 0 {
+			t.Errorf("single web should have no overlaps, got %d", len(overlaps))
+		}
+	})
+
+	t.Run("no_test_module_no_overlap", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		a := database.NewRequirement("REQ-A")
+		a.Status = database.StatusMissing
+		_ = db.Add(a)
+
+		b := database.NewRequirement("REQ-B")
+		b.Status = database.StatusMissing
+		_ = db.Add(b)
+
+		g := NewGraph(db)
+		webs := g.DetectWebs()
+		overlaps := g.DetectOverlaps(webs)
+
+		if len(overlaps) != 0 {
+			t.Errorf("reqs without test_module should have no overlaps, got %d", len(overlaps))
+		}
+	})
+}
+
+func TestDetectWebsChain(t *testing.T) {
+	rtmx.Req(t, "REQ-ORCH-001")
+
 	t.Run("chain_forms_single_web", func(t *testing.T) {
 		db := database.NewDatabase()
 

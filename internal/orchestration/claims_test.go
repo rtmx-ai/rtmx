@@ -1,11 +1,13 @@
 package orchestration
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
@@ -236,6 +238,117 @@ func TestClaimProtocol(t *testing.T) {
 		}
 		if got == nil || got.AgentID != "agent-1" {
 			t.Error("claim should persist across store instances")
+		}
+	})
+}
+
+func TestClaimStaleness(t *testing.T) {
+	rtmx.Req(t, "REQ-ORCH-009",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	t.Run("heartbeat_updates_timestamp", func(t *testing.T) {
+		store := newTestStore(t)
+
+		claim, _ := store.Claim("REQ-001", "agent-1")
+		original := claim.ClaimedAt
+
+		// Small sleep to ensure time moves forward
+		err := store.Heartbeat("REQ-001", "agent-1")
+		if err != nil {
+			t.Fatalf("Heartbeat failed: %v", err)
+		}
+
+		got, _ := store.Get("REQ-001")
+		if got.ClaimedAt.Before(original) {
+			t.Error("Heartbeat should not move timestamp backward")
+		}
+	})
+
+	t.Run("heartbeat_wrong_owner_fails", func(t *testing.T) {
+		store := newTestStore(t)
+
+		_, _ = store.Claim("REQ-001", "agent-1")
+
+		err := store.Heartbeat("REQ-001", "agent-2")
+		if err == nil {
+			t.Fatal("Heartbeat by non-owner should fail")
+		}
+
+		var noe *NotOwnerError
+		if !errors.As(err, &noe) {
+			t.Fatalf("expected NotOwnerError, got %T: %v", err, err)
+		}
+	})
+
+	t.Run("heartbeat_unclaimed_fails", func(t *testing.T) {
+		store := newTestStore(t)
+
+		err := store.Heartbeat("REQ-NOPE", "agent-1")
+		if err == nil {
+			t.Fatal("Heartbeat on unclaimed should fail")
+		}
+
+		var nce *NotClaimedError
+		if !errors.As(err, &nce) {
+			t.Fatalf("expected NotClaimedError, got %T: %v", err, err)
+		}
+	})
+
+	t.Run("reap_stale_removes_old_claims", func(t *testing.T) {
+		store := newTestStore(t)
+
+		// Create a claim and manually backdate the file
+		_, _ = store.Claim("REQ-OLD", "agent-1")
+
+		// Read and backdate
+		got, _ := store.Get("REQ-OLD")
+		got.ClaimedAt = got.ClaimedAt.Add(-2 * time.Hour)
+		data, _ := json.MarshalIndent(got, "", "  ")
+		_ = os.WriteFile(store.claimPath("REQ-OLD"), data, 0644)
+
+		// Create a fresh claim
+		_, _ = store.Claim("REQ-FRESH", "agent-2")
+
+		// Reap with 1-hour timeout
+		reaped, err := store.ReapStale(time.Hour)
+		if err != nil {
+			t.Fatalf("ReapStale failed: %v", err)
+		}
+
+		if len(reaped) != 1 {
+			t.Fatalf("expected 1 reaped, got %d", len(reaped))
+		}
+		if reaped[0].ReqID != "REQ-OLD" {
+			t.Errorf("reaped ID = %q, want REQ-OLD", reaped[0].ReqID)
+		}
+
+		// Old claim should be gone
+		old, _ := store.Get("REQ-OLD")
+		if old != nil {
+			t.Error("stale claim should be removed")
+		}
+
+		// Fresh claim should remain
+		fresh, _ := store.Get("REQ-FRESH")
+		if fresh == nil {
+			t.Error("fresh claim should remain")
+		}
+	})
+
+	t.Run("reap_no_stale_claims", func(t *testing.T) {
+		store := newTestStore(t)
+
+		_, _ = store.Claim("REQ-001", "agent-1")
+
+		reaped, err := store.ReapStale(time.Hour)
+		if err != nil {
+			t.Fatalf("ReapStale failed: %v", err)
+		}
+		if len(reaped) != 0 {
+			t.Errorf("expected 0 reaped, got %d", len(reaped))
 		}
 	})
 }

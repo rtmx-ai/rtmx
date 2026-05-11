@@ -8,13 +8,17 @@ import (
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/database"
 	"github.com/rtmx-ai/rtmx/internal/graph"
+	"github.com/rtmx-ai/rtmx/internal/orchestration"
 	"github.com/rtmx-ai/rtmx/internal/output"
 	"github.com/spf13/cobra"
 )
 
 var (
-	nextOne  bool
-	nextJSON bool
+	nextOne      bool
+	nextJSON     bool
+	nextBatch    bool
+	nextWorktree bool
+	nextAgentID  string
 )
 
 var nextCmd = &cobra.Command{
@@ -37,6 +41,9 @@ Examples:
 func init() {
 	nextCmd.Flags().BoolVar(&nextOne, "one", false, "pick single highest-priority unblocked requirement")
 	nextCmd.Flags().BoolVar(&nextJSON, "json", false, "output as JSON")
+	nextCmd.Flags().BoolVar(&nextBatch, "batch", false, "claim entire highest-priority work web")
+	nextCmd.Flags().BoolVar(&nextWorktree, "worktree", false, "create git worktree for claimed web (requires --batch)")
+	nextCmd.Flags().StringVar(&nextAgentID, "agent-id", "", "agent identifier for claims (defaults to hostname)")
 	rootCmd.AddCommand(nextCmd)
 }
 
@@ -67,6 +74,10 @@ func runNext(cmd *cobra.Command, args []string) error {
 	if len(webs) == 0 {
 		cmd.Println("No incomplete requirements found.")
 		return nil
+	}
+
+	if nextBatch {
+		return runNextBatch(cmd, db, webs, cwd)
 	}
 
 	if nextOne {
@@ -242,4 +253,87 @@ func contains(slice []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// runNextBatch claims all requirements in the highest-priority work web.
+func runNextBatch(cmd *cobra.Command, db *database.Database, webs []graph.Web, cwd string) error {
+	if len(webs) == 0 {
+		cmd.Println("No work webs available.")
+		return nil
+	}
+
+	agentID := nextAgentID
+	if agentID == "" {
+		hostname, _ := os.Hostname()
+		agentID = hostname
+	}
+
+	// Pick the web with the highest-priority unblocked requirement
+	bestWebIdx := 0
+	var bestPriority *database.Requirement
+	for i, web := range webs {
+		candidate := pickHighestPriority(db, web.Unblocked)
+		if candidate == nil {
+			continue
+		}
+		if bestPriority == nil || candidate.Priority.Weight() < bestPriority.Priority.Weight() {
+			bestWebIdx = i
+			bestPriority = candidate
+		}
+	}
+
+	web := webs[bestWebIdx]
+
+	// Claim all requirements in topological order
+	claimsDir := fmt.Sprintf("%s/.rtmx/claims", cwd)
+	store, err := orchestration.NewClaimStore(claimsDir)
+	if err != nil {
+		return fmt.Errorf("failed to create claim store: %w", err)
+	}
+
+	// Topological order: unblocked first, then blocked
+	ordered := make([]string, 0, len(web.IDs))
+	ordered = append(ordered, web.Unblocked...)
+	ordered = append(ordered, web.Blocked...)
+
+	var claimed []string
+	for _, id := range ordered {
+		_, claimErr := store.Claim(id, agentID)
+		if claimErr != nil {
+			// Already claimed -- skip silently
+			continue
+		}
+		claimed = append(claimed, id)
+	}
+
+	if nextJSON {
+		cmd.Printf("{\"web\":%d,\"claimed\":%d,\"agent_id\":%q,\"ids\":[", bestWebIdx+1, len(claimed), agentID)
+		for i, id := range claimed {
+			if i > 0 {
+				cmd.Print(",")
+			}
+			cmd.Printf("%q", id)
+		}
+		cmd.Println("]}")
+		return nil
+	}
+
+	cmd.Printf("Claimed %d requirement(s) in Web %d for agent %s:\n", len(claimed), bestWebIdx+1, agentID)
+	for _, id := range claimed {
+		req := db.Get(id)
+		if req != nil {
+			cmd.Printf("  %s  [%s]  %s\n", id, string(req.Priority), output.Truncate(req.RequirementText, 50))
+		}
+	}
+
+	// Worktree binding (REQ-ORCH-008)
+	if nextWorktree && len(claimed) > 0 {
+		wtPath, branch, wtErr := orchestration.CreateWorktree(cwd, bestWebIdx+1)
+		if wtErr != nil {
+			return fmt.Errorf("failed to create worktree: %w", wtErr)
+		}
+		cmd.Printf("\nWorktree created:\n  Path:   %s\n  Branch: %s\n", wtPath, branch)
+	}
+
+	return nil
 }

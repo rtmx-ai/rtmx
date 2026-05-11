@@ -1,0 +1,15 @@
+flowchart TD
+    A["Requirements\n(CSV in git)"] --> B["rtmx next\nPick unblocked requirement"]
+    B --> C["Agent writes\ncode + tests"]
+    C --> D{"rtmx verify\nTests pass?"}
+    D -- yes --> E["Status updates\nautomatically"]
+    D -- no --> C
+    E --> F["rtmx status\nTeam sees progress"]
+    F -.-> B
+
+    style A fill:#d1fae5,stroke:#059669,color:#065f46
+    style B fill:#d1fae5,stroke:#059669,color:#065f46
+    style C fill:#e5e7eb,stroke:#6b7280,color:#1f2937
+    style D fill:#fef3c7,stroke:#d97706,color:#92400e
+    style E fill:#d1fae5,stroke:#059669,color:#065f46
+    style F fill:#d1fae5,stroke:#059669,color:#065f46

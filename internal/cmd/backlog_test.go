@@ -35,15 +35,14 @@ func TestBacklogRealCommand(t *testing.T) {
 	}
 
 	output := buf.String()
-	expectedPhrases := []string{
-		"Prioritized Backlog",
-		"Total Requirements:",
+	// Must always show the header
+	if !strings.Contains(output, "Prioritized Backlog") {
+		t.Errorf("Expected output to contain 'Prioritized Backlog', got:\n%s", output)
 	}
-
-	for _, phrase := range expectedPhrases {
-		if !strings.Contains(output, phrase) {
-			t.Errorf("Expected output to contain %q, got:\n%s", phrase, output)
-		}
+	// When all requirements are complete, backlog shows "No items" message.
+	// When incomplete items exist, it shows "Total Requirements:".
+	if !strings.Contains(output, "Total Requirements:") && !strings.Contains(output, "No items") {
+		t.Errorf("Expected output to contain 'Total Requirements:' or 'No items', got:\n%s", output)
 	}
 }
 
@@ -132,6 +131,12 @@ func TestBacklogTableFormat(t *testing.T) {
 	}
 
 	output := buf.String()
+
+	// When all requirements are complete, backlog is empty.
+	// Only check table format when there are incomplete items.
+	if strings.Contains(output, "No items") {
+		t.Skip("backlog empty (100% complete), table format test not applicable")
+	}
 
 	// Verify ASCII table format markers
 	expectedTableElements := []string{

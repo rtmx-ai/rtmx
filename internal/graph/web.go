@@ -2,6 +2,7 @@ package graph
 
 import (
 	"sort"
+	"strings"
 )
 
 // Web represents a connected component of incomplete requirements in the
@@ -112,4 +113,85 @@ func (g *Graph) DetectWebs() []Web {
 	})
 
 	return webs
+}
+
+// WebOverlap describes an implicit coupling between two webs
+// via shared file surface.
+type WebOverlap struct {
+	WebA         int      // index of first web
+	WebB         int      // index of second web
+	SharedFiles  []string // files touched by both webs
+}
+
+// DetectOverlaps finds webs that touch the same source files, indicating
+// implicit coupling that could cause merge conflicts. File surface is
+// derived from the test_module field of each requirement.
+func (g *Graph) DetectOverlaps(webs []Web) []WebOverlap {
+	if len(webs) < 2 {
+		return nil
+	}
+
+	// Build file -> web index mapping
+	type webFile struct {
+		webIdx int
+		file   string
+	}
+	fileToWebs := make(map[string][]int) // file -> list of web indices
+
+	for i, web := range webs {
+		seen := make(map[string]bool)
+		for _, id := range web.IDs {
+			req := g.db.Get(id)
+			if req == nil {
+				continue
+			}
+			// Use test_module as file surface indicator
+			if req.TestModule != "" {
+				// Normalize to directory level for broader overlap detection
+				dir := req.TestModule
+				if idx := strings.LastIndex(dir, "/"); idx > 0 {
+					dir = dir[:idx]
+				}
+				if !seen[dir] {
+					seen[dir] = true
+					fileToWebs[dir] = append(fileToWebs[dir], i)
+				}
+			}
+		}
+	}
+
+	// Find overlaps: files referenced by multiple webs
+	overlapMap := make(map[[2]int][]string) // [webA, webB] -> shared files
+	for file, webIdxs := range fileToWebs {
+		if len(webIdxs) < 2 {
+			continue
+		}
+		// Report all pairs
+		for a := 0; a < len(webIdxs); a++ {
+			for b := a + 1; b < len(webIdxs); b++ {
+				key := [2]int{webIdxs[a], webIdxs[b]}
+				overlapMap[key] = append(overlapMap[key], file)
+			}
+		}
+	}
+
+	var overlaps []WebOverlap
+	for key, files := range overlapMap {
+		sort.Strings(files)
+		overlaps = append(overlaps, WebOverlap{
+			WebA:        key[0],
+			WebB:        key[1],
+			SharedFiles: files,
+		})
+	}
+
+	// Sort for stable output
+	sort.Slice(overlaps, func(i, j int) bool {
+		if overlaps[i].WebA != overlaps[j].WebA {
+			return overlaps[i].WebA < overlaps[j].WebA
+		}
+		return overlaps[i].WebB < overlaps[j].WebB
+	})
+
+	return overlaps
 }

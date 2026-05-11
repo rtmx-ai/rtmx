@@ -1,0 +1,19 @@
+block-beta
+    columns 1
+    block:header["database.csv  --  Pull Request #42"]
+        columns 1
+    end
+    block:removed["- REQ-AUTH-003,auth,mfa,TOTP-based MFA,...,missing,,"]
+        columns 1
+    end
+    block:added["+ REQ-AUTH-003,auth,mfa,TOTP-based MFA,...,complete,test_totp_flow,"]
+        columns 1
+    end
+    block:context["  REQ-AUTH-004,auth,session,Session timeout,...,partial,,"]
+        columns 1
+    end
+
+    style header fill:#f3f4f6,stroke:#9ca3af,color:#374151
+    style removed fill:#fecaca,stroke:#dc2626,color:#991b1b
+    style added fill:#bbf7d0,stroke:#16a34a,color:#166534
+    style context fill:#f9fafb,stroke:#d1d5db,color:#6b7280

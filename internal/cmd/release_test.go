@@ -48,7 +48,14 @@ func createReleaseTestCmd() *cobra.Command {
 		RunE: runReleaseScope,
 	}
 
-	rel.AddCommand(gate, assign, unassign, scope)
+	forecast := &cobra.Command{
+		Use:  "forecast",
+		Args: cobra.ExactArgs(1),
+		RunE: runReleaseForecast,
+	}
+	forecast.Flags().BoolVar(&releaseForecastJSON, "json", false, "")
+
+	rel.AddCommand(gate, assign, unassign, scope, forecast)
 	root.AddCommand(rel)
 	root.PersistentFlags().BoolVar(&noColor, "no-color", true, "")
 	return root
@@ -487,6 +494,90 @@ func TestReleaseScope(t *testing.T) {
 		}
 		if !strings.Contains(buf.String(), "No requirements") {
 			t.Errorf("expected 'No requirements' message, got:\n%s", buf.String())
+		}
+	})
+}
+
+func TestReleaseForecast(t *testing.T) {
+	rtmx.Req(t, "REQ-PLAN-012",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	t.Run("shows_forecast", func(t *testing.T) {
+		dbContent := testDBHeader +
+			"REQ-001,CLI,Commands,Done feature,Pass,mod,TestA,Unit Test,COMPLETE,HIGH,1,,1.0,,,,v0.4.0,2026-05-01,2026-05-05,,,\n" +
+			"REQ-002,CLI,Commands,Done feature 2,Pass,mod,TestB,Unit Test,COMPLETE,HIGH,1,,2.0,,,,v0.4.0,2026-05-01,2026-05-07,,,\n" +
+			"REQ-003,CLI,Commands,Remaining,Pass,mod,TestC,Unit Test,MISSING,HIGH,1,,3.0,,,,v0.4.0,,,,\n"
+
+		tmpDir := setupReleaseTestProject(t, dbContent)
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := createReleaseTestCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"release", "forecast", "v0.4.0", "--no-color"})
+
+		err := cmd.Execute()
+		if err != nil {
+			t.Fatalf("release forecast failed: %v\nOutput: %s", err, buf.String())
+		}
+
+		out := buf.String()
+		if !strings.Contains(out, "Remaining effort") {
+			t.Errorf("expected remaining effort in output, got:\n%s", out)
+		}
+		if !strings.Contains(out, "Velocity") {
+			t.Errorf("expected velocity in output, got:\n%s", out)
+		}
+	})
+
+	t.Run("no_version_reqs", func(t *testing.T) {
+		dbContent := testDBHeader +
+			"REQ-001,CLI,Commands,Done,Pass,mod,TestA,Unit Test,COMPLETE,HIGH,1,,1.0,,,,v0.3.0,2026-05-01,2026-05-05,,,\n"
+
+		tmpDir := setupReleaseTestProject(t, dbContent)
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := createReleaseTestCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"release", "forecast", "v9.9.9", "--no-color"})
+
+		err := cmd.Execute()
+		if err != nil {
+			t.Fatalf("release forecast should not error: %v", err)
+		}
+		if !strings.Contains(buf.String(), "No requirements") {
+			t.Errorf("expected 'No requirements' message, got:\n%s", buf.String())
+		}
+	})
+
+	t.Run("warns_unmeasured_scope", func(t *testing.T) {
+		dbContent := testDBHeader +
+			"REQ-001,CLI,Commands,Done,Pass,mod,TestA,Unit Test,COMPLETE,HIGH,1,,2.0,,,,v0.4.0,2026-05-01,2026-05-07,,,\n" +
+			"REQ-002,CLI,Commands,No effort,Pass,mod,TestB,Unit Test,MISSING,HIGH,1,,,,,,v0.4.0,,,,\n"
+
+		tmpDir := setupReleaseTestProject(t, dbContent)
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := createReleaseTestCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"release", "forecast", "v0.4.0", "--no-color"})
+
+		_ = cmd.Execute()
+
+		out := buf.String()
+		if !strings.Contains(out, "unmeasured") || !strings.Contains(out, "without effort_weeks") {
+			t.Errorf("expected unmeasured scope warning, got:\n%s", out)
 		}
 	})
 }

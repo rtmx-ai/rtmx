@@ -765,6 +765,200 @@ func TestInstallClaudeCode(t *testing.T) {
 	})
 }
 
+func TestInstallCoder(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-003",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	t.Run("creates_setup_script", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		_, err := executeCommand(cmd, "install", "--coder")
+		if err != nil {
+			t.Fatalf("install --coder failed: %v", err)
+		}
+
+		scriptPath := filepath.Join(tmpDir, "templates", "coder", "setup.sh")
+		data, err := os.ReadFile(scriptPath)
+		if err != nil {
+			t.Fatalf("Expected setup.sh to exist: %v", err)
+		}
+		content := string(data)
+		if !strings.Contains(content, "mcp-server") {
+			t.Error("setup.sh should reference MCP server")
+		}
+		if !strings.Contains(content, "http") {
+			t.Error("setup.sh should use HTTP transport")
+		}
+	})
+
+	t.Run("dry_run_does_not_write", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		out, err := executeCommand(cmd, "install", "--coder", "--dry-run")
+		if err != nil {
+			t.Fatalf("install --coder --dry-run failed: %v", err)
+		}
+		if !strings.Contains(out, "Would create") {
+			t.Error("dry-run should mention 'Would create'")
+		}
+		scriptPath := filepath.Join(tmpDir, "templates", "coder", "setup.sh")
+		if _, err := os.Stat(scriptPath); !os.IsNotExist(err) {
+			t.Error("dry-run should not create files")
+		}
+	})
+}
+
+func TestInstallCodex(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-003",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	t.Run("creates_tool_definition", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		_, err := executeCommand(cmd, "install", "--codex")
+		if err != nil {
+			t.Fatalf("install --codex failed: %v", err)
+		}
+
+		toolPath := filepath.Join(tmpDir, "templates", "codex", "rtmx-tools.json")
+		data, err := os.ReadFile(toolPath)
+		if err != nil {
+			t.Fatalf("Expected rtmx-tools.json to exist: %v", err)
+		}
+
+		// Verify valid JSON
+		var tools map[string]interface{}
+		if err := json.Unmarshal(data, &tools); err != nil {
+			t.Fatalf("rtmx-tools.json is not valid JSON: %v", err)
+		}
+		content := string(data)
+		if !strings.Contains(content, "--json") {
+			t.Error("tool definition should use --json for structured output")
+		}
+	})
+}
+
+func TestInstallGastown(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-003",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	t.Run("creates_plugin_config", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		_, err := executeCommand(cmd, "install", "--gastown")
+		if err != nil {
+			t.Fatalf("install --gastown failed: %v", err)
+		}
+
+		pluginPath := filepath.Join(tmpDir, "templates", "gastown", "rtmx-plugin.json")
+		data, err := os.ReadFile(pluginPath)
+		if err != nil {
+			t.Fatalf("Expected rtmx-plugin.json to exist: %v", err)
+		}
+
+		var config map[string]interface{}
+		if err := json.Unmarshal(data, &config); err != nil {
+			t.Fatalf("rtmx-plugin.json is not valid JSON: %v", err)
+		}
+		if config["name"] != "rtmx" {
+			t.Errorf("Expected name 'rtmx', got %v", config["name"])
+		}
+		content := string(data)
+		if !strings.Contains(content, "mcp-server") {
+			t.Error("plugin config should reference mcp-server")
+		}
+	})
+}
+
+func TestInstallGeminiCLI(t *testing.T) {
+	rtmx.Req(t, "REQ-PLUGIN-002",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	t.Run("creates_extension_config", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		_, err := executeCommand(cmd, "install", "--gemini-cli")
+		if err != nil {
+			t.Fatalf("install --gemini-cli failed: %v", err)
+		}
+
+		configPath := filepath.Join(tmpDir, "templates", "gemini-cli", "rtmx-extension.json")
+		data, err := os.ReadFile(configPath)
+		if err != nil {
+			t.Fatalf("Expected rtmx-extension.json to exist: %v", err)
+		}
+
+		var config map[string]interface{}
+		if err := json.Unmarshal(data, &config); err != nil {
+			t.Fatalf("rtmx-extension.json is not valid JSON: %v", err)
+		}
+		if config["name"] != "rtmx" {
+			t.Errorf("Expected name 'rtmx', got %v", config["name"])
+		}
+		content := string(data)
+		if !strings.Contains(content, "stdio") {
+			t.Error("extension config should use stdio transport")
+		}
+		if !strings.Contains(content, "mcp") {
+			t.Error("extension config should reference MCP")
+		}
+	})
+
+	t.Run("dry_run_no_write", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		cmd := newTestRootCmd()
+		out, err := executeCommand(cmd, "install", "--gemini-cli", "--dry-run")
+		if err != nil {
+			t.Fatalf("install --gemini-cli --dry-run failed: %v", err)
+		}
+
+		if !strings.Contains(out, "DRY RUN") {
+			t.Error("dry-run should print DRY RUN notice")
+		}
+
+		configPath := filepath.Join(tmpDir, "templates", "gemini-cli", "rtmx-extension.json")
+		if _, err := os.Stat(configPath); !os.IsNotExist(err) {
+			t.Error("dry-run should not create files")
+		}
+	})
+}
+
 func TestInstallCursor(t *testing.T) {
 	rtmx.Req(t, "REQ-PLUGIN-003")
 

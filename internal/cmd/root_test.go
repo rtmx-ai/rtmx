@@ -179,6 +179,7 @@ Source: https://github.com/rtmx-ai/rtmx`,
 // newTestInstallCmd creates a fresh install command for testing with real behavior.
 func newTestInstallCmd() *cobra.Command {
 	var dryRun, yes, force, all, skipBackup, hooks, prePush, remove, validate, claude, list bool
+	var coder, codex, gastown, geminiCLI bool
 	var agents []string
 
 	cmd := &cobra.Command{
@@ -196,6 +197,10 @@ func newTestInstallCmd() *cobra.Command {
 			installRemove = remove
 			installValidate = validate
 			installClaude = claude
+			installCoder = coder
+			installCodex = codex
+			installGastown = gastown
+			installGeminiCLI = geminiCLI
 			installList = list
 			return runInstall(cmd, args)
 		},
@@ -211,6 +216,10 @@ func newTestInstallCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&remove, "remove", false, "remove installed hooks")
 	cmd.Flags().BoolVar(&validate, "validate", false, "install validation hook")
 	cmd.Flags().BoolVar(&claude, "claude", false, "install Claude Code hooks")
+	cmd.Flags().BoolVar(&coder, "coder", false, "generate Coder workspace template")
+	cmd.Flags().BoolVar(&codex, "codex", false, "generate Codex tool definition")
+	cmd.Flags().BoolVar(&gastown, "gastown", false, "generate Gastown plugin config")
+	cmd.Flags().BoolVar(&geminiCLI, "gemini-cli", false, "generate Gemini CLI extension config")
 	cmd.Flags().BoolVar(&list, "list", false, "list all supported agents")
 	return cmd
 }

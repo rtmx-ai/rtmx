@@ -155,6 +155,57 @@ func (s *ClaimStore) List() ([]*Claim, error) {
 	return claims, nil
 }
 
+// Heartbeat updates the timestamp on an existing claim to prevent staleness reaping.
+func (s *ClaimStore) Heartbeat(reqID, agentID string) error {
+	existing, err := s.Get(reqID)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return &NotClaimedError{ReqID: reqID}
+	}
+	if existing.AgentID != agentID {
+		return &NotOwnerError{
+			ReqID:  reqID,
+			Owner:  existing.AgentID,
+			Caller: agentID,
+		}
+	}
+
+	// Update the claimed_at timestamp
+	existing.ClaimedAt = time.Now().UTC()
+	data, err := json.MarshalIndent(existing, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal claim: %w", err)
+	}
+	if err := os.WriteFile(s.claimPath(reqID), data, 0644); err != nil {
+		return fmt.Errorf("failed to update claim: %w", err)
+	}
+	return nil
+}
+
+// ReapStale removes claims older than the given timeout and returns the reaped claims.
+func (s *ClaimStore) ReapStale(timeout time.Duration) ([]*Claim, error) {
+	claims, err := s.List()
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+	var reaped []*Claim
+
+	for _, c := range claims {
+		if now.Sub(c.ClaimedAt) > timeout {
+			if err := os.Remove(s.claimPath(c.ReqID)); err != nil {
+				continue
+			}
+			reaped = append(reaped, c)
+		}
+	}
+
+	return reaped, nil
+}
+
 func (s *ClaimStore) claimPath(reqID string) string {
 	return filepath.Join(s.dir, reqID+".json")
 }

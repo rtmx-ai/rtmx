@@ -218,6 +218,12 @@ func runVerify(cmd *cobra.Command, args []string) error {
 						}
 						if r.NewStatus == database.StatusComplete {
 							req.SetCompletedDate()
+							// REQ-PLAN-013: Auto-set assignee from git attribution
+							if req.Assignee == "" && req.TestModule != "" {
+								if author := GetGitAuthor(req.TestModule); author != "" {
+									req.Assignee = author
+								}
+							}
 						}
 					}
 				}

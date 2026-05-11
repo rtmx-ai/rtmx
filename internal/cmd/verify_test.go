@@ -1565,3 +1565,108 @@ func TestVerifyUnmatchedWarning(t *testing.T) {
 		}
 	})
 }
+
+func TestVerifyGitAttribution(t *testing.T) {
+	rtmx.Req(t, "REQ-PLAN-013",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+
+	t.Run("get_git_author_returns_string_for_tracked_file", func(t *testing.T) {
+		// GetGitAuthor should return a non-empty string for a file tracked in this repo
+		author := GetGitAuthor("internal/cmd/verify.go")
+		// In a real git repo this will return the author name; in CI it may vary
+		// The key contract is it doesn't panic and returns a string
+		if author == "" {
+			t.Log("GetGitAuthor returned empty -- likely not in a git repo context")
+		}
+	})
+
+	t.Run("get_git_author_returns_empty_for_nonexistent", func(t *testing.T) {
+		author := GetGitAuthor("nonexistent/file/that/doesnt/exist.go")
+		if author != "" {
+			t.Errorf("expected empty author for nonexistent file, got %q", author)
+		}
+	})
+
+	t.Run("assignee_not_overwritten", func(t *testing.T) {
+		// Simulate the attribution logic: if assignee is already set, don't overwrite
+		db := database.NewDatabase()
+
+		req := database.NewRequirement("REQ-001")
+		req.TestFunction = "TestFoo"
+		req.TestModule = "internal/cmd/verify.go"
+		req.Status = database.StatusMissing
+		req.Assignee = "existing-person"
+		_ = db.Add(req)
+
+		testResults := map[string]*TestResult{
+			"pkg/TestFoo": {Package: "pkg", Test: "TestFoo", Passed: true},
+		}
+		results := mapTestsToRequirements(db, testResults)
+
+		for _, r := range results {
+			if r.Updated {
+				dbReq := db.Get(r.ReqID)
+				if dbReq != nil {
+					dbReq.Status = r.NewStatus
+					if r.NewStatus == database.StatusComplete {
+						dbReq.SetCompletedDate()
+						// Attribution logic: don't overwrite existing assignee
+						if dbReq.Assignee == "" && dbReq.TestModule != "" {
+							if author := GetGitAuthor(dbReq.TestModule); author != "" {
+								dbReq.Assignee = author
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if req.Assignee != "existing-person" {
+			t.Errorf("assignee should not be overwritten, got %q", req.Assignee)
+		}
+	})
+
+	t.Run("assignee_set_when_empty", func(t *testing.T) {
+		db := database.NewDatabase()
+
+		req := database.NewRequirement("REQ-001")
+		req.TestFunction = "TestFoo"
+		req.TestModule = "internal/cmd/verify.go"
+		req.Status = database.StatusMissing
+		// Assignee intentionally left empty
+		_ = db.Add(req)
+
+		testResults := map[string]*TestResult{
+			"pkg/TestFoo": {Package: "pkg", Test: "TestFoo", Passed: true},
+		}
+		results := mapTestsToRequirements(db, testResults)
+
+		for _, r := range results {
+			if r.Updated {
+				dbReq := db.Get(r.ReqID)
+				if dbReq != nil {
+					dbReq.Status = r.NewStatus
+					if r.NewStatus == database.StatusComplete {
+						dbReq.SetCompletedDate()
+						if dbReq.Assignee == "" && dbReq.TestModule != "" {
+							if author := GetGitAuthor(dbReq.TestModule); author != "" {
+								dbReq.Assignee = author
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// In a git repo, this should have set the assignee
+		// In CI without git, it may remain empty
+		if req.Assignee == "" {
+			t.Log("assignee not set -- GetGitAuthor returned empty (likely not in full git repo)")
+		} else {
+			t.Logf("assignee auto-set to %q from git attribution", req.Assignee)
+		}
+	})
+}

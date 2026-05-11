@@ -330,8 +330,8 @@ func TestStatusFailUnder(t *testing.T) {
 	rootCmd := createStatusTestCmd()
 	buf := new(bytes.Buffer)
 	rootCmd.SetOut(buf)
-	// Use 100% threshold - should always fail since project is incomplete
-	rootCmd.SetArgs([]string{"status", "--fail-under", "100"})
+	// Use 101% threshold - impossible to meet, always triggers failure
+	rootCmd.SetArgs([]string{"status", "--fail-under", "101"})
 
 	err := rootCmd.Execute()
 	if err == nil {
@@ -393,10 +393,10 @@ func TestStatusJSONWithFailUnder(t *testing.T) {
 	rootCmd := createStatusTestCmd()
 	buf := new(bytes.Buffer)
 	rootCmd.SetOut(buf)
-	rootCmd.SetArgs([]string{"status", "--json", "--fail-under", "100"})
+	rootCmd.SetArgs([]string{"status", "--json", "--fail-under", "101"})
 
 	err := rootCmd.Execute()
-	// Should fail because of threshold
+	// Should fail because 101% is impossible to meet
 	if err == nil {
 		t.Fatal("expected error when below threshold")
 	}
