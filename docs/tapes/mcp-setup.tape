@@ -19,8 +19,8 @@ Type "claude mcp add rtmx -- rtmx mcp-server --stdio"
 Enter
 Sleep 3s
 
-# Verify successful connection
-Type "claude mcp list"
+# Verify successful connection (filter to rtmx only)
+Type "claude mcp list 2>&1 | grep -v claude.ai"
 Enter
 Sleep 8s
 
