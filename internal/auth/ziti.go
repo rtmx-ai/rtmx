@@ -63,7 +63,7 @@ func (z *ZitiClient) IsEnrolled() bool {
 	return z.Config.Enrolled
 }
 
-// SetService configures the Ziti service name for rtmx-sync connectivity.
+// SetService configures the Ziti service name for sync server connectivity.
 func (z *ZitiClient) SetService(serviceName string) error {
 	z.Config.ServiceName = serviceName
 	return z.saveConfig()

@@ -54,7 +54,7 @@ sync:
 | JS/TS | sindresorhus/got | GitHub Issues | >= 10 |
 | Java | google/gson | GitHub Issues | >= 10 |
 | C# | jbogard/MediatR | GitHub Issues | >= 5 |
-| Rust | internal-exemplar | GitHub Issues | >= 5 |
+| Rust | (internal exemplar) | GitHub Issues | >= 5 |
 
 ### Sync Result Schema
 

@@ -16,7 +16,7 @@ Go CLI shall resolve cross-repo dependency references in the format `sync:ALIAS:
 
 ## Rationale
 
-RTMX-enabled projects frequently depend on requirements in sibling repositories. For example, rtmx-go may depend on `sync:rtmx:REQ-AUTH-001` in the Python CLI repo. Today these references are recognized but skipped with a TODO comment in `IsBlocked()` and `BlockingDeps()`. Without resolution, backlog and deps commands cannot give accurate blocking analysis for cross-repo work.
+RTMX-enabled projects frequently depend on requirements in sibling repositories. For example, a project may depend on `sync:rtmx:REQ-AUTH-001` in another repo. Today these references are recognized but skipped with a TODO comment in `IsBlocked()` and `BlockingDeps()`. Without resolution, backlog and deps commands cannot give accurate blocking analysis for cross-repo work.
 
 Shadow requirements preserve the local-first philosophy: all requirement context lives in locally-cloned repositories accessible to the agent. No SaaS dependency (GitHub, Jira) is required for resolution -- only a filesystem path to the remote project's database.
 

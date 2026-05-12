@@ -15,9 +15,9 @@
 
 ## Rationale
 
-The RTMX ecosystem spans multiple repositories (rtmx, rtmx-sync, rtmx.ai, rtmx-go). When architectural decisions reclassify a requirement (e.g., a server-side repo discovers a feature belongs in the client-side repo), there is no automated way to transfer it. Today this requires manual CSV editing, spec file copying, and cross-repo PR creation — error-prone and unauditable.
+The RTMX ecosystem spans multiple repositories. When architectural decisions reclassify a requirement (e.g., a server-side repo discovers a feature belongs in the client-side repo), there is no automated way to transfer it. Today this requires manual CSV editing, spec file copying, and cross-repo PR creation -- error-prone and unauditable.
 
-This was discovered during the rtmx-sync audit when 8 requirements (WEB-005/006/008, RT-004/005/006, WEB-009, SITE-007) were reclassified as belonging to rtmx CLI or rtmx.ai but could only be marked with `external_id` pointers, not actually migrated.
+This was discovered during a cross-repo audit when 8 requirements (WEB-005/006/008, RT-004/005/006, WEB-009, SITE-007) were reclassified as belonging to a different project but could only be marked with `external_id` pointers, not actually migrated.
 
 ## Design
 

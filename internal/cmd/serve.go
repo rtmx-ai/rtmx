@@ -24,7 +24,7 @@ var serveCmd = &cobra.Command{
 and health metrics. Supports authentication via API key or OAuth for
 multi-user deployment.
 
-The --sync-url flag connects to a remote rtmx-sync server for real-time
+The --sync-url flag connects to a remote sync server for real-time
 collaboration via CRDT synchronization.
 
 Examples:
@@ -38,7 +38,7 @@ Examples:
 func init() {
 	serveCmd.Flags().IntVar(&servePort, "port", 8080, "port to listen on")
 	serveCmd.Flags().StringVar(&serveAuth, "auth", "", "authentication mode (api-key or oauth)")
-	serveCmd.Flags().StringVar(&serveSyncURL, "sync-url", "", "rtmx-sync server URL for real-time collaboration")
+	serveCmd.Flags().StringVar(&serveSyncURL, "sync-url", "", "sync server URL for real-time collaboration")
 	rootCmd.AddCommand(serveCmd)
 }
 

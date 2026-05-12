@@ -67,7 +67,7 @@ scoop update rtmx
 ## Infrastructure Required
 
 1. Create `rtmx-ai/scoop-bucket` repository
-2. Configure `SCOOP_BUCKET_TOKEN` secret in rtmx-go
+2. Configure `SCOOP_BUCKET_TOKEN` secret in the rtmx repository
 3. Enable Scoop publisher in .goreleaser.yaml
 
 ## Acceptance Criteria

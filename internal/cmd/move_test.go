@@ -406,23 +406,23 @@ func TestMoveBranchCreatesGitBranch(t *testing.T) {
 	defer func() { _ = os.Chdir(origDir) }()
 
 	root := newTestMoveRootCmd()
-	output, err := executeCommand(root, "move", "REQ-BR-001", "--to", dstDir, "--branch", "rtmx-sync/test-branch")
+	output, err := executeCommand(root, "move", "REQ-BR-001", "--to", dstDir, "--branch", "feature/test-branch")
 	if err != nil {
 		t.Fatalf("move --branch failed: %v\noutput: %s", err, output)
 	}
 
-	if !strings.Contains(output, "Branch: rtmx-sync/test-branch") {
+	if !strings.Contains(output, "Branch: feature/test-branch") {
 		t.Errorf("expected output to mention branch, got: %s", output)
 	}
 
 	// Verify the branch was actually created in the target repo
-	cmd := exec.Command("git", "branch", "--list", "rtmx-sync/test-branch")
+	cmd := exec.Command("git", "branch", "--list", "feature/test-branch")
 	cmd.Dir = dstDir
 	branchOut, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to list branches: %v", err)
 	}
-	if !strings.Contains(string(branchOut), "rtmx-sync/test-branch") {
+	if !strings.Contains(string(branchOut), "feature/test-branch") {
 		t.Errorf("expected branch to exist in target repo, got: %s", branchOut)
 	}
 }
@@ -444,23 +444,23 @@ func TestCloneBranchCreatesGitBranch(t *testing.T) {
 	defer func() { _ = os.Chdir(origDir) }()
 
 	root := newTestMoveRootCmd()
-	output, err := executeCommand(root, "clone", "REQ-CBR-001", "--to", dstDir, "--branch", "rtmx-sync/clone-branch")
+	output, err := executeCommand(root, "clone", "REQ-CBR-001", "--to", dstDir, "--branch", "feature/clone-branch")
 	if err != nil {
 		t.Fatalf("clone --branch failed: %v\noutput: %s", err, output)
 	}
 
-	if !strings.Contains(output, "Branch: rtmx-sync/clone-branch") {
+	if !strings.Contains(output, "Branch: feature/clone-branch") {
 		t.Errorf("expected output to mention branch, got: %s", output)
 	}
 
 	// Verify the branch was actually created
-	cmd := exec.Command("git", "branch", "--list", "rtmx-sync/clone-branch")
+	cmd := exec.Command("git", "branch", "--list", "feature/clone-branch")
 	cmd.Dir = dstDir
 	branchOut, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("failed to list branches: %v", err)
 	}
-	if !strings.Contains(string(branchOut), "rtmx-sync/clone-branch") {
+	if !strings.Contains(string(branchOut), "feature/clone-branch") {
 		t.Errorf("expected branch to exist in target repo, got: %s", branchOut)
 	}
 }
@@ -522,7 +522,7 @@ func TestMoveDryRunWithBranch(t *testing.T) {
 	defer func() { _ = os.Chdir(origDir) }()
 
 	root := newTestMoveRootCmd()
-	output, err := executeCommand(root, "move", "REQ-DBR-001", "--to", dstDir, "--branch", "rtmx-sync/dry-branch", "--dry-run")
+	output, err := executeCommand(root, "move", "REQ-DBR-001", "--to", dstDir, "--branch", "feature/dry-branch", "--dry-run")
 	if err != nil {
 		t.Fatalf("move --dry-run --branch failed: %v\noutput: %s", err, output)
 	}
@@ -530,7 +530,7 @@ func TestMoveDryRunWithBranch(t *testing.T) {
 	if !strings.Contains(output, "dry-run") {
 		t.Errorf("expected output to contain 'dry-run', got: %s", output)
 	}
-	if !strings.Contains(output, "rtmx-sync/dry-branch") {
+	if !strings.Contains(output, "feature/dry-branch") {
 		t.Errorf("expected output to mention branch name, got: %s", output)
 	}
 	if !strings.Contains(output, "would be created") {
@@ -555,7 +555,7 @@ func TestCloneDryRunWithBranchAndPR(t *testing.T) {
 	defer func() { _ = os.Chdir(origDir) }()
 
 	root := newTestMoveRootCmd()
-	output, err := executeCommand(root, "clone", "REQ-DBRP-001", "--to", dstDir, "--branch", "rtmx-sync/dry-pr", "--pr", "--dry-run")
+	output, err := executeCommand(root, "clone", "REQ-DBRP-001", "--to", dstDir, "--branch", "feature/dry-pr", "--pr", "--dry-run")
 	if err != nil {
 		t.Fatalf("clone --dry-run --branch --pr failed: %v\noutput: %s", err, output)
 	}
@@ -563,7 +563,7 @@ func TestCloneDryRunWithBranchAndPR(t *testing.T) {
 	if !strings.Contains(output, "dry-run") {
 		t.Errorf("expected output to contain 'dry-run', got: %s", output)
 	}
-	if !strings.Contains(output, "rtmx-sync/dry-pr") {
+	if !strings.Contains(output, "feature/dry-pr") {
 		t.Errorf("expected output to mention branch name, got: %s", output)
 	}
 	if !strings.Contains(output, "PR: would be created") {
