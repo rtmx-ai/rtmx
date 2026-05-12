@@ -138,8 +138,20 @@ flowchart LR
     style Tests fill:#d1fae5,stroke:#10b981,color:#065f46
 ```
 
-7 read-only tools plus mutation tools with agent authorization and atomic
-claim/release for multi-agent coordination. Run `rtmx mcp-server` to start.
+10 tools (7 read + 3 mutation) with agent authorization and atomic
+claim/release for multi-agent coordination.
+
+![RTMX MCP setup](docs/assets/rtmx-mcp-setup.gif)
+
+**Claude Code** -- one command:
+```bash
+claude mcp add rtmx -- rtmx mcp-server --stdio
+```
+
+**Cursor** -- add to `.cursor/mcp.json`:
+```json
+{"mcpServers":{"rtmx":{"command":"rtmx","args":["mcp-server","--stdio"]}}}
+```
 
 ## Test Verification
 

@@ -81,6 +81,7 @@ gifs:
 	vhs docs/tapes/workflow.tape
 	vhs docs/tapes/commands.tape
 	vhs docs/tapes/agent-loop.tape
+	vhs docs/tapes/mcp-setup.tape
 
 ## parity: Run parity tests against Python CLI
 parity:
