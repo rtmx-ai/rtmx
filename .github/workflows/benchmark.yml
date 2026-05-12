@@ -95,7 +95,7 @@ jobs:
       # REQ-BENCH-018: Deduplicate benchmark issues by title
       - name: Create or update issue on failure
         if: failure() && github.event_name == 'schedule'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const lang = '${{ matrix.language }}';
@@ -148,7 +148,7 @@ jobs:
       # REQ-BENCH-027: Consecutive-failure escalation (P1 after N=2 failures)
       - name: Escalate on consecutive failures
         if: failure() && github.event_name == 'schedule'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const lang = '${{ matrix.language }}';
@@ -199,7 +199,7 @@ jobs:
       # REQ-BENCH-019: Auto-close benchmark issues on recovery
       - name: Auto-close issues on recovery
         if: success() && github.event_name == 'schedule'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const lang = '${{ matrix.language }}';
