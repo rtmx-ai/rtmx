@@ -190,6 +190,7 @@ See [docs/MIGRATION.md](docs/MIGRATION.md) for full migration steps.
 
 ## Support
 
+- Discussions: [github.com/rtmx-ai/rtmx/discussions](https://github.com/rtmx-ai/rtmx/discussions)
 - Documentation: [rtmx.ai](https://rtmx.ai)
 - Issues: [github.com/rtmx-ai/rtmx/issues](https://github.com/rtmx-ai/rtmx/issues)
 - Email: dev@rtmx.ai
