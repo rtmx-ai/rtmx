@@ -157,7 +157,7 @@ func TestStatusParity(t *testing.T) {
 		"complete",
 		"partial",
 		"missing",
-		"Phase Status",
+		"phases",
 	}
 
 	for _, elem := range requiredElements {

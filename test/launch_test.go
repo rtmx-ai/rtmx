@@ -239,7 +239,7 @@ func TestVhsGifGeneration(t *testing.T) {
 			t.Fatal(err)
 		}
 		tape := string(content)
-		for _, cmd := range []string{"rtmx status", "rtmx verify"} {
+		for _, cmd := range []string{"rtmx status", "rtmx health"} {
 			if !strings.Contains(tape, cmd) {
 				t.Errorf("workflow tape must exercise %q", cmd)
 			}

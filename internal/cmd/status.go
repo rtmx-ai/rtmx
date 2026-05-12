@@ -281,40 +281,25 @@ func displaySummaryStatus(cmd *cobra.Command, db *database.Database, cfg *config
 	cmd.Printf("(%d total)\n", db.Len())
 	cmd.Println()
 
-	// Phase status summary with per-phase progress bars
+	// Phase summary: count phases by completion status
 	phases := db.Phases()
 	if len(phases) > 0 {
-		cmd.Println(output.Header("Phase Status", width))
-		cmd.Println()
-
 		byPhase := db.ByPhase()
+		donePhases := 0
+		inProgressPhases := 0
 		for _, phase := range phases {
-			reqs := byPhase[phase]
-			phasePct := phaseCompletion(reqs)
-
-			// Count by status
-			phaseComplete := 0
-			phasePartial := 0
-			phaseMissing := 0
-			for _, r := range reqs {
-				switch r.Status {
-				case database.StatusComplete:
-					phaseComplete++
-				case database.StatusPartial:
-					phasePartial++
-				default:
-					phaseMissing++
-				}
+			phasePct := phaseCompletion(byPhase[phase])
+			if phasePct >= 100 {
+				donePhases++
+			} else {
+				inProgressPhases++
 			}
-
-			phaseDesc := cfg.PhaseDescription(phase)
-			if phaseDesc == fmt.Sprintf("Phase %d", phase) {
-				phaseDesc = ""
-			}
-
-			cmd.Println(output.PhaseProgressLine(phase, phaseDesc, phasePct,
-				phaseComplete, phasePartial, phaseMissing, width))
 		}
+		cmd.Printf("%d phases (%d complete", len(phases), donePhases)
+		if inProgressPhases > 0 {
+			cmd.Printf(", %d in progress", inProgressPhases)
+		}
+		cmd.Println(")")
 		cmd.Println()
 	}
 
