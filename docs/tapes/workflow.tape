@@ -28,7 +28,7 @@ Type "rtmx deps"
 Enter
 Sleep 4s
 
-# Verify -- close the loop between tests and requirements
-Type "rtmx verify"
+# Context -- what the project looks like
+Type "rtmx context"
 Enter
 Sleep 5s

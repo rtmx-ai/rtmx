@@ -79,6 +79,7 @@ build-all:
 gifs:
 	@command -v vhs >/dev/null 2>&1 || { echo "vhs not found. Install: brew install charmbracelet/tap/vhs"; exit 1; }
 	vhs docs/tapes/workflow.tape
+	vhs docs/tapes/commands.tape
 	vhs docs/tapes/agent-loop.tape
 
 ## parity: Run parity tests against Python CLI

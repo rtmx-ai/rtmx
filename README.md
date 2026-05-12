@@ -37,6 +37,8 @@ Or download a binary from [releases](https://github.com/rtmx-ai/rtmx/releases).
 
 33 commands total. Run `rtmx --help` for the full list.
 
+![RTMX commands](docs/assets/rtmx-commands.gif)
+
 ## The AI Workflow
 
 ```mermaid

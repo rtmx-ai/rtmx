@@ -42,7 +42,7 @@ func TestStatusRealCommand(t *testing.T) {
 	expectedPhrases := []string{
 		"RTM Status Check",
 		"Requirements:",
-		"Phase Status",
+		"phases",
 		"complete",
 	}
 
@@ -69,7 +69,7 @@ func TestStatusPhaseNames(t *testing.T) {
 	rootCmd := createStatusTestCmd()
 	buf := new(bytes.Buffer)
 	rootCmd.SetOut(buf)
-	rootCmd.SetArgs([]string{"status"})
+	rootCmd.SetArgs([]string{"status", "-vv"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -78,10 +78,12 @@ func TestStatusPhaseNames(t *testing.T) {
 
 	output := buf.String()
 
-	// Verify phase names from config are shown
+	// Verify phase names from config are shown in -vv output
 	expectedPhases := []string{
-		"Phase 1 (Foundation)",
-		"Phase 2 (Core Data Model)",
+		"Phase 1",
+		"Foundation",
+		"Phase 2",
+		"Core Data Model",
 	}
 
 	for _, phrase := range expectedPhases {
