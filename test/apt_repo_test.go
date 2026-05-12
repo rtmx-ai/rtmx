@@ -103,3 +103,72 @@ func TestAptRepository(t *testing.T) {
 		}
 	})
 }
+
+// TestAptRepoHosting validates that APT repository hosting infrastructure
+// is configured for publishing .deb packages at a stable URL.
+// REQ-DIST-009: APT repository hosting and publication
+func TestAptRepoHosting(t *testing.T) {
+	rtmx.Req(t, "REQ-DIST-009")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	// AC1: apt-repo.sh generates proper directory structure
+	t.Run("repo_script_structure", func(t *testing.T) {
+		content, err := os.ReadFile(filepath.Join(projectRoot, "scripts", "apt-repo.sh"))
+		if err != nil {
+			t.Fatalf("scripts/apt-repo.sh must exist: %v", err)
+		}
+		script := string(content)
+		for _, dir := range []string{"pool", "dists"} {
+			if !strings.Contains(script, dir) {
+				t.Errorf("apt-repo.sh must create %s directory", dir)
+			}
+		}
+	})
+
+	// AC2: Script generates Release file
+	t.Run("release_file_generation", func(t *testing.T) {
+		content, err := os.ReadFile(filepath.Join(projectRoot, "scripts", "apt-repo.sh"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		script := string(content)
+		if !strings.Contains(script, "Release") {
+			t.Error("script must generate Release file")
+		}
+	})
+
+	// AC3: Script signs with GPG
+	t.Run("gpg_signing", func(t *testing.T) {
+		content, err := os.ReadFile(filepath.Join(projectRoot, "scripts", "apt-repo.sh"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		script := string(content)
+		if !strings.Contains(script, "gpg") {
+			t.Error("script must GPG-sign the repository")
+		}
+		if !strings.Contains(script, "InRelease") || !strings.Contains(script, "Release.gpg") {
+			t.Error("script must generate both InRelease and Release.gpg")
+		}
+	})
+
+	// AC4: GoReleaser produces .deb for both architectures
+	t.Run("deb_multi_arch", func(t *testing.T) {
+		content, err := os.ReadFile(filepath.Join(projectRoot, ".goreleaser.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		gr := string(content)
+		if !strings.Contains(gr, "nfpms:") {
+			t.Fatal("GoReleaser must have nfpms section")
+		}
+		if !strings.Contains(gr, "deb") {
+			t.Error("nfpms must produce .deb packages")
+		}
+	})
+}

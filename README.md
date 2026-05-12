@@ -7,8 +7,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/rtmx-ai/rtmx)](https://goreportcard.com/report/github.com/rtmx-ai/rtmx)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-<!-- TODO: Replace with docs/assets/rtmx-workflow.gif once generated from docs/tapes/workflow.tape -->
-<!-- ![RTMX workflow](docs/assets/rtmx-workflow.gif) -->
+![RTMX workflow](docs/assets/rtmx-workflow.gif)
 
 RTMX is a CLI that manages requirements traceability as a CSV file in git.
 Every requirement has an ID, a spec, and linked tests. Status is derived

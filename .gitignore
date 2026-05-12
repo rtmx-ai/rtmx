@@ -11,6 +11,7 @@ dist/
 /rtmx
 rtmx-*
 !.github/workflows/rtmx-*
+!docs/assets/rtmx-*
 
 # Test binary, built with `go test -c`
 *.test

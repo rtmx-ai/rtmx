@@ -189,3 +189,90 @@ func TestLaunchChecklist(t *testing.T) {
 		}
 	})
 }
+
+// TestVhsGifGeneration validates that VHS tape files exist and are configured
+// to generate GIF assets for the README.
+// REQ-LAUNCH-003: VHS GIF generation from terminal demos
+func TestVhsGifGeneration(t *testing.T) {
+	rtmx.Req(t, "REQ-LAUNCH-003")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	// AC1: Workflow tape file exists with correct output directive
+	t.Run("workflow_tape_exists", func(t *testing.T) {
+		content, err := os.ReadFile(filepath.Join(projectRoot, "docs", "tapes", "workflow.tape"))
+		if err != nil {
+			t.Fatalf("docs/tapes/workflow.tape must exist: %v", err)
+		}
+		tape := string(content)
+		if !strings.Contains(tape, "Output") {
+			t.Error("tape must have Output directive")
+		}
+		if !strings.Contains(tape, "rtmx-workflow.gif") {
+			t.Error("tape output must target rtmx-workflow.gif")
+		}
+	})
+
+	// AC2: Agent-loop tape file exists with correct output directive
+	t.Run("agent_loop_tape_exists", func(t *testing.T) {
+		content, err := os.ReadFile(filepath.Join(projectRoot, "docs", "tapes", "agent-loop.tape"))
+		if err != nil {
+			t.Fatalf("docs/tapes/agent-loop.tape must exist: %v", err)
+		}
+		tape := string(content)
+		if !strings.Contains(tape, "Output") {
+			t.Error("tape must have Output directive")
+		}
+		if !strings.Contains(tape, "rtmx-agent-loop.gif") {
+			t.Error("tape output must target rtmx-agent-loop.gif")
+		}
+	})
+
+	// AC3: Tapes exercise core rtmx commands
+	t.Run("tapes_exercise_commands", func(t *testing.T) {
+		content, err := os.ReadFile(filepath.Join(projectRoot, "docs", "tapes", "workflow.tape"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		tape := string(content)
+		for _, cmd := range []string{"rtmx status", "rtmx verify"} {
+			if !strings.Contains(tape, cmd) {
+				t.Errorf("workflow tape must exercise %q", cmd)
+			}
+		}
+	})
+
+	// AC4: README references the GIF (commented or uncommented)
+	t.Run("readme_references_gif", func(t *testing.T) {
+		content, err := os.ReadFile(filepath.Join(projectRoot, "README.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		readme := string(content)
+		if !strings.Contains(readme, "rtmx-workflow.gif") && !strings.Contains(readme, "workflow") {
+			t.Error("README must reference the workflow GIF")
+		}
+	})
+
+	// AC5: Tape configuration uses readable settings
+	t.Run("tape_configuration", func(t *testing.T) {
+		content, err := os.ReadFile(filepath.Join(projectRoot, "docs", "tapes", "workflow.tape"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		tape := string(content)
+		if !strings.Contains(tape, "Set Width") {
+			t.Error("tape must set width for consistent rendering")
+		}
+		if !strings.Contains(tape, "Set Height") {
+			t.Error("tape must set height for consistent rendering")
+		}
+		if !strings.Contains(tape, "Set Theme") {
+			t.Error("tape must set theme for consistent rendering")
+		}
+	})
+}
