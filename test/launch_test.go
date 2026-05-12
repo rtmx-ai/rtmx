@@ -258,7 +258,37 @@ func TestVhsGifGeneration(t *testing.T) {
 		}
 	})
 
-	// AC5: Tape configuration uses readable settings
+	// AC5a: MCP setup tape exists with correct output directive
+	t.Run("mcp_setup_tape_exists", func(t *testing.T) {
+		content, err := os.ReadFile(filepath.Join(projectRoot, "docs", "tapes", "mcp-setup.tape"))
+		if err != nil {
+			t.Fatalf("docs/tapes/mcp-setup.tape must exist: %v", err)
+		}
+		tape := string(content)
+		if !strings.Contains(tape, "Output") {
+			t.Error("tape must have Output directive")
+		}
+		if !strings.Contains(tape, "rtmx-mcp-setup.gif") {
+			t.Error("tape output must target rtmx-mcp-setup.gif")
+		}
+		if !strings.Contains(tape, "mcp-server --stdio") {
+			t.Error("tape must show stdio setup")
+		}
+	})
+
+	// AC5b: README references MCP setup GIF
+	t.Run("readme_references_mcp_gif", func(t *testing.T) {
+		content, err := os.ReadFile(filepath.Join(projectRoot, "README.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		readme := string(content)
+		if !strings.Contains(readme, "rtmx-mcp-setup.gif") {
+			t.Error("README must reference the MCP setup GIF")
+		}
+	})
+
+	// AC6: Tape configuration uses readable settings
 	t.Run("tape_configuration", func(t *testing.T) {
 		content, err := os.ReadFile(filepath.Join(projectRoot, "docs", "tapes", "workflow.tape"))
 		if err != nil {

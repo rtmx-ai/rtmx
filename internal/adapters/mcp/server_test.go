@@ -439,6 +439,147 @@ func extractToolText(t *testing.T, resp map[string]interface{}) string {
 	return text
 }
 
+// TestMCPStdio validates the stdio transport for MCP.
+// REQ-MCP-006: MCP server shall support stdio transport for Claude Code and Cursor.
+func TestMCPStdio(t *testing.T) {
+	rtmx.Req(t, "REQ-MCP-006")
+
+	tmpDir := t.TempDir()
+	rtmxDir := filepath.Join(tmpDir, ".rtmx")
+	_ = os.MkdirAll(rtmxDir, 0o755)
+
+	dbPath := filepath.Join(rtmxDir, "database.csv")
+	writeTestDB(t, dbPath)
+	writeTestConfig(t, filepath.Join(tmpDir, "rtmx.yaml"))
+
+	cfg, err := config.LoadFromDir(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	srv := NewServer(dbPath, cfg)
+
+	t.Run("initialize_and_tools_list", func(t *testing.T) {
+		// Send initialize + tools/list via stdin, read responses from stdout
+		var input bytes.Buffer
+		input.WriteString(`{"jsonrpc":"2.0","id":1,"method":"initialize"}` + "\n")
+		input.WriteString(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}` + "\n")
+
+		var output bytes.Buffer
+		if err := srv.StartStdio(&input, &output); err != nil {
+			t.Fatalf("StartStdio failed: %v", err)
+		}
+
+		lines := bytes.Split(bytes.TrimSpace(output.Bytes()), []byte("\n"))
+		if len(lines) != 2 {
+			t.Fatalf("expected 2 response lines, got %d: %s", len(lines), output.String())
+		}
+
+		// Check initialize response
+		var initResp rpcResponse
+		if err := json.Unmarshal(lines[0], &initResp); err != nil {
+			t.Fatalf("failed to parse initialize response: %v", err)
+		}
+		if initResp.JSONRPC != "2.0" {
+			t.Error("expected jsonrpc 2.0")
+		}
+
+		// Check tools/list response
+		var listResp map[string]interface{}
+		if err := json.Unmarshal(lines[1], &listResp); err != nil {
+			t.Fatalf("failed to parse tools/list response: %v", err)
+		}
+		result, _ := listResp["result"].(map[string]interface{})
+		tools, _ := result["tools"].([]interface{})
+		if len(tools) != 10 {
+			t.Errorf("expected 10 tools, got %d", len(tools))
+		}
+	})
+
+	t.Run("tools_call_via_stdio", func(t *testing.T) {
+		var input bytes.Buffer
+		input.WriteString(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"status"}}` + "\n")
+
+		var output bytes.Buffer
+		if err := srv.StartStdio(&input, &output); err != nil {
+			t.Fatalf("StartStdio failed: %v", err)
+		}
+
+		var resp map[string]interface{}
+		if err := json.Unmarshal(bytes.TrimSpace(output.Bytes()), &resp); err != nil {
+			t.Fatalf("failed to parse response: %v", err)
+		}
+
+		result, _ := resp["result"].(map[string]interface{})
+		content, _ := result["content"].([]interface{})
+		if len(content) == 0 {
+			t.Fatal("expected content in response")
+		}
+		first, _ := content[0].(map[string]interface{})
+		text, _ := first["text"].(string)
+
+		var status statusResult
+		if err := json.Unmarshal([]byte(text), &status); err != nil {
+			t.Fatalf("failed to parse status JSON: %v", err)
+		}
+		if status.Total != 3 {
+			t.Errorf("expected 3 total, got %d", status.Total)
+		}
+	})
+
+	t.Run("notification_no_response", func(t *testing.T) {
+		var input bytes.Buffer
+		input.WriteString(`{"jsonrpc":"2.0","method":"notifications/initialized"}` + "\n")
+
+		var output bytes.Buffer
+		if err := srv.StartStdio(&input, &output); err != nil {
+			t.Fatalf("StartStdio failed: %v", err)
+		}
+
+		if output.Len() != 0 {
+			t.Errorf("expected no output for notification, got: %s", output.String())
+		}
+	})
+
+	t.Run("empty_lines_ignored", func(t *testing.T) {
+		var input bytes.Buffer
+		input.WriteString("\n\n")
+		input.WriteString(`{"jsonrpc":"2.0","id":1,"method":"initialize"}` + "\n")
+		input.WriteString("\n")
+
+		var output bytes.Buffer
+		if err := srv.StartStdio(&input, &output); err != nil {
+			t.Fatalf("StartStdio failed: %v", err)
+		}
+
+		lines := bytes.Split(bytes.TrimSpace(output.Bytes()), []byte("\n"))
+		if len(lines) != 1 {
+			t.Errorf("expected 1 response line, got %d", len(lines))
+		}
+	})
+
+	t.Run("parse_error", func(t *testing.T) {
+		var input bytes.Buffer
+		input.WriteString("not json\n")
+
+		var output bytes.Buffer
+		if err := srv.StartStdio(&input, &output); err != nil {
+			t.Fatalf("StartStdio failed: %v", err)
+		}
+
+		var resp rpcResponse
+		if err := json.Unmarshal(bytes.TrimSpace(output.Bytes()), &resp); err != nil {
+			t.Fatalf("failed to parse error response: %v", err)
+		}
+		if resp.Error == nil {
+			t.Fatal("expected error in response")
+		}
+		if resp.Error.Code != errParse {
+			t.Errorf("expected parse error code %d, got %d", errParse, resp.Error.Code)
+		}
+	})
+}
+
 // TestMCPReadTools validates all 7 read-only MCP tools produce valid JSON
 // and are safe under concurrent access.
 // REQ-MCP-003: Production-grade read-only tools for RTM operations.

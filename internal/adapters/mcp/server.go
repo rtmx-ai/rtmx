@@ -3,9 +3,11 @@
 package mcp
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"net"
 	"net/http"
@@ -163,23 +165,45 @@ type toolContent struct {
 	Text string `json:"text"`
 }
 
-// ----- Handler -----
-
-func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
+// StartStdio runs the MCP server over stdin/stdout using JSON-RPC 2.0
+// newline-delimited messages. This is the standard transport for local
+// MCP servers integrated with Claude Code, Cursor, and similar tools.
+func (s *Server) StartStdio(in io.Reader, out io.Writer) error {
+	scanner := bufio.NewScanner(in)
+	scanner.Buffer(make([]byte, 1024*1024), 1024*1024) // 1MB max message
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		resp := s.processRPC(line)
+		if resp == nil {
+			continue // notification; no response
+		}
+		resp = append(resp, '\n')
+		if _, err := out.Write(resp); err != nil {
+			return fmt.Errorf("write error: %w", err)
+		}
 	}
+	return scanner.Err()
+}
 
+// processRPC handles a single JSON-RPC 2.0 request and returns the response bytes.
+func (s *Server) processRPC(input []byte) []byte {
 	var req rpcRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeRPCError(w, nil, errParse, "parse error")
-		return
+	if err := json.Unmarshal(input, &req); err != nil {
+		return marshalResponse(rpcResponse{
+			JSONRPC: "2.0",
+			Error:   &rpcError{Code: errParse, Message: "parse error"},
+		})
 	}
 
 	if req.JSONRPC != "2.0" {
-		writeRPCError(w, req.ID, errInvalidReq, "invalid jsonrpc version")
-		return
+		return marshalResponse(rpcResponse{
+			JSONRPC: "2.0",
+			ID:      req.ID,
+			Error:   &rpcError{Code: errInvalidReq, Message: "invalid jsonrpc version"},
+		})
 	}
 
 	var result interface{}
@@ -192,6 +216,10 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 		result = s.handleToolsList()
 	case "tools/call":
 		result, rpcErr = s.handleToolsCall(req.Params)
+	case "notifications/initialized":
+		// Client acknowledgment; no response needed per MCP spec.
+		// Return empty to signal no-op to callers.
+		return nil
 	default:
 		rpcErr = &rpcError{Code: errNoMethod, Message: fmt.Sprintf("method not found: %s", req.Method)}
 	}
@@ -206,18 +234,45 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 		resp.Result = result
 	}
 
+	return marshalResponse(resp)
+}
+
+func marshalResponse(resp rpcResponse) []byte {
+	data, _ := json.Marshal(resp)
+	return data
+}
+
+// ----- HTTP Handler -----
+
+func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	input, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeRPCError(w, nil, errParse, "read error")
+		return
+	}
+
+	resp := s.processRPC(input)
+	if resp == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	_, _ = w.Write(resp)
 }
 
 func writeRPCError(w http.ResponseWriter, id json.RawMessage, code int, msg string) {
-	resp := rpcResponse{
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(marshalResponse(rpcResponse{
 		JSONRPC: "2.0",
 		ID:      id,
 		Error:   &rpcError{Code: code, Message: msg},
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	}))
 }
 
 // ----- MCP method handlers -----
