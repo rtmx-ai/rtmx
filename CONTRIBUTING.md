@@ -1,160 +1,139 @@
 # Contributing to RTMX
 
-Thank you for your interest in contributing to RTMX! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to RTMX.
 
 ## Development Setup
 
 ### Prerequisites
 
-- Python 3.10 or higher
+- Go 1.22 or higher
 - Git
+- golangci-lint v2 (`curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin`)
 
 ### Getting Started
 
 1. **Fork and clone the repository**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/rtm.git
-   cd rtm
+   git clone https://github.com/YOUR_USERNAME/rtmx.git
+   cd rtmx
    ```
 
-2. **Create a virtual environment**
+2. **Install pre-commit hooks**
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   make hooks
    ```
+   This installs `.githooks/pre-commit` which runs build, test, lint, and
+   vet before each commit. Pre-commit hooks must pass -- do not use
+   `--no-verify`.
 
-3. **Install development dependencies**
+3. **Build and test**
    ```bash
-   make dev
-   # Or manually: pip install -e ".[dev]"
-   ```
-
-4. **Install pre-commit hooks**
-   ```bash
-   make pre-commit-install
-   # Or manually: pre-commit install
-   ```
-
-5. **Verify setup**
-   ```bash
-   make check  # Runs lint, typecheck, and tests
+   make build
+   make test
+   make lint
    ```
 
 ## Code Style
 
-We use automated tools to maintain consistent code style:
-
-### Linting with Ruff
-
-```bash
-make lint       # Check for issues
-make lint-fix   # Auto-fix issues
-```
-
-Ruff is configured with:
-- pycodestyle (E, W)
-- Pyflakes (F)
-- isort imports (I)
-- flake8-bugbear (B)
-- flake8-comprehensions (C4)
-- pyupgrade (UP)
-- flake8-unused-arguments (ARG)
-- flake8-simplify (SIM)
-
-### Type Checking with MyPy
-
-```bash
-make typecheck
-```
-
-We use strict mode. All code must be fully typed.
-
-### Formatting
-
-```bash
-make format        # Format code
-make format-check  # Check formatting
-```
+- `go fmt` and `goimports` for formatting (`make fmt`)
+- golangci-lint v2 for static analysis (`make lint`)
+- No CGO -- pure Go for static binary distribution
+- Minimize dependencies -- 2 external deps (Cobra + YAML parser)
+- All packages under `internal/` are unexported; public API lives in `pkg/rtmx/`
 
 ## Testing
 
 ### Running Tests
 
 ```bash
-make test          # Run all tests
-make test-fast     # Run without coverage
-make test-cov      # Run with detailed coverage report
+make test          # Full test suite with race detector and coverage
+make test-short    # Short tests only
+make ci            # Full local CI (build, test, coverage threshold, vet, lint, markers)
 ```
 
 ### Writing Tests
 
-All tests should be linked to requirements using the `@pytest.mark.req()` marker:
+Every test must be linked to a requirement using `rtmx.Req()`:
 
-```python
-import pytest
-
-@pytest.mark.req("REQ-XX-NNN")
-@pytest.mark.scope_unit
-@pytest.mark.technique_nominal
-def test_feature_works():
-    """Test that feature works correctly."""
-    assert feature() == expected
+```go
+func TestFeature(t *testing.T) {
+    rtmx.Req(t, "REQ-XX-NNN")
+    // test body
+}
 ```
 
-**Available markers:**
+Use table-driven tests. Use golden files for output formatting
+(`testdata/`). Use interfaces for external dependencies (HTTP, filesystem,
+environment) -- never call `os.Getenv` or `http.DefaultClient` directly.
 
-| Category | Markers |
-|----------|---------|
-| **Requirement** | `@pytest.mark.req("REQ-XX-NNN")` |
-| **Scope** | `scope_unit`, `scope_integration`, `scope_system` |
-| **Technique** | `technique_nominal`, `technique_parametric`, `technique_monte_carlo`, `technique_stress` |
-| **Environment** | `env_simulation`, `env_hil`, `env_anechoic`, `env_static_field`, `env_dynamic_field` |
+### Coverage
+
+CI enforces a minimum 80% coverage threshold. Individual packages in
+`internal/adapters` and `internal/cmd` target 100%.
 
 ## Pull Request Process
 
+### Branch Protection
+
+The `main` branch is protected:
+- Direct pushes are restricted to maintainers
+- All external contributions must come via pull request
+- CI (`build-and-test`) must pass before merge
+- At least 1 approving review is required
+- Stale reviews are dismissed on new pushes
+- Force pushes and branch deletion are blocked
+
 ### Before Submitting
 
-1. **Create a feature branch**
+1. **Fork the repo and create a feature branch from `main`**
    ```bash
-   git checkout -b feature/your-feature-name
+   git checkout -b feature/your-feature-name main
    ```
 
-2. **Make your changes**
-   - Write clear, concise commit messages
-   - Add tests for new functionality
-   - Update documentation if needed
-
-3. **Run the full check suite**
+2. **Rebase on `main` before opening your PR**
    ```bash
-   make check
+   git fetch upstream
+   git rebase upstream/main
    ```
+   We require a linear history on feature branches. Merge commits in PRs
+   will not be accepted -- rebase to resolve conflicts.
 
-4. **Ensure all tests pass**
+3. **Run the full CI suite locally**
    ```bash
-   make test
+   make ci
    ```
+   This runs build, test with coverage threshold, vet, lint, and marker
+   compliance. Your PR will not be reviewed until `make ci` passes locally.
+
+4. **Link your work to a requirement**
+   - If your change addresses an existing requirement, reference it in the
+     commit message (`REQ-XX-NNN`)
+   - If your change adds new functionality, open an issue first to discuss
+     the requirement before writing code
 
 ### Submitting
 
-1. Push your branch and create a Pull Request
-2. Fill out the PR template completely
+1. Push your branch and create a Pull Request against `main`
+2. Fill out the PR description: what changed, why, and how to test
 3. Link any related issues
 4. Wait for CI to pass
-5. Request review from maintainers
+5. Address review feedback by pushing new commits (do not force-push during review)
 
 ### PR Requirements
 
-- [ ] All CI checks pass (tests, lint, typecheck)
-- [ ] New code has test coverage
-- [ ] Documentation updated if applicable
-- [ ] Changelog entry added for user-facing changes
+- All CI checks pass (build, test, lint, vet)
+- New code has test coverage with `rtmx.Req()` markers
+- Tests are table-driven where applicable
+- No `--no-verify` commits
+- Rebased on current `main` (no merge commits)
+- Documentation updated if applicable
 
 ## Commit Messages
 
-Use clear, descriptive commit messages:
+Use conventional commit prefixes:
 
 ```
-feat: Add support for Jira integration
+feat: add support for Jira integration
 
 - Implement JiraAdapter for ticket sync
 - Add rtmx sync jira command
@@ -163,37 +142,33 @@ feat: Add support for Jira integration
 Closes #42
 ```
 
-**Prefixes:**
-- `feat:` - New feature
-- `fix:` - Bug fix
-- `docs:` - Documentation only
-- `test:` - Test additions/changes
-- `refactor:` - Code refactoring
-- `chore:` - Build/tooling changes
+Prefixes: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`
 
 ## Reporting Issues
 
 ### Bug Reports
 
-Please include:
-- Python version and OS
+Include:
+- Go version and OS (`go version`, `uname -a`)
 - rtmx version (`rtmx --version`)
 - Steps to reproduce
 - Expected vs actual behavior
-- Error messages/tracebacks
+- Error messages
 
 ### Feature Requests
 
-Please describe:
+Describe:
 - The problem you're trying to solve
 - Your proposed solution
 - Any alternatives you've considered
 
 ## Questions?
 
-- Open a [GitHub Discussion](https://github.com/rtmx-ai/rtmx/discussions)
-- Check existing [Issues](https://github.com/rtmx-ai/rtmx/issues)
+- [GitHub Discussions](https://github.com/rtmx-ai/rtmx/discussions)
+- [Issues](https://github.com/rtmx-ai/rtmx/issues)
+- Email: dev@rtmx.ai
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+By contributing, you agree that your contributions will be licensed under
+the Apache License 2.0.
