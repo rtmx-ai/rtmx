@@ -84,7 +84,7 @@ func NewDashboardMux(db *database.Database, cfg *config.Config) http.Handler {
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, dashboardHTML(db))
+		_, _ = fmt.Fprint(w, dashboardHTML(db))
 	})
 
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
@@ -101,13 +101,13 @@ func NewDashboardMux(db *database.Database, cfg *config.Config) http.Handler {
 				missing++
 			}
 		}
-		fmt.Fprintf(w, `{"total":%d,"complete":%d,"partial":%d,"missing":%d}`,
+		_, _ = fmt.Fprintf(w, `{"total":%d,"complete":%d,"partial":%d,"missing":%d}`,
 			len(reqs), complete, partial, missing)
 	})
 
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"status":"ok"}`)
+		_, _ = fmt.Fprintf(w, `{"status":"ok"}`)
 	})
 
 	return mux
