@@ -1,5 +1,5 @@
 # RTMX MCP server setup demo
-# Shows one-command setup for Claude Code and Cursor
+# Shows one-command setup for Claude Code with successful connection
 # Run with: vhs docs/tapes/mcp-setup.tape
 # Output: docs/assets/rtmx-mcp-setup.gif
 
@@ -14,22 +14,17 @@ Set Padding 16
 Set TypingSpeed 50ms
 Set CursorBlink false
 
-# Set up for Claude Code -- one command
+# One-command setup for Claude Code
 Type "claude mcp add rtmx -- rtmx mcp-server --stdio"
 Enter
-Sleep 4s
+Sleep 3s
 
-# Show it registered
+# Verify successful connection
 Type "claude mcp list"
 Enter
-Sleep 4s
+Sleep 8s
 
-# Quick stdio demo: list available tools
+# List all 10 tools via stdio transport
 Type "bash docs/tapes/mcp-tools.sh"
-Enter
-Sleep 5s
-
-# Show the help with Cursor setup example
-Type "rtmx mcp-server --help"
 Enter
 Sleep 5s
