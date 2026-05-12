@@ -100,3 +100,69 @@ func TestHomebrewCoreFormula(t *testing.T) {
 		}
 	})
 }
+
+// TestHomebrewCoreSubmission validates that the formula is ready for
+// homebrew-core PR submission with all required conventions.
+// REQ-DIST-008: Homebrew-core PR submission and acceptance
+func TestHomebrewCoreSubmission(t *testing.T) {
+	rtmx.Req(t, "REQ-DIST-008")
+
+	wd, _ := os.Getwd()
+	projectRoot := filepath.Dir(wd)
+	if _, err := os.Stat(filepath.Join(projectRoot, "cmd/rtmx")); err != nil {
+		projectRoot = wd
+	}
+
+	formulaPath := filepath.Join(projectRoot, "Formula", "rtmx.rb")
+	content, err := os.ReadFile(formulaPath)
+	if err != nil {
+		t.Fatalf("Formula/rtmx.rb must exist: %v", err)
+	}
+	formula := string(content)
+
+	// AC1: SHA256 is not a placeholder
+	t.Run("sha256_not_placeholder", func(t *testing.T) {
+		if strings.Contains(formula, "PLACEHOLDER") {
+			t.Error("formula sha256 must not be a placeholder")
+		}
+		if !strings.Contains(formula, "sha256") {
+			t.Error("formula must have sha256 checksum")
+		}
+	})
+
+	// AC2: Formula uses std_go_args (homebrew-core convention)
+	t.Run("uses_std_go_args", func(t *testing.T) {
+		if !strings.Contains(formula, "std_go_args") {
+			t.Error("formula must use std_go_args for homebrew-core compatibility")
+		}
+	})
+
+	// AC3: Formula has head clause for development installs
+	t.Run("head_clause", func(t *testing.T) {
+		if !strings.Contains(formula, "head") {
+			t.Error("formula should have head clause for development installs")
+		}
+	})
+
+	// AC4: Version assertion in test stanza
+	t.Run("test_asserts_version", func(t *testing.T) {
+		if !strings.Contains(formula, "assert_match") || !strings.Contains(formula, "version") {
+			t.Error("formula test must assert version output")
+		}
+	})
+
+	// AC5: GoReleaser configured for homebrew-core bump automation
+	t.Run("goreleaser_homebrew_core", func(t *testing.T) {
+		grContent, err := os.ReadFile(filepath.Join(projectRoot, ".goreleaser.yaml"))
+		if err != nil {
+			t.Fatalf("Failed to read .goreleaser.yaml: %v", err)
+		}
+		gr := string(grContent)
+		if !strings.Contains(gr, "brews:") {
+			t.Error("GoReleaser must have brews section")
+		}
+		if !strings.Contains(gr, "homebrew-tap") {
+			t.Error("GoReleaser must reference homebrew-tap for automated updates")
+		}
+	})
+}

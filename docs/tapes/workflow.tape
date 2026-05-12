@@ -1,34 +1,34 @@
-# RTMX 30-second workflow demo
-# Records: status -> next -> verify -> status
+# RTMX workflow demo -- dogfooded on itself, 233 requirements
 # Run with: vhs docs/tapes/workflow.tape
 # Output: docs/assets/rtmx-workflow.gif
 
 Output docs/assets/rtmx-workflow.gif
 
 Set Shell "bash"
-Set FontSize 16
-Set Width 960
-Set Height 540
+Set FontSize 14
+Set Width 1000
+Set Height 620
 Set Theme "Dracula"
-Set Padding 20
-Set TypingSpeed 80ms
+Set Padding 16
+Set TypingSpeed 50ms
+Set CursorBlink false
 
-# Show status dashboard
+# Show status -- the hero shot
 Type "rtmx status"
-Enter
-Sleep 3s
-
-# Pick the next requirement
-Type "rtmx next --one"
-Enter
-Sleep 3s
-
-# Show what tests to write (verify before implementation)
-Type "rtmx verify"
 Enter
 Sleep 5s
 
-# Show updated status after tests pass
-Type "rtmx status"
+# Health check -- all green
+Type "rtmx health"
 Enter
-Sleep 3s
+Sleep 4s
+
+# Dependency graph -- top connected requirements
+Type "rtmx deps"
+Enter
+Sleep 4s
+
+# Verify -- close the loop between tests and requirements
+Type "rtmx verify"
+Enter
+Sleep 5s

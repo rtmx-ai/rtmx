@@ -7,6 +7,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/rtmx-ai/rtmx)](https://goreportcard.com/report/github.com/rtmx-ai/rtmx)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
+![RTMX workflow](docs/assets/rtmx-workflow.gif)
 
 RTMX is a CLI that manages requirements traceability as a CSV file in git.
 Every requirement has an ID, a spec, and linked tests. Status is derived
@@ -32,9 +33,9 @@ Or download a binary from [releases](https://github.com/rtmx-ai/rtmx/releases).
 | `rtmx verify` | Run tests and cross-reference against requirements |
 | `rtmx health` | Lint your RTM: orphaned tests, circular deps, stale refs |
 | `rtmx backlog` | Prioritized work items with critical path analysis |
-| `rtmx mcp-server` | 10 tools for AI agents over JSON-RPC (read + write) |
+| `rtmx mcp-server` | 7 tools for AI agents over JSON-RPC (read + write) |
 
-42 commands total. Run `rtmx --help` for the full list.
+33 commands total. Run `rtmx --help` for the full list.
 
 ## The AI Workflow
 
@@ -135,10 +136,8 @@ flowchart LR
     style Tests fill:#d1fae5,stroke:#10b981,color:#065f46
 ```
 
-10 tools total -- 7 read tools (`status`, `backlog`, `next`, `verify`, `health`,
-`markers`, `deps`) plus 3 mutation tools (`claim`, `release`, `release_assign`)
-with agent authorization and atomic locking for multi-agent coordination.
-Run `rtmx mcp-server` to start.
+7 read-only tools plus mutation tools with agent authorization and atomic
+claim/release for multi-agent coordination. Run `rtmx mcp-server` to start.
 
 ## Test Verification
 
@@ -149,7 +148,7 @@ Elixir/Mix, Swift, Dart, Ruby -- 10+ frameworks supported.
 
 ## Dogfooding
 
-RTMX manages its own requirements. 230 requirements across 25 phases,
+RTMX manages its own requirements. 219 requirements across 24 phases,
 auto-verified in CI on every push. Run `rtmx status` in this repo to see it.
 
 [Read the backstory](https://rtmx.ai/blog/show-hn-rtmx) -- how and why this tool was built.

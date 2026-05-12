@@ -1,4 +1,4 @@
-.PHONY: build test lint clean install dev snapshot release help
+.PHONY: build test lint clean install dev snapshot release help gifs
 
 # Variables
 BINARY_NAME := rtmx
@@ -74,6 +74,12 @@ build-all:
 	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-darwin-amd64 ./cmd/rtmx
 	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-darwin-arm64 ./cmd/rtmx
 	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-windows-amd64.exe ./cmd/rtmx
+
+## gifs: Generate terminal GIF demos from VHS tapes
+gifs:
+	@command -v vhs >/dev/null 2>&1 || { echo "vhs not found. Install: brew install charmbracelet/tap/vhs"; exit 1; }
+	vhs docs/tapes/workflow.tape
+	vhs docs/tapes/agent-loop.tape
 
 ## parity: Run parity tests against Python CLI
 parity:

@@ -1,40 +1,35 @@
 # RTMX AI agent loop demo
-# Shows an agent picking a requirement and completing it
+# Shows the commands an AI agent uses: next, context, verify
 # Run with: vhs docs/tapes/agent-loop.tape
 # Output: docs/assets/rtmx-agent-loop.gif
 
 Output docs/assets/rtmx-agent-loop.gif
 
 Set Shell "bash"
-Set FontSize 16
-Set Width 960
-Set Height 540
+Set FontSize 14
+Set Width 1000
+Set Height 620
 Set Theme "Dracula"
-Set Padding 20
-Set TypingSpeed 80ms
+Set Padding 16
+Set TypingSpeed 50ms
+Set CursorBlink false
 
-# Agent picks next requirement
-Type "# Agent asks: what should I work on?"
-Enter
-Sleep 1s
+# Agent asks: what should I work on?
 Type "rtmx next --one --json"
 Enter
 Sleep 3s
 
-# Agent writes a test (simulated)
-Type "# Agent writes code and tests linked to the requirement"
+# Agent gets context for the requirement
+Type "rtmx context"
 Enter
-Sleep 2s
+Sleep 4s
 
-# Agent verifies
+# Agent runs verify to check test coverage
 Type "rtmx verify"
 Enter
 Sleep 5s
 
-# Requirement status updates
-Type "# Requirement status updated automatically"
-Enter
-Sleep 1s
+# Agent checks overall status
 Type "rtmx status"
 Enter
-Sleep 3s
+Sleep 4s
