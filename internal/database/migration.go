@@ -61,9 +61,7 @@ func (db *Database) Migrate() MigrationResult {
 	copy(newHeader, standardColumns)
 
 	// Preserve extra columns at the end
-	for _, extra := range result.ExtraColumns {
-		newHeader = append(newHeader, extra)
-	}
+	newHeader = append(newHeader, result.ExtraColumns...)
 
 	db.originalHeader = newHeader
 	db.dirty = true

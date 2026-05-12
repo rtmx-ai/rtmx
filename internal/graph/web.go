@@ -132,10 +132,6 @@ func (g *Graph) DetectOverlaps(webs []Web) []WebOverlap {
 	}
 
 	// Build file -> web index mapping
-	type webFile struct {
-		webIdx int
-		file   string
-	}
 	fileToWebs := make(map[string][]int) // file -> list of web indices
 
 	for i, web := range webs {
