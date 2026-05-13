@@ -156,7 +156,8 @@ func TestFromTestsCommandHelp(t *testing.T) {
 
 // newTestFromTestsCmd creates a fresh from-tests command for testing
 func newTestFromTestsCmd() *cobra.Command {
-	var showAll, showMissing, update bool
+	var showAll, showMissing, update, verify bool
+	var command string
 
 	cmd := &cobra.Command{
 		Use:   "from-tests [test_path]",
@@ -165,12 +166,16 @@ func newTestFromTestsCmd() *cobra.Command {
 			fromTestsShowAll = showAll
 			fromTestsShowMissing = showMissing
 			fromTestsUpdate = update
+			fromTestsVerify = verify
+			fromTestsCommand = command
 			return runFromTests(cmd, args)
 		},
 	}
 	cmd.Flags().BoolVar(&showAll, "show-all", false, "show all markers found")
 	cmd.Flags().BoolVar(&showMissing, "show-missing", false, "show requirements not in database")
 	cmd.Flags().BoolVar(&update, "update", false, "update RTM database")
+	cmd.Flags().BoolVar(&verify, "verify", false, "also run tests and update requirement statuses (requires --update)")
+	cmd.Flags().StringVar(&command, "command", "", "test command for --verify")
 	return cmd
 }
 
@@ -704,6 +709,56 @@ async def test_async_handler():
 		}
 		if markers[0].TestFunction != "test_async_handler" {
 			t.Errorf("expected test_async_handler, got %s", markers[0].TestFunction)
+		}
+	})
+}
+
+func TestFromTestsVerifyFlag(t *testing.T) {
+	rtmx.Req(t, "REQ-FROMTESTS-001")
+
+	t.Run("verify_requires_update", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		_ = os.MkdirAll(filepath.Join(tmpDir, ".rtmx"), 0755)
+		_ = os.WriteFile(filepath.Join(tmpDir, "rtmx.yaml"), []byte("database:\n  path: .rtmx/database.csv\n"), 0644)
+		_ = os.WriteFile(filepath.Join(tmpDir, ".rtmx", "database.csv"),
+			[]byte("req_id,category,subcategory,requirement_text,target_value,test_module,test_function,validation_method,status,priority,phase,notes,effort_weeks,dependencies,blocks,assignee,sprint,started_date,completed_date,requirement_file,external_id\n"), 0644)
+		// Create a test file so the scan path exists
+		testsDir := filepath.Join(tmpDir, "tests")
+		_ = os.MkdirAll(testsDir, 0755)
+		_ = os.WriteFile(filepath.Join(testsDir, "test_example.py"), []byte("# rtmx:req REQ-001\ndef test_example(): pass\n"), 0644)
+
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		root := newTestRootCmd()
+		buf := new(strings.Builder)
+		root.SetOut(buf)
+		// Scan the tests directory (which exists), with --verify but no --update
+		root.SetArgs([]string{"from-tests", "--verify", testsDir})
+
+		err := root.Execute()
+		if err == nil {
+			t.Fatal("expected error when --verify used without --update")
+		}
+		if !strings.Contains(err.Error(), "--verify requires --update") {
+			t.Errorf("expected --verify requires --update error, got: %v", err)
+		}
+	})
+
+	t.Run("verify_flag_in_help", func(t *testing.T) {
+		root := newTestRootCmd()
+		buf := new(strings.Builder)
+		root.SetOut(buf)
+		root.SetArgs([]string{"from-tests", "--help"})
+
+		_ = root.Execute()
+		out := buf.String()
+		if !strings.Contains(out, "--verify") {
+			t.Error("from-tests help should mention --verify flag")
+		}
+		if !strings.Contains(out, "--command") {
+			t.Error("from-tests help should mention --command flag")
 		}
 	})
 }

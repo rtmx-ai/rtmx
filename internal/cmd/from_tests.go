@@ -19,6 +19,8 @@ var (
 	fromTestsShowAll     bool
 	fromTestsShowMissing bool
 	fromTestsUpdate      bool
+	fromTestsVerify      bool
+	fromTestsCommand     string
 )
 
 var fromTestsCmd = &cobra.Command{
@@ -49,6 +51,8 @@ func init() {
 	fromTestsCmd.Flags().BoolVar(&fromTestsShowAll, "show-all", false, "show all markers found")
 	fromTestsCmd.Flags().BoolVar(&fromTestsShowMissing, "show-missing", false, "show requirements not in database")
 	fromTestsCmd.Flags().BoolVar(&fromTestsUpdate, "update", false, "update RTM database with test information")
+	fromTestsCmd.Flags().BoolVar(&fromTestsVerify, "verify", false, "also run tests and update requirement statuses (requires --update)")
+	fromTestsCmd.Flags().StringVar(&fromTestsCommand, "command", "", "test command for --verify (default: auto-detect)")
 
 	rootCmd.AddCommand(fromTestsCmd)
 }
@@ -74,6 +78,11 @@ type ConftestMarkerRegistration struct {
 func runFromTests(cmd *cobra.Command, args []string) error {
 	if noColor {
 		output.DisableColor()
+	}
+
+	// REQ-FROMTESTS-001: Validate --verify preconditions early
+	if fromTestsVerify && !fromTestsUpdate {
+		return fmt.Errorf("--verify requires --update (linkage must be current before verification)")
 	}
 
 	// Determine test path
@@ -281,6 +290,26 @@ func runFromTests(cmd *cobra.Command, args []string) error {
 			cmd.Printf("\n%s Updated %d requirement(s) in RTM database\n",
 				output.Color("✓", output.Green), updated)
 		}
+	}
+
+	// REQ-FROMTESTS-001: Combined verify after linking
+	if fromTestsVerify {
+		if !fromTestsUpdate {
+			return fmt.Errorf("--verify requires --update (linkage must be current before verification)")
+		}
+		if db == nil {
+			return fmt.Errorf("--verify requires an RTM database")
+		}
+
+		cmd.Printf("\n%s\n", output.Color("Running verification...", output.Bold))
+
+		// Set up verify flags for the delegated call
+		verifyUpdate = true
+		verifyDryRun = false
+		if fromTestsCommand != "" {
+			verifyCommand = fromTestsCommand
+		}
+		return runVerify(cmd, args)
 	}
 
 	return nil

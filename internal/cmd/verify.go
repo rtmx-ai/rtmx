@@ -70,7 +70,11 @@ Results file format (--results):
 	RunE: runVerify,
 }
 
-var verifyForce bool
+var (
+	verifyForce         bool
+	verifyWarnThreshold int
+	verifyFailThreshold int
+)
 
 func init() {
 	verifyCmd.Flags().BoolVar(&verifyUpdate, "update", false, "update RTM database with results")
@@ -81,6 +85,8 @@ func init() {
 	verifyCmd.Flags().StringVar(&verifyResults, "results", "", "RTMX results JSON file (cross-language)")
 	verifyCmd.Flags().StringVar(&verifyVersion, "version", "", "verify only requirements targeting this version")
 	verifyCmd.Flags().BoolVar(&verifyAudit, "audit", false, "show audit diagnostics for stale or unmatched test references")
+	verifyCmd.Flags().IntVar(&verifyWarnThreshold, "warn-threshold", 0, "status change count that triggers a warning (0=use config, default: 5)")
+	verifyCmd.Flags().IntVar(&verifyFailThreshold, "fail-threshold", 0, "status change count that blocks updates (0=use config, default: 15)")
 
 	rootCmd.AddCommand(verifyCmd)
 }
@@ -183,7 +189,8 @@ func runVerify(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		// Enforce thresholds
+		// Enforce thresholds: CLI flag > config > default
+		// REQ-VERIFY-008
 		warnThreshold := cfg.RTMX.Verify.Thresholds.Warn
 		failThreshold := cfg.RTMX.Verify.Thresholds.Fail
 		if warnThreshold <= 0 {
@@ -191,6 +198,12 @@ func runVerify(cmd *cobra.Command, args []string) error {
 		}
 		if failThreshold <= 0 {
 			failThreshold = 15
+		}
+		if verifyWarnThreshold > 0 {
+			warnThreshold = verifyWarnThreshold
+		}
+		if verifyFailThreshold > 0 {
+			failThreshold = verifyFailThreshold
 		}
 
 		if updateCount > failThreshold && !verifyForce {
@@ -521,14 +534,40 @@ func runTests(cmd *cobra.Command, testPath string) (map[string]*TestResult, erro
 	return results, nil
 }
 
+// matchTestFunction checks if a test result name matches a database test_function
+// value, supporting suffix matching at path separator boundaries (:: and .).
+// This handles Rust module paths (embedding::tests::test_foo matches tests::test_foo)
+// and Python package paths (pkg.tests.test_foo matches tests.test_foo).
+// REQ-VERIFY-007
+func matchTestFunction(testResultName, dbTestFunction string) bool {
+	if testResultName == dbTestFunction {
+		return true
+	}
+	// Suffix match at :: boundary (Rust module paths)
+	if strings.HasSuffix(testResultName, "::"+dbTestFunction) {
+		return true
+	}
+	// Suffix match at . boundary (Python package paths)
+	if strings.HasSuffix(testResultName, "."+dbTestFunction) {
+		return true
+	}
+	// Suffix match at / boundary (Go package paths)
+	if strings.HasSuffix(testResultName, "/"+dbTestFunction) {
+		return true
+	}
+	return false
+}
+
 func mapTestsToRequirements(db *database.Database, testResults map[string]*TestResult) []VerificationResult {
 	var results []VerificationResult
 
-	// Build a map of test function -> results
+	// Collect all test result names for suffix matching
+	allTestResults := make([]*TestResult, 0, len(testResults))
+	// Build a map of test function -> results for exact match (fast path)
 	testByFunction := make(map[string]*TestResult)
 	for _, r := range testResults {
-		// Index by just function name for matching
 		testByFunction[r.Test] = r
+		allTestResults = append(allTestResults, r)
 	}
 
 	// For each requirement with a test defined
@@ -537,9 +576,19 @@ func mapTestsToRequirements(db *database.Database, testResults map[string]*TestR
 			continue
 		}
 
-		// Try to find matching test result
+		// Try exact match first (fast path)
 		testFunc := req.TestFunction
 		result := testByFunction[testFunc]
+
+		// Fall back to suffix matching at path separator boundaries
+		if result == nil {
+			for _, r := range allTestResults {
+				if matchTestFunction(r.Test, testFunc) {
+					result = r
+					break
+				}
+			}
+		}
 
 		if result == nil {
 			// No matching test found

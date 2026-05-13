@@ -172,6 +172,7 @@ Source: https://github.com/rtmx-ai/rtmx`,
 	cmd.AddCommand(newTestVerifyCmd())
 	cmd.AddCommand(newTestContextCmd())
 	cmd.AddCommand(newTestInstallCmd())
+	cmd.AddCommand(newTestFromTestsCmd())
 
 	return cmd
 }
@@ -242,8 +243,9 @@ func newTestContextCmd() *cobra.Command {
 
 // newTestVerifyCmd creates a fresh verify command for testing with real behavior.
 func newTestVerifyCmd() *cobra.Command {
-	var update, dryRun, verbose bool
+	var update, dryRun, verbose, force bool
 	var command, resultsFile string
+	var warnThreshold, failThreshold int
 
 	cmd := &cobra.Command{
 		Use:   "verify [test_path]",
@@ -254,14 +256,20 @@ func newTestVerifyCmd() *cobra.Command {
 			verifyVerbose = verbose
 			verifyCommand = command
 			verifyResults = resultsFile
+			verifyForce = force
+			verifyWarnThreshold = warnThreshold
+			verifyFailThreshold = failThreshold
 			return runVerify(cmd, args)
 		},
 	}
 	cmd.Flags().BoolVar(&update, "update", false, "update RTM database")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show changes without updating")
 	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
+	cmd.Flags().BoolVar(&force, "force", false, "override fail threshold")
 	cmd.Flags().StringVar(&command, "command", "", "custom test command")
 	cmd.Flags().StringVar(&resultsFile, "results", "", "RTMX results JSON file")
+	cmd.Flags().IntVar(&warnThreshold, "warn-threshold", 0, "warn threshold (0=use config)")
+	cmd.Flags().IntVar(&failThreshold, "fail-threshold", 0, "fail threshold (0=use config)")
 	return cmd
 }
 
