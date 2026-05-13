@@ -1670,3 +1670,244 @@ func TestVerifyGitAttribution(t *testing.T) {
 		}
 	})
 }
+
+func TestMatchTestFunction(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-007")
+
+	tests := []struct {
+		name           string
+		testResultName string
+		dbTestFunction string
+		expected       bool
+	}{
+		// Exact match
+		{"exact_match", "TestFoo", "TestFoo", true},
+		{"exact_match_with_colons", "tests::test_foo", "tests::test_foo", true},
+
+		// Rust :: suffix matching
+		{"rust_module_prefix", "embedding::tests::test_foo", "tests::test_foo", true},
+		{"rust_deep_module", "crate::embedding::tests::test_foo", "tests::test_foo", true},
+		{"rust_single_prefix", "module::test_bar", "test_bar", true},
+
+		// Python . suffix matching
+		{"python_package_prefix", "pkg.tests.test_foo", "tests.test_foo", true},
+		{"python_deep_package", "app.pkg.tests.test_foo", "tests.test_foo", true},
+		{"python_single_prefix", "module.test_bar", "test_bar", true},
+
+		// Go / suffix matching
+		{"go_package_prefix", "github.com/org/pkg/TestFoo", "TestFoo", true},
+		{"go_deep_package", "github.com/org/repo/internal/cmd/TestFoo", "TestFoo", true},
+
+		// Negative cases
+		{"no_match", "TestFoo", "TestBar", false},
+		{"partial_name_no_boundary", "xTestFoo", "TestFoo", false},
+		{"substring_no_separator", "module_test_foo", "test_foo", false},
+		{"wrong_separator", "module::test_foo", "module.test_foo", false},
+		{"empty_db_function", "TestFoo", "", false},
+		{"empty_result_name", "", "TestFoo", false},
+		{"both_empty", "", "", true}, // exact match of empty strings
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := matchTestFunction(tt.testResultName, tt.dbTestFunction)
+			if got != tt.expected {
+				t.Errorf("matchTestFunction(%q, %q) = %v, want %v",
+					tt.testResultName, tt.dbTestFunction, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestMapTestsToRequirements_SuffixMatching(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-007")
+
+	dbContent := testDBHeader +
+		"REQ-001,CAT,Sub,Rust suffix test,Pass,mod,tests::test_create,Unit Test,MISSING,HIGH,1,,,,,,,,,\n" +
+		"REQ-002,CAT,Sub,Python suffix test,Pass,mod,tests.test_update,Unit Test,MISSING,HIGH,1,,,,,,,,,\n"
+
+	tmpDir := setupTestProject(t, dbContent)
+	origDir, _ := os.Getwd()
+	_ = os.Chdir(tmpDir)
+	defer func() { _ = os.Chdir(origDir) }()
+
+	cfg, _ := config.LoadFromDir(tmpDir)
+	dbPath := cfg.DatabasePath(tmpDir)
+	db, _ := database.Load(dbPath)
+
+	testResults := map[string]*TestResult{
+		"embedding::tests::test_create": {
+			Package: "embedding", Test: "embedding::tests::test_create", Passed: true,
+		},
+		"app.tests.test_update": {
+			Package: "app", Test: "app.tests.test_update", Passed: true,
+		},
+	}
+
+	results := mapTestsToRequirements(db, testResults)
+
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results from suffix matching, got %d", len(results))
+	}
+
+	matched := map[string]bool{}
+	for _, r := range results {
+		matched[r.ReqID] = r.Updated
+	}
+	if !matched["REQ-001"] {
+		t.Error("REQ-001 should have matched via :: suffix")
+	}
+	if !matched["REQ-002"] {
+		t.Error("REQ-002 should have matched via . suffix")
+	}
+}
+
+func TestVerifyWarnThresholdCLIFlag(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-008")
+
+	if runtime.GOOS == "windows" {
+		t.Skip("echo behaves differently on Windows")
+	}
+
+	// Build a database with n requirements, all will flip MISSING -> COMPLETE
+	makeDB := func(n int) string {
+		db := testDBHeader
+		for i := 1; i <= n; i++ {
+			db += fmt.Sprintf("REQ-%03d,CAT,Sub,Req %d,Pass,mod,TestReq%03d,Unit Test,MISSING,HIGH,1,,,,,,,,,\n", i, i, i)
+		}
+		return db
+	}
+
+	// Create a temp script that outputs passing go test JSON for n tests
+	makeTestScript := func(t *testing.T, n int) string {
+		t.Helper()
+		script := "#!/bin/sh\n"
+		for i := 1; i <= n; i++ {
+			name := fmt.Sprintf("TestReq%03d", i)
+			script += fmt.Sprintf(`printf '{"Time":"2024-01-01T00:00:00Z","Action":"pass","Package":"mod","Test":"%s","Elapsed":0.1}\n'`+"\n", name)
+		}
+		path := filepath.Join(t.TempDir(), "test.sh")
+		_ = os.WriteFile(path, []byte(script), 0755)
+		return path
+	}
+
+	t.Run("cli_warn_threshold_suppresses_warning", func(t *testing.T) {
+		tmpDir := setupTestProject(t, makeDB(8))
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		scriptPath := makeTestScript(t, 8)
+
+		cmd := newTestRootCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"verify", "--update", "--warn-threshold", "20",
+			"--command", scriptPath})
+
+		err := cmd.Execute()
+		if err != nil {
+			t.Fatalf("verify failed: %v\nOutput: %s", err, buf.String())
+		}
+
+		if strings.Contains(buf.String(), "WARNING") {
+			t.Error("--warn-threshold=20 should suppress warning for 8 changes")
+		}
+	})
+
+	t.Run("cli_warn_threshold_triggers_warning", func(t *testing.T) {
+		tmpDir := setupTestProject(t, makeDB(8))
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		scriptPath := makeTestScript(t, 8)
+
+		cmd := newTestRootCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"verify", "--update", "--warn-threshold", "3",
+			"--command", scriptPath})
+
+		err := cmd.Execute()
+		if err != nil {
+			t.Fatalf("verify failed: %v\nOutput: %s", err, buf.String())
+		}
+
+		if !strings.Contains(buf.String(), "WARNING") {
+			t.Error("--warn-threshold=3 should trigger warning for 8 changes")
+		}
+	})
+
+	t.Run("cli_fail_threshold_blocks_update", func(t *testing.T) {
+		tmpDir := setupTestProject(t, makeDB(8))
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		scriptPath := makeTestScript(t, 8)
+
+		cmd := newTestRootCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"verify", "--update", "--fail-threshold", "3",
+			"--command", scriptPath})
+
+		err := cmd.Execute()
+		if err == nil {
+			t.Fatal("expected error when fail threshold exceeded")
+		}
+
+		if !strings.Contains(err.Error(), "threshold exceeded") {
+			t.Errorf("expected threshold exceeded error, got: %v", err)
+		}
+	})
+
+	t.Run("cli_flag_overrides_config", func(t *testing.T) {
+		tmpDir := setupTestProject(t, makeDB(8))
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		// Config says warn=1, but CLI says warn=20
+		cfgContent := "rtmx:\n  database: .rtmx/database.csv\n  verify:\n    thresholds:\n      warn: 1\n      fail: 100\n"
+		_ = os.WriteFile(filepath.Join(tmpDir, ".rtmx", "config.yaml"), []byte(cfgContent), 0644)
+
+		scriptPath := makeTestScript(t, 8)
+
+		cmd := newTestRootCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"verify", "--update", "--warn-threshold", "20",
+			"--command", scriptPath})
+
+		err := cmd.Execute()
+		if err != nil {
+			t.Fatalf("verify failed: %v\nOutput: %s", err, buf.String())
+		}
+
+		if strings.Contains(buf.String(), "WARNING") {
+			t.Error("CLI --warn-threshold=20 should override config warn=1")
+		}
+	})
+
+	t.Run("force_overrides_fail_threshold", func(t *testing.T) {
+		tmpDir := setupTestProject(t, makeDB(8))
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		scriptPath := makeTestScript(t, 8)
+
+		cmd := newTestRootCmd()
+		buf := new(bytes.Buffer)
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"verify", "--update", "--fail-threshold", "3", "--force",
+			"--command", scriptPath})
+
+		err := cmd.Execute()
+		if err != nil {
+			t.Fatalf("verify with --force should succeed: %v", err)
+		}
+	})
+}
