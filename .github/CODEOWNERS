@@ -1,0 +1,11 @@
+# Default owner for everything
+* @rhino11
+
+# CI/CD and release infrastructure
+.github/ @rhino11
+.goreleaser.yaml @rhino11
+Makefile @rhino11
+
+# Security-sensitive files
+SECURITY.md @rhino11
+gpg.key @rhino11

@@ -96,15 +96,15 @@ func TestRemoteCommands(t *testing.T) {
 		cmd.SetOut(buf)
 		cmd.SetErr(buf)
 
-		remoteRepo = "rtmx-ai/rtmx-sync"
+		remoteRepo = "example-org/sync-server"
 		remoteDatabase = ".rtmx/database.csv"
-		remotePath = "../rtmx-sync"
+		remotePath = "../sync-server"
 
 		if err := cmd.RunE(cmd, []string{"sync-repo"}); err != nil {
 			t.Fatalf("remote add with path failed: %v", err)
 		}
 		out := buf.String()
-		if !strings.Contains(out, "Local path: ../rtmx-sync") {
+		if !strings.Contains(out, "Local path: ../sync-server") {
 			t.Errorf("Expected path in output, got: %s", out)
 		}
 	})

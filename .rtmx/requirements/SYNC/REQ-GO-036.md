@@ -16,7 +16,7 @@ Go CLI shall implement grant delegation commands (`rtmx grant create`, `rtmx gra
 
 ## Rationale
 
-When organizations share requirement boundaries (e.g., rtmx-go depends on rtmx-sync), they may not want to expose full requirement details. Grant delegation allows a grantor to specify what data a grantee can see: full requirement text, status-only shadows, or hash-only verification. This builds on REQ-GO-035's shadow requirements by adding access control.
+When organizations share requirement boundaries (e.g., one project depends on another), they may not want to expose full requirement details. Grant delegation allows a grantor to specify what data a grantee can see: full requirement text, status-only shadows, or hash-only verification. This builds on REQ-GO-035's shadow requirements by adding access control.
 
 Grants are stored locally in the project's config, consistent with RTMX's local-first philosophy. Zitadel backend integration is deferred to Phase 13.
 

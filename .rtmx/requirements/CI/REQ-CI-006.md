@@ -14,7 +14,7 @@ Repository shall provide a reusable GitHub Actions workflow that other RTMX-enab
 
 ## Rationale
 
-The Python repo provides `rtmx-validate.yml` as a `workflow_call` that other repos (rtmx-sync, rtmx.ai) can reference. This enables ecosystem-wide RTM validation without duplicating CI configuration. The Go CLI should provide an equivalent.
+The Python repo provides `rtmx-validate.yml` as a `workflow_call` that other RTMX-enabled repos can reference. This enables ecosystem-wide RTM validation without duplicating CI configuration. The Go CLI should provide an equivalent.
 
 ## Design
 
@@ -44,7 +44,7 @@ on:
 ### Caller Usage (from other repos)
 
 ```yaml
-# In rtmx-sync/.github/workflows/ci.yml
+# In another repo's .github/workflows/ci.yml
 validate-rtm:
   uses: rtmx-ai/rtmx/.github/workflows/rtmx-validate.yml@main
   with:

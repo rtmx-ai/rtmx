@@ -19,7 +19,7 @@ test framework usage, and permissive license.
 - **Verify command**: `pytest --rtmx-output results.json`
 
 ### Rust
-- **Exemplar**: [rtmx-ai/aegis-cli](https://github.com/rtmx-ai/aegis-cli) (our own, ~437 tests)
+- **Exemplar**: internal Rust project (~437 tests)
 - **Build time**: ~3 min
 - **Marker style**: `// @req REQ-ID`
 - **Verify command**: `cargo test --workspace`
@@ -185,7 +185,7 @@ rtmx-ai/rtmx-benchmarks/
   benchmarks/
     go/
       cli-cli/          # pinned commit of cli/cli
-      exemplar/          # minimal hello-rtmx-go
+      exemplar/          # minimal hello-rtmx
     rust/
       aegis-cli/        # pinned commit
       exemplar/

@@ -42,7 +42,7 @@ release-dry-run:
       run: |
         ls -la dist/
         test -f dist/checksums.txt
-        test -f dist/rtmx-go_*_linux_amd64.tar.gz
+        test -f dist/rtmx_*_linux_amd64.tar.gz
         test -f dist/rtmx_*_linux_amd64.deb
 ```
 

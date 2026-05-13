@@ -53,7 +53,7 @@ func TestZitiIntegration(t *testing.T) {
 
 		// Write a config file
 		configPath := filepath.Join(tmpDir, "ziti.json")
-		config := `{"controller_url":"https://ctrl.example.com","identity_file":"/path/to/id.json","service_name":"rtmx-sync","enrolled":true}`
+		config := `{"controller_url":"https://ctrl.example.com","identity_file":"/path/to/id.json","service_name":"rtmx-collab","enrolled":true}`
 		_ = os.WriteFile(configPath, []byte(config), 0600)
 
 		client, err := NewZitiClient(tmpDir)
@@ -67,8 +67,8 @@ func TestZitiIntegration(t *testing.T) {
 		if client.Config.ControllerURL != "https://ctrl.example.com" {
 			t.Errorf("controller URL = %q, want https://ctrl.example.com", client.Config.ControllerURL)
 		}
-		if client.Config.ServiceName != "rtmx-sync" {
-			t.Errorf("service name = %q, want rtmx-sync", client.Config.ServiceName)
+		if client.Config.ServiceName != "rtmx-collab" {
+			t.Errorf("service name = %q, want rtmx-collab", client.Config.ServiceName)
 		}
 	})
 
@@ -79,13 +79,13 @@ func TestZitiIntegration(t *testing.T) {
 			t.Fatalf("NewZitiClient failed: %v", err)
 		}
 
-		err = client.SetService("rtmx-sync-prod")
+		err = client.SetService("rtmx-collab-prod")
 		if err != nil {
 			t.Fatalf("SetService failed: %v", err)
 		}
 
-		if client.Config.ServiceName != "rtmx-sync-prod" {
-			t.Errorf("service = %q, want rtmx-sync-prod", client.Config.ServiceName)
+		if client.Config.ServiceName != "rtmx-collab-prod" {
+			t.Errorf("service = %q, want rtmx-collab-prod", client.Config.ServiceName)
 		}
 
 		// Reload and verify persistence
@@ -93,8 +93,8 @@ func TestZitiIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("reload failed: %v", err)
 		}
-		if client2.Config.ServiceName != "rtmx-sync-prod" {
-			t.Errorf("reloaded service = %q, want rtmx-sync-prod", client2.Config.ServiceName)
+		if client2.Config.ServiceName != "rtmx-collab-prod" {
+			t.Errorf("reloaded service = %q, want rtmx-collab-prod", client2.Config.ServiceName)
 		}
 	})
 }

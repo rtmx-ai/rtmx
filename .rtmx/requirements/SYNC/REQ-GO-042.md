@@ -12,18 +12,18 @@
 
 ## Requirement
 
-Go CLI shall implement a WebSocket client that connects to an rtmx-sync server to synchronize the local RTM database via the y-websocket CRDT protocol. All merge logic is delegated to the server; the CLI is responsible for sending local state, receiving merged state, and updating the local CSV database.
+Go CLI shall implement a WebSocket client that connects to a sync server to synchronize the local RTM database via the y-websocket CRDT protocol. All merge logic is delegated to the server; the CLI is responsible for sending local state, receiving merged state, and updating the local CSV database.
 
 ## Rationale
 
-The rtmx-sync server already implements CRDT merge semantics via pycrdt/Yrs. Rather than duplicating that complexity in Go, the CLI acts as a thin client that syncs local state to the server and receives the merged result. This preserves the local-first philosophy: the CLI works fully offline with CSV + Git, and optionally connects to rtmx-sync for real-time multi-user collaboration.
+The sync server already implements CRDT merge semantics via pycrdt/Yrs. Rather than duplicating that complexity in Go, the CLI acts as a thin client that syncs local state to the server and receives the merged result. This preserves the local-first philosophy: the CLI works fully offline with CSV + Git, and optionally connects to the sync server for real-time multi-user collaboration.
 
 ## Design
 
 ### Architecture
 
 ```
-rtmx-go CLI                          rtmx-sync Server
+rtmx CLI                             Sync Server
 
  CSV Database                         CRDT Document (Room)
      |                                     |
@@ -60,7 +60,7 @@ rtmx-go CLI                          rtmx-sync Server
 ```go
 // internal/sync/client.go
 
-// SyncClient manages WebSocket connections to rtmx-sync server.
+// SyncClient manages WebSocket connections to the sync server.
 type SyncClient struct {
     ServerURL string           // e.g., "wss://sync.rtmx.ai"
     Room      string           // Room/document identifier
@@ -123,7 +123,7 @@ rtmx sync status                                # Show sync connection status
 
 ## Acceptance Criteria
 
-1. `rtmx sync push` sends local database state to rtmx-sync server via WebSocket
+1. `rtmx sync push` sends local database state to sync server via WebSocket
 2. `rtmx sync pull` receives merged state and updates local CSV
 3. Pull reports changes: requirements added, updated, or with conflicts
 4. Connection requires auth token (from `rtmx auth login` or `RTMX_TOKEN` env)

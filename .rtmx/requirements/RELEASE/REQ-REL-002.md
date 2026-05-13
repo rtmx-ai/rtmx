@@ -33,7 +33,7 @@ sboms:
 ```json
 {
   "spdxVersion": "SPDX-2.3",
-  "name": "rtmx-go",
+  "name": "rtmx",
   "packages": [
     {"name": "github.com/spf13/cobra", "version": "v1.8.0"},
     {"name": "gopkg.in/yaml.v3", "version": "v3.0.1"}

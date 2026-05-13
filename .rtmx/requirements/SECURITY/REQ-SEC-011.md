@@ -17,7 +17,7 @@
 
 Teams have different risk tolerances for batch requirement updates. A solo developer may accept 5 changes per commit. A safety-critical system may allow only 1. A migration sprint may temporarily need 50. The threshold should be configurable at the repo level via `rtmx.yaml`, auditable in git history, and enforceable in CI.
 
-This also enables future organizational policy enforcement via rtmx-sync, where a central authority can set maximum thresholds for downstream repos (e.g., IL4/IL5 systems capped at N=1).
+This also enables future organizational policy enforcement via a sync server, where a central authority can set maximum thresholds for downstream repos (e.g., IL4/IL5 systems capped at N=1).
 
 ## Design
 

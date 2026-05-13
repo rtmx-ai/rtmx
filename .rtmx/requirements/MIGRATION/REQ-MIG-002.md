@@ -16,11 +16,11 @@ The rtmx-ai/rtmx main branch shall migrate to track the Go implementation. Pytho
 
 ## Design
 
-### Pre-migration (in rtmx-go repo)
-1. Rename Go module path: `github.com/rtmx-ai/rtmx` -> `github.com/rtmx-ai/rtmx`
+### Pre-migration (in Go CLI repo)
+1. Rename Go module path to canonical `github.com/rtmx-ai/rtmx`
 2. Update all import paths, ldflags, install scripts, README, GoReleaser config
 3. Run full test suite, verify CI passes
-4. Tag final rtmx-go release
+4. Tag final Go CLI release from previous repo
 
 ### Migration (in rtmx repo)
 1. Create `legacy/python` branch from current main
@@ -31,8 +31,8 @@ The rtmx-ai/rtmx main branch shall migrate to track the Go implementation. Pytho
 6. Tag v1.0.0 to trigger first release from new main
 
 ### Post-migration
-1. Archive rtmx-go repo (read-only)
-2. Update rtmx-go README to redirect to rtmx
+1. Archive previous Go CLI repo (read-only)
+2. Update previous repo README to redirect to rtmx
 
 ## Acceptance Criteria
 
@@ -41,4 +41,4 @@ The rtmx-ai/rtmx main branch shall migrate to track the Go implementation. Pytho
 3. CI pipeline passes on new main
 4. Tag release produces signed binaries via GoReleaser
 5. Homebrew/Scoop formulas update correctly
-6. rtmx-go repo archived with redirect notice
+6. Previous Go CLI repo archived with redirect notice

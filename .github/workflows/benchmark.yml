@@ -189,7 +189,7 @@ jobs:
                     owner: context.repo.owner,
                     repo: context.repo.repo,
                     issue_number: match.number,
-                    body: `P1 ESCALATION: ${consecutiveFailures} consecutive nightly failures for ${lang}.\n\n/cc @rtmx-ai/engineering`,
+                    body: `P1 ESCALATION: ${consecutiveFailures} consecutive nightly failures for ${lang}.`,
                   });
                   core.warning(`P1 escalation: ${consecutiveFailures} consecutive failures for ${lang}`);
                 }

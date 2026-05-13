@@ -822,9 +822,6 @@ func TestBenchmarkConsecutiveFailureEscalation(t *testing.T) {
 		if !strings.Contains(src, "P1 ESCALATION") {
 			t.Error("workflow must create P1 ESCALATION comment")
 		}
-		if !strings.Contains(src, "@rtmx-ai/engineering") {
-			t.Error("workflow must ping engineering team")
-		}
 	})
 
 	t.Run("uses_threshold", func(t *testing.T) {

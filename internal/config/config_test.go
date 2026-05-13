@@ -185,7 +185,7 @@ func TestPhaseDescription(t *testing.T) {
 }
 
 func TestLoadRealConfig(t *testing.T) {
-	// Try to load the real config from rtmx-go project
+	// Try to load the real config from the project
 	paths := []string{
 		".rtmx/config.yaml",
 		"../../.rtmx/config.yaml",

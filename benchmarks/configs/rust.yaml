@@ -1,6 +1,6 @@
 language: rust
 exemplar:
-  repo: rtmx-ai/aegis-cli
+  repo: internal/rust-exemplar
   ref: v0.0.1-alpha
   license: Apache-2.0
 clone_depth: 1

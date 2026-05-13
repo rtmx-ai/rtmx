@@ -1,4 +1,4 @@
-# REQ-BENCH-004: Rust Language Benchmark (rtmx-ai/aegis-cli)
+# REQ-BENCH-004: Rust Language Benchmark
 
 ## Metadata
 - **Category**: BENCH
@@ -11,17 +11,17 @@
 
 ## Requirement
 
-RTMX benchmark framework shall validate the Rust scanner against `aegis-cli`, confirming marker extraction and cargo test output parsing on a production Rust project.
+RTMX benchmark framework shall validate the Rust scanner against an exemplar Rust project, confirming marker extraction and cargo test output parsing on a production Rust codebase.
 
 ## Rationale
 
-Aegis is an internal RTMX project, giving full control over marker placement. Rust uses three marker styles (`#[req("...")]`, `// @req REQ-ID`, `rtmx::req()`), and this benchmark validates all three in a real workspace with multiple crates.
+The exemplar is an internal project, giving full control over marker placement. Rust uses three marker styles (`#[req("...")]`, `// @req REQ-ID`, `rtmx::req()`), and this benchmark validates all three in a real workspace with multiple crates.
 
 ## Exemplar
 
 | Field | Value |
 |-------|-------|
-| Repository | [rtmx-ai/aegis-cli](https://github.com/rtmx-ai/aegis-cli) |
+| Repository | (internal exemplar) |
 | Pinned ref | Latest stable tag at implementation time |
 | License | Internal / Apache-2.0 |
 | Test count | ~437 |
@@ -32,7 +32,7 @@ Aegis is an internal RTMX project, giving full control over marker placement. Ru
 
 ### Marker Patch
 
-Since aegis-cli is an internal project, markers may already exist or can be added upstream. Patch adds markers to:
+Since the exemplar is an internal project, markers may already exist or can be added upstream. Patch adds markers to:
 - Unit tests across at least 3 crates
 - Integration tests in `tests/`
 - All three marker styles represented
@@ -44,7 +44,7 @@ Minimum 30 markers.
 ```yaml
 language: rust
 exemplar:
-  repo: rtmx-ai/aegis-cli
+  repo: internal/rust-exemplar
   ref: v0.5.0
   license: Apache-2.0
 clone_depth: 1

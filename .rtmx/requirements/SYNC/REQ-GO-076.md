@@ -22,7 +22,7 @@ Directly writing to another project's main branch violates standard code review 
 ### Branch Workflow
 
 ```
-rtmx move REQ-WEB-005 --to /path/to/rtmx --branch rtmx-sync/migrate-web-005
+rtmx move REQ-WEB-005 --to /path/to/rtmx --branch feature/migrate-web-005
 ```
 
 1. All steps from REQ-GO-075 execute against a new branch in the target repo
@@ -39,7 +39,7 @@ rtmx move REQ-WEB-005 --to /path/to/rtmx --branch ... --pr
 When `--pr` is specified:
 1. Push branch to target remote
 2. Create PR via GitHub API (`gh pr create`) or GitLab API
-3. PR title: `req: Accept REQ-WEB-005 from rtmx-sync`
+3. PR title: `req: Accept REQ-WEB-005 from upstream`
 4. PR body: Requirement description, provenance link, rationale for transfer
 5. Labels: `requirement`, `cross-repo`
 6. Return PR URL
