@@ -11,8 +11,12 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/rtmx-ai/rtmx/internal/config"
@@ -324,8 +328,16 @@ func (s *Server) handleToolsList() interface{} {
 		},
 		{
 			Name:        "verify",
-			Description: "Show verification status for requirements with linked tests",
-			InputSchema: emptyObj,
+			Description: "Run tests and verify requirements. Executes the test command, maps results to requirements, and updates the RTM database. Returns updated status for each requirement.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"command": map[string]interface{}{
+						"type":        "string",
+						"description": "Test command to run (e.g. 'npm test', 'pytest -v', 'go test ./...'). If omitted, auto-detects from project files.",
+					},
+				},
+			},
 		},
 		{
 			Name:        "markers",
@@ -406,7 +418,8 @@ func (s *Server) handleToolsCall(params json.RawMessage) (interface{}, *rpcError
 			return errorResult(err.Error()), nil
 		}
 	case "verify":
-		data = s.toolVerify(db)
+		command, _ := call.Arguments["command"].(string)
+		data = s.toolVerify(db, command)
 	case "markers":
 		data = s.toolMarkers(db)
 	case "next":
@@ -756,41 +769,242 @@ func (s *Server) toolDeps(db *database.Database, reqID string) (interface{}, err
 
 // verifyItem is a single entry in the verify tool output.
 type verifyItem struct {
-	ReqID    string `json:"req_id"`
-	Status   string `json:"status"`
-	HasTest  bool   `json:"has_test"`
-	TestFunc string `json:"test_function,omitempty"`
+	ReqID      string `json:"req_id"`
+	Status     string `json:"status"`
+	Previous   string `json:"previous_status,omitempty"`
+	HasTest    bool   `json:"has_test"`
+	TestFunc   string `json:"test_function,omitempty"`
+	TestPassed bool   `json:"test_passed,omitempty"`
+	Updated    bool   `json:"updated,omitempty"`
 }
 
 // verifyResult is the JSON output for the verify tool.
 type verifyResult struct {
 	Total     int          `json:"total"`
-	WithTests int          `json:"with_tests"`
+	Complete  int          `json:"complete"`
+	Verified  int          `json:"verified"`
+	Updated   int          `json:"updated"`
+	Command   string       `json:"command,omitempty"`
 	Items     []verifyItem `json:"items"`
 }
 
-func (s *Server) toolVerify(db *database.Database) interface{} {
+// testResult holds the outcome of a single parsed test.
+type testResult struct {
+	pkg    string
+	name   string
+	passed bool
+	failed bool
+}
+
+func (s *Server) toolVerify(db *database.Database, command string) interface{} {
+	// Determine test command
+	if command == "" {
+		command = detectTestCommand(filepath.Dir(s.dbPath))
+	}
+
+	// Run the test command and parse output
+	testResults := runAndParseTests(command, filepath.Dir(filepath.Dir(s.dbPath)))
+
+	// Map test results to requirements and update database
 	items := make([]verifyItem, 0)
-	withTests := 0
+	updated := 0
+	verified := 0
+	complete := 0
 
 	for _, req := range db.All() {
-		hasTest := req.HasTest()
-		if hasTest {
-			withTests++
-		}
-		items = append(items, verifyItem{
+		item := verifyItem{
 			ReqID:    req.ReqID,
-			Status:   string(req.Status),
-			HasTest:  hasTest,
+			HasTest:  req.HasTest(),
 			TestFunc: req.TestFunction,
-		})
+		}
+
+		if req.TestFunction != "" {
+			// Try to find a matching test result
+			if tr := findMatchingTest(testResults, req.TestFunction); tr != nil {
+				verified++
+				item.TestPassed = tr.passed
+
+				prevStatus := req.Status
+				if tr.passed {
+					req.Status = database.StatusComplete
+				} else if tr.failed && req.Status == database.StatusComplete {
+					req.Status = database.StatusPartial
+				}
+
+				if req.Status != prevStatus {
+					item.Previous = string(prevStatus)
+					item.Updated = true
+					if req.Status == database.StatusComplete || req.Status == database.StatusPartial {
+						req.SetStartedDate()
+					}
+					if req.Status == database.StatusComplete {
+						req.SetCompletedDate()
+					}
+					updated++
+				}
+			}
+		}
+
+		item.Status = string(req.Status)
+		if req.Status == database.StatusComplete {
+			complete++
+		}
+		items = append(items, item)
+	}
+
+	// Save the database if anything changed
+	if updated > 0 {
+		_ = db.Save(s.dbPath)
 	}
 
 	return verifyResult{
-		Total:     db.Len(),
-		WithTests: withTests,
-		Items:     items,
+		Total:    db.Len(),
+		Complete: complete,
+		Verified: verified,
+		Updated:  updated,
+		Command:  command,
+		Items:    items,
 	}
+}
+
+// detectTestCommand determines the test command from project files.
+func detectTestCommand(dir string) string {
+	exists := func(name string) bool {
+		_, err := os.Stat(filepath.Join(dir, name))
+		return err == nil
+	}
+	switch {
+	case exists("Cargo.toml"):
+		return "cargo test --workspace"
+	case exists("package.json"):
+		return "npm test"
+	case exists("pyproject.toml"), exists("setup.py"), exists("requirements.txt"):
+		return "python3 -m pytest -v"
+	case exists("build.gradle"), exists("build.gradle.kts"):
+		return "gradle test"
+	case exists("Makefile"):
+		return "make test"
+	default:
+		return "go test -json ./..."
+	}
+}
+
+// runAndParseTests executes a test command and parses the output into test results.
+func runAndParseTests(command string, workDir string) []testResult {
+	parts := strings.Fields(command)
+	if len(parts) == 0 {
+		return nil
+	}
+
+	testCmd := exec.Command(parts[0], parts[1:]...)
+	testCmd.Dir = workDir
+
+	stdout, err := testCmd.StdoutPipe()
+	if err != nil {
+		return nil
+	}
+	testCmd.Stderr = nil // discard stderr
+
+	if err := testCmd.Start(); err != nil {
+		return nil
+	}
+
+	var results []testResult
+	scanner := bufio.NewScanner(stdout)
+
+	// Patterns for multi-framework test output parsing
+	goTestEvent := regexp.MustCompile(`"Test"\s*:\s*"([^"]+)"`)
+	goTestAction := regexp.MustCompile(`"Action"\s*:\s*"(pass|fail|skip)"`)
+	cargoPattern := regexp.MustCompile(`^test\s+(\S+)\s+\.\.\.\s+(ok|FAILED|ignored)`)
+	pytestPattern := regexp.MustCompile(`^(\S+\.py)::(\S+)\s+(PASSED|FAILED|SKIPPED)`)
+	nodePattern := regexp.MustCompile(`^\s*(ok|not ok)\s+\d+\s+[-—]\s*(.+)`)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Go test JSON format
+		if strings.Contains(line, `"Test"`) && strings.Contains(line, `"Action"`) {
+			testMatch := goTestEvent.FindStringSubmatch(line)
+			actionMatch := goTestAction.FindStringSubmatch(line)
+			if len(testMatch) > 1 && len(actionMatch) > 1 {
+				tr := testResult{name: testMatch[1]}
+				switch actionMatch[1] {
+				case "pass":
+					tr.passed = true
+				case "fail":
+					tr.failed = true
+				}
+				results = append(results, tr)
+			}
+			continue
+		}
+
+		// Cargo test format
+		if m := cargoPattern.FindStringSubmatch(line); len(m) > 2 {
+			tr := testResult{name: m[1]}
+			switch m[2] {
+			case "ok":
+				tr.passed = true
+			case "FAILED":
+				tr.failed = true
+			}
+			results = append(results, tr)
+			continue
+		}
+
+		// pytest verbose format
+		if m := pytestPattern.FindStringSubmatch(line); len(m) > 3 {
+			tr := testResult{pkg: m[1], name: m[2]}
+			switch m[3] {
+			case "PASSED":
+				tr.passed = true
+			case "FAILED":
+				tr.failed = true
+			}
+			results = append(results, tr)
+			continue
+		}
+
+		// Node.js TAP-like format
+		if m := nodePattern.FindStringSubmatch(line); len(m) > 2 {
+			tr := testResult{name: strings.TrimSpace(m[2])}
+			tr.passed = m[1] == "ok"
+			tr.failed = m[1] == "not ok"
+			results = append(results, tr)
+			continue
+		}
+	}
+
+	_ = testCmd.Wait()
+	return results
+}
+
+// findMatchingTest finds a test result matching a database test_function,
+// supporting suffix matching at path separator boundaries.
+func findMatchingTest(results []testResult, testFunc string) *testResult {
+	for i := range results {
+		name := results[i].name
+		if name == testFunc {
+			return &results[i]
+		}
+		// Suffix match at :: boundary (Rust module paths)
+		if strings.HasSuffix(name, "::"+testFunc) {
+			return &results[i]
+		}
+		// Suffix match at . boundary (Python package paths)
+		if strings.HasSuffix(name, "."+testFunc) {
+			return &results[i]
+		}
+		// Suffix match at / boundary (Go package paths)
+		if strings.HasSuffix(name, "/"+testFunc) {
+			return &results[i]
+		}
+		// Partial name match (test_database matches test_database_setup)
+		if strings.Contains(name, testFunc) {
+			return &results[i]
+		}
+	}
+	return nil
 }
 
 // markerEntry is a single marker in the markers tool output.

@@ -143,176 +143,109 @@ if [ -n "$STAGED_RTM" ]; then
 fi
 `
 
-// Agent prompt templates
-const claudePrompt = `
-## RTMX Requirements Traceability
+// rtmxPromptCore is the standardized agent prompt content shared across all
+// agent integrations. Language-agnostic, includes closed-loop verification
+// workflow with dependency ordering.
+const rtmxPromptCore = `This project uses RTMX for requirements traceability management.
 
-This project uses RTMX for requirements traceability management.
-
-**Full patterns guide**: https://rtmx.ai/patterns
+Full patterns guide: https://rtmx.ai/patterns
 
 ### Critical: Closed-Loop Verification
 
-**Never manually edit the ` + "`status`" + ` field in rtm_database.csv.**
+Never manually edit the status field in the RTM database.
+Status must be derived from test results:
 
-Status must be derived from test results using ` + "`rtmx verify --update`" + `.
+    rtmx verify --command "npm test" --update        # Node.js
+    rtmx verify --command "python -m pytest" --update # Python
+    rtmx verify --command "go test ./..." --update    # Go
+    rtmx verify --command "cargo test" --update       # Rust
 
-` + "```bash" + `
-# RIGHT: Let tests determine status
-rtmx verify --update
-
-# WRONG: Manual status edit in CSV or code
-` + "```" + `
-
-### Quick Commands
-- ` + "`rtmx status`" + ` - Completion status (-v/-vv/-vvv for detail)
-- ` + "`rtmx backlog`" + ` - Prioritized incomplete requirements
-- ` + "`rtmx verify --update`" + ` - Run tests and update status from results
-- ` + "`rtmx from-tests --update`" + ` - Sync test metadata to RTM
-- ` + "`make rtm`" + ` / ` + "`make backlog`" + ` - Makefile shortcuts (if available)
+If no --command is given, rtmx auto-detects the test runner from
+project files (package.json, pyproject.toml, Cargo.toml, Makefile, etc).
 
 ### Development Workflow
-1. Read requirement spec from ` + "`docs/requirements/`" + `
-2. Write tests with ` + "`@pytest.mark.req(\"REQ-XX-NNN\")`" + `
-3. Implement code to pass tests
-4. Run ` + "`rtmx verify --update`" + ` (status updated automatically)
-5. Commit changes
 
-### Test Markers
-| Marker | Purpose |
-|--------|---------|
-| ` + "`@pytest.mark.req(\"ID\")`" + ` | Link to requirement |
-| ` + "`@pytest.mark.scope_unit`" + ` | Single component |
-| ` + "`@pytest.mark.scope_integration`" + ` | Multi-component |
-| ` + "`@pytest.mark.technique_nominal`" + ` | Happy path |
-| ` + "`@pytest.mark.technique_stress`" + ` | Edge cases |
+1. Run rtmx backlog to see prioritized incomplete requirements
+2. Run rtmx next to get the next unblocked requirement
+3. Read the requirement spec in .rtmx/requirements/
+4. Write tests that exercise the acceptance criteria
+5. Implement code to pass the tests
+6. Run rtmx verify --command "<test_command>" --update
+7. Commit with the requirement ID in the message
+8. Repeat from step 2
+
+Requirements are discrete batches of work ordered by dependency.
+Always respect dependency ordering -- do not skip ahead.
+
+### Commands
+
+- rtmx status      -- completion status (-v/-vv/-vvv for detail)
+- rtmx backlog     -- prioritized incomplete requirements
+- rtmx next        -- next unblocked requirement to work on
+- rtmx verify      -- run tests and update status from results
+- rtmx deps REQ-ID -- dependency graph for a requirement
+- rtmx health      -- test coverage and traceability health
 
 ### Patterns and Anti-Patterns
 
-| Do This | Not This |
-|---------|----------|
-| ` + "`rtmx verify --update`" + ` | Manual status edits |
-| ` + "`@pytest.mark.req()`" + ` on tests | Orphan tests |
-| Respect ` + "`blockedBy`" + ` deps | Ignore dependencies |
+Do: rtmx verify --update         Not: manual status edits
+Do: respect dependency ordering   Not: skip blocked requirements
+Do: one requirement per cycle     Not: batch multiple at once
+Do: commit with REQ-ID            Not: orphan commits`
+
+// Agent prompt templates -- each wraps rtmxPromptCore with the appropriate
+// format (markdown with heading levels, YAML comments, plain text).
+
+const claudePrompt = `
+## RTMX Requirements Traceability
+
+` + rtmxPromptCore + `
+
+### MCP Tools (if configured)
+
+When an MCP server is configured, these tools are available:
+
+- mcp__rtmx__backlog -- prioritized backlog with dependency order
+- mcp__rtmx__next    -- next unblocked requirement
+- mcp__rtmx__claim   -- mark a requirement as in-progress
+- mcp__rtmx__status  -- completion status
+- mcp__rtmx__verify  -- run tests and update requirements
+- mcp__rtmx__deps    -- dependency graph for a requirement
+- mcp__rtmx__health  -- test coverage and traceability health
 `
 
 const cursorPrompt = `# RTMX Requirements Traceability
 
-Full patterns guide: https://rtmx.ai/patterns
-
-## Critical Rule
-Never manually edit ` + "`status`" + ` in rtm_database.csv.
-Use ` + "`rtmx verify --update`" + ` to derive status from test results.
-
-## Context Commands
-- rtmx status -v        # Category-level completion
-- rtmx backlog          # What needs work
-- rtmx verify --update  # Run tests, update status
-- rtmx deps --req ID    # Requirement dependencies
-
-## Test Generation Rules
-When generating tests, add @pytest.mark.req("REQ-XX-NNN") markers.
-Include scope markers (scope_unit, scope_integration, scope_system).
-Reference: docs/requirements/ for requirement details.
+` + rtmxPromptCore + `
 `
 
 const copilotPrompt = `# RTMX Requirements Traceability
 
-This project uses RTMX for requirements traceability.
-Full patterns guide: https://rtmx.ai/patterns
-
-## Critical Rule
-Never manually edit ` + "`status`" + ` in rtm_database.csv.
-Use ` + "`rtmx verify --update`" + ` to derive status from test results.
-
-## Test Markers
-- @pytest.mark.req("REQ-XX-NNN") - Links test to requirement
-- @pytest.mark.scope_unit/integration/system - Test scope
-
-## Commands
-- rtmx status - Check completion status
-- rtmx backlog - See incomplete requirements
-- rtmx verify --update - Update status from test results
+` + rtmxPromptCore + `
 `
 
 // clinePrompt is the RTMX context for Cline (.clinerules).
 const clinePrompt = `# RTMX Requirements Traceability
 
-This project uses RTMX for requirements traceability.
-Full patterns guide: https://rtmx.ai/patterns
-
-## Critical Rule
-Never manually edit ` + "`status`" + ` in rtm_database.csv.
-Use ` + "`rtmx verify --update`" + ` to derive status from test results.
-
-## Commands
-- rtmx status - Check completion status
-- rtmx backlog - See incomplete requirements
-- rtmx verify --update - Update status from test results
-
-## Test Markers
-- @pytest.mark.req("REQ-XX-NNN") - Links test to requirement
-- @pytest.mark.scope_unit/integration/system - Test scope
+` + rtmxPromptCore + `
 `
 
 // geminiPrompt is the RTMX context for Gemini CLI (GEMINI.md).
 const geminiPrompt = `# RTMX Requirements Traceability
 
-This project uses RTMX for requirements traceability.
-Full patterns guide: https://rtmx.ai/patterns
-
-## Critical Rule
-Never manually edit ` + "`status`" + ` in rtm_database.csv.
-Use ` + "`rtmx verify --update`" + ` to derive status from test results.
-
-## Commands
-- rtmx status - Check completion status
-- rtmx backlog - See incomplete requirements
-- rtmx verify --update - Update status from test results
-
-## Test Markers
-- @pytest.mark.req("REQ-XX-NNN") - Links test to requirement
-- @pytest.mark.scope_unit/integration/system - Test scope
+` + rtmxPromptCore + `
 `
 
 // windsurfPrompt is the RTMX context for Windsurf/Cascade (.windsurfrules).
 const windsurfPrompt = `# RTMX Requirements Traceability
 
-This project uses RTMX for requirements traceability.
-Full patterns guide: https://rtmx.ai/patterns
-
-## Critical Rule
-Never manually edit ` + "`status`" + ` in rtm_database.csv.
-Use ` + "`rtmx verify --update`" + ` to derive status from test results.
-
-## Commands
-- rtmx status - Check completion status
-- rtmx backlog - See incomplete requirements
-- rtmx verify --update - Update status from test results
-
-## Test Markers
-- @pytest.mark.req("REQ-XX-NNN") - Links test to requirement
-- @pytest.mark.scope_unit/integration/system - Test scope
+` + rtmxPromptCore + `
 `
 
 // amazonqPrompt is the RTMX context for Amazon Q Developer (.amazonq/rules).
 const amazonqPrompt = `# RTMX Requirements Traceability
 
-This project uses RTMX for requirements traceability.
-Full patterns guide: https://rtmx.ai/patterns
-
-## Critical Rule
-Never manually edit ` + "`status`" + ` in rtm_database.csv.
-Use ` + "`rtmx verify --update`" + ` to derive status from test results.
-
-## Commands
-- rtmx status - Check completion status
-- rtmx backlog - See incomplete requirements
-- rtmx verify --update - Update status from test results
-
-## Test Markers
-- @pytest.mark.req("REQ-XX-NNN") - Links test to requirement
-- @pytest.mark.scope_unit/integration/system - Test scope
+` + rtmxPromptCore + `
 `
 
 // aiderPrompt is the RTMX context for Aider (.aider.conf.yml), YAML format.
@@ -320,17 +253,22 @@ const aiderPrompt = `# RTMX Requirements Traceability
 # Full patterns guide: https://rtmx.ai/patterns
 #
 # Critical Rule:
-#   Never manually edit 'status' in rtm_database.csv.
-#   Use 'rtmx verify --update' to derive status from test results.
+#   Never manually edit status in the RTM database.
+#   Use 'rtmx verify --command "<test_cmd>" --update' to derive status.
+#
+# Workflow:
+#   1. rtmx backlog       - see prioritized work
+#   2. rtmx next          - get next unblocked requirement
+#   3. Read spec, write tests, implement
+#   4. rtmx verify --update  - run tests, update status
+#   5. Commit with REQ-ID
 #
 # Commands:
-#   rtmx status          - Check completion status
-#   rtmx backlog         - See incomplete requirements
-#   rtmx verify --update - Update status from test results
-#
-# Test Markers:
-#   @pytest.mark.req("REQ-XX-NNN") - Links test to requirement
-#   @pytest.mark.scope_unit/integration/system - Test scope
+#   rtmx status          - completion status
+#   rtmx backlog         - prioritized incomplete requirements
+#   rtmx next            - next unblocked requirement
+#   rtmx verify --update - run tests and update status
+#   rtmx deps REQ-ID     - dependency graph
 read: []
 `
 
@@ -339,22 +277,27 @@ const continuePrompt = `# RTMX Requirements Traceability
 # Full patterns guide: https://rtmx.ai/patterns
 #
 # Critical Rule:
-#   Never manually edit 'status' in rtm_database.csv.
-#   Use 'rtmx verify --update' to derive status from test results.
+#   Never manually edit status in the RTM database.
+#   Use 'rtmx verify --command "<test_cmd>" --update' to derive status.
+#
+# Workflow:
+#   1. rtmx backlog       - see prioritized work
+#   2. rtmx next          - get next unblocked requirement
+#   3. Read spec, write tests, implement
+#   4. rtmx verify --update  - run tests, update status
+#   5. Commit with REQ-ID
 #
 # Commands:
-#   rtmx status          - Check completion status
-#   rtmx backlog         - See incomplete requirements
-#   rtmx verify --update - Update status from test results
-#
-# Test Markers:
-#   @pytest.mark.req("REQ-XX-NNN") - Links test to requirement
-#   @pytest.mark.scope_unit/integration/system - Test scope
+#   rtmx status          - completion status
+#   rtmx backlog         - prioritized incomplete requirements
+#   rtmx next            - next unblocked requirement
+#   rtmx verify --update - run tests and update status
+#   rtmx deps REQ-ID     - dependency graph
 `
 
 // zedInstructions is the RTMX context string injected into Zed's
 // .zed/settings.json under the assistant.instructions key.
-const zedInstructions = `RTMX Requirements Traceability. Full patterns guide: https://rtmx.ai/patterns. Critical Rule: Never manually edit 'status' in rtm_database.csv. Use 'rtmx verify --update' to derive status from test results. Commands: rtmx status (completion status), rtmx backlog (incomplete requirements), rtmx verify --update (update status from test results). Test Markers: @pytest.mark.req("REQ-XX-NNN") links test to requirement, @pytest.mark.scope_unit/integration/system for test scope.`
+const zedInstructions = `RTMX Requirements Traceability. Full patterns guide: https://rtmx.ai/patterns. Critical Rule: Never manually edit status in the RTM database. Use 'rtmx verify --command "<test_cmd>" --update' to derive status from test results. Workflow: rtmx backlog (prioritized work), rtmx next (next unblocked requirement), implement with tests, rtmx verify --update (run tests, update status), commit with REQ-ID. Commands: rtmx status, rtmx backlog, rtmx next, rtmx verify --update, rtmx deps REQ-ID.`
 
 // agentInfo describes a supported AI agent.
 type agentInfo struct {

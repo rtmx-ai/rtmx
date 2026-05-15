@@ -685,3 +685,347 @@ func TestMCPReadTools(t *testing.T) {
 		}
 	})
 }
+
+// TestMCPVerifyExecutesTests validates that the MCP verify tool runs tests
+// and updates requirement status in the database.
+// REQ-MCP-010: MCP verify tool shall execute tests and update requirements.
+func TestMCPVerifyExecutesTests(t *testing.T) {
+	rtmx.Req(t, "REQ-MCP-010")
+
+	t.Run("detectTestCommand", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			files    []string
+			expected string
+		}{
+			{"cargo", []string{"Cargo.toml"}, "cargo test --workspace"},
+			{"node", []string{"package.json"}, "npm test"},
+			{"python_pyproject", []string{"pyproject.toml"}, "python3 -m pytest -v"},
+			{"python_setup", []string{"setup.py"}, "python3 -m pytest -v"},
+			{"python_requirements", []string{"requirements.txt"}, "python3 -m pytest -v"},
+			{"gradle", []string{"build.gradle"}, "gradle test"},
+			{"gradle_kts", []string{"build.gradle.kts"}, "gradle test"},
+			{"makefile", []string{"Makefile"}, "make test"},
+			{"default_go", []string{}, "go test -json ./..."},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				dir := t.TempDir()
+				for _, f := range tt.files {
+					if err := os.WriteFile(filepath.Join(dir, f), []byte(""), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				}
+				got := detectTestCommand(dir)
+				if got != tt.expected {
+					t.Errorf("detectTestCommand() = %q, want %q", got, tt.expected)
+				}
+			})
+		}
+	})
+
+	t.Run("runAndParseTests_go_json", func(t *testing.T) {
+		// Create a script that emits Go test JSON output
+		dir := t.TempDir()
+		script := filepath.Join(dir, "fake_test.sh")
+		content := `#!/bin/sh
+echo '{"Test":"TestFirst","Action":"pass","Package":"pkg"}'
+echo '{"Test":"TestSecond","Action":"fail","Package":"pkg"}'
+echo '{"Test":"TestThird","Action":"skip","Package":"pkg"}'
+`
+		if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		results := runAndParseTests("sh "+script, dir)
+		if len(results) != 3 {
+			t.Fatalf("expected 3 results, got %d", len(results))
+		}
+		if !results[0].passed || results[0].name != "TestFirst" {
+			t.Errorf("result[0]: want passed TestFirst, got %+v", results[0])
+		}
+		if !results[1].failed || results[1].name != "TestSecond" {
+			t.Errorf("result[1]: want failed TestSecond, got %+v", results[1])
+		}
+		if results[2].passed || results[2].failed {
+			t.Errorf("result[2]: want skipped, got %+v", results[2])
+		}
+	})
+
+	t.Run("runAndParseTests_pytest", func(t *testing.T) {
+		dir := t.TempDir()
+		script := filepath.Join(dir, "fake_test.sh")
+		content := `#!/bin/sh
+echo 'test_api.py::test_login PASSED'
+echo 'test_api.py::test_signup FAILED'
+`
+		if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		results := runAndParseTests("sh "+script, dir)
+		if len(results) != 2 {
+			t.Fatalf("expected 2 results, got %d", len(results))
+		}
+		if !results[0].passed || results[0].name != "test_login" {
+			t.Errorf("result[0]: want passed test_login, got %+v", results[0])
+		}
+		if !results[1].failed || results[1].name != "test_signup" {
+			t.Errorf("result[1]: want failed test_signup, got %+v", results[1])
+		}
+	})
+
+	t.Run("runAndParseTests_cargo", func(t *testing.T) {
+		dir := t.TempDir()
+		script := filepath.Join(dir, "fake_test.sh")
+		content := `#!/bin/sh
+echo 'test auth::test_login ... ok'
+echo 'test api::test_create ... FAILED'
+`
+		if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		results := runAndParseTests("sh "+script, dir)
+		if len(results) != 2 {
+			t.Fatalf("expected 2 results, got %d", len(results))
+		}
+		if !results[0].passed || results[0].name != "auth::test_login" {
+			t.Errorf("result[0]: want passed auth::test_login, got %+v", results[0])
+		}
+		if !results[1].failed || results[1].name != "api::test_create" {
+			t.Errorf("result[1]: want failed api::test_create, got %+v", results[1])
+		}
+	})
+
+	t.Run("runAndParseTests_tap", func(t *testing.T) {
+		dir := t.TempDir()
+		script := filepath.Join(dir, "fake_test.sh")
+		content := `#!/bin/sh
+echo 'ok 1 - test_add'
+echo 'not ok 2 - test_delete'
+`
+		if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		results := runAndParseTests("sh "+script, dir)
+		if len(results) != 2 {
+			t.Fatalf("expected 2 results, got %d", len(results))
+		}
+		if !results[0].passed || results[0].name != "test_add" {
+			t.Errorf("result[0]: want passed test_add, got %+v", results[0])
+		}
+		if !results[1].failed || results[1].name != "test_delete" {
+			t.Errorf("result[1]: want failed test_delete, got %+v", results[1])
+		}
+	})
+
+	t.Run("findMatchingTest", func(t *testing.T) {
+		results := []testResult{
+			{name: "auth::test_login", passed: true},
+			{name: "TestDatabaseSetup", passed: true},
+			{pkg: "test_api.py", name: "test_signup", failed: true},
+		}
+
+		tests := []struct {
+			testFunc string
+			wantName string
+			wantNil  bool
+		}{
+			{"test_login", "auth::test_login", false},         // :: suffix match
+			{"TestDatabaseSetup", "TestDatabaseSetup", false}, // exact match
+			{"test_signup", "test_signup", false},              // exact match
+			{"nonexistent", "", true},                          // no match
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.testFunc, func(t *testing.T) {
+				got := findMatchingTest(results, tt.testFunc)
+				if tt.wantNil {
+					if got != nil {
+						t.Errorf("findMatchingTest(%q) = %+v, want nil", tt.testFunc, got)
+					}
+					return
+				}
+				if got == nil {
+					t.Fatalf("findMatchingTest(%q) = nil, want %q", tt.testFunc, tt.wantName)
+				}
+				if got.name != tt.wantName {
+					t.Errorf("findMatchingTest(%q).name = %q, want %q", tt.testFunc, got.name, tt.wantName)
+				}
+			})
+		}
+	})
+
+	t.Run("toolVerify_updates_database", func(t *testing.T) {
+		// Set up a temp project with database and a fake test script
+		tmpDir := t.TempDir()
+		rtmxDir := filepath.Join(tmpDir, ".rtmx")
+		if err := os.MkdirAll(rtmxDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		// Write a database with one MISSING requirement that has a test function
+		db := database.NewDatabase()
+		r1 := &database.Requirement{
+			ReqID:           "REQ-V-001",
+			Category:        "TEST",
+			RequirementText: "Verify test",
+			Status:          database.StatusMissing,
+			Priority:        database.PriorityHigh,
+			Phase:           1,
+			TestFunction:    "TestFirst",
+		}
+		r2 := &database.Requirement{
+			ReqID:           "REQ-V-002",
+			Category:        "TEST",
+			RequirementText: "Another test",
+			Status:          database.StatusComplete,
+			Priority:        database.PriorityHigh,
+			Phase:           1,
+			TestFunction:    "TestSecond",
+		}
+		for _, r := range []*database.Requirement{r1, r2} {
+			if err := db.Add(r); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		dbPath := filepath.Join(rtmxDir, "database.csv")
+		if err := db.Save(dbPath); err != nil {
+			t.Fatal(err)
+		}
+
+		// Create a fake test script that passes TestFirst and fails TestSecond
+		script := filepath.Join(tmpDir, "run_tests.sh")
+		testScript := `#!/bin/sh
+echo '{"Test":"TestFirst","Action":"pass","Package":"pkg"}'
+echo '{"Test":"TestSecond","Action":"fail","Package":"pkg"}'
+`
+		if err := os.WriteFile(script, []byte(testScript), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		cfgPath := filepath.Join(tmpDir, "rtmx.yaml")
+		writeTestConfig(t, cfgPath)
+		cfg, err := config.LoadFromDir(tmpDir)
+		if err != nil {
+			t.Fatalf("failed to load config: %v", err)
+		}
+
+		srv := NewServer(dbPath, cfg)
+		result := srv.toolVerify(db, "sh "+script)
+
+		vr, ok := result.(verifyResult)
+		if !ok {
+			t.Fatalf("toolVerify returned %T, want verifyResult", result)
+		}
+
+		if vr.Total != 2 {
+			t.Errorf("total = %d, want 2", vr.Total)
+		}
+		if vr.Verified != 2 {
+			t.Errorf("verified = %d, want 2", vr.Verified)
+		}
+		if vr.Updated != 2 {
+			t.Errorf("updated = %d, want 2", vr.Updated)
+		}
+
+		// Check REQ-V-001 was promoted MISSING -> COMPLETE
+		var v1, v2 verifyItem
+		for _, item := range vr.Items {
+			switch item.ReqID {
+			case "REQ-V-001":
+				v1 = item
+			case "REQ-V-002":
+				v2 = item
+			}
+		}
+
+		if v1.Status != "COMPLETE" {
+			t.Errorf("REQ-V-001 status = %q, want COMPLETE", v1.Status)
+		}
+		if !v1.Updated {
+			t.Error("REQ-V-001 should be marked as updated")
+		}
+		if v1.Previous != "MISSING" {
+			t.Errorf("REQ-V-001 previous = %q, want MISSING", v1.Previous)
+		}
+
+		// Check REQ-V-002 was downgraded COMPLETE -> PARTIAL
+		if v2.Status != "PARTIAL" {
+			t.Errorf("REQ-V-002 status = %q, want PARTIAL", v2.Status)
+		}
+		if !v2.Updated {
+			t.Error("REQ-V-002 should be marked as updated")
+		}
+
+		// Verify database was persisted
+		reloadedDB, loadErr := database.Load(dbPath)
+		if loadErr != nil {
+			t.Fatalf("failed to reload database: %v", loadErr)
+		}
+		reloaded1 := reloadedDB.Get("REQ-V-001")
+		if reloaded1 == nil || reloaded1.Status != database.StatusComplete {
+			t.Error("persisted REQ-V-001 should be COMPLETE")
+		}
+		reloaded2 := reloadedDB.Get("REQ-V-002")
+		if reloaded2 == nil || reloaded2.Status != database.StatusPartial {
+			t.Error("persisted REQ-V-002 should be PARTIAL")
+		}
+	})
+
+	t.Run("toolVerify_no_changes_no_save", func(t *testing.T) {
+		// When all tests pass and requirements are already COMPLETE,
+		// the database should not be saved (updated == 0)
+		tmpDir := t.TempDir()
+		rtmxDir := filepath.Join(tmpDir, ".rtmx")
+		if err := os.MkdirAll(rtmxDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		db := database.NewDatabase()
+		r1 := &database.Requirement{
+			ReqID:           "REQ-V-001",
+			Category:        "TEST",
+			RequirementText: "Already complete",
+			Status:          database.StatusComplete,
+			Priority:        database.PriorityHigh,
+			Phase:           1,
+			TestFunction:    "TestFirst",
+		}
+		if err := db.Add(r1); err != nil {
+			t.Fatal(err)
+		}
+
+		dbPath := filepath.Join(rtmxDir, "database.csv")
+		if err := db.Save(dbPath); err != nil {
+			t.Fatal(err)
+		}
+
+		script := filepath.Join(tmpDir, "run_tests.sh")
+		testScript := `#!/bin/sh
+echo '{"Test":"TestFirst","Action":"pass","Package":"pkg"}'
+`
+		if err := os.WriteFile(script, []byte(testScript), 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		cfgPath := filepath.Join(tmpDir, "rtmx.yaml")
+		writeTestConfig(t, cfgPath)
+		cfg, err := config.LoadFromDir(tmpDir)
+		if err != nil {
+			t.Fatalf("failed to load config: %v", err)
+		}
+
+		srv := NewServer(dbPath, cfg)
+		result := srv.toolVerify(db, "sh "+script)
+
+		vr := result.(verifyResult)
+		if vr.Updated != 0 {
+			t.Errorf("updated = %d, want 0 (no changes)", vr.Updated)
+		}
+	})
+}
