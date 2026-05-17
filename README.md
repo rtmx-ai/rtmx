@@ -167,6 +167,25 @@ auto-verified in CI on every push. Run `rtmx status` in this repo to see it.
 
 [Read the backstory](https://rtmx.ai/blog/show-hn-rtmx) -- how and why this tool was built.
 
+## Benchmark Results
+
+Independent testing by [intent-bench](https://github.com/intent-bench/intent-bench)
+measures whether providing structured requirements to coding agents improves
+implementation effectiveness. Results from N=5 runs per condition using
+Claude Sonnet 4:
+
+| Experiment | Complexity | Control | Treatment (RTMX) | Fisher p |
+|------------|-----------|---------|-------------------|----------|
+| url-shortener | Baseline (10 reqs) | 100% completion | 80% completion | 1.000 |
+| task-manager | Standard (13 reqs, depth 5) | 20% completion | 80% completion | 0.206 |
+
+On the baseline task, the intent layer adds overhead without improving
+completion. On the standard task with complex dependency chains, completion
+increases from 20% to 80% and token variance drops (CV 0.85 to 0.46).
+
+Full data, methodology, and reproduction instructions:
+[intent-bench.github.io/intent-bench](https://intent-bench.github.io/intent-bench/)
+
 ## Technical Details
 
 - Single static binary -- Go, `CGO_ENABLED=0`, zero runtime dependencies
