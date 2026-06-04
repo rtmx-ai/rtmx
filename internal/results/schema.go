@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -135,8 +136,30 @@ func Parse(r io.Reader) ([]Result, error) {
 	return results, nil
 }
 
-// Validate checks results against the RTMX results schema.
+// Vocabulary defines project-configured accepted values for the marker
+// dimensions. Values in each field are accepted in addition to the built-in
+// vocabulary for that dimension; an empty field uses only the built-ins. An
+// entirely empty Vocabulary reproduces the default validation behavior. See
+// REQ-VERIFY-010.
+type Vocabulary struct {
+	Scopes     []string
+	Techniques []string
+	Envs       []string
+}
+
+// Validate checks results against the RTMX results schema using the built-in
+// dimension vocabularies.
 func Validate(results []Result) []error {
+	return ValidateWithVocabulary(results, Vocabulary{})
+}
+
+// ValidateWithVocabulary checks results against the schema, accepting the given
+// per-dimension vocabularies in addition to the built-in values.
+func ValidateWithVocabulary(results []Result, vocab Vocabulary) []error {
+	scopes := mergeVocabulary(validScopes, vocab.Scopes)
+	techniques := mergeVocabulary(validTechniques, vocab.Techniques)
+	envs := mergeVocabulary(validEnvs, vocab.Envs)
+
 	var errs []error
 	for i, r := range results {
 		prefix := fmt.Sprintf("result[%d]", i)
@@ -150,17 +173,42 @@ func Validate(results []Result) []error {
 		if r.Marker.TestFile == "" {
 			errs = append(errs, fmt.Errorf("%s: missing required field test_file", prefix))
 		}
-		if r.Marker.Scope != "" && !validScopes[r.Marker.Scope] {
-			errs = append(errs, fmt.Errorf("%s: invalid scope %q (expected one of: unit, integration, system, acceptance)", prefix, r.Marker.Scope))
+		if r.Marker.Scope != "" && !scopes[r.Marker.Scope] {
+			errs = append(errs, fmt.Errorf("%s: invalid scope %q (expected one of: %s)", prefix, r.Marker.Scope, vocabularyList(scopes)))
 		}
-		if r.Marker.Technique != "" && !validTechniques[r.Marker.Technique] {
-			errs = append(errs, fmt.Errorf("%s: invalid technique %q (expected one of: nominal, parametric, monte_carlo, stress, boundary)", prefix, r.Marker.Technique))
+		if r.Marker.Technique != "" && !techniques[r.Marker.Technique] {
+			errs = append(errs, fmt.Errorf("%s: invalid technique %q (expected one of: %s)", prefix, r.Marker.Technique, vocabularyList(techniques)))
 		}
-		if r.Marker.Env != "" && !validEnvs[r.Marker.Env] {
-			errs = append(errs, fmt.Errorf("%s: invalid env %q (expected one of: simulation, hil, anechoic, field)", prefix, r.Marker.Env))
+		if r.Marker.Env != "" && !envs[r.Marker.Env] {
+			errs = append(errs, fmt.Errorf("%s: invalid env %q (expected one of: %s)", prefix, r.Marker.Env, vocabularyList(envs)))
 		}
 	}
 	return errs
+}
+
+// mergeVocabulary returns a set containing the built-in values plus any
+// non-empty extras.
+func mergeVocabulary(builtin map[string]bool, extra []string) map[string]bool {
+	out := make(map[string]bool, len(builtin)+len(extra))
+	for k := range builtin {
+		out[k] = true
+	}
+	for _, e := range extra {
+		if e != "" {
+			out[e] = true
+		}
+	}
+	return out
+}
+
+// vocabularyList renders a set as a sorted, comma-separated string for messages.
+func vocabularyList(set map[string]bool) string {
+	keys := make([]string, 0, len(set))
+	for k := range set {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, ", ")
 }
 
 // GroupByRequirement groups results by requirement ID.

@@ -43,6 +43,9 @@ type RTMXConfig struct {
 	// Verify configuration for closed-loop verification.
 	Verify VerifyConfig `yaml:"verify"`
 
+	// Completeness configuration for multi-dimensional COMPLETE determination.
+	Completeness CompletenessConfig `yaml:"completeness"`
+
 	// Sync configuration for collaboration.
 	Sync SyncConfig `yaml:"sync"`
 
@@ -80,6 +83,71 @@ func (v VerifyConfig) ShouldWarnStale() bool {
 type ThresholdConfig struct {
 	Warn int `yaml:"warn"`
 	Fail int `yaml:"fail"`
+}
+
+// CompletenessConfig controls how COMPLETE status is determined from test
+// evidence in the cross-language results path (rtmx verify --results).
+//
+// Policy "simple" (default) preserves the historical rule: a requirement is
+// COMPLETE when it has at least one passing test and no failing tests.
+//
+// Policy "combinations" requires evidence across multiple test dimensions: a
+// requirement is COMPLETE only when its passing tests cover at least
+// MinCombinations distinct tuples of the configured Dimensions (a subset of
+// scope, technique, env). This lets systems-engineering projects declare a
+// multi-dimensional definition of "done" while simpler projects keep the
+// one-dimensional default. The policy applies only where dimension markers are
+// available (the results path); the native go-test path always uses "simple".
+type CompletenessConfig struct {
+	// Policy is "simple" (default) or "combinations".
+	Policy string `yaml:"policy"`
+
+	// Dimensions are the marker dimensions forming the completeness tuple.
+	// Valid values: "scope", "technique", "env". Used only for "combinations".
+	Dimensions []string `yaml:"dimensions"`
+
+	// MinCombinations is the minimum number of distinct dimension tuples that
+	// passing tests must cover for COMPLETE. Defaults to 1 when unset.
+	MinCombinations int `yaml:"min_combinations"`
+
+	// RequireAllPass, when true (default), downgrades a COMPLETE requirement to
+	// PARTIAL if any of its tests fail, regardless of policy.
+	RequireAllPass *bool `yaml:"require_all_pass,omitempty"`
+
+	// Vocabulary optionally extends the accepted marker-dimension values
+	// (scope, technique, env) for results validation. See REQ-VERIFY-010.
+	Vocabulary VocabularyConfig `yaml:"vocabulary,omitempty"`
+}
+
+// VocabularyConfig extends the accepted marker-dimension values for results
+// validation. Values in each field are accepted in addition to the built-in
+// vocabulary; an empty field uses only the built-ins.
+type VocabularyConfig struct {
+	Scopes     []string `yaml:"scopes,omitempty"`
+	Techniques []string `yaml:"techniques,omitempty"`
+	Envs       []string `yaml:"envs,omitempty"`
+}
+
+// IsCombinations reports whether the multi-dimensional policy is active.
+func (c CompletenessConfig) IsCombinations() bool {
+	return c.Policy == "combinations"
+}
+
+// ShouldRequireAllPass reports whether any failing test downgrades COMPLETE to
+// PARTIAL. Defaults to true when unset.
+func (c CompletenessConfig) ShouldRequireAllPass() bool {
+	if c.RequireAllPass == nil {
+		return true
+	}
+	return *c.RequireAllPass
+}
+
+// EffectiveMinCombinations returns the minimum tuple count, defaulting to 1.
+func (c CompletenessConfig) EffectiveMinCombinations() int {
+	if c.MinCombinations < 1 {
+		return 1
+	}
+	return c.MinCombinations
 }
 
 // PytestConfig contains pytest-related settings.
@@ -363,6 +431,9 @@ func DefaultConfig() *Config {
 					Fail: 15,
 				},
 				AuditLog: true,
+			},
+			Completeness: CompletenessConfig{
+				Policy: "simple",
 			},
 			Sync: SyncConfig{
 				ConflictResolution: "manual",
