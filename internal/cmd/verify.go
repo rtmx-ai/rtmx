@@ -419,6 +419,28 @@ func determineStatusWithPolicy(reqResults []results.Result, current database.Sta
 		if !r.Passed {
 			continue
 		}
+
+		// Only count results that provide all configured dimension values.
+		hasAllDims := true
+		for _, d := range policy.Dimensions {
+			switch d {
+			case "scope":
+				hasAllDims = r.Marker.Scope != ""
+			case "technique":
+				hasAllDims = r.Marker.Technique != ""
+			case "env":
+				hasAllDims = r.Marker.Env != ""
+			default:
+				hasAllDims = false
+			}
+			if !hasAllDims {
+				break
+			}
+		}
+		if !hasAllDims {
+			continue
+		}
+
 		seen[dimensionTupleKey(r.Marker, policy.Dimensions)] = struct{}{}
 	}
 	if len(seen) >= policy.EffectiveMinCombinations() {
