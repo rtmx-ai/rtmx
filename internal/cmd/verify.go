@@ -152,7 +152,7 @@ func runVerify(cmd *cobra.Command, args []string) error {
 
 	if verifyResults != "" {
 		// Cross-language mode: read results file
-		verifyResultsList, err = runVerifyFromResults(cmd, db)
+		verifyResultsList, err = runVerifyFromResults(cmd, db, cfg.RTMX.Completeness)
 		if err != nil {
 			return err
 		}
@@ -278,7 +278,7 @@ func countFailingReqs(results []VerificationResult) int {
 }
 
 // runVerifyFromResults processes an RTMX results JSON file (cross-language).
-func runVerifyFromResults(cmd *cobra.Command, db *database.Database) ([]VerificationResult, error) {
+func runVerifyFromResults(cmd *cobra.Command, db *database.Database, policy config.CompletenessConfig) ([]VerificationResult, error) {
 	var r *os.File
 	var err error
 
@@ -297,10 +297,16 @@ func runVerifyFromResults(cmd *cobra.Command, db *database.Database) ([]Verifica
 		return nil, fmt.Errorf("failed to parse results file: %w", err)
 	}
 
-	// Validate results. Any failure is fatal so structurally bad
+	// Validate results, accepting any project-configured dimension
+	// vocabularies (REQ-VERIFY-010). Any failure is fatal so structurally bad
 	// payloads do not silently produce zero requirement matches
 	// (REQ-VERIFY-004).
-	if errs := results.Validate(parsed); len(errs) > 0 {
+	vocab := results.Vocabulary{
+		Scopes:     policy.Vocabulary.Scopes,
+		Techniques: policy.Vocabulary.Techniques,
+		Envs:       policy.Vocabulary.Envs,
+	}
+	if errs := results.ValidateWithVocabulary(parsed, vocab); len(errs) > 0 {
 		for _, e := range errs {
 			cmd.Printf("%s %v\n", output.Color("!", output.Red), e)
 		}
@@ -316,6 +322,12 @@ func runVerifyFromResults(cmd *cobra.Command, db *database.Database) ([]Verifica
 
 	// Group results by requirement
 	grouped := results.GroupByRequirement(parsed)
+
+	// Warn once if the combinations policy is misconfigured; it falls back to simple.
+	if policy.IsCombinations() && len(policy.Dimensions) == 0 {
+		cmd.Printf("%s completeness.policy is 'combinations' but no dimensions are configured; using the simple rule\n",
+			output.Color("!", output.Yellow))
+	}
 
 	// Map to verification results
 	var vResults []VerificationResult
@@ -345,14 +357,10 @@ func runVerifyFromResults(cmd *cobra.Command, db *database.Database) ([]Verifica
 			}
 		}
 
-		// Build a synthetic TestResult for status determination
-		testResult := &TestResult{
-			Test:   reqID,
-			Passed: failed == 0 && passed > 0,
-			Failed: failed > 0,
-		}
-
-		newStatus := determineNewStatus(testResult, req.Status)
+		// Determine status under the configured completeness policy. The
+		// "simple" policy reproduces the historical single-test rule; the
+		// "combinations" policy requires coverage across multiple dimensions.
+		newStatus := determineStatusWithPolicy(reqResults, req.Status, policy)
 		vResults = append(vResults, VerificationResult{
 			ReqID:          reqID,
 			TestsTotal:     len(reqResults),
@@ -365,6 +373,77 @@ func runVerifyFromResults(cmd *cobra.Command, db *database.Database) ([]Verifica
 	}
 
 	return vResults, nil
+}
+
+// determineStatusWithPolicy computes a requirement's new status from its test
+// results under the configured completeness policy.
+//
+// The "simple" policy (default) reproduces determineNewStatus: a single passing
+// test with no failures yields COMPLETE. The "combinations" policy yields
+// COMPLETE only when passing tests cover at least MinCombinations distinct
+// tuples of the configured dimensions; passing-but-insufficient evidence yields
+// PARTIAL. In both policies, a failing test downgrades a COMPLETE requirement to
+// PARTIAL when RequireAllPass is set (the default).
+func determineStatusWithPolicy(reqResults []results.Result, current database.Status, policy config.CompletenessConfig) database.Status {
+	passed, failed := 0, 0
+	for _, r := range reqResults {
+		if r.Passed {
+			passed++
+		} else {
+			failed++
+		}
+	}
+
+	// Failing evidence downgrades COMPLETE -> PARTIAL, else preserves current.
+	if failed > 0 && policy.ShouldRequireAllPass() {
+		if current == database.StatusComplete {
+			return database.StatusPartial
+		}
+		return current
+	}
+
+	// No positive evidence: keep current status.
+	if passed == 0 {
+		return current
+	}
+
+	// Simple policy (or combinations misconfigured with no dimensions): any
+	// passing test completes the requirement.
+	if !policy.IsCombinations() || len(policy.Dimensions) == 0 {
+		return database.StatusComplete
+	}
+
+	// Combinations policy: count distinct dimension tuples among passing tests.
+	seen := make(map[string]struct{})
+	for _, r := range reqResults {
+		if !r.Passed {
+			continue
+		}
+		seen[dimensionTupleKey(r.Marker, policy.Dimensions)] = struct{}{}
+	}
+	if len(seen) >= policy.EffectiveMinCombinations() {
+		return database.StatusComplete
+	}
+	// Passing evidence exists but does not yet meet the multi-dimensional bar.
+	return database.StatusPartial
+}
+
+// dimensionTupleKey builds a stable key from the requested marker dimensions
+// ("scope", "technique", "env"). Unknown dimension names contribute an empty
+// component so misconfiguration cannot panic.
+func dimensionTupleKey(m results.Marker, dims []string) string {
+	parts := make([]string, len(dims))
+	for i, d := range dims {
+		switch d {
+		case "scope":
+			parts[i] = m.Scope
+		case "technique":
+			parts[i] = m.Technique
+		case "env":
+			parts[i] = m.Env
+		}
+	}
+	return strings.Join(parts, "\x1f")
 }
 
 // runVerifyFromTests runs go test and processes results (original mode).
