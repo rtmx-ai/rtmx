@@ -9,10 +9,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 	"github.com/spf13/cobra"
 )
 
 func TestHygieneChecksDetectFindings(t *testing.T) {
+	rtmx.Req(t, "REQ-HYGIENE-001")
+
 	db := healthDBHeader +
 		"REQ-001,CAT,Sub,Base requirement,Target,,,Unit Test,NOT_STARTED,HIGH,1,,1.0,,,team,seed,,,.rtmx/requirements/REQ-001.md,\n"
 	dir := setupHealthTestProject(t, db)
@@ -47,6 +50,8 @@ func TestHygieneChecksDetectFindings(t *testing.T) {
 }
 
 func TestHygieneJSONOutput(t *testing.T) {
+	rtmx.Req(t, "REQ-HYGIENE-001")
+
 	db := healthDBHeader +
 		"REQ-001,CAT,Sub,Base requirement,Target,tests/test.py,test_req,Unit Test,NOT_STARTED,HIGH,1,,0.25,,,owner,seed,,,.rtmx/requirements/REQ-001.md,EXT-1\n"
 	dir := setupHealthTestProject(t, db)
@@ -77,6 +82,8 @@ func TestHygieneJSONOutput(t *testing.T) {
 }
 
 func TestHygieneStrictReturnsExitError(t *testing.T) {
+	rtmx.Req(t, "REQ-HYGIENE-001")
+
 	db := healthDBHeader +
 		"REQ-001,CAT,Sub,Base requirement,Target,,,Unit Test,NOT_STARTED,HIGH,1,,1.0,,,team,seed,,,.rtmx/requirements/REQ-001.md,\n"
 	dir := setupHealthTestProject(t, db)
