@@ -3,7 +3,7 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [1.3.0] - Unreleased
+## [1.3.0] - 2026-06-04
 
 ### Added
 
