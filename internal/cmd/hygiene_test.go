@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -106,8 +107,8 @@ func createHygieneTestCmd() *cobra.Command {
 	}
 	var jsonOutput bool
 	var strict bool
-	var minEffort float64 = 0.25
-	var maxEffort float64 = 0.5
+	var minEffort = 0.25
+	var maxEffort = 0.5
 	cmd := &cobra.Command{
 		Use:     "hygiene",
 		Aliases: []string{"hygeine"},
@@ -129,8 +130,8 @@ func createHygieneTestCmd() *cobra.Command {
 
 func writeRequirementFile(t *testing.T, dir, rel, content string) {
 	t.Helper()
-	path := dir + string(os.PathSeparator) + rel
-	if err := os.MkdirAll(path[:strings.LastIndex(path, string(os.PathSeparator))], 0755); err != nil {
+	path := filepath.Join(dir, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		t.Fatalf("mkdir failed: %v", err)
 	}
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
