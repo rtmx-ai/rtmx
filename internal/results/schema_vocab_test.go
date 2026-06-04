@@ -44,11 +44,11 @@ func TestValidateWithVocabulary(t *testing.T) {
 		t.Errorf("expected built-in env to remain valid, got %v", errs)
 	}
 
-	// Custom scope and technique values are honored too.
-	custom := []Result{validMarker("acceptance", "soak", "dynamic_field")}
-	v2 := Vocabulary{Techniques: []string{"soak"}, Envs: []string{"dynamic_field"}}
+	// Custom scope, technique, and env values are honored too.
+	custom := []Result{validMarker("field_test", "soak", "dynamic_field")}
+	v2 := Vocabulary{Scopes: []string{"field_test"}, Techniques: []string{"soak"}, Envs: []string{"dynamic_field"}}
 	if errs := ValidateWithVocabulary(custom, v2); len(errs) != 0 {
-		t.Errorf("expected custom technique/env to validate, got %v", errs)
+		t.Errorf("expected custom scope/technique/env to validate, got %v", errs)
 	}
 
 	// An empty vocabulary reproduces the default behavior exactly.
