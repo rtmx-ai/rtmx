@@ -3,6 +3,27 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.4.0] - 2026-06-04
+
+### Added
+
+- **`rtmx hygiene` command** — reports requirement actionability and traceability
+  hygiene findings (effort bounds, generic owners, missing test mappings, missing
+  external IDs, generic acceptance criteria, and dependency cycles), with JSON
+  output, strict mode, a configurable effort range, and a `hygeine` typo alias.
+  (REQ-HYGIENE-001)
+
+### Changed
+
+- Bump dependencies: `spf13/cobra` 1.8.0 → 1.10.2; CI actions `setup-go` 5.5 → 6.4,
+  `github-script` 8 → 9, and `goreleaser-action` 6 → 7.
+
+### Fixed
+
+- `TestStaleTestReferences` now parses the RTM database with `encoding/csv`, so
+  quoted fields containing commas (e.g. a `target_value` listing items) no longer
+  shift column alignment and produce false stale-reference failures.
+
 ## [1.3.0] - 2026-06-04
 
 ### Added
