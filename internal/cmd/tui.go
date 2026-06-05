@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/database"
 	"github.com/rtmx-ai/rtmx/internal/output"
+	"github.com/rtmx-ai/rtmx/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -51,7 +54,24 @@ func runTui(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load database: %w", err)
 	}
 
+	// Interactive mode: launch Bubble Tea app
+	// Fall back to --once mode for non-TTY or explicit flag
+	if !tuiOnce && isTerminal() {
+		app := tui.NewAppModel(db, dbPath)
+		p := tea.NewProgram(app, tea.WithAltScreen())
+		_, err := p.Run()
+		return err
+	}
+
 	return renderTuiDashboard(cmd, db)
+}
+
+func isTerminal() bool {
+	fi, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
 }
 
 func renderTuiDashboard(cmd *cobra.Command, db *database.Database) error {
