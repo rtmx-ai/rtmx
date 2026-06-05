@@ -3,6 +3,29 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.3.0] - 2026-06-04
+
+### Added
+
+- **Configurable completeness policy** for closed-loop verification
+  (`rtmx.completeness`). Projects can now declare a multi-dimensional definition
+  of "done": `policy: combinations` marks a requirement COMPLETE only when its
+  passing tests cover at least `min_combinations` distinct tuples of the
+  configured `dimensions` (a subset of `scope`, `technique`, `env`); otherwise it
+  is PARTIAL. The default `policy: simple` preserves the historical
+  single-passing-test rule, so existing projects are unaffected. This composes
+  with the `phoenix`, `do178c`, and `iso26262` schemas, whose dimensional markers
+  can now gate completion. Applies to the cross-language results path
+  (`rtmx verify --results`); the native go-test path keeps the simple rule.
+  `require_all_pass` (default true) still downgrades COMPLETE to PARTIAL on any
+  failing test. (REQ-VERIFY-009)
+- **Configurable dimension vocabularies** (`rtmx.completeness.vocabulary`).
+  Projects can extend the accepted `scope`/`technique`/`env` marker values for
+  results validation, so schema-specific values (e.g. the `phoenix` schema's
+  `static_field`/`dynamic_field`, or custom `.rtmx/schema.yaml` values) validate
+  instead of being rejected. Built-in vocabularies are preserved when unset.
+  (REQ-VERIFY-010)
+
 ## [1.0.0] - 2026-05-10
 
 v1.0.0 signals API stability for the RTMX CLI. The public surface -- commands,
