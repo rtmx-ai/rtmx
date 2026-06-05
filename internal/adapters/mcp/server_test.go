@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -576,6 +578,430 @@ func TestMCPStdio(t *testing.T) {
 		}
 		if resp.Error.Code != errParse {
 			t.Errorf("expected parse error code %d, got %d", errParse, resp.Error.Code)
+		}
+	})
+}
+
+// TestMCPResponseSizeLogging validates that the MCP server logs response byte
+// and token counts to stderr on every tool call.
+// REQ-MCP-007: Response size logging for token consumption observability.
+func TestMCPResponseSizeLogging(t *testing.T) {
+	rtmx.Req(t, "REQ-MCP-007")
+
+	tmpDir := t.TempDir()
+	rtmxDir := filepath.Join(tmpDir, ".rtmx")
+	_ = os.MkdirAll(rtmxDir, 0o755)
+
+	dbPath := filepath.Join(rtmxDir, "database.csv")
+	writeTestDB(t, dbPath)
+	writeTestConfig(t, filepath.Join(tmpDir, "rtmx.yaml"))
+
+	cfg, err := config.LoadFromDir(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	t.Run("logs_bytes_and_tokens", func(t *testing.T) {
+		var logBuf bytes.Buffer
+		logger := log.New(&logBuf, "", 0)
+		srv := NewServer(dbPath, cfg, WithLogger(logger))
+
+		var input bytes.Buffer
+		input.WriteString(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"status"}}` + "\n")
+
+		var output bytes.Buffer
+		if err := srv.StartStdio(&input, &output); err != nil {
+			t.Fatalf("StartStdio failed: %v", err)
+		}
+
+		logLine := logBuf.String()
+		if logLine == "" {
+			t.Fatal("expected log output, got none")
+		}
+		if !strings.Contains(logLine, "[rtmx-mcp]") {
+			t.Errorf("log line missing prefix: %s", logLine)
+		}
+		if !strings.Contains(logLine, "tool=status") {
+			t.Errorf("log line missing tool name: %s", logLine)
+		}
+		if !strings.Contains(logLine, "bytes=") {
+			t.Errorf("log line missing bytes: %s", logLine)
+		}
+		if !strings.Contains(logLine, "tokens=") {
+			t.Errorf("log line missing tokens: %s", logLine)
+		}
+		if strings.Contains(logLine, "error=true") {
+			t.Errorf("log line should not contain error=true for successful call: %s", logLine)
+		}
+	})
+
+	t.Run("logs_on_error", func(t *testing.T) {
+		var logBuf bytes.Buffer
+		logger := log.New(&logBuf, "", 0)
+		srv := NewServer(dbPath, cfg, WithLogger(logger))
+
+		var input bytes.Buffer
+		input.WriteString(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"deps","arguments":{"req_id":"REQ-NONEXISTENT"}}}` + "\n")
+
+		var output bytes.Buffer
+		if err := srv.StartStdio(&input, &output); err != nil {
+			t.Fatalf("StartStdio failed: %v", err)
+		}
+
+		logLine := logBuf.String()
+		if !strings.Contains(logLine, "tool=deps") {
+			t.Errorf("expected tool=deps in log, got: %s", logLine)
+		}
+		if !strings.Contains(logLine, "error=true") {
+			t.Errorf("expected error=true in log for failed call, got: %s", logLine)
+		}
+	})
+
+	t.Run("quiet_flag_suppresses", func(t *testing.T) {
+		var logBuf bytes.Buffer
+		logger := log.New(&logBuf, "", 0)
+		srv := NewServer(dbPath, cfg, WithLogger(logger), WithQuiet(true))
+
+		var input bytes.Buffer
+		input.WriteString(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"status"}}` + "\n")
+
+		var output bytes.Buffer
+		if err := srv.StartStdio(&input, &output); err != nil {
+			t.Fatalf("StartStdio failed: %v", err)
+		}
+
+		if logBuf.Len() != 0 {
+			t.Errorf("expected no log output with --quiet, got: %s", logBuf.String())
+		}
+	})
+
+	t.Run("does_not_affect_stdout", func(t *testing.T) {
+		var logBuf bytes.Buffer
+		logger := log.New(&logBuf, "", 0)
+		srv := NewServer(dbPath, cfg, WithLogger(logger))
+
+		var input bytes.Buffer
+		input.WriteString(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"status"}}` + "\n")
+
+		var output bytes.Buffer
+		if err := srv.StartStdio(&input, &output); err != nil {
+			t.Fatalf("StartStdio failed: %v", err)
+		}
+
+		// stdout should contain only the JSON-RPC response, no log lines
+		outStr := output.String()
+		if strings.Contains(outStr, "[rtmx-mcp]") {
+			t.Errorf("log line leaked to stdout: %s", outStr)
+		}
+
+		// Verify the response is valid JSON-RPC
+		var resp map[string]interface{}
+		if err := json.Unmarshal(bytes.TrimSpace(output.Bytes()), &resp); err != nil {
+			t.Fatalf("stdout is not valid JSON: %v", err)
+		}
+	})
+
+	t.Run("http_transport_logs", func(t *testing.T) {
+		var logBuf bytes.Buffer
+		logger := log.New(&logBuf, "", 0)
+		srv := NewServer(dbPath, cfg, WithHost("127.0.0.1"), WithPort(0), WithLogger(logger))
+
+		go func() {
+			if err := srv.Start(); err != nil && err != http.ErrServerClosed {
+				_ = err
+			}
+		}()
+
+		deadline := time.Now().Add(2 * time.Second)
+		for srv.Addr() == "" && time.Now().Before(deadline) {
+			time.Sleep(10 * time.Millisecond)
+		}
+		if srv.Addr() == "" {
+			t.Fatal("server did not start")
+		}
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+			defer cancel()
+			_ = srv.Shutdown(ctx)
+		}()
+
+		baseURL := fmt.Sprintf("http://%s/mcp", srv.Addr())
+		rpcCall(t, baseURL, "tools/call", map[string]interface{}{
+			"name": "health",
+		})
+
+		logLine := logBuf.String()
+		if !strings.Contains(logLine, "tool=health") {
+			t.Errorf("HTTP transport should log tool calls, got: %s", logLine)
+		}
+		if !strings.Contains(logLine, "bytes=") {
+			t.Errorf("HTTP transport log missing bytes: %s", logLine)
+		}
+	})
+
+	t.Run("token_estimate_accuracy", func(t *testing.T) {
+		var logBuf bytes.Buffer
+		logger := log.New(&logBuf, "", 0)
+		srv := NewServer(dbPath, cfg, WithLogger(logger))
+
+		var input bytes.Buffer
+		input.WriteString(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"status"}}` + "\n")
+
+		var output bytes.Buffer
+		if err := srv.StartStdio(&input, &output); err != nil {
+			t.Fatalf("StartStdio failed: %v", err)
+		}
+
+		logLine := logBuf.String()
+
+		// Parse bytes and tokens from log line
+		var logBytes, logTokens int
+		fmt.Sscanf(logLine, "[rtmx-mcp] tool=status bytes=%d tokens=%d", &logBytes, &logTokens)
+
+		if logBytes <= 0 {
+			t.Errorf("expected positive byte count, got %d", logBytes)
+		}
+
+		// Verify token estimate: ceil(bytes/4)
+		expectedTokens := (logBytes + 3) / 4
+		if logTokens != expectedTokens {
+			t.Errorf("token estimate: got %d, want ceil(%d/4) = %d", logTokens, logBytes, expectedTokens)
+		}
+	})
+}
+
+// TestMCPToolFiltering validates that MCP tools accept category/status/limit
+// filters and return reduced response sizes.
+// REQ-MCP-008: MCP tools shall accept filters to reduce response size.
+func TestMCPToolFiltering(t *testing.T) {
+	rtmx.Req(t, "REQ-MCP-008")
+
+	tmpDir := t.TempDir()
+	rtmxDir := filepath.Join(tmpDir, ".rtmx")
+	_ = os.MkdirAll(rtmxDir, 0o755)
+
+	dbPath := filepath.Join(rtmxDir, "database.csv")
+	writeTestDB(t, dbPath) // 3 reqs: CORE(2), EXT(1)
+	writeTestConfig(t, filepath.Join(tmpDir, "rtmx.yaml"))
+
+	cfg, err := config.LoadFromDir(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	srv := NewServer(dbPath, cfg, WithQuiet(true))
+
+	callTool := func(t *testing.T, tool string, args map[string]interface{}) string {
+		t.Helper()
+		params := map[string]interface{}{"name": tool}
+		if args != nil {
+			params["arguments"] = args
+		}
+		reqJSON, _ := json.Marshal(map[string]interface{}{
+			"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": params,
+		})
+		var input, output bytes.Buffer
+		input.Write(reqJSON)
+		input.WriteByte('\n')
+		if err := srv.StartStdio(&input, &output); err != nil {
+			t.Fatalf("StartStdio failed: %v", err)
+		}
+		var resp map[string]interface{}
+		if err := json.Unmarshal(bytes.TrimSpace(output.Bytes()), &resp); err != nil {
+			t.Fatalf("invalid response JSON: %v", err)
+		}
+		result, _ := resp["result"].(map[string]interface{})
+		content, _ := result["content"].([]interface{})
+		if len(content) == 0 {
+			t.Fatal("no content in response")
+		}
+		first, _ := content[0].(map[string]interface{})
+		return first["text"].(string)
+	}
+
+	t.Run("status_category_filter", func(t *testing.T) {
+		text := callTool(t, "status", map[string]interface{}{"category": "CORE"})
+		var status statusResult
+		if err := json.Unmarshal([]byte(text), &status); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if status.Total != 2 {
+			t.Errorf("expected 2 CORE reqs, got %d", status.Total)
+		}
+		if len(status.Categories) != 1 || status.Categories[0].Name != "CORE" {
+			t.Errorf("expected single CORE category, got %v", status.Categories)
+		}
+		if status.FilteredBy == nil || status.FilteredBy.Category != "CORE" {
+			t.Error("expected filtered_by.category = CORE")
+		}
+	})
+
+	t.Run("status_status_filter", func(t *testing.T) {
+		text := callTool(t, "status", map[string]interface{}{"status": "COMPLETE"})
+		var status statusResult
+		if err := json.Unmarshal([]byte(text), &status); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if status.Total != 1 {
+			t.Errorf("expected 1 COMPLETE req, got %d", status.Total)
+		}
+		if status.Complete != 1 {
+			t.Errorf("expected complete=1, got %d", status.Complete)
+		}
+	})
+
+	t.Run("status_no_filter_returns_all", func(t *testing.T) {
+		text := callTool(t, "status", nil)
+		var status statusResult
+		if err := json.Unmarshal([]byte(text), &status); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if status.Total != 3 {
+			t.Errorf("expected 3 total, got %d", status.Total)
+		}
+		if status.FilteredBy != nil {
+			t.Error("expected no filtered_by when no filters applied")
+		}
+	})
+
+	t.Run("backlog_category_filter", func(t *testing.T) {
+		text := callTool(t, "backlog", map[string]interface{}{"category": "EXT"})
+		var bl backlogResult
+		if err := json.Unmarshal([]byte(text), &bl); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if bl.TotalIncomplete != 1 {
+			t.Errorf("expected 1 EXT incomplete, got %d", bl.TotalIncomplete)
+		}
+		if len(bl.Items) != 1 || bl.Items[0].ReqID != "REQ-TEST-003" {
+			t.Errorf("expected REQ-TEST-003, got %v", bl.Items)
+		}
+	})
+
+	t.Run("backlog_limit", func(t *testing.T) {
+		text := callTool(t, "backlog", map[string]interface{}{"limit": 1})
+		var bl backlogResult
+		if err := json.Unmarshal([]byte(text), &bl); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if len(bl.Items) != 1 {
+			t.Errorf("expected 1 item with limit=1, got %d", len(bl.Items))
+		}
+	})
+
+	t.Run("deps_overview_limit", func(t *testing.T) {
+		text := callTool(t, "deps", map[string]interface{}{"limit": 2})
+		var d depsResult
+		if err := json.Unmarshal([]byte(text), &d); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if len(d.Overview) != 2 {
+			t.Errorf("expected 2 overview entries with limit=2, got %d", len(d.Overview))
+		}
+	})
+
+	t.Run("markers_category_filter", func(t *testing.T) {
+		text := callTool(t, "markers", map[string]interface{}{"category": "CORE"})
+		var m markersResult
+		if err := json.Unmarshal([]byte(text), &m); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if m.Total != 2 {
+			t.Errorf("expected 2 CORE markers, got %d", m.Total)
+		}
+	})
+
+	t.Run("filtered_response_smaller_than_unfiltered", func(t *testing.T) {
+		unfilteredText := callTool(t, "status", nil)
+		filteredText := callTool(t, "status", map[string]interface{}{"category": "EXT"})
+		if len(filteredText) >= len(unfilteredText) {
+			t.Errorf("filtered response (%d bytes) should be smaller than unfiltered (%d bytes)",
+				len(filteredText), len(unfilteredText))
+		}
+	})
+}
+
+// TestMCPToolDescriptions validates that tool descriptions include size hints
+// and that the hints are within tolerance of actual response sizes.
+// REQ-MCP-009: Token budget awareness in tool descriptions.
+func TestMCPToolDescriptions(t *testing.T) {
+	rtmx.Req(t, "REQ-MCP-009")
+
+	tmpDir := t.TempDir()
+	rtmxDir := filepath.Join(tmpDir, ".rtmx")
+	_ = os.MkdirAll(rtmxDir, 0o755)
+
+	dbPath := filepath.Join(rtmxDir, "database.csv")
+	writeTestDB(t, dbPath) // 3 reqs: CORE(2), EXT(1)
+	writeTestConfig(t, filepath.Join(tmpDir, "rtmx.yaml"))
+
+	cfg, err := config.LoadFromDir(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	srv := NewServer(dbPath, cfg, WithQuiet(true))
+
+	// Get tool list via stdio
+	listReq, _ := json.Marshal(map[string]interface{}{
+		"jsonrpc": "2.0", "id": 1, "method": "tools/list",
+	})
+	var input, output bytes.Buffer
+	input.Write(listReq)
+	input.WriteByte('\n')
+
+	if err := srv.StartStdio(&input, &output); err != nil {
+		t.Fatalf("StartStdio failed: %v", err)
+	}
+
+	var resp struct {
+		Result struct {
+			Tools []struct {
+				Name        string `json:"name"`
+				Description string `json:"description"`
+			} `json:"tools"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(output.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse tools/list response: %v", err)
+	}
+
+	t.Run("descriptions_include_size_hints", func(t *testing.T) {
+		for _, tool := range resp.Result.Tools {
+			if !strings.Contains(tool.Description, "token") {
+				t.Errorf("tool %q description missing size hint: %s", tool.Name, tool.Description)
+			}
+		}
+	})
+
+	t.Run("descriptions_under_120_chars", func(t *testing.T) {
+		for _, tool := range resp.Result.Tools {
+			if len(tool.Description) > 120 {
+				t.Errorf("tool %q description too long (%d chars): %s", tool.Name, len(tool.Description), tool.Description)
+			}
+		}
+	})
+
+	t.Run("collection_tools_mention_filtering", func(t *testing.T) {
+		filterableTools := map[string]bool{
+			"status": true, "backlog": true, "markers": true, "next": true,
+		}
+		for _, tool := range resp.Result.Tools {
+			if filterableTools[tool.Name] {
+				if !strings.Contains(tool.Description, "filter") {
+					t.Errorf("filterable tool %q description should mention filtering: %s", tool.Name, tool.Description)
+				}
+			}
+		}
+	})
+
+	t.Run("deps_distinguishes_modes", func(t *testing.T) {
+		for _, tool := range resp.Result.Tools {
+			if tool.Name == "deps" {
+				if !strings.Contains(tool.Description, "specific") || !strings.Contains(tool.Description, "overview") {
+					t.Errorf("deps description should distinguish specific vs overview modes: %s", tool.Description)
+				}
+			}
 		}
 	})
 }

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"net"
 	"net/http"
@@ -35,6 +36,8 @@ type Server struct {
 	mu       sync.RWMutex
 	server   *http.Server
 	listener net.Listener
+	logger   *log.Logger
+	quiet    bool
 }
 
 // Option configures the Server.
@@ -50,6 +53,16 @@ func WithPort(port int) Option {
 	return func(s *Server) { s.port = port }
 }
 
+// WithQuiet suppresses response size logging.
+func WithQuiet(quiet bool) Option {
+	return func(s *Server) { s.quiet = quiet }
+}
+
+// WithLogger sets the logger for response size logging.
+func WithLogger(l *log.Logger) Option {
+	return func(s *Server) { s.logger = l }
+}
+
 // NewServer creates a new MCP server for the given project directory.
 func NewServer(dbPath string, cfg *config.Config, opts ...Option) *Server {
 	s := &Server{
@@ -57,6 +70,7 @@ func NewServer(dbPath string, cfg *config.Config, opts ...Option) *Server {
 		port:   3000,
 		dbPath: dbPath,
 		cfg:    cfg,
+		logger: log.New(os.Stderr, "", 0),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -295,27 +309,43 @@ func (s *Server) handleInitialize() interface{} {
 }
 
 func (s *Server) handleToolsList() interface{} {
-	emptyObj := map[string]interface{}{"type": "object", "properties": map[string]interface{}{}}
+	filterSchema := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"category": map[string]interface{}{
+				"type":        "string",
+				"description": "Filter by category (e.g. CLI, MCP, ADAPT). Omit for all categories.",
+			},
+			"status": map[string]interface{}{
+				"type":        "string",
+				"description": "Filter by status: COMPLETE, PARTIAL, MISSING, or NOT_STARTED. Omit for all statuses.",
+			},
+			"limit": map[string]interface{}{
+				"type":        "integer",
+				"description": "Maximum number of items to return. Omit for all items.",
+			},
+		},
+	}
 
 	tools := []toolDef{
 		{
 			Name:        "status",
-			Description: "Show RTM completion status with counts and percentages",
-			InputSchema: emptyObj,
+			Description: "RTM completion counts and percentages (~15 tokens/req, filterable by category/status)",
+			InputSchema: filterSchema,
 		},
 		{
 			Name:        "backlog",
-			Description: "Show prioritized incomplete requirements",
-			InputSchema: emptyObj,
+			Description: "Prioritized incomplete requirements (~27 tokens/req, filterable by category/status)",
+			InputSchema: filterSchema,
 		},
 		{
 			Name:        "health",
-			Description: "Run health checks on the RTM database",
-			InputSchema: emptyObj,
+			Description: "Health checks on the RTM database (~100 tokens fixed)",
+			InputSchema: map[string]interface{}{"type": "object", "properties": map[string]interface{}{}},
 		},
 		{
 			Name:        "deps",
-			Description: "Show dependency information for a requirement",
+			Description: "Dependency info: specific req ~50 tokens, overview ~19 tokens/req",
 			InputSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -323,12 +353,16 @@ func (s *Server) handleToolsList() interface{} {
 						"type":        "string",
 						"description": "Requirement ID (e.g. REQ-GO-001). Omit for overview.",
 					},
+					"limit": map[string]interface{}{
+						"type":        "integer",
+						"description": "Maximum number of items in overview mode. Omit for all items.",
+					},
 				},
 			},
 		},
 		{
 			Name:        "verify",
-			Description: "Run tests and verify requirements. Executes the test command, maps results to requirements, and updates the RTM database. Returns updated status for each requirement.",
+			Description: "Run tests, map results to requirements, update database (~30 tokens/req)",
 			InputSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -341,17 +375,17 @@ func (s *Server) handleToolsList() interface{} {
 		},
 		{
 			Name:        "markers",
-			Description: "Show requirement markers found in test files",
-			InputSchema: emptyObj,
+			Description: "Requirement markers in test files (~22 tokens/req, filterable by category/status)",
+			InputSchema: filterSchema,
 		},
 		{
 			Name:        "next",
-			Description: "Show independent work webs and highest-priority unblocked requirement",
-			InputSchema: emptyObj,
+			Description: "Work webs and highest-priority unblocked requirement (~30 tokens/req, filterable)",
+			InputSchema: filterSchema,
 		},
 		{
 			Name:        "claim",
-			Description: "Claim a requirement for an agent (mutation: requires agent_id)",
+			Description: "Claim a requirement for an agent (~35 tokens, mutation: requires agent_id)",
 			InputSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -363,7 +397,7 @@ func (s *Server) handleToolsList() interface{} {
 		},
 		{
 			Name:        "release",
-			Description: "Release a claimed requirement (mutation: requires agent_id)",
+			Description: "Release a claimed requirement (~25 tokens, mutation: requires agent_id)",
 			InputSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -375,7 +409,7 @@ func (s *Server) handleToolsList() interface{} {
 		},
 		{
 			Name:        "release_assign",
-			Description: "Assign requirements to a target version (mutation: requires agent_id)",
+			Description: "Assign requirements to a version (~35 tokens, mutation: requires agent_id)",
 			InputSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -399,45 +433,59 @@ func (s *Server) handleToolsCall(params json.RawMessage) (interface{}, *rpcError
 
 	db, err := database.Load(s.dbPath)
 	if err != nil {
+		s.logToolCall(call.Name, 0, true)
 		return errorResult(fmt.Sprintf("failed to load database: %v", err)), nil
 	}
 
 	var data interface{}
 
+	filter := parseFilter(call.Arguments)
+
 	switch call.Name {
 	case "status":
-		data = s.toolStatus(db)
+		data = s.toolStatus(db, filter)
 	case "backlog":
-		data = s.toolBacklog(db)
+		data = s.toolBacklog(db, filter)
 	case "health":
 		data = s.toolHealth(db)
 	case "deps":
 		reqID, _ := call.Arguments["req_id"].(string)
-		data, err = s.toolDeps(db, reqID)
+		limit := filter.Limit
+		data, err = s.toolDeps(db, reqID, limit)
 		if err != nil {
+			s.logToolCall(call.Name, 0, true)
 			return errorResult(err.Error()), nil
 		}
 	case "verify":
 		command, _ := call.Arguments["command"].(string)
 		data = s.toolVerify(db, command)
 	case "markers":
-		data = s.toolMarkers(db)
+		data = s.toolMarkers(db, filter)
 	case "next":
-		data = s.toolNext(db)
+		data = s.toolNext(db, filter)
 	case "claim":
-		return s.toolClaim(call.Arguments)
+		result, rpcErr := s.toolClaim(call.Arguments)
+		s.logToolResult(call.Name, result)
+		return result, rpcErr
 	case "release":
-		return s.toolRelease(call.Arguments)
+		result, rpcErr := s.toolRelease(call.Arguments)
+		s.logToolResult(call.Name, result)
+		return result, rpcErr
 	case "release_assign":
-		return s.toolReleaseAssign(db, call.Arguments)
+		result, rpcErr := s.toolReleaseAssign(db, call.Arguments)
+		s.logToolResult(call.Name, result)
+		return result, rpcErr
 	default:
 		return nil, &rpcError{Code: errNoMethod, Message: fmt.Sprintf("unknown tool: %s", call.Name)}
 	}
 
 	jsonBytes, err := json.Marshal(data)
 	if err != nil {
+		s.logToolCall(call.Name, 0, true)
 		return errorResult(fmt.Sprintf("failed to marshal result: %v", err)), nil
 	}
+
+	s.logToolCall(call.Name, len(jsonBytes), false)
 
 	return toolResult{
 		Content: []toolContent{
@@ -446,10 +494,93 @@ func (s *Server) handleToolsCall(params json.RawMessage) (interface{}, *rpcError
 	}, nil
 }
 
+// logToolCall logs response size metrics to stderr for observability.
+// Token estimate uses the 4-bytes-per-token heuristic for JSON-dense content.
+func (s *Server) logToolCall(tool string, bytes int, isError bool) {
+	if s.quiet {
+		return
+	}
+	tokens := (bytes + 3) / 4 // ceil(bytes/4)
+	if isError {
+		s.logger.Printf("[rtmx-mcp] tool=%s bytes=%d tokens=%d error=true", tool, bytes, tokens)
+	} else {
+		s.logger.Printf("[rtmx-mcp] tool=%s bytes=%d tokens=%d", tool, bytes, tokens)
+	}
+}
+
+// logToolResult logs response size for mutation tools that return early.
+func (s *Server) logToolResult(tool string, result interface{}) {
+	if s.quiet {
+		return
+	}
+	data, err := json.Marshal(result)
+	if err != nil {
+		s.logToolCall(tool, 0, true)
+		return
+	}
+	tr, ok := result.(toolResult)
+	s.logToolCall(tool, len(data), ok && tr.IsError)
+}
+
 func errorResult(msg string) toolResult {
 	return toolResult{
 		Content: []toolContent{{Type: "text", Text: msg}},
 		IsError: true,
+	}
+}
+
+// ----- Filter helpers -----
+
+// toolFilter holds common filter parameters for MCP tools.
+type toolFilter struct {
+	Category string
+	Status   string
+	Limit    int
+}
+
+// parseFilter extracts common filter arguments from a tools/call request.
+func parseFilter(args map[string]interface{}) toolFilter {
+	f := toolFilter{}
+	if v, ok := args["category"].(string); ok {
+		f.Category = strings.ToUpper(v)
+	}
+	if v, ok := args["status"].(string); ok {
+		f.Status = strings.ToUpper(v)
+	}
+	if v, ok := args["limit"].(float64); ok && v > 0 {
+		f.Limit = int(v)
+	}
+	return f
+}
+
+// matchesFilter checks if a requirement passes the category and status filters.
+func (f toolFilter) matchesFilter(req *database.Requirement) bool {
+	if f.Category != "" && req.Category != f.Category {
+		return false
+	}
+	if f.Status != "" && string(req.Status) != f.Status {
+		return false
+	}
+	return true
+}
+
+// applyLimit truncates a slice to the limit if set.
+func applyLimit[T any](items []T, limit int) []T {
+	if limit > 0 && len(items) > limit {
+		return items[:limit]
+	}
+	return items
+}
+
+// toAppliedFilter returns an appliedFilter pointer if any filters are active, nil otherwise.
+func (f toolFilter) toAppliedFilter() *appliedFilter {
+	if f.Category == "" && f.Status == "" && f.Limit == 0 {
+		return nil
+	}
+	return &appliedFilter{
+		Category: f.Category,
+		Status:   f.Status,
+		Limit:    f.Limit,
 	}
 }
 
@@ -463,6 +594,14 @@ type statusResult struct {
 	Missing       int                    `json:"missing"`
 	CompletionPct float64                `json:"completion_pct"`
 	Categories    []statusCategoryResult `json:"categories"`
+	FilteredBy    *appliedFilter         `json:"filtered_by,omitempty"`
+}
+
+// appliedFilter describes which filters were applied to a response.
+type appliedFilter struct {
+	Category string `json:"category,omitempty"`
+	Status   string `json:"status,omitempty"`
+	Limit    int    `json:"limit,omitempty"`
 }
 
 type statusCategoryResult struct {
@@ -472,38 +611,71 @@ type statusCategoryResult struct {
 	Pct      float64 `json:"pct"`
 }
 
-func (s *Server) toolStatus(db *database.Database) interface{} {
-	counts := db.StatusCounts()
-	pct := math.Round(db.CompletionPercentage()*10) / 10
-
-	result := statusResult{
-		Total:         db.Len(),
-		Complete:      counts[database.StatusComplete],
-		Partial:       counts[database.StatusPartial],
-		Missing:       counts[database.StatusMissing] + counts[database.StatusNotStarted],
-		CompletionPct: pct,
-		Categories:    make([]statusCategoryResult, 0),
+func (s *Server) toolStatus(db *database.Database, filter toolFilter) interface{} {
+	// Apply filters to requirements
+	var reqs []*database.Requirement
+	for _, r := range db.All() {
+		if filter.matchesFilter(r) {
+			reqs = append(reqs, r)
+		}
 	}
 
-	categories := db.Categories()
-	byCategory := db.ByCategory()
-	for _, cat := range categories {
-		reqs := byCategory[cat]
+	complete, partial, missing := 0, 0, 0
+	for _, r := range reqs {
+		switch r.Status {
+		case database.StatusComplete:
+			complete++
+		case database.StatusPartial:
+			partial++
+		default:
+			missing++
+		}
+	}
+
+	total := len(reqs)
+	pct := 0.0
+	if total > 0 {
+		pct = float64(complete) / float64(total) * 100
+	}
+	pct = math.Round(pct*10) / 10
+
+	result := statusResult{
+		Total:         total,
+		Complete:      complete,
+		Partial:       partial,
+		Missing:       missing,
+		CompletionPct: pct,
+		Categories:    make([]statusCategoryResult, 0),
+		FilteredBy:    filter.toAppliedFilter(),
+	}
+
+	// Group by category
+	catMap := make(map[string][]*database.Requirement)
+	catOrder := make([]string, 0)
+	for _, r := range reqs {
+		if _, exists := catMap[r.Category]; !exists {
+			catOrder = append(catOrder, r.Category)
+		}
+		catMap[r.Category] = append(catMap[r.Category], r)
+	}
+
+	for _, cat := range catOrder {
+		catReqs := catMap[cat]
 		catComplete := 0
-		for _, r := range reqs {
+		for _, r := range catReqs {
 			if r.Status == database.StatusComplete {
 				catComplete++
 			}
 		}
 		catPct := 0.0
-		if len(reqs) > 0 {
-			catPct = float64(catComplete) / float64(len(reqs)) * 100
+		if len(catReqs) > 0 {
+			catPct = float64(catComplete) / float64(len(catReqs)) * 100
 		}
 		catPct = math.Round(catPct*10) / 10
 
 		result.Categories = append(result.Categories, statusCategoryResult{
 			Name:     cat,
-			Total:    len(reqs),
+			Total:    len(catReqs),
 			Complete: catComplete,
 			Pct:      catPct,
 		})
@@ -529,11 +701,15 @@ type backlogResult struct {
 	Items           []backlogItem `json:"items"`
 }
 
-func (s *Server) toolBacklog(db *database.Database) interface{} {
+func (s *Server) toolBacklog(db *database.Database, filter toolFilter) interface{} {
 	incomplete := db.Backlog()
 
 	items := make([]backlogItem, 0, len(incomplete))
 	for _, req := range incomplete {
+		if !filter.matchesFilter(req) {
+			continue
+		}
+
 		blocked := req.IsBlocked(db)
 		blocksCount := 0
 		for _, r := range db.All() {
@@ -553,8 +729,10 @@ func (s *Server) toolBacklog(db *database.Database) interface{} {
 		})
 	}
 
+	items = applyLimit(items, filter.Limit)
+
 	return backlogResult{
-		TotalIncomplete: len(incomplete),
+		TotalIncomplete: len(items),
 		Items:           items,
 	}
 }
@@ -683,7 +861,7 @@ type depEntry struct {
 	BlocksCount int    `json:"blocks_count,omitempty"`
 }
 
-func (s *Server) toolDeps(db *database.Database, reqID string) (interface{}, error) {
+func (s *Server) toolDeps(db *database.Database, reqID string, limit int) (interface{}, error) {
 	g := graph.NewGraph(db)
 
 	if reqID != "" {
@@ -763,6 +941,8 @@ func (s *Server) toolDeps(db *database.Database, reqID string) (interface{}, err
 			BlocksCount: e.blks,
 		})
 	}
+
+	overview = applyLimit(overview, limit)
 
 	return depsResult{Overview: overview}, nil
 }
@@ -1023,33 +1203,34 @@ type markersResult struct {
 	Items      []markerEntry `json:"items"`
 }
 
-func (s *Server) toolMarkers(db *database.Database) interface{} {
+func (s *Server) toolMarkers(db *database.Database, filter toolFilter) interface{} {
 	items := make([]markerEntry, 0)
 	withTests := 0
 
 	for _, req := range db.All() {
+		if !filter.matchesFilter(req) {
+			continue
+		}
+
 		hasTest := req.HasTest()
 		if hasTest {
 			withTests++
-		}
-
-		testFunc := req.TestFunction
-		if testFunc == "" {
-			testFunc = ""
 		}
 
 		items = append(items, markerEntry{
 			ReqID:    req.ReqID,
 			Status:   string(req.Status),
 			HasTest:  hasTest,
-			TestFunc: testFunc,
+			TestFunc: req.TestFunction,
 		})
 	}
 
+	items = applyLimit(items, filter.Limit)
+
 	return markersResult{
-		Total:     db.Len(),
+		Total:     len(items),
 		WithTests: withTests,
-		Missing:   db.Len() - withTests,
+		Missing:   len(items) - withTests,
 		Items:     items,
 	}
 }
@@ -1074,16 +1255,30 @@ type nextResult struct {
 	Webs             []nextWebResult `json:"webs"`
 }
 
-func (s *Server) toolNext(db *database.Database) interface{} {
+func (s *Server) toolNext(db *database.Database, filter toolFilter) interface{} {
 	g := graph.NewGraph(db)
 	webs := g.DetectWebs()
 
 	result := nextResult{
-		TotalWebs: len(webs),
-		Webs:      make([]nextWebResult, 0, len(webs)),
+		Webs: make([]nextWebResult, 0, len(webs)),
 	}
 
 	for i, web := range webs {
+		// If category filter set, skip webs that have no members in that category
+		if filter.Category != "" {
+			hasMatch := false
+			for _, id := range web.IDs {
+				r := db.Get(id)
+				if r != nil && r.Category == filter.Category {
+					hasMatch = true
+					break
+				}
+			}
+			if !hasMatch {
+				continue
+			}
+		}
+
 		result.TotalIncomplete += len(web.IDs)
 		result.TotalEffortWeeks += web.TotalEffort
 
@@ -1116,6 +1311,9 @@ func (s *Server) toolNext(db *database.Database) interface{} {
 
 		result.Webs = append(result.Webs, wr)
 	}
+
+	result.TotalWebs = len(result.Webs)
+	result.Webs = applyLimit(result.Webs, filter.Limit)
 
 	return result
 }

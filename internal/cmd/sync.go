@@ -200,8 +200,26 @@ func getAdapter(service string, cfg *config.Config) (adapters.ServiceAdapter, er
 		}
 		return adapters.NewJiraAdapter(&cfg.RTMX.Adapters.Jira)
 
+	case "asana":
+		if !cfg.RTMX.Adapters.Asana.Enabled {
+			return nil, fmt.Errorf("asana adapter not enabled in rtmx.yaml")
+		}
+		return adapters.NewAsanaAdapter(&cfg.RTMX.Adapters.Asana)
+
+	case "monday":
+		if !cfg.RTMX.Adapters.Monday.Enabled {
+			return nil, fmt.Errorf("monday adapter not enabled in rtmx.yaml")
+		}
+		return adapters.NewMondayAdapter(&cfg.RTMX.Adapters.Monday)
+
+	case "gitlab":
+		if !cfg.RTMX.Adapters.GitLab.Enabled {
+			return nil, fmt.Errorf("gitlab adapter not enabled in rtmx.yaml")
+		}
+		return adapters.NewGitLabAdapter(&cfg.RTMX.Adapters.GitLab)
+
 	default:
-		return nil, fmt.Errorf("unknown service: %s", service)
+		return nil, fmt.Errorf("unknown service: %s (supported: github, jira, asana, monday, gitlab)", service)
 	}
 }
 

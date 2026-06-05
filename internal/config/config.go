@@ -172,8 +172,13 @@ type AgentConfig struct {
 
 // AdaptersConfig contains external integration settings.
 type AdaptersConfig struct {
-	GitHub GitHubConfig `yaml:"github"`
-	Jira   JiraConfig   `yaml:"jira"`
+	GitHub  GitHubConfig  `yaml:"github"`
+	Jira    JiraConfig    `yaml:"jira"`
+	Asana   AsanaConfig   `yaml:"asana"`
+	Monday  MondayConfig  `yaml:"monday"`
+	GitLab  GitLabConfig  `yaml:"gitlab"`
+	Slack   SlackConfig   `yaml:"slack"`
+	Webhook WebhookConfig `yaml:"webhook"`
 }
 
 // GitHubConfig contains GitHub integration settings.
@@ -208,6 +213,64 @@ type JiraConfig struct {
 
 // JiraAdapterConfig is an alias for JiraConfig used by the adapter.
 type JiraAdapterConfig = JiraConfig
+
+// AsanaConfig contains Asana integration settings.
+type AsanaConfig struct {
+	Enabled       bool              `yaml:"enabled"`
+	WorkspaceGID  string            `yaml:"workspace_gid"`
+	ProjectGID    string            `yaml:"project_gid"`
+	TokenEnv      string            `yaml:"token_env"`
+	StatusMapping map[string]string `yaml:"status_mapping"`
+}
+
+// AsanaAdapterConfig is an alias for AsanaConfig used by the adapter.
+type AsanaAdapterConfig = AsanaConfig
+
+// MondayConfig contains Monday.com integration settings.
+type MondayConfig struct {
+	Enabled       bool              `yaml:"enabled"`
+	BoardID       string            `yaml:"board_id"`
+	TokenEnv      string            `yaml:"token_env"`
+	StatusMapping map[string]string `yaml:"status_mapping"`
+}
+
+// MondayAdapterConfig is an alias for MondayConfig used by the adapter.
+type MondayAdapterConfig = MondayConfig
+
+// GitLabConfig contains GitLab integration settings.
+type GitLabConfig struct {
+	Enabled       bool              `yaml:"enabled"`
+	Server        string            `yaml:"server"`
+	Project       string            `yaml:"project"`
+	TokenEnv      string            `yaml:"token_env"`
+	StatusMapping map[string]string `yaml:"status_mapping"`
+}
+
+// GitLabAdapterConfig is an alias for GitLabConfig used by the adapter.
+type GitLabAdapterConfig = GitLabConfig
+
+// SlackConfig contains Slack integration settings.
+type SlackConfig struct {
+	Enabled      bool              `yaml:"enabled"`
+	TokenEnv     string            `yaml:"token_env"`
+	SigningEnv   string            `yaml:"signing_secret_env"`
+	Channels     map[string]string `yaml:"channels"`
+}
+
+// SlackAdapterConfig is an alias for SlackConfig used by the adapter.
+type SlackAdapterConfig = SlackConfig
+
+// WebhookConfig contains outbound webhook settings.
+type WebhookConfig struct {
+	Enabled    bool     `yaml:"enabled"`
+	URL        string   `yaml:"url"`
+	SecretEnv  string   `yaml:"secret_env"`
+	Events     []string `yaml:"events"`
+	MaxRetries int      `yaml:"max_retries"`
+}
+
+// WebhookAdapterConfig is an alias for WebhookConfig used by the adapter.
+type WebhookAdapterConfig = WebhookConfig
 
 // MCPConfig contains Model Context Protocol settings.
 type MCPConfig struct {
