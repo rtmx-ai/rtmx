@@ -29,7 +29,7 @@ jobs:
           fetch-depth: 0  # Full history for diff
 
       - name: Set up Go
-        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v5
         with:
           go-version-file: go.mod
 
@@ -68,7 +68,7 @@ jobs:
 
       - name: Comment PR with diff
         if: steps.diff.outputs.diff_generated == 'true'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const fs = require('fs');
@@ -126,7 +126,7 @@ jobs:
 
       - name: Comment PR (new RTM)
         if: steps.base.outputs.baseline_exists != 'true' && hashFiles('.rtmx/database.csv') != ''
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const status = '${{ steps.health.outputs.status }}';

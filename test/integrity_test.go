@@ -1,6 +1,7 @@
 package test
 
 import (
+	"encoding/csv"
 	"os"
 	"path/filepath"
 	"strings"
@@ -95,20 +96,27 @@ func TestStaleTestReferences(t *testing.T) {
 	}
 
 	dbPath := filepath.Join(projectRoot, ".rtmx", "database.csv")
-	content, err := os.ReadFile(dbPath)
+	f, err := os.Open(dbPath)
 	if err != nil {
 		t.Fatalf("failed to read database: %v", err)
 	}
+	defer func() { _ = f.Close() }()
 
-	lines := strings.Split(string(content), "\n")
-	if len(lines) < 2 {
+	// Parse as proper CSV so quoted fields containing commas (e.g. a
+	// target_value listing items) do not shift column alignment.
+	reader := csv.NewReader(f)
+	reader.FieldsPerRecord = -1
+	records, err := reader.ReadAll()
+	if err != nil {
+		t.Fatalf("failed to parse database CSV: %v", err)
+	}
+	if len(records) < 2 {
 		t.Fatal("database has no data rows")
 	}
 
 	// Parse header to find column indices
-	header := strings.Split(lines[0], ",")
 	colIdx := map[string]int{}
-	for i, col := range header {
+	for i, col := range records[0] {
 		colIdx[col] = i
 	}
 
@@ -118,11 +126,7 @@ func TestStaleTestReferences(t *testing.T) {
 
 	var staleModules []string
 
-	for _, line := range lines[1:] {
-		if line == "" {
-			continue
-		}
-		fields := strings.Split(line, ",")
+	for _, fields := range records[1:] {
 		if len(fields) <= moduleIdx {
 			continue
 		}
