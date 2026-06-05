@@ -55,7 +55,7 @@ type AsanaRef struct {
 // NewAsanaAdapter creates a new Asana adapter.
 func NewAsanaAdapter(cfg *config.AsanaAdapterConfig, opts ...AdapterOption) (*AsanaAdapter, error) {
 	if !cfg.Enabled {
-		return nil, fmt.Errorf("Asana adapter is not enabled")
+		return nil, fmt.Errorf("asana adapter is not enabled")
 	}
 
 	options := applyOptions(opts)
@@ -65,7 +65,7 @@ func NewAsanaAdapter(cfg *config.AsanaAdapterConfig, opts ...AdapterOption) (*As
 	}
 	token := options.getEnv(tokenEnv)
 	if token == "" {
-		return nil, fmt.Errorf("Asana token not found. Set %s environment variable", tokenEnv)
+		return nil, fmt.Errorf("asana token not found, set %s environment variable", tokenEnv)
 	}
 
 	return &AsanaAdapter{

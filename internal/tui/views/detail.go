@@ -59,31 +59,31 @@ func (v *DetailView) View() string {
 	var b strings.Builder
 
 	// Header
-	b.WriteString(fmt.Sprintf("  %s\n", req.ReqID))
+	fmt.Fprintf(&b, "  %s\n", req.ReqID)
 	b.WriteString(strings.Repeat("-", min(v.width, 60)))
 	b.WriteByte('\n')
 
 	// Metadata fields
-	b.WriteString(fmt.Sprintf("  Category:    %s\n", req.Category))
-	b.WriteString(fmt.Sprintf("  Status:      %s\n", req.Status))
-	b.WriteString(fmt.Sprintf("  Priority:    %s\n", req.Priority))
-	b.WriteString(fmt.Sprintf("  Phase:       %d\n", req.Phase))
-	b.WriteString(fmt.Sprintf("  Effort:      %.1f weeks\n", req.EffortWeeks))
+	fmt.Fprintf(&b, "  Category:    %s\n", req.Category)
+	fmt.Fprintf(&b, "  Status:      %s\n", req.Status)
+	fmt.Fprintf(&b, "  Priority:    %s\n", req.Priority)
+	fmt.Fprintf(&b, "  Phase:       %d\n", req.Phase)
+	fmt.Fprintf(&b, "  Effort:      %.1f weeks\n", req.EffortWeeks)
 	if req.Assignee != "" {
-		b.WriteString(fmt.Sprintf("  Assignee:    %s\n", req.Assignee))
+		fmt.Fprintf(&b, "  Assignee:    %s\n", req.Assignee)
 	}
 	if req.Sprint != "" {
-		b.WriteString(fmt.Sprintf("  Sprint:      %s\n", req.Sprint))
+		fmt.Fprintf(&b, "  Sprint:      %s\n", req.Sprint)
 	}
 	b.WriteByte('\n')
 
 	// Description
-	b.WriteString(fmt.Sprintf("  Description: %s\n", req.RequirementText))
+	fmt.Fprintf(&b, "  Description: %s\n", req.RequirementText)
 	if req.TargetValue != "" {
-		b.WriteString(fmt.Sprintf("  Target:      %s\n", req.TargetValue))
+		fmt.Fprintf(&b, "  Target:      %s\n", req.TargetValue)
 	}
 	if req.Notes != "" {
-		b.WriteString(fmt.Sprintf("  Notes:       %s\n", req.Notes))
+		fmt.Fprintf(&b, "  Notes:       %s\n", req.Notes)
 	}
 	b.WriteByte('\n')
 
@@ -91,7 +91,7 @@ func (v *DetailView) View() string {
 	upstream := v.graph.TransitiveDependencies(v.reqID)
 	downstream := v.graph.TransitiveDependents(v.reqID)
 
-	b.WriteString(fmt.Sprintf("  Upstream Dependencies (%d):\n", len(upstream)))
+	fmt.Fprintf(&b, "  Upstream Dependencies (%d):\n", len(upstream))
 	if len(upstream) == 0 {
 		b.WriteString("    (none)\n")
 	}
@@ -100,11 +100,11 @@ func (v *DetailView) View() string {
 		if r := v.db.Get(id); r != nil {
 			status = string(r.Status)
 		}
-		b.WriteString(fmt.Sprintf("    %s [%s]\n", id, status))
+		fmt.Fprintf(&b, "    %s [%s]\n", id, status)
 	}
 	b.WriteByte('\n')
 
-	b.WriteString(fmt.Sprintf("  Downstream Dependents (%d):\n", len(downstream)))
+	fmt.Fprintf(&b, "  Downstream Dependents (%d):\n", len(downstream))
 	if len(downstream) == 0 {
 		b.WriteString("    (none)\n")
 	}
@@ -113,7 +113,7 @@ func (v *DetailView) View() string {
 		if r := v.db.Get(id); r != nil {
 			status = string(r.Status)
 		}
-		b.WriteString(fmt.Sprintf("    %s [%s]\n", id, status))
+		fmt.Fprintf(&b, "    %s [%s]\n", id, status)
 	}
 
 	// Blocked status

@@ -44,10 +44,8 @@ type AppModel struct {
 	views     [TabCount]tea.Model
 	width     int
 	height    int
-	showHelp  bool
-	quitting  bool
-	filterStr    string
-	filtering    bool
+	showHelp     bool
+	quitting     bool
 	watchEnabled bool
 	lastModTime  time.Time
 }

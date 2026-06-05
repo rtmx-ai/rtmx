@@ -21,7 +21,7 @@ func newTestAsanaServer(t *testing.T) *httptest.Server {
 			w.WriteHeader(401)
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"data": map[string]interface{}{"gid": "1", "name": "Test User"},
 		})
 	})
@@ -31,7 +31,7 @@ func newTestAsanaServer(t *testing.T) *httptest.Server {
 			w.WriteHeader(401)
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"data": []map[string]interface{}{
 				{
 					"gid": "100", "name": "[REQ-CLI-001] Build CLI", "notes": "Build CLI framework\n\nRTMX: REQ-CLI-001",
@@ -54,8 +54,9 @@ func newTestAsanaServer(t *testing.T) *httptest.Server {
 	})
 
 	mux.HandleFunc("/tasks/100", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
-			json.NewEncoder(w).Encode(map[string]interface{}{
+		switch r.Method {
+		case "GET":
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": map[string]interface{}{
 					"gid": "100", "name": "[REQ-CLI-001] Build CLI", "notes": "Build CLI framework\n\nRTMX: REQ-CLI-001",
 					"completed": true, "created_at": "2026-01-01T00:00:00Z", "modified_at": "2026-01-02T00:00:00Z",
@@ -65,15 +66,15 @@ func newTestAsanaServer(t *testing.T) *httptest.Server {
 					},
 				},
 			})
-		} else if r.Method == "PUT" {
-			json.NewEncoder(w).Encode(map[string]interface{}{"data": map[string]interface{}{"gid": "100"}})
+		case "PUT":
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"data": map[string]interface{}{"gid": "100"}})
 		}
 	})
 
 	mux.HandleFunc("/tasks", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			w.WriteHeader(201)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": map[string]interface{}{"gid": "200"},
 			})
 		}

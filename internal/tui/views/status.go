@@ -24,7 +24,6 @@ type StatusView struct {
 	height   int
 	sortField string
 	sortDesc  bool
-	filter    string
 }
 
 // NewStatusView creates a requirements table view.
@@ -117,8 +116,8 @@ func (v *StatusView) View() string {
 	}
 
 	// Footer
-	b.WriteString(fmt.Sprintf("\n  %d of %d requirements | sort: %s %s",
-		v.cursor+1, len(v.reqs), v.sortField, sortDir(v.sortDesc)))
+	fmt.Fprintf(&b, "\n  %d of %d requirements | sort: %s %s",
+		v.cursor+1, len(v.reqs), v.sortField, sortDir(v.sortDesc))
 
 	return b.String()
 }

@@ -27,18 +27,18 @@ func newTestMondayServer(t *testing.T) *httptest.Server {
 		var body struct {
 			Query string `json:"query"`
 		}
-		json.NewDecoder(r.Body).Decode(&body)
+		_ = json.NewDecoder(r.Body).Decode(&body)
 		q := body.Query
 
 		switch {
 		case strings.Contains(q, "me {"):
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": map[string]interface{}{
 					"me": map[string]interface{}{"name": "Test Monday User"},
 				},
 			})
 		case strings.Contains(q, "boards(ids:"):
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": map[string]interface{}{
 					"boards": []map[string]interface{}{
 						{
@@ -63,7 +63,7 @@ func newTestMondayServer(t *testing.T) *httptest.Server {
 				},
 			})
 		case strings.Contains(q, "items(ids:"):
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": map[string]interface{}{
 					"items": []map[string]interface{}{
 						{
@@ -76,13 +76,13 @@ func newTestMondayServer(t *testing.T) *httptest.Server {
 				},
 			})
 		case strings.Contains(q, "create_item"):
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": map[string]interface{}{
 					"create_item": map[string]interface{}{"id": "2001"},
 				},
 			})
 		case strings.Contains(q, "change_simple_column_value"):
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": map[string]interface{}{
 					"change_simple_column_value": map[string]interface{}{"id": "1001"},
 				},

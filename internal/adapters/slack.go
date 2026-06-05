@@ -34,7 +34,7 @@ func WithSlackAPIURL(url string) SlackAdapterOption {
 // NewSlackAdapter creates a new Slack adapter.
 func NewSlackAdapter(cfg *config.SlackAdapterConfig, opts ...AdapterOption) (*SlackAdapter, error) {
 	if !cfg.Enabled {
-		return nil, fmt.Errorf("Slack adapter is not enabled")
+		return nil, fmt.Errorf("slack adapter is not enabled")
 	}
 
 	options := applyOptions(opts)
@@ -46,7 +46,7 @@ func NewSlackAdapter(cfg *config.SlackAdapterConfig, opts ...AdapterOption) (*Sl
 
 	token := options.getEnv(tokenEnv)
 	if token == "" {
-		return nil, fmt.Errorf("Slack token not found. Set %s environment variable", tokenEnv)
+		return nil, fmt.Errorf("slack token not found; set %s environment variable", tokenEnv)
 	}
 
 	return &SlackAdapter{
@@ -154,12 +154,12 @@ func (s *SlackAdapter) postMessage(channel, text string) error {
 
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Slack request failed: %w", err)
+		return fmt.Errorf("slack request failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Slack API error: HTTP %d", resp.StatusCode)
+		return fmt.Errorf("slack API error: HTTP %d", resp.StatusCode)
 	}
 
 	var result slackPostMessageResponse
@@ -168,7 +168,7 @@ func (s *SlackAdapter) postMessage(channel, text string) error {
 	}
 
 	if !result.OK {
-		return fmt.Errorf("Slack API error: %s", result.Error)
+		return fmt.Errorf("slack API error: %s", result.Error)
 	}
 
 	return nil

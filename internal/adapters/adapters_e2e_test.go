@@ -186,13 +186,13 @@ func TestE2EGitLabLifecycle(t *testing.T) {
 		switch {
 		// TestConnection: GET /api/v4/projects/<project>
 		case method == "GET" && !strings.Contains(path, "issues"):
-			json.NewEncoder(w).Encode(map[string]string{
+			_ = json.NewEncoder(w).Encode(map[string]string{
 				"path_with_namespace": "e2e-group/e2e-project",
 			})
 
 		// FetchItems: GET .../issues?...
 		case method == "GET" && strings.Contains(path, "issues") && !strings.Contains(path, "issues/"):
-			json.NewEncoder(w).Encode([]GitLabIssue{
+			_ = json.NewEncoder(w).Encode([]GitLabIssue{
 				{
 					IID:         10,
 					Title:       "[REQ-LIFE-010] E2E requirement",
@@ -207,7 +207,7 @@ func TestE2EGitLabLifecycle(t *testing.T) {
 
 		// GetItem: GET .../issues/<id>
 		case method == "GET" && strings.Contains(path, "issues/"):
-			json.NewEncoder(w).Encode(GitLabIssue{
+			_ = json.NewEncoder(w).Encode(GitLabIssue{
 				IID:         10,
 				Title:       "[REQ-LIFE-010] E2E requirement",
 				Description: "Lifecycle test\n\n---\nRTMX: REQ-LIFE-010",
@@ -223,11 +223,11 @@ func TestE2EGitLabLifecycle(t *testing.T) {
 		// CreateItem: POST .../issues
 		case method == "POST" && strings.Contains(path, "issues"):
 			w.WriteHeader(201)
-			json.NewEncoder(w).Encode(GitLabIssue{IID: 42})
+			_ = json.NewEncoder(w).Encode(GitLabIssue{IID: 42})
 
 		// UpdateItem: PUT .../issues/<id>
 		case method == "PUT" && strings.Contains(path, "issues/"):
-			json.NewEncoder(w).Encode(GitLabIssue{IID: 42})
+			_ = json.NewEncoder(w).Encode(GitLabIssue{IID: 42})
 
 		default:
 			w.WriteHeader(404)
@@ -480,7 +480,7 @@ func TestErrorMalformedJSON(t *testing.T) {
 
 	malformedServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
-		w.Write([]byte("this is not valid json{{{"))
+		_, _ = w.Write([]byte("this is not valid json{{{"))
 	}))
 	defer malformedServer.Close()
 
@@ -525,7 +525,7 @@ func TestErrorMalformedJSON(t *testing.T) {
 		// We need a server that returns 201 with bad JSON
 		badCreateServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(201)
-			w.Write([]byte("not json"))
+			_, _ = w.Write([]byte("not json"))
 		}))
 		defer badCreateServer.Close()
 
@@ -585,7 +585,7 @@ func TestErrorMalformedJSON(t *testing.T) {
 	t.Run("gitlab_malformed_create", func(t *testing.T) {
 		badCreateServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(201)
-			w.Write([]byte("not json"))
+			_, _ = w.Write([]byte("not json"))
 		}))
 		defer badCreateServer.Close()
 
@@ -827,7 +827,7 @@ func TestErrorMissingRequiredFields(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(201)
 			// Return valid JSON but without gid field
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": map[string]interface{}{},
 			})
 		}))
@@ -849,7 +849,7 @@ func TestErrorMissingRequiredFields(t *testing.T) {
 
 	t.Run("monday_getitem_empty_items", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": map[string]interface{}{
 					"items": []interface{}{},
 				},
@@ -874,7 +874,7 @@ func TestErrorMissingRequiredFields(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(201)
 			// Return valid JSON but IID defaults to 0
-			json.NewEncoder(w).Encode(GitLabIssue{})
+			_ = json.NewEncoder(w).Encode(GitLabIssue{})
 		}))
 		defer server.Close()
 
@@ -907,7 +907,7 @@ func TestRoundtripAsanaFidelity(t *testing.T) {
 		switch {
 		case r.Method == "POST" && strings.HasSuffix(r.URL.Path, "/tasks"):
 			var body map[string]interface{}
-			json.NewDecoder(r.Body).Decode(&body)
+			_ = json.NewDecoder(r.Body).Decode(&body)
 			data, _ := body["data"].(map[string]interface{})
 			createdTask = map[string]interface{}{
 				"gid":           "300",
@@ -922,14 +922,14 @@ func TestRoundtripAsanaFidelity(t *testing.T) {
 				},
 			}
 			w.WriteHeader(201)
-			json.NewEncoder(w).Encode(map[string]interface{}{"data": map[string]interface{}{"gid": "300"}})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"data": map[string]interface{}{"gid": "300"}})
 
 		case r.Method == "GET" && strings.Contains(r.URL.Path, "/projects/") && strings.Contains(r.URL.Path, "/tasks"):
 			items := []interface{}{}
 			if createdTask != nil {
 				items = append(items, createdTask)
 			}
-			json.NewEncoder(w).Encode(map[string]interface{}{"data": items})
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"data": items})
 
 		default:
 			w.WriteHeader(404)
@@ -989,7 +989,7 @@ func TestRoundtripMondayFidelity(t *testing.T) {
 		var body struct {
 			Query string `json:"query"`
 		}
-		json.NewDecoder(r.Body).Decode(&body)
+		_ = json.NewDecoder(r.Body).Decode(&body)
 		q := body.Query
 
 		switch {
@@ -1004,14 +1004,14 @@ func TestRoundtripMondayFidelity(t *testing.T) {
 					}
 				}
 			}
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": map[string]interface{}{
 					"create_item": map[string]interface{}{"id": "5001"},
 				},
 			})
 
 		case strings.Contains(q, "items(ids:"):
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": map[string]interface{}{
 					"items": []map[string]interface{}{
 						{
@@ -1028,7 +1028,7 @@ func TestRoundtripMondayFidelity(t *testing.T) {
 			})
 
 		case strings.Contains(q, "boards(ids:"):
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"data": map[string]interface{}{
 					"boards": []map[string]interface{}{
 						{
@@ -1121,9 +1121,9 @@ func TestRoundtripGitLabFidelity(t *testing.T) {
 		switch {
 		// CreateItem
 		case method == "POST" && strings.Contains(path, "issues"):
-			json.NewDecoder(r.Body).Decode(&createdPayload)
+			_ = json.NewDecoder(r.Body).Decode(&createdPayload)
 			w.WriteHeader(201)
-			json.NewEncoder(w).Encode(GitLabIssue{
+			_ = json.NewEncoder(w).Encode(GitLabIssue{
 				IID:         77,
 				Title:       createdPayload["title"].(string),
 				Description: createdPayload["description"].(string),
@@ -1146,7 +1146,7 @@ func TestRoundtripGitLabFidelity(t *testing.T) {
 					desc = d
 				}
 			}
-			json.NewEncoder(w).Encode([]GitLabIssue{
+			_ = json.NewEncoder(w).Encode([]GitLabIssue{
 				{
 					IID:         77,
 					Title:       title,
@@ -1162,7 +1162,7 @@ func TestRoundtripGitLabFidelity(t *testing.T) {
 
 		// GetItem
 		case method == "GET" && strings.Contains(path, "issues/"):
-			json.NewEncoder(w).Encode(GitLabIssue{
+			_ = json.NewEncoder(w).Encode(GitLabIssue{
 				IID:         77,
 				Title:       "[REQ-ROUND-003] GitLab roundtrip fidelity",
 				Description: "RTMX: REQ-ROUND-003",
@@ -1175,7 +1175,7 @@ func TestRoundtripGitLabFidelity(t *testing.T) {
 
 		// UpdateItem
 		case method == "PUT" && strings.Contains(path, "issues/"):
-			json.NewEncoder(w).Encode(GitLabIssue{IID: 77, State: "closed"})
+			_ = json.NewEncoder(w).Encode(GitLabIssue{IID: 77, State: "closed"})
 
 		default:
 			w.WriteHeader(404)

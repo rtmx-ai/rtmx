@@ -286,7 +286,7 @@ func TestMCPServerCommand(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create listener: %v", err)
 		}
-		defer ln.Close()
+		defer func() { _ = ln.Close() }()
 		occupiedPort := ln.Addr().(*net.TCPAddr).Port
 
 		cmd := createMCPTestCmd()
@@ -322,9 +322,9 @@ func TestMCPServerCommand(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create pipe: %v", err)
 		}
-		w.Close() // Close write end so reads get EOF immediately.
+		_ = w.Close() // Close write end so reads get EOF immediately.
 		os.Stdin = r
-		defer func() { os.Stdin = oldStdin; r.Close() }()
+		defer func() { os.Stdin = oldStdin; _ = r.Close() }()
 
 		// Also capture stderr since stdio mode logs there.
 		oldStderr := os.Stderr
@@ -341,9 +341,9 @@ func TestMCPServerCommand(t *testing.T) {
 		execErr := cmd.Execute()
 
 		// Close stderr capture and read it.
-		stderrW.Close()
+		_ = stderrW.Close()
 		stderrBytes, _ := io.ReadAll(stderrR)
-		stderrR.Close()
+		_ = stderrR.Close()
 		stderrOutput := string(stderrBytes)
 
 		// The server should have printed the startup message to stderr.

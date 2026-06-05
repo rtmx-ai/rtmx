@@ -26,11 +26,11 @@ type WebhookAdapter struct {
 // NewWebhookAdapter creates a new outbound webhook adapter.
 func NewWebhookAdapter(cfg *config.WebhookAdapterConfig, opts ...AdapterOption) (*WebhookAdapter, error) {
 	if !cfg.Enabled {
-		return nil, fmt.Errorf("Webhook adapter is not enabled")
+		return nil, fmt.Errorf("webhook adapter is not enabled")
 	}
 
 	if cfg.URL == "" {
-		return nil, fmt.Errorf("Webhook URL is required")
+		return nil, fmt.Errorf("webhook URL is required")
 	}
 
 	options := applyOptions(opts)
@@ -38,11 +38,6 @@ func NewWebhookAdapter(cfg *config.WebhookAdapterConfig, opts ...AdapterOption) 
 	secret := ""
 	if cfg.SecretEnv != "" {
 		secret = options.getEnv(cfg.SecretEnv)
-	}
-
-	maxRetries := cfg.MaxRetries
-	if maxRetries < 0 {
-		maxRetries = 0
 	}
 
 	return &WebhookAdapter{

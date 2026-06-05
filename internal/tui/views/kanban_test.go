@@ -165,12 +165,11 @@ func TestTUIKanbanBoard(t *testing.T) {
 
 	t.Run("blocked_card_cannot_move_to_complete", func(t *testing.T) {
 		db, dbPath := testDB(t)
-		g := graph.NewGraph(db)
 
 		// Set REQ-MCP-002 to PARTIAL (its dep REQ-MCP-001 is also PARTIAL, not COMPLETE)
 		_ = db.Update("REQ-MCP-002", map[string]interface{}{"status": "PARTIAL"})
 		_ = db.Save(dbPath)
-		g = graph.NewGraph(db)
+		g := graph.NewGraph(db)
 
 		v := NewKanbanView(db, g, dbPath)
 		v.SetSize(120, 30)

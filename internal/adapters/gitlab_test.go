@@ -532,11 +532,12 @@ func TestGitLabBidirectionalSync(t *testing.T) {
 		callCount := 0
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			callCount++
-			if r.Method == "POST" {
+			switch r.Method {
+			case "POST":
 				_ = json.NewDecoder(r.Body).Decode(&createPayload)
 				w.WriteHeader(201)
 				_ = json.NewEncoder(w).Encode(GitLabIssue{IID: 50})
-			} else if r.Method == "PUT" {
+			case "PUT":
 				_ = json.NewDecoder(r.Body).Decode(&updatePayload)
 				_ = json.NewEncoder(w).Encode(GitLabIssue{IID: 50})
 			}

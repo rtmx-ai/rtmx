@@ -86,7 +86,7 @@ func (v *KanbanView) View() string {
 		if len(label) > colWidth {
 			label = label[:colWidth]
 		}
-		b.WriteString(fmt.Sprintf("%-*s", colWidth, label))
+		fmt.Fprintf(&b, "%-*s", colWidth, label)
 		if i < 3 {
 			b.WriteByte('|')
 		}
@@ -145,7 +145,7 @@ func (v *KanbanView) View() string {
 		b.WriteByte('\n')
 	}
 
-	b.WriteString(fmt.Sprintf("\n  m:move  h/l:columns  j/k:cards"))
+	b.WriteString("\n  m:move  h/l:columns  j/k:cards")
 	return b.String()
 }
 

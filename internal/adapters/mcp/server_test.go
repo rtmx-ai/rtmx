@@ -756,7 +756,7 @@ func TestMCPResponseSizeLogging(t *testing.T) {
 
 		// Parse bytes and tokens from log line
 		var logBytes, logTokens int
-		fmt.Sscanf(logLine, "[rtmx-mcp] tool=status bytes=%d tokens=%d", &logBytes, &logTokens)
+		_, _ = fmt.Sscanf(logLine, "[rtmx-mcp] tool=status bytes=%d tokens=%d", &logBytes, &logTokens)
 
 		if logBytes <= 0 {
 			t.Errorf("expected positive byte count, got %d", logBytes)

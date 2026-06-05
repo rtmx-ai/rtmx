@@ -216,7 +216,7 @@ func handleDashboardShell(db *database.Database) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_ = dashboard.RenderLayout(w, dashboard.LayoutData{
-			Title:      strings.Title(page),
+			Title:      titleCase(page),
 			ActivePage: page,
 			Content:    htmlFromString(content.String()),
 		})
@@ -594,3 +594,10 @@ func htmlFromString(s string) htmlSafe {
 }
 
 type htmlSafe = dashboard.HTMLContent
+
+func titleCase(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}

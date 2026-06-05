@@ -59,7 +59,7 @@ func TestDashboardSPAEmbed(t *testing.T) {
 		if err != nil {
 			t.Fatalf("StaticFS cannot open app.js: %v", err)
 		}
-		f.Close()
+		_ = f.Close()
 	})
 
 	t.Run("layout_renders_html", func(t *testing.T) {

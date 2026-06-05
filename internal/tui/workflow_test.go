@@ -179,7 +179,7 @@ func TestWorkflowStatusSortAndNavigate(t *testing.T) {
 	}
 
 	// Step 5: navigate up with 'k'.
-	m = sendKeys(t, m, keyRune('k'))
+	_ = sendKeys(t, m, keyRune('k'))
 	if sv.Cursor() != 2 {
 		t.Errorf("cursor after k = %d, want 2", sv.Cursor())
 	}

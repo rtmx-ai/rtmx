@@ -49,7 +49,7 @@ type MondayColumnValue struct {
 // NewMondayAdapter creates a new Monday.com adapter.
 func NewMondayAdapter(cfg *config.MondayAdapterConfig, opts ...AdapterOption) (*MondayAdapter, error) {
 	if !cfg.Enabled {
-		return nil, fmt.Errorf("Monday adapter is not enabled")
+		return nil, fmt.Errorf("monday adapter is not enabled")
 	}
 
 	options := applyOptions(opts)
@@ -59,7 +59,7 @@ func NewMondayAdapter(cfg *config.MondayAdapterConfig, opts ...AdapterOption) (*
 	}
 	token := options.getEnv(tokenEnv)
 	if token == "" {
-		return nil, fmt.Errorf("Monday token not found. Set %s environment variable", tokenEnv)
+		return nil, fmt.Errorf("monday token not found; set %s environment variable", tokenEnv)
 	}
 
 	return &MondayAdapter{

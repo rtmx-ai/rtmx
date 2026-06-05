@@ -62,7 +62,7 @@ func (v *BacklogView) View() string {
 	blocking := v.graph.BlockingAnalysis()
 	var b strings.Builder
 
-	b.WriteString(fmt.Sprintf("  Backlog: %d incomplete requirements\n\n", len(v.items)))
+	fmt.Fprintf(&b, "  Backlog: %d incomplete requirements\n\n", len(v.items))
 
 	header := fmt.Sprintf("  %-16s %-10s %-8s %6s %6s  %s",
 		"REQ ID", "STATUS", "PRI", "EFFORT", "BLOCKS", "DESCRIPTION")

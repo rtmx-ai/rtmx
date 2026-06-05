@@ -60,15 +60,15 @@ func (v *GraphView) View() string {
 	}
 
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("  Dependency Graph: %d nodes, %d edges, %d layers\n\n",
-		stats["nodes"], stats["edges"], len(v.layers)))
+	fmt.Fprintf(&b, "  Dependency Graph: %d nodes, %d edges, %d layers\n\n",
+		stats["nodes"], stats["edges"], len(v.layers))
 
 	for i, layer := range v.layers {
 		prefix := "  "
 		if i == v.cursor {
 			prefix = "> "
 		}
-		b.WriteString(fmt.Sprintf("%sLayer %d: ", prefix, i))
+		fmt.Fprintf(&b, "%sLayer %d: ", prefix, i)
 
 		var nodeStrs []string
 		for _, id := range layer {
@@ -87,7 +87,7 @@ func (v *GraphView) View() string {
 		b.WriteByte('\n')
 	}
 
-	b.WriteString(fmt.Sprintf("\n  * = critical path | %d independent webs", len(v.graph.DetectWebs())))
+	fmt.Fprintf(&b, "\n  * = critical path | %d independent webs", len(v.graph.DetectWebs()))
 
 	return b.String()
 }

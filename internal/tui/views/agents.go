@@ -68,8 +68,8 @@ func (v *AgentsView) View() string {
 		agents[c.AgentID] = true
 	}
 
-	b.WriteString(fmt.Sprintf("  Agent Claims: %d active, %d stale, %d agents\n\n",
-		len(v.claims), staleCount, len(agents)))
+	fmt.Fprintf(&b, "  Agent Claims: %d active, %d stale, %d agents\n\n",
+		len(v.claims), staleCount, len(agents))
 
 	if len(v.claims) == 0 {
 		b.WriteString("  No active claims.")
