@@ -1,0 +1,48 @@
+<div class="space-y-4">
+  <h2 class="text-2xl font-bold">Release Planning</h2>
+
+  {{range .Versions}}
+  <div class="card">
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-3">
+        <h3 class="text-lg font-semibold">{{.Version}}</h3>
+        {{if .GatePass}}
+        <span class="badge" style="background: #16a34a; color: white;">Gate: PASS</span>
+        {{else}}
+        <span class="badge" style="background: #dc2626; color: white;">Gate: FAIL</span>
+        {{end}}
+      </div>
+      <span class="text-sm text-gray-500">{{.Complete}}/{{.Total}} ({{.Percent}}%)</span>
+    </div>
+    <div class="progress-bar mb-3">
+      <div class="progress-fill" style="width: {{.Percent}}%"></div>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Status</th>
+          <th>Priority</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Requirements}}
+        <tr hx-get="/partials/detail/{{.ReqID}}" hx-target="#content" style="cursor: pointer;">
+          <td class="font-mono text-sm">{{.ReqID}}</td>
+          <td><span class="badge badge-{{.StatusClass}}">{{.Status}}</span></td>
+          <td>{{.Priority}}</td>
+          <td>{{.Description}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+
+  {{if not .Versions}}
+  <div class="card text-center text-gray-400">
+    No versions assigned. Use <code>rtmx release assign</code> to assign requirements to versions.
+  </div>
+  {{end}}
+</div>

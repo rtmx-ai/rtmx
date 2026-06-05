@@ -1,0 +1,53 @@
+<div class="space-y-4">
+  <h2 class="text-2xl font-bold">Health Dashboard</h2>
+
+  <div class="grid grid-cols-3 gap-4">
+    <div class="card text-center">
+      <div class="text-3xl font-bold" style="color: #16a34a;">{{.Percent}}%</div>
+      <div class="text-sm text-gray-500">Completion Rate</div>
+    </div>
+    <div class="card text-center">
+      <div class="text-3xl font-bold" style="color: #3b82f6;">{{.Velocity}}</div>
+      <div class="text-sm text-gray-500">Reqs/Week (30d avg)</div>
+    </div>
+    <div class="card text-center">
+      <div class="text-3xl font-bold" style="color: #d97706;">{{.BlockedCount}}</div>
+      <div class="text-sm text-gray-500">Blocked Items</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 class="text-lg font-semibold mb-4">Completion Trend</h3>
+    <div id="trend-chart" style="width: 100%; height: 300px;">
+      <canvas id="burnup-canvas"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 class="text-lg font-semibold mb-4">Health Checks</h3>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Check</th>
+          <th>Status</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Checks}}
+        <tr>
+          <td class="font-medium">{{.Name}}</td>
+          <td>
+            {{if .Pass}}
+            <span style="color: #16a34a;">PASS</span>
+            {{else}}
+            <span style="color: #dc2626;">FAIL</span>
+            {{end}}
+          </td>
+          <td class="text-sm text-gray-500">{{.Detail}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</div>

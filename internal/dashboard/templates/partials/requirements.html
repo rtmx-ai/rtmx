@@ -1,0 +1,63 @@
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <h2 class="text-2xl font-bold">Requirements</h2>
+    <div class="flex gap-2">
+      <input type="text" placeholder="Search..." class="border rounded px-3 py-1.5 text-sm"
+             hx-get="/partials/requirements" hx-target="#content" hx-trigger="keyup changed delay:300ms"
+             name="search">
+      <select name="status" class="border rounded px-3 py-1.5 text-sm"
+              hx-get="/partials/requirements" hx-target="#content" hx-trigger="change"
+              hx-include="[name='search'],[name='category']">
+        <option value="">All Status</option>
+        <option value="COMPLETE">Complete</option>
+        <option value="PARTIAL">Partial</option>
+        <option value="MISSING">Missing</option>
+        <option value="NOT_STARTED">Not Started</option>
+      </select>
+      <select name="category" class="border rounded px-3 py-1.5 text-sm"
+              hx-get="/partials/requirements" hx-target="#content" hx-trigger="change"
+              hx-include="[name='search'],[name='status']">
+        <option value="">All Categories</option>
+        {{range .Categories}}
+        <option value="{{.}}">{{.}}</option>
+        {{end}}
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th hx-get="/partials/requirements?sort=req_id" hx-target="#content">ID</th>
+          <th hx-get="/partials/requirements?sort=status" hx-target="#content">Status</th>
+          <th hx-get="/partials/requirements?sort=priority" hx-target="#content">Priority</th>
+          <th hx-get="/partials/requirements?sort=category" hx-target="#content">Category</th>
+          <th>Description</th>
+          <th hx-get="/partials/requirements?sort=effort_weeks" hx-target="#content">Effort</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Requirements}}
+        <tr hx-get="/partials/detail/{{.ReqID}}" hx-target="#content" hx-push-url="/requirements/{{.ReqID}}" style="cursor: pointer;">
+          <td class="font-mono text-sm">{{.ReqID}}</td>
+          <td><span class="badge badge-{{.StatusClass}}">{{.Status}}</span></td>
+          <td>{{.Priority}}</td>
+          <td>{{.Category}}</td>
+          <td>{{.Description}}</td>
+          <td>{{.Effort}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+
+    {{if .HasMore}}
+    <div class="mt-4 flex justify-center">
+      <button class="px-4 py-2 text-sm border rounded hover:bg-gray-50"
+              hx-get="/partials/requirements?page={{.NextPage}}" hx-target="#content">
+        Load More
+      </button>
+    </div>
+    {{end}}
+  </div>
+</div>

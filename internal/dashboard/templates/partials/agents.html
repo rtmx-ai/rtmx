@@ -1,0 +1,53 @@
+<div class="space-y-4">
+  <h2 class="text-2xl font-bold">Agent Monitor</h2>
+
+  <div class="grid grid-cols-3 gap-4">
+    <div class="card text-center">
+      <div class="text-3xl font-bold">{{.ActiveCount}}</div>
+      <div class="text-sm text-gray-500">Active Claims</div>
+    </div>
+    <div class="card text-center">
+      <div class="text-3xl font-bold" style="color: #d97706;">{{.StaleCount}}</div>
+      <div class="text-sm text-gray-500">Stale Claims</div>
+    </div>
+    <div class="card text-center">
+      <div class="text-3xl font-bold" style="color: #3b82f6;">{{.AgentCount}}</div>
+      <div class="text-sm text-gray-500">Unique Agents</div>
+    </div>
+  </div>
+
+  <div class="card" hx-get="/partials/agents" hx-trigger="every 10s" hx-target="#content">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Requirement</th>
+          <th>Agent</th>
+          <th>Claimed At</th>
+          <th>Status</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Claims}}
+        <tr>
+          <td class="font-mono text-sm">{{.ReqID}}</td>
+          <td>{{.AgentID}}</td>
+          <td class="text-sm text-gray-500">{{.ClaimedAt}}</td>
+          <td>
+            {{if .Stale}}
+            <span class="badge" style="background: #d97706; color: white;">STALE</span>
+            {{else}}
+            <span class="badge" style="background: #16a34a; color: white;">Active</span>
+            {{end}}
+          </td>
+          <td class="text-sm">{{.Description}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+
+    {{if not .Claims}}
+    <p class="text-center text-gray-400 py-8">No active agent claims.</p>
+    {{end}}
+  </div>
+</div>

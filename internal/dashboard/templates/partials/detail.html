@@ -1,0 +1,127 @@
+<div class="space-y-4">
+  <div class="flex items-center gap-4">
+    <button class="text-sm text-blue-600 hover:underline"
+            hx-get="/partials/requirements" hx-target="#content" hx-push-url="/requirements">
+      &larr; Back to Requirements
+    </button>
+    <h2 class="text-2xl font-bold">{{.ReqID}}</h2>
+    <span class="badge badge-{{.StatusClass}}">{{.Status}}</span>
+  </div>
+
+  <div class="grid grid-cols-2 gap-6">
+    <div class="card">
+      <h3 class="text-lg font-semibold mb-4">Details</h3>
+      <dl class="space-y-3">
+        <div>
+          <dt class="text-sm text-gray-500">Category</dt>
+          <dd class="font-medium">{{.Category}}</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-gray-500">Priority</dt>
+          <dd class="font-medium">{{.Priority}}</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-gray-500">Phase</dt>
+          <dd class="font-medium">{{.Phase}}</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-gray-500">Effort</dt>
+          <dd class="font-medium">{{.Effort}} weeks</dd>
+        </div>
+        <div>
+          <dt class="text-sm text-gray-500">Description</dt>
+          <dd>{{.Description}}</dd>
+        </div>
+        {{if .Notes}}
+        <div>
+          <dt class="text-sm text-gray-500">Notes</dt>
+          <dd>{{.Notes}}</dd>
+        </div>
+        {{end}}
+      </dl>
+    </div>
+
+    <div class="card" x-data="{editing: false}">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold">Editable Fields</h3>
+        <button @click="editing = !editing" class="text-sm text-blue-600 hover:underline"
+                x-text="editing ? 'Cancel' : 'Edit'"></button>
+      </div>
+      <form hx-patch="/api/requirements/{{.ReqID}}" hx-target="#content" hx-swap="innerHTML"
+            x-show="editing">
+        <div class="space-y-3">
+          <div>
+            <label class="text-sm text-gray-500">Status</label>
+            <select name="status" class="w-full border rounded px-3 py-1.5 text-sm">
+              <option value="NOT_STARTED" {{if eq .Status "NOT_STARTED"}}selected{{end}}>Not Started</option>
+              <option value="MISSING" {{if eq .Status "MISSING"}}selected{{end}}>Missing</option>
+              <option value="PARTIAL" {{if eq .Status "PARTIAL"}}selected{{end}}>Partial</option>
+              <option value="COMPLETE" {{if eq .Status "COMPLETE"}}selected{{end}}>Complete</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm text-gray-500">Assignee</label>
+            <input type="text" name="assignee" value="{{.Assignee}}" class="w-full border rounded px-3 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="text-sm text-gray-500">Notes</label>
+            <textarea name="notes" class="w-full border rounded px-3 py-1.5 text-sm" rows="3">{{.Notes}}</textarea>
+          </div>
+          <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+            Save Changes
+          </button>
+        </div>
+      </form>
+      <div x-show="!editing" class="space-y-3">
+        <div>
+          <dt class="text-sm text-gray-500">Status</dt>
+          <dd><span class="badge badge-{{.StatusClass}}">{{.Status}}</span></dd>
+        </div>
+        <div>
+          <dt class="text-sm text-gray-500">Assignee</dt>
+          <dd>{{if .Assignee}}{{.Assignee}}{{else}}<span class="text-gray-400">Unassigned</span>{{end}}</dd>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 gap-6">
+    <div class="card">
+      <h3 class="text-lg font-semibold mb-3">Upstream Dependencies ({{len .Upstream}})</h3>
+      {{if .Upstream}}
+      <ul class="space-y-1">
+        {{range .Upstream}}
+        <li class="flex items-center gap-2">
+          <span class="badge badge-{{.StatusClass}}">{{.Status}}</span>
+          <a href="#" class="text-blue-600 hover:underline font-mono text-sm"
+             hx-get="/partials/detail/{{.ReqID}}" hx-target="#content" hx-push-url="/requirements/{{.ReqID}}">
+            {{.ReqID}}
+          </a>
+        </li>
+        {{end}}
+      </ul>
+      {{else}}
+      <p class="text-gray-400 text-sm">No upstream dependencies</p>
+      {{end}}
+    </div>
+
+    <div class="card">
+      <h3 class="text-lg font-semibold mb-3">Downstream Dependents ({{len .Downstream}})</h3>
+      {{if .Downstream}}
+      <ul class="space-y-1">
+        {{range .Downstream}}
+        <li class="flex items-center gap-2">
+          <span class="badge badge-{{.StatusClass}}">{{.Status}}</span>
+          <a href="#" class="text-blue-600 hover:underline font-mono text-sm"
+             hx-get="/partials/detail/{{.ReqID}}" hx-target="#content" hx-push-url="/requirements/{{.ReqID}}">
+            {{.ReqID}}
+          </a>
+        </li>
+        {{end}}
+      </ul>
+      {{else}}
+      <p class="text-gray-400 text-sm">No downstream dependents</p>
+      {{end}}
+    </div>
+  </div>
+</div>

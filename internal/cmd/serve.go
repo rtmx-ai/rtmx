@@ -4,9 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/database"
+	"github.com/rtmx-ai/rtmx/internal/graph"
 	"github.com/rtmx-ai/rtmx/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -63,7 +67,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load database: %w", err)
 	}
 
-	mux := NewDashboardMux(db, cfg)
+	mux := NewDashboardMuxWithPath(db, cfg, dbPath)
 
 	addr := fmt.Sprintf(":%d", servePort)
 	cmd.Printf("Starting RTMX dashboard on http://localhost%s\n", addr)
@@ -80,7 +84,19 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 // NewDashboardMux creates an HTTP handler for the RTMX web dashboard.
 func NewDashboardMux(db *database.Database, cfg *config.Config) http.Handler {
+	return NewDashboardMuxWithPath(db, cfg, "")
+}
+
+// NewDashboardMuxWithPath creates an HTTP handler with an explicit database path for persistence.
+func NewDashboardMuxWithPath(db *database.Database, cfg *config.Config, dbPath string) http.Handler {
 	mux := http.NewServeMux()
+	mu := &sync.Mutex{} // protects writes to db
+
+	// Derive claims dir from dbPath
+	claimsDir := ""
+	if dbPath != "" {
+		claimsDir = filepath.Join(filepath.Dir(dbPath), "claims")
+	}
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -105,10 +121,22 @@ func NewDashboardMux(db *database.Database, cfg *config.Config) http.Handler {
 			len(reqs), complete, partial, missing)
 	})
 
+	mux.HandleFunc("/api/requirements", handleAPIRequirements(db))
+	mux.HandleFunc("/api/requirements/", handleAPIRequirementDetail(db, dbPath, mu))
+	mux.HandleFunc("/api/graph", handleAPIGraph(db))
+	mux.HandleFunc("/api/backlog", handleAPIBacklog(db))
+	mux.HandleFunc("/api/releases", handleAPIReleases(db))
+	mux.HandleFunc("/api/releases/", handleAPIReleaseDetail(db))
+	mux.HandleFunc("/api/agents/claims", handleAPIAgentClaims(db, claimsDir, 15*time.Minute))
+
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = fmt.Fprintf(w, `{"status":"ok"}`)
 	})
+
+	// Dashboard SPA and partials
+	g := graph.NewGraph(db)
+	registerDashboardRoutes(mux, db, g)
 
 	return mux
 }
