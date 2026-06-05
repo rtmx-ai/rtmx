@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
 
@@ -558,13 +557,10 @@ func (j *JiraAdapter) MapStatusFromRTMX(status database.Status) string {
 
 // issueToItem converts a Jira issue to an ExternalItem
 func (j *JiraAdapter) issueToItem(issue JiraIssue) ExternalItem {
-	// Extract requirement ID from description
-	reqID := ""
-	if issue.Fields.Description != "" {
-		re := regexp.MustCompile(`(?:RTMX:|REQ-)\s*(REQ-[A-Z]+-\d+)`)
-		if matches := re.FindStringSubmatch(issue.Fields.Description); len(matches) > 1 {
-			reqID = matches[1]
-		}
+	// Extract requirement ID from description, then summary
+	reqID := ExtractReqID(issue.Fields.Description)
+	if reqID == "" {
+		reqID = ExtractReqID(issue.Fields.Summary)
 	}
 
 	// Extract assignee

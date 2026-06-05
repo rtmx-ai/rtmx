@@ -321,13 +321,10 @@ func (g *GitHubAdapter) MapStatusFromRTMX(status database.Status) string {
 
 // issueToItem converts a GitHub issue to an ExternalItem
 func (g *GitHubAdapter) issueToItem(issue GitHubIssue) ExternalItem {
-	// Extract requirement ID from body
-	reqID := ""
-	if issue.Body != "" {
-		re := regexp.MustCompile(`(?:RTMX:|REQ-)\s*(REQ-[A-Z]+-\d+)`)
-		if matches := re.FindStringSubmatch(issue.Body); len(matches) > 1 {
-			reqID = matches[1]
-		}
+	// Extract requirement ID from body, then title
+	reqID := ExtractReqID(issue.Body)
+	if reqID == "" {
+		reqID = ExtractReqID(issue.Title)
 	}
 
 	// Extract labels
