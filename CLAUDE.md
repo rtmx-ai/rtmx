@@ -39,6 +39,12 @@ rtmx/
 │   ├── graph/          # Tarjan's SCC, topological sort, critical path
 │   ├── output/         # Tables, colors, progress bars
 │   ├── adapters/       # GitHub, Jira, MCP integrations
+│   ├── tui/            # Bubble Tea interactive terminal UI
+│   │   └── views/      # TUI view models (table, detail, graph, kanban, agents)
+│   ├── dashboard/      # Embedded web assets (HTML/CSS/JS via embed.FS)
+│   │   ├── static/     # JS (htmx, Alpine, D3), CSS (Tailwind)
+│   │   └── templates/  # HTML layout and partials
+│   ├── orchestration/  # Multi-agent coordination (claims, heartbeat)
 │   └── sync/           # CRDT sync and remotes
 ├── pkg/rtmx/           # Public API for Go integration
 └── testdata/           # Golden files and fixtures
@@ -51,6 +57,31 @@ rtmx/
 3. **No CGO** - Pure Go for static binary distribution
 4. **Internal packages** - Implementation details not exported
 5. **Golden file tests** - Ensure output parity with Python CLI
+6. **Bubble Tea for TUI** - charmbracelet/bubbletea Model-View-Update architecture
+7. **htmx + Alpine.js for GUI** - Server-rendered HTML-over-the-wire, no Node.js
+8. **embed.FS for web assets** - Single binary deployment, zero external dependencies
+
+## Required Skills for Domain Work
+
+**MANDATORY: Invoke the appropriate skill BEFORE writing any code in these domains.**
+
+| Domain | Skill | Trigger |
+|--------|-------|---------|
+| Terminal UI | `/tui-dev` | Any work on `internal/tui/`, REQ-TUI-*, Bubble Tea models |
+| Web Dashboard | `/gui-dev` | Any work on `internal/dashboard/`, REQ-DASH-*, htmx partials, embedded SPA |
+
+These skills encode the correct persona, architecture, BDD+TDD methodology,
+testing patterns, and dependency isolation rules for each domain. Skipping
+the skill leads to incorrect patterns (e.g., testing TUI via real terminal
+instead of model tests, or introducing Node.js tooling into the GUI).
+
+### Dependency Isolation
+
+- `internal/tui/` may import: `database`, `graph`, `orchestration`, `config`
+- `internal/tui/` must NOT import: `cmd`, `adapters`, `sync`, `dashboard`
+- `internal/dashboard/` contains ONLY static assets (HTML/CSS/JS)
+- Bubble Tea deps (bubbletea, bubbles, lipgloss) must NOT leak into non-TUI packages
+- No npm, no Node.js, no JavaScript bundler -- all web assets are static files in embed.FS
 
 ## Development Workflow
 

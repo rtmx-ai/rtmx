@@ -1,0 +1,60 @@
+<div class="space-y-4">
+  <h2 class="text-2xl font-bold">Kanban Board</h2>
+
+  <div class="grid grid-cols-4 gap-4" x-data="kanbanBoard()">
+    {{range .Columns}}
+    <div class="kanban-column" data-status="{{.Status}}"
+         @dragover.prevent="dragOver($event)" @drop="drop($event, '{{.Status}}')">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-sm">{{.Label}}</h3>
+        <span class="text-xs text-gray-500">{{.Count}}</span>
+      </div>
+      {{range .Cards}}
+      <div class="kanban-card pri-{{.PriorityClass}}" draggable="true"
+           data-req-id="{{.ReqID}}"
+           @dragstart="dragStart($event, '{{.ReqID}}')"
+           @dragend="dragEnd($event)">
+        <div class="font-mono text-xs text-gray-500">{{.ReqID}}</div>
+        <div class="text-sm mt-1">{{.Description}}</div>
+        <div class="flex items-center gap-2 mt-2">
+          <span class="badge badge-{{.StatusClass}}">{{.Status}}</span>
+          {{if .Blocked}}<span class="text-xs text-red-600">[Blocked]</span>{{end}}
+        </div>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+</div>
+
+<script>
+function kanbanBoard() {
+  return {
+    draggedId: null,
+    dragStart: function(e, reqId) {
+      this.draggedId = reqId;
+      e.target.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    },
+    dragEnd: function(e) {
+      e.target.classList.remove('dragging');
+      this.draggedId = null;
+    },
+    dragOver: function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    },
+    drop: function(e, status) {
+      e.preventDefault();
+      if (!this.draggedId) return;
+      htmx.ajax('PATCH', '/api/requirements/' + this.draggedId, {
+        values: {status: status},
+        target: '#content',
+        swap: 'innerHTML'
+      }).then(function() {
+        htmx.ajax('GET', '/partials/kanban', {target: '#content', swap: 'innerHTML'});
+      });
+    }
+  };
+}
+</script>

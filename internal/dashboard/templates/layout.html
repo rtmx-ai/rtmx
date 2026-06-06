@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}} - RTMX Dashboard</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.17/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen" x-data="rtmxApp()">
+  <nav class="bg-gray-900 text-white px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-6">
+      <span class="font-bold text-lg tracking-tight">RTMX</span>
+      <a href="/" class="nav-link" :class="{'nav-active': page === 'status'}"
+         @click.prevent="navigate('status')" hx-get="/partials/status" hx-target="#content" hx-push-url="/">Status</a>
+      <a href="/requirements" class="nav-link" :class="{'nav-active': page === 'requirements'}"
+         @click.prevent="navigate('requirements')" hx-get="/partials/requirements" hx-target="#content" hx-push-url="/requirements">Requirements</a>
+      <a href="/graph" class="nav-link" :class="{'nav-active': page === 'graph'}"
+         @click.prevent="navigate('graph')" hx-get="/partials/graph" hx-target="#content" hx-push-url="/graph">Graph</a>
+      <a href="/kanban" class="nav-link" :class="{'nav-active': page === 'kanban'}"
+         @click.prevent="navigate('kanban')" hx-get="/partials/kanban" hx-target="#content" hx-push-url="/kanban">Kanban</a>
+      <a href="/releases" class="nav-link" :class="{'nav-active': page === 'releases'}"
+         @click.prevent="navigate('releases')" hx-get="/partials/releases" hx-target="#content" hx-push-url="/releases">Releases</a>
+      <a href="/health" class="nav-link" :class="{'nav-active': page === 'health'}"
+         @click.prevent="navigate('health')" hx-get="/partials/health" hx-target="#content" hx-push-url="/health">Health</a>
+      <a href="/agents" class="nav-link" :class="{'nav-active': page === 'agents'}"
+         @click.prevent="navigate('agents')" hx-get="/partials/agents" hx-target="#content" hx-push-url="/agents">Agents</a>
+    </div>
+    <div class="text-sm text-gray-400" id="connection-status">
+      <span x-show="connected" class="text-green-400">Connected</span>
+      <span x-show="!connected" class="text-red-400">Disconnected</span>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-6 py-6">
+    <div id="content">
+      {{.Content}}
+    </div>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

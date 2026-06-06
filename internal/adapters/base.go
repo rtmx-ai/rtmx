@@ -2,8 +2,25 @@
 package adapters
 
 import (
+	"regexp"
+
 	"github.com/rtmx-ai/rtmx/internal/database"
 )
+
+// reqIDRegex matches REQ-<CATEGORY>-<NUMBER> where CATEGORY is uppercase
+// alphanumeric (e.g., CLI, MCP, E2E, V2, K8S). The first character must
+// be a letter; subsequent characters may include digits.
+var reqIDRegex = regexp.MustCompile(`REQ-[A-Z][A-Z0-9]*-\d+`)
+
+// ExtractReqID finds the first RTMX requirement ID in text.
+// It handles bracketed titles ([REQ-CLI-001]), RTMX: prefixes,
+// and bare inline mentions.
+func ExtractReqID(text string) string {
+	if m := reqIDRegex.FindString(text); m != "" {
+		return m
+	}
+	return ""
+}
 
 // ServiceAdapter defines the interface for external service adapters
 type ServiceAdapter interface {

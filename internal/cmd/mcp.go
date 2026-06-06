@@ -17,6 +17,7 @@ var (
 	mcpPort  int
 	mcpHost  string
 	mcpStdio bool
+	mcpQuiet bool
 )
 
 var mcpServerCmd = &cobra.Command{
@@ -59,6 +60,7 @@ func init() {
 	mcpServerCmd.Flags().IntVar(&mcpPort, "port", 0, "port to listen on (default: from config or 3000)")
 	mcpServerCmd.Flags().StringVar(&mcpHost, "host", "", "host to bind to (default: from config or localhost)")
 	mcpServerCmd.Flags().BoolVar(&mcpStdio, "stdio", false, "use stdin/stdout transport (for Claude Code, Cursor)")
+	mcpServerCmd.Flags().BoolVar(&mcpQuiet, "quiet", false, "suppress response size logging to stderr")
 
 	rootCmd.AddCommand(mcpServerCmd)
 }
@@ -93,7 +95,7 @@ func runMCPServer(cmd *cobra.Command, args []string) error {
 		port = 3000
 	}
 
-	srv := mcp.NewServer(dbPath, cfg, mcp.WithHost(host), mcp.WithPort(port))
+	srv := mcp.NewServer(dbPath, cfg, mcp.WithHost(host), mcp.WithPort(port), mcp.WithQuiet(mcpQuiet))
 
 	if mcpStdio {
 		// stdio transport: JSON-RPC over stdin/stdout

@@ -1,12 +1,12 @@
 language: rust
 exemplar:
-  repo: internal/rust-exemplar
-  ref: v0.0.1-alpha
+  repo: rtmx-ai/aegis-cli
+  ref: v0.1.3
   license: Apache-2.0
 clone_depth: 1
 marker_patch: patches/rust/aegis-cli.patch
-expected_markers: 30
+expected_markers: 45
 scan_command: rtmx from-tests --show-all .
-verify_command: cargo test --workspace
+# verify_command requires Rust toolchain; skip until benchmark workflow installs rustup
 timeout_minutes: 15
 expected_build_file: Cargo.toml

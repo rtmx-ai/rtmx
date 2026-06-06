@@ -180,7 +180,7 @@ func TestBenchmarkFramework(t *testing.T) {
 				t.Errorf("LoadConfig(%s) error: %v", filepath.Base(cfgPath), err)
 				continue
 			}
-			if cfg.ExpectedBuildFile == "" {
+			if cfg.ExpectedBuildFile == "" || cfg.VerifyCommand == "" {
 				continue
 			}
 

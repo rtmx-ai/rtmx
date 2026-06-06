@@ -34,6 +34,10 @@ rtmx:
     22: "Release Planning"
     23: "Forecasting"
     24: "Attribution"
+    25: "REST API Layer"
+    26: "Terminal UI"
+    27: "Adapter Integrations"
+    28: "Web Dashboard"
 
   # Version policy: maps requirement categories to semver increment levels.
   # The release gate checks that the proposed version bump is sufficient
@@ -67,6 +71,9 @@ rtmx:
       ORCH:       minor    # orchestration commands
       INTEGRITY:  patch    # integrity checks
       LANG:       minor    # language extension support
+      API:        minor    # REST API endpoints
+      TUI:        minor    # terminal UI changes
+      DASH:       minor    # web dashboard changes
 
     subcategories:
       CLI/Foundation:      major    # foundational CLI changes
@@ -76,3 +83,6 @@ rtmx:
       PLAN/Automation:     patch    # internal automation
       PLAN/Versioning:     minor    # versioning policy
       SECURITY/ZeroTrust:  minor    # new security features
+      DASH/Security:       minor    # auth middleware
+      DASH/Realtime:       minor    # WebSocket features
+      ADAPT/Webhook:       patch    # generic webhook adapter

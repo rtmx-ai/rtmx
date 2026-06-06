@@ -1,0 +1,64 @@
+<div class="space-y-6">
+  <h2 class="text-2xl font-bold">Project Status</h2>
+
+  <div class="grid grid-cols-4 gap-4">
+    <div class="card text-center">
+      <div class="text-3xl font-bold" style="color: #16a34a;">{{.Complete}}</div>
+      <div class="text-sm text-gray-500">Complete</div>
+    </div>
+    <div class="card text-center">
+      <div class="text-3xl font-bold" style="color: #d97706;">{{.Partial}}</div>
+      <div class="text-sm text-gray-500">Partial</div>
+    </div>
+    <div class="card text-center">
+      <div class="text-3xl font-bold" style="color: #dc2626;">{{.Missing}}</div>
+      <div class="text-sm text-gray-500">Missing</div>
+    </div>
+    <div class="card text-center">
+      <div class="text-3xl font-bold">{{.Total}}</div>
+      <div class="text-sm text-gray-500">Total</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-sm font-medium">Overall Progress</span>
+      <span class="text-sm text-gray-500">{{.Percent}}%</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" style="width: {{.Percent}}%"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 class="text-lg font-semibold mb-4">Categories</h3>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Complete</th>
+          <th>Partial</th>
+          <th>Missing</th>
+          <th>Total</th>
+          <th>Progress</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Categories}}
+        <tr>
+          <td class="font-medium">{{.Name}}</td>
+          <td>{{.Complete}}</td>
+          <td>{{.Partial}}</td>
+          <td>{{.Missing}}</td>
+          <td>{{.Total}}</td>
+          <td>
+            <div class="progress-bar" style="width: 100px;">
+              <div class="progress-fill" style="width: {{.Percent}}%"></div>
+            </div>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</div>
