@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
@@ -271,6 +272,31 @@ func TestSlackSlashCommands(t *testing.T) {
 			t.Fatalf("response is not valid JSON: %v", err)
 		}
 	})
+}
+
+func TestSlackRouteReachableViaMux(t *testing.T) {
+	rtmx.Req(t, "REQ-ADAPT-011")
+
+	db := testDBForDashboard(t)
+	cfg := &config.Config{}
+	mux := NewDashboardMuxWithPath(db, cfg, "")
+
+	body := "text=status&command=%2Frtmx"
+	req := httptest.NewRequest("POST", "/api/slack/command", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("GET /api/slack/command status = %d, want 200", rec.Code)
+	}
+	var resp slackResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("response is not valid JSON: %v", err)
+	}
+	if resp.Blocks[0].Text.Text != "RTMX Project Status" {
+		t.Errorf("header = %q, want RTMX Project Status", resp.Blocks[0].Text.Text)
+	}
 }
 
 // postSlackCommand sends a signed Slack slash command and decodes the response.

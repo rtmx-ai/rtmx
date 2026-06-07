@@ -69,6 +69,13 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	mux := NewDashboardMuxWithPath(db, cfg, dbPath)
 
+	// Apply auth middleware when --auth is set
+	handler := http.Handler(mux)
+	if serveAuth != "" {
+		apiKey := os.Getenv("RTMX_API_KEY")
+		handler = authMiddleware(authConfig{Mode: serveAuth, APIKey: apiKey})(mux)
+	}
+
 	addr := fmt.Sprintf(":%d", servePort)
 	cmd.Printf("Starting RTMX dashboard on http://localhost%s\n", addr)
 
@@ -79,7 +86,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		cmd.Printf("  Sync: %s\n", serveSyncURL)
 	}
 
-	return http.ListenAndServe(addr, mux)
+	return http.ListenAndServe(addr, handler)
 }
 
 // NewDashboardMux creates an HTTP handler for the RTMX web dashboard.
@@ -98,10 +105,7 @@ func NewDashboardMuxWithPath(db *database.Database, cfg *config.Config, dbPath s
 		claimsDir = filepath.Join(filepath.Dir(dbPath), "claims")
 	}
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = fmt.Fprint(w, dashboardHTML(db))
-	})
+	mux.HandleFunc("/", handleDashboardShell(db))
 
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -134,6 +138,10 @@ func NewDashboardMuxWithPath(db *database.Database, cfg *config.Config, dbPath s
 		_, _ = fmt.Fprintf(w, `{"status":"ok"}`)
 	})
 
+	// Slack slash command endpoint
+	slackSecret := os.Getenv("SLACK_SIGNING_SECRET")
+	mux.HandleFunc("/api/slack/command", handleSlackSlashCommand(db, slackSecret))
+
 	// Dashboard SPA and partials
 	g := graph.NewGraph(db)
 	registerDashboardRoutes(mux, db, g)
@@ -141,44 +149,3 @@ func NewDashboardMuxWithPath(db *database.Database, cfg *config.Config, dbPath s
 	return mux
 }
 
-func dashboardHTML(db *database.Database) string {
-	reqs := db.All()
-	complete, partial, missing := 0, 0, 0
-	for _, req := range reqs {
-		switch {
-		case req.IsComplete():
-			complete++
-		case req.Status == database.StatusPartial:
-			partial++
-		default:
-			missing++
-		}
-	}
-
-	return fmt.Sprintf(`<!DOCTYPE html>
-<html>
-<head><title>RTMX Dashboard</title>
-<style>
-body { font-family: system-ui, sans-serif; margin: 2rem; background: #f8f9fa; }
-.card { background: white; border-radius: 8px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-.stats { display: flex; gap: 2rem; }
-.stat { text-align: center; }
-.stat .value { font-size: 2rem; font-weight: bold; }
-.complete { color: #16a34a; }
-.partial { color: #d97706; }
-.missing { color: #dc2626; }
-</style>
-</head>
-<body>
-<h1>RTMX Dashboard</h1>
-<div class="card">
-<div class="stats">
-<div class="stat"><div class="value complete">%d</div><div>Complete</div></div>
-<div class="stat"><div class="value partial">%d</div><div>Partial</div></div>
-<div class="stat"><div class="value missing">%d</div><div>Missing</div></div>
-<div class="stat"><div class="value">%d</div><div>Total</div></div>
-</div>
-</div>
-</body>
-</html>`, complete, partial, missing, len(reqs))
-}

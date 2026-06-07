@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strings"
 
@@ -77,7 +78,7 @@ type graphPartialData struct {
 	EdgeCount  int
 	WebCount   int
 	Categories []string
-	GraphJSON  string
+	GraphJSON  template.JS
 }
 
 // kanbanData holds template data for the kanban partial.
@@ -349,6 +350,9 @@ func handlePartialGraph(db *database.Database, g *graph.Graph) http.HandlerFunc 
 			cats = append(cats, c)
 		}
 
+		// Apply category filter
+		filterCat := r.URL.Query().Get("category")
+
 		// Build JSON for D3
 		type gNode struct {
 			ID     string `json:"id"`
@@ -364,24 +368,44 @@ func handlePartialGraph(db *database.Database, g *graph.Graph) http.HandlerFunc 
 			Edges []gEdge `json:"edges"`
 		}
 		gData := gJSON{}
+		nodeSet := make(map[string]bool)
 		for _, req := range db.All() {
+			if filterCat != "" && req.Category != filterCat {
+				continue
+			}
+			nodeSet[req.ReqID] = true
 			gData.Nodes = append(gData.Nodes, gNode{
 				ID:     req.ReqID,
 				Status: string(req.Status),
 				Group:  req.Category,
 			})
+		}
+		for _, req := range db.All() {
+			if !nodeSet[req.ReqID] {
+				continue
+			}
 			for dep := range req.Dependencies {
-				gData.Edges = append(gData.Edges, gEdge{Source: dep, Target: req.ReqID})
+				if nodeSet[dep] {
+					gData.Edges = append(gData.Edges, gEdge{Source: dep, Target: req.ReqID})
+				}
 			}
 		}
 		graphJSON, _ := json.Marshal(gData)
 
+		// Use filtered counts when a category filter is applied
+		filteredNodes := len(gData.Nodes)
+		filteredEdges := len(gData.Edges)
+		if filterCat == "" {
+			filteredNodes = nodeCount
+			filteredEdges = edgeCount
+		}
+
 		data := graphPartialData{
-			NodeCount:  nodeCount,
-			EdgeCount:  edgeCount,
+			NodeCount:  filteredNodes,
+			EdgeCount:  filteredEdges,
 			WebCount:   len(g.DetectWebs()),
 			Categories: cats,
-			GraphJSON:  string(graphJSON),
+			GraphJSON:  template.JS(graphJSON),
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -437,22 +461,21 @@ func handlePartialKanban(db *database.Database, g *graph.Graph) http.HandlerFunc
 func handlePartialReleases(db *database.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Group by version/sprint
-		versions := make(map[string][]*database.Requirement)
-		var versionOrder []string
+		versionReqs := make(map[string][]*database.Requirement)
 		for _, req := range db.All() {
 			v := req.Sprint
 			if v == "" {
 				continue
 			}
-			if _, exists := versions[v]; !exists {
-				versionOrder = append(versionOrder, v)
-			}
-			versions[v] = append(versions[v], req)
+			versionReqs[v] = append(versionReqs[v], req)
 		}
+
+		// Sort versions by semver
+		versionOrder := db.Versions()
 
 		data := releasePageData{}
 		for _, v := range versionOrder {
-			reqs := versions[v]
+			reqs := versionReqs[v]
 			complete := 0
 			rows := make([]reqRowData, 0, len(reqs))
 			for _, req := range reqs {

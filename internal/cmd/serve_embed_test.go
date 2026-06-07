@@ -125,6 +125,27 @@ func TestDashboardSPAEmbed(t *testing.T) {
 		}
 	})
 
+	t.Run("root_route_serves_spa_shell", func(t *testing.T) {
+		db := testDBForDashboard(t)
+		cfg := &config.Config{}
+		mux := NewDashboardMuxWithPath(db, cfg, "")
+
+		req := httptest.NewRequest("GET", "/", nil)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("GET / status = %d, want 200", rec.Code)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "<!DOCTYPE html>") {
+			t.Error("/ should return full HTML page")
+		}
+		if !strings.Contains(body, "htmx.org") {
+			t.Error("/ should serve the SPA shell with htmx, not the old minimal dashboard")
+		}
+	})
+
 	t.Run("static_route_serves_css", func(t *testing.T) {
 		db := testDBForDashboard(t)
 		cfg := &config.Config{}

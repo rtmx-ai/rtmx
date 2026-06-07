@@ -88,6 +88,46 @@ func TestActualBump(t *testing.T) {
 	}
 }
 
+func TestCompare(t *testing.T) {
+	tests := []struct {
+		a, b string
+		want int
+	}{
+		{"v0.1.0", "v0.3.0", -1},
+		{"v0.3.0", "v1.0.0", -1},
+		{"v1.0.0", "v1.1.0", -1},
+		{"v1.1.0", "v1.2.0", -1},
+		{"v1.5.0", "v1.5.0", 0},
+		{"v2.0.0", "v1.9.9", 1},
+		{"v0.10.0", "v0.9.0", 1},
+		{"v1.0.0-rc1", "v1.0.0", -1},
+		{"v1.0.0", "v1.0.0-rc1", 1},
+	}
+
+	for _, tt := range tests {
+		name := tt.a + "_vs_" + tt.b
+		t.Run(name, func(t *testing.T) {
+			if got := CompareStrings(tt.a, tt.b); got != tt.want {
+				t.Errorf("CompareStrings(%q, %q) = %d, want %d", tt.a, tt.b, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCompareStringsWithInvalid(t *testing.T) {
+	// Invalid strings sort after valid versions
+	if got := CompareStrings("v1.0.0", "not-a-version"); got != -1 {
+		t.Errorf("valid vs invalid = %d, want -1", got)
+	}
+	if got := CompareStrings("not-a-version", "v1.0.0"); got != 1 {
+		t.Errorf("invalid vs valid = %d, want 1", got)
+	}
+	// Two invalid strings use lexicographic order
+	if got := CompareStrings("aaa", "bbb"); got != -1 {
+		t.Errorf("aaa vs bbb = %d, want -1", got)
+	}
+}
+
 func TestParseBumpLevel(t *testing.T) {
 	tests := []struct {
 		input string

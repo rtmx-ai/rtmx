@@ -25,11 +25,6 @@ func StaticFS() http.FileSystem {
 	return http.FS(sub)
 }
 
-// TemplateFS returns the embedded templates sub-filesystem.
-func TemplateFS() fs.FS {
-	sub, _ := fs.Sub(assets, "templates")
-	return sub
-}
 
 // HTMLContent is an alias for template.HTML to allow safe HTML injection.
 type HTMLContent = template.HTML
