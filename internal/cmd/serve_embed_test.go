@@ -126,6 +126,65 @@ func TestDashboardSPAEmbed(t *testing.T) {
 		}
 	})
 
+	// REQ-DASH-014: Toast container in layout.
+	t.Run("toast_container_in_layout", func(t *testing.T) {
+		rtmx.Req(t, "REQ-DASH-014")
+		var buf strings.Builder
+		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
+		html := buf.String()
+		if !strings.Contains(html, "toast-container") {
+			t.Error("layout must contain toast-container element")
+		}
+		if !strings.Contains(html, "toastManager()") {
+			t.Error("layout must reference toastManager Alpine component")
+		}
+		if !strings.Contains(html, "show-toast") {
+			t.Error("layout must listen for show-toast custom event")
+		}
+	})
+
+	// REQ-DASH-025: Detail panel container in layout.
+	t.Run("detail_panel_container_in_layout", func(t *testing.T) {
+		rtmx.Req(t, "REQ-DASH-025")
+		var buf strings.Builder
+		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
+		html := buf.String()
+		if !strings.Contains(html, "detail-panel") {
+			t.Error("layout must contain detail-panel element")
+		}
+		if !strings.Contains(html, "detail-panel-body") {
+			t.Error("layout must contain detail-panel-body for htmx target")
+		}
+		if !strings.Contains(html, "detail-panel-backdrop") {
+			t.Error("layout must contain backdrop overlay")
+		}
+		if !strings.Contains(html, "panelOpen") {
+			t.Error("layout must reference panelOpen Alpine state")
+		}
+	})
+
+	t.Run("command_palette_in_layout", func(t *testing.T) {
+		rtmx.Req(t, "REQ-DASH-031")
+		var buf strings.Builder
+		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
+		html := buf.String()
+		if !strings.Contains(html, "command-palette") {
+			t.Error("layout must contain command-palette element")
+		}
+		if !strings.Contains(html, "palette-input") {
+			t.Error("layout must contain palette-input for search")
+		}
+		if !strings.Contains(html, "palette-results") {
+			t.Error("layout must contain palette-results container")
+		}
+		if !strings.Contains(html, "palette-backdrop") {
+			t.Error("layout must contain palette backdrop")
+		}
+		if !strings.Contains(html, "paletteOpen") {
+			t.Error("layout must reference paletteOpen Alpine state")
+		}
+	})
+
 	t.Run("shell_route_serves_html", func(t *testing.T) {
 		db := testDBForDashboard(t)
 		cfg := &config.Config{}

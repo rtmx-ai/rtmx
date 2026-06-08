@@ -14,7 +14,9 @@
            data-req-id="{{.ReqID}}"
            @dragstart="dragStart($event, '{{.ReqID}}')"
            @dragend="dragEnd($event)">
-        <div class="req-id" style="font-size: 0.7rem;">{{.ReqID}}</div>
+        <div class="req-id" style="font-size: 0.7rem; cursor: pointer;"
+             hx-get="/partials/detail/{{.ReqID}}" hx-target="#detail-panel-body"
+             @click.stop>{{.ReqID}}</div>
         <div style="font-size: 0.8rem; margin-top: 0.25rem;">{{.Description}}</div>
         <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
           <span class="badge badge-{{.StatusClass}}">{{.Status}}</span>

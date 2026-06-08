@@ -347,6 +347,56 @@ select.form-input {
   fill: var(--rtmx-text-muted);
 }
 
+/* REQ-DASH-021: Sortable column headers */
+.sortable-header {
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sortable-header:hover {
+  color: var(--rtmx-emerald) !important;
+}
+
+.sort-active {
+  color: var(--rtmx-emerald) !important;
+}
+
+.sort-indicator {
+  font-size: 0.6rem;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+}
+
+/* REQ-DASH-017/018: Inline edit cells */
+.inline-edit-cell {
+  position: relative;
+}
+
+.inline-select,
+.inline-input {
+  background: var(--rtmx-bg-elevated);
+  border: 1px solid var(--rtmx-emerald);
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  color: var(--rtmx-text);
+  font-size: 0.8rem;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.inline-select:focus,
+.inline-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+}
+
+/* REQ-DASH-019: Inline edit loading state */
+.inline-edit-cell[data-loading] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 /* htmx loading indicator */
 .htmx-indicator {
   display: none;
@@ -371,3 +421,66 @@ a.content-link:hover {
   color: var(--rtmx-emerald-light);
   text-decoration: underline;
 }
+
+/* REQ-DASH-014: Toast notifications */
+.toast {
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--rtmx-bg-elevated);
+  border: 1px solid var(--rtmx-border);
+  color: var(--rtmx-text);
+  font-size: 0.875rem;
+  min-width: 240px;
+  max-width: 400px;
+  box-shadow: var(--rtmx-shadow);
+}
+
+.toast-success { border-left: 3px solid var(--rtmx-complete); }
+.toast-error   { border-left: 3px solid var(--rtmx-missing); }
+.toast-info    { border-left: 3px solid var(--rtmx-emerald); }
+
+.toast-enter {
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+.toast-leave {
+  transition: opacity 0.15s ease-in;
+}
+
+/* REQ-DASH-025/026: Detail panel */
+.panel-enter       { transition: transform 0.2s ease-out; }
+.panel-enter-start { transform: translateX(100%); }
+.panel-enter-end   { transform: translateX(0); }
+.panel-leave       { transition: transform 0.2s ease-in; }
+
+.backdrop-enter { transition: opacity 0.2s ease-out; }
+.backdrop-leave { transition: opacity 0.15s ease-in; }
+
+#detail-panel .card {
+  margin-bottom: 1rem;
+}
+
+/* REQ-DASH-031: Command palette */
+.palette-input {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--rtmx-border);
+  color: var(--rtmx-text);
+  font-size: 1rem;
+  font-family: var(--rtmx-font-body);
+  box-sizing: border-box;
+}
+
+.palette-input::placeholder {
+  color: var(--rtmx-text-dim);
+}
+
+.palette-input:focus {
+  outline: none;
+}
+
+.palette-enter       { transition: transform 0.15s ease-out, opacity 0.15s ease-out; }
+.palette-enter-start { transform: translateX(-50%) scale(0.95); opacity: 0; }
+.palette-enter-end   { transform: translateX(-50%) scale(1); opacity: 1; }
+.palette-leave       { transition: opacity 0.1s ease-in; }

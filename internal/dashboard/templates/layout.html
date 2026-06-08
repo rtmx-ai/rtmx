@@ -40,6 +40,48 @@
     </div>
   </main>
 
+  <!-- Toast notifications (REQ-DASH-014) -->
+  <div id="toast-container" x-data="toastManager()" @show-toast.window="add($event.detail)"
+       style="position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 100; display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none;">
+    <template x-for="toast in toasts" :key="toast.id">
+      <div class="toast" :class="'toast-' + toast.type"
+           x-show="toast.visible" x-transition:enter="toast-enter" x-transition:leave="toast-leave"
+           style="pointer-events: auto; cursor: pointer;" @click="remove(toast.id)">
+        <span x-text="toast.message"></span>
+      </div>
+    </template>
+  </div>
+
+  <!-- Detail panel (REQ-DASH-025) -->
+  <div id="detail-panel-backdrop" x-show="panelOpen" @click="panelOpen = false"
+       x-transition:enter="backdrop-enter" x-transition:leave="backdrop-leave"
+       style="position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 40;"></div>
+  <div id="detail-panel" x-show="panelOpen"
+       x-transition:enter="panel-enter" x-transition:enter-start="panel-enter-start" x-transition:enter-end="panel-enter-end"
+       x-transition:leave="panel-leave" x-transition:leave-start="panel-leave-end" x-transition:leave-end="panel-enter-start"
+       @keydown.escape.window="panelOpen = false"
+       style="position: fixed; top: 0; right: 0; bottom: 0; width: 480px; max-width: 50vw; z-index: 50; background: var(--rtmx-bg); border-left: 1px solid var(--rtmx-border); overflow-y: auto; padding: 1.5rem;">
+    <div id="detail-panel-body">
+    </div>
+  </div>
+
+  <!-- Command palette (REQ-DASH-031) -->
+  <div id="palette-backdrop" x-show="paletteOpen" @click="paletteOpen = false"
+       x-transition:enter="backdrop-enter" x-transition:leave="backdrop-leave"
+       style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 60;"></div>
+  <div id="command-palette" x-show="paletteOpen"
+       x-transition:enter="palette-enter" x-transition:enter-start="palette-enter-start" x-transition:enter-end="palette-enter-end"
+       x-transition:leave="palette-leave" x-transition:leave-start="palette-enter-end" x-transition:leave-end="palette-enter-start"
+       @keydown.escape="paletteOpen = false"
+       style="position: fixed; top: 20%; left: 50%; transform: translateX(-50%); width: 100%; max-width: 600px; z-index: 70; background: var(--rtmx-bg-card); border: 1px solid var(--rtmx-border); border-radius: 0.75rem; box-shadow: var(--rtmx-shadow-elevated); overflow: hidden;">
+    <input id="palette-input" type="text" placeholder="Search requirements..." class="palette-input"
+           x-ref="paletteInput"
+           hx-get="/api/requirements" hx-target="#palette-results" hx-trigger="keyup changed delay:150ms"
+           name="search">
+    <div id="palette-results" style="max-height: 320px; overflow-y: auto;">
+    </div>
+  </div>
+
   <script src="/static/app.js"></script>
 </body>
 </html>

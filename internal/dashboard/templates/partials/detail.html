@@ -92,7 +92,7 @@
         <li style="display: flex; align-items: center; gap: 0.5rem;">
           <span class="badge badge-{{.StatusClass}}">{{.Status}}</span>
           <a href="#" class="content-link req-id"
-             hx-get="/partials/detail/{{.ReqID}}" hx-target="#content" hx-push-url="/requirements/{{.ReqID}}">
+             hx-get="/partials/detail/{{.ReqID}}" hx-target="#detail-panel-body">
             {{.ReqID}}
           </a>
         </li>
@@ -111,7 +111,7 @@
         <li style="display: flex; align-items: center; gap: 0.5rem;">
           <span class="badge badge-{{.StatusClass}}">{{.Status}}</span>
           <a href="#" class="content-link req-id"
-             hx-get="/partials/detail/{{.ReqID}}" hx-target="#content" hx-push-url="/requirements/{{.ReqID}}">
+             hx-get="/partials/detail/{{.ReqID}}" hx-target="#detail-panel-body">
             {{.ReqID}}
           </a>
         </li>

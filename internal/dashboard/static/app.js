@@ -6,6 +6,9 @@ function rtmxApp() {
     page: 'status',
     connected: true,
     ws: null,
+    panelOpen: false,
+    panelReqId: '',
+    paletteOpen: false,
 
     init() {
       // Determine initial page from URL
@@ -21,10 +24,167 @@ function rtmxApp() {
         var p = window.location.pathname;
         this.page = (p === '/' || p === '') ? 'status' : p.replace(/^\//, '').split('/')[0];
       }.bind(this));
+
+      // REQ-DASH-031: Cmd+K / Ctrl+K opens command palette
+      window.addEventListener('keydown', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+          e.preventDefault();
+          this.paletteOpen = !this.paletteOpen;
+          if (this.paletteOpen) {
+            this.$nextTick(function() {
+              var input = document.getElementById('palette-input');
+              if (input) { input.value = ''; input.focus(); }
+            });
+          }
+        }
+      }.bind(this));
     },
 
     navigate(pageName) {
       this.page = pageName;
+    },
+
+    openPanel(reqId) {
+      this.panelReqId = reqId;
+      this.panelOpen = true;
+    },
+
+    closePanel() {
+      this.panelOpen = false;
+      this.panelReqId = '';
+    }
+  };
+}
+
+// REQ-DASH-014: Toast notification manager
+function toastManager() {
+  var nextId = 0;
+  return {
+    toasts: [],
+
+    add(detail) {
+      var id = ++nextId;
+      var toast = { id: id, type: detail.type || 'info', message: detail.message || '', visible: true };
+      this.toasts.push(toast);
+      // Max 5 visible
+      while (this.toasts.length > 5) {
+        this.toasts.shift();
+      }
+      // Auto-dismiss after 4 seconds
+      var self = this;
+      setTimeout(function() { self.remove(id); }, 4000);
+    },
+
+    remove(id) {
+      var idx = this.toasts.findIndex(function(t) { return t.id === id; });
+      if (idx >= 0) {
+        this.toasts[idx].visible = false;
+        var self = this;
+        setTimeout(function() {
+          self.toasts = self.toasts.filter(function(t) { return t.id !== id; });
+        }, 300);
+      }
+    }
+  };
+}
+
+// Global showToast helper
+function showToast(type, message) {
+  window.dispatchEvent(new CustomEvent('show-toast', { detail: { type: type, message: message } }));
+}
+
+// REQ-DASH-017: Inline select editor for status/priority cells
+function inlineSelect(reqId, field, currentValue) {
+  return {
+    editing: false,
+    loading: false,
+    original: currentValue,
+
+    startEdit() {
+      this.editing = true;
+      this.$nextTick(function() { this.$refs.input.focus(); }.bind(this));
+    },
+
+    save(newValue) {
+      if (newValue === this.original) {
+        this.editing = false;
+        return;
+      }
+      this.editing = false;
+      this.loading = true;
+      var self = this;
+      var body = {};
+      body[field] = newValue;
+      fetch('/api/requirements/' + reqId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(function(resp) {
+        self.loading = false;
+        if (resp.ok) {
+          htmx.ajax('GET', '/partials/requirements/row/' + reqId, { target: '#row-' + reqId, swap: 'outerHTML' });
+          showToast('success', 'Saved ' + reqId);
+        } else {
+          resp.json().then(function(data) {
+            showToast('error', data.error || 'Save failed');
+          });
+        }
+      }).catch(function() {
+        self.loading = false;
+        showToast('error', 'Network error');
+      });
+    },
+
+    cancel() {
+      this.editing = false;
+    }
+  };
+}
+
+// REQ-DASH-018: Inline text editor for assignee/sprint cells
+function inlineText(reqId, field, currentValue) {
+  return {
+    editing: false,
+    loading: false,
+    value: currentValue,
+    original: currentValue,
+
+    startEdit() {
+      this.editing = true;
+      this.$nextTick(function() { this.$refs.input.focus(); this.$refs.input.select(); }.bind(this));
+    },
+
+    save(newValue) {
+      this.editing = false;
+      if (newValue === this.original) return;
+      this.value = newValue;
+      this.original = newValue;
+      this.loading = true;
+      var self = this;
+      var body = {};
+      body[field] = newValue;
+      fetch('/api/requirements/' + reqId, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(function(resp) {
+        self.loading = false;
+        if (resp.ok) {
+          showToast('success', 'Saved ' + reqId);
+        } else {
+          resp.json().then(function(data) {
+            showToast('error', data.error || 'Save failed');
+          });
+        }
+      }).catch(function() {
+        self.loading = false;
+        showToast('error', 'Network error');
+      });
+    },
+
+    cancel() {
+      this.editing = false;
+      this.value = this.original;
     }
   };
 }
@@ -155,5 +315,11 @@ document.addEventListener('DOMContentLoaded', function() {
   document.body.addEventListener('htmx:afterRequest', function() {
     var indicator = document.getElementById('loading-indicator');
     if (indicator) indicator.style.display = 'none';
+  });
+
+  // REQ-DASH-015: Listen for showToast events from HX-Trigger headers
+  document.body.addEventListener('showToast', function(event) {
+    var detail = event.detail || {};
+    showToast(detail.type || 'info', detail.message || '');
   });
 });

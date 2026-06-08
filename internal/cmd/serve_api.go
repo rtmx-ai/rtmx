@@ -287,6 +287,12 @@ func writeAPIError(w http.ResponseWriter, status int, message string) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
+// writeAPIErrorWithToast writes a JSON error response with an HX-Trigger toast.
+func writeAPIErrorWithToast(w http.ResponseWriter, status int, message string) {
+	w.Header().Set("HX-Trigger", `{"showToast":{"type":"error","message":"`+message+`"}}`)
+	writeAPIError(w, status, message)
+}
+
 // writeJSON writes a JSON response with 200 OK.
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -434,20 +440,20 @@ var mutableFields = map[string]bool{
 func handleRequirementPatch(w http.ResponseWriter, r *http.Request, db *database.Database, dbPath string, reqID string, mu *sync.Mutex) {
 	req := db.Get(reqID)
 	if req == nil {
-		writeAPIError(w, http.StatusNotFound, "requirement not found: "+reqID)
+		writeAPIErrorWithToast(w, http.StatusNotFound, "requirement not found: "+reqID)
 		return
 	}
 
 	var body map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeAPIError(w, http.StatusBadRequest, "invalid JSON body")
+		writeAPIErrorWithToast(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
 
 	// Validate all fields are mutable
 	for key := range body {
 		if !mutableFields[key] {
-			writeAPIError(w, http.StatusBadRequest, "field not mutable: "+key)
+			writeAPIErrorWithToast(w, http.StatusBadRequest, "field not mutable: "+key)
 			return
 		}
 	}
@@ -456,11 +462,11 @@ func handleRequirementPatch(w http.ResponseWriter, r *http.Request, db *database
 	if v, ok := body["status"]; ok {
 		s, isStr := v.(string)
 		if !isStr {
-			writeAPIError(w, http.StatusBadRequest, "status must be a string")
+			writeAPIErrorWithToast(w, http.StatusBadRequest, "status must be a string")
 			return
 		}
 		if _, err := database.ParseStatus(s); err != nil {
-			writeAPIError(w, http.StatusBadRequest, "invalid status: "+s)
+			writeAPIErrorWithToast(w, http.StatusBadRequest, "invalid status: "+s)
 			return
 		}
 	}
@@ -469,11 +475,11 @@ func handleRequirementPatch(w http.ResponseWriter, r *http.Request, db *database
 	if v, ok := body["priority"]; ok {
 		s, isStr := v.(string)
 		if !isStr {
-			writeAPIError(w, http.StatusBadRequest, "priority must be a string")
+			writeAPIErrorWithToast(w, http.StatusBadRequest, "priority must be a string")
 			return
 		}
 		if _, err := database.ParsePriority(s); err != nil {
-			writeAPIError(w, http.StatusBadRequest, "invalid priority: "+s)
+			writeAPIErrorWithToast(w, http.StatusBadRequest, "invalid priority: "+s)
 			return
 		}
 	}
@@ -493,14 +499,17 @@ func handleRequirementPatch(w http.ResponseWriter, r *http.Request, db *database
 	}
 
 	if err := db.Update(reqID, body); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "update failed: "+err.Error())
+		writeAPIErrorWithToast(w, http.StatusInternalServerError, "update failed: "+err.Error())
 		return
 	}
 
 	if err := db.Save(dbPath); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "save failed: "+err.Error())
+		writeAPIErrorWithToast(w, http.StatusInternalServerError, "save failed: "+err.Error())
 		return
 	}
+
+	// REQ-DASH-015: Toast feedback via HX-Trigger header
+	w.Header().Set("HX-Trigger", `{"showToast":{"type":"success","message":"Saved `+reqID+`"}}`)
 
 	// Return updated requirement detail
 	updated := db.Get(reqID)

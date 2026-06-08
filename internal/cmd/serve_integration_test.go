@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/rtmx-ai/rtmx/internal/config"
+	"github.com/rtmx-ai/rtmx/internal/dashboard"
 	"github.com/rtmx-ai/rtmx/internal/database"
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
@@ -91,15 +92,15 @@ func TestHtmxPartialAttributes(t *testing.T) {
 		assertContains(t, body, `hx-get="/partials/requirements"`, "requirements should have hx-get for filtering")
 		assertContains(t, body, `hx-target="#content"`, "requirements should target #content div")
 		assertContains(t, body, `hx-trigger="change"`, "select filters should trigger on change")
-		assertContains(t, body, `hx-trigger="keyup changed delay:300ms"`, "search should have debounced trigger")
+		assertContains(t, body, `hx-trigger="keyup changed delay:200ms"`, "search should have debounced trigger")
 
-		// htmx row click-through to detail
+		// htmx row click-through to detail panel
 		assertContains(t, body, `hx-get="/partials/detail/REQ-CLI-001"`, "requirement row should link to detail partial")
-		assertContains(t, body, `hx-push-url=`, "requirement rows should push URL for browser history")
+		assertContains(t, body, `hx-target="#detail-panel-body"`, "requirement rows should target detail panel")
 
-		// Sortable column headers
-		assertContains(t, body, `hx-get="/partials/requirements?sort=status"`, "status column should be sortable via htmx")
-		assertContains(t, body, `hx-get="/partials/requirements?sort=priority"`, "priority column should be sortable via htmx")
+		// Sortable column headers (REQ-DASH-021)
+		assertContains(t, body, `sort=status&order=`, "status column should be sortable via htmx")
+		assertContains(t, body, `sort=priority&order=`, "priority column should be sortable via htmx")
 
 		// Data from test database
 		assertContains(t, body, "REQ-CLI-001", "requirements should contain REQ-CLI-001")
@@ -188,7 +189,7 @@ func TestHtmxPartialAttributes(t *testing.T) {
 
 		// Release rows should navigate to detail via htmx
 		assertContains(t, body, `hx-get="/partials/detail/`, "release rows should link to detail via htmx")
-		assertContains(t, body, `hx-target="#content"`, "release rows should target #content")
+		assertContains(t, body, `hx-target="#detail-panel-body"`, "release rows should target detail panel")
 
 		// Data from test DB (sprints assigned)
 		assertContains(t, body, "v1.0.0", "releases should show v1.0.0")
@@ -685,6 +686,396 @@ func TestDashboardIntegrationKanbanDragDrop(t *testing.T) {
 }
 
 // --------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// REQ-DASH-016: Row partial endpoint
+// --------------------------------------------------------------------------
+
+func TestRowPartialEndpoint(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-016")
+	db := integrationDB(t)
+	cfg := &config.Config{}
+	mux := NewDashboardMuxWithPath(db, cfg, "")
+
+	t.Run("returns_single_row_html", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements/row/REQ-CLI-001", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		body := rec.Body.String()
+		assertContains(t, body, "REQ-CLI-001", "row should contain req ID")
+		assertContains(t, body, "<tr", "row should be a table row element")
+		assertContains(t, body, "row-REQ-CLI-001", "row should have id attribute")
+	})
+
+	t.Run("returns_404_for_unknown", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements/row/REQ-NOPE", nil))
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("status = %d, want 404", rec.Code)
+		}
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-020: Partial sort and filter
+// --------------------------------------------------------------------------
+
+func TestPartialSortFilter(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-020")
+	db := integrationDB(t)
+	cfg := &config.Config{}
+	mux := NewDashboardMuxWithPath(db, cfg, "")
+
+	t.Run("filter_by_status", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements?status=COMPLETE", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "REQ-CLI-001", "should include COMPLETE requirement")
+		if strings.Contains(body, "REQ-MCP-001") {
+			t.Error("should not include PARTIAL requirement when filtering by COMPLETE")
+		}
+	})
+
+	t.Run("filter_by_category", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements?category=MCP", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "REQ-MCP-001", "should include MCP requirement")
+		if strings.Contains(body, "REQ-CLI-001") {
+			t.Error("should not include CLI requirement when filtering by MCP")
+		}
+	})
+
+	t.Run("filter_by_search", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements?search=registration", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "REQ-MCP-002", "should include requirement matching search text")
+	})
+
+	t.Run("sort_by_priority_desc", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements?sort=priority&order=desc", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		// Just verify it returns valid HTML without error
+		assertContains(t, rec.Body.String(), "Requirements", "should render the requirements page")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-015: HX-Trigger on PATCH
+// --------------------------------------------------------------------------
+
+func TestPatchToastTrigger(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-015")
+	db := integrationDB(t)
+	cfg := &config.Config{}
+	// Use a temp file so PATCH can save successfully
+	tmpFile := t.TempDir() + "/test_db.csv"
+	_ = db.Save(tmpFile)
+	mux := NewDashboardMuxWithPath(db, cfg, tmpFile)
+
+	t.Run("success_includes_hx_trigger", func(t *testing.T) {
+		body := strings.NewReader(`{"status":"COMPLETE"}`)
+		req := httptest.NewRequest("PATCH", "/api/requirements/REQ-MCP-002", body)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		trigger := rec.Header().Get("HX-Trigger")
+		if trigger == "" {
+			t.Error("PATCH success should include HX-Trigger header")
+		}
+		assertContains(t, trigger, "showToast", "HX-Trigger should contain showToast event")
+		assertContains(t, trigger, "success", "toast type should be success")
+	})
+
+	t.Run("error_includes_hx_trigger", func(t *testing.T) {
+		body := strings.NewReader(`{"status":"INVALID"}`)
+		req := httptest.NewRequest("PATCH", "/api/requirements/REQ-MCP-002", body)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		trigger := rec.Header().Get("HX-Trigger")
+		if trigger == "" {
+			t.Error("PATCH error should include HX-Trigger header")
+		}
+		assertContains(t, trigger, "error", "toast type should be error on validation failure")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-017: Inline edit dropdown cells
+// --------------------------------------------------------------------------
+
+func TestInlineEditDropdownCells(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-017")
+	db := integrationDB(t)
+	cfg := &config.Config{}
+	mux := NewDashboardMuxWithPath(db, cfg, "")
+
+	t.Run("status_cell_has_inline_select", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "inlineSelect(", "status cell should use inlineSelect Alpine component")
+		assertContains(t, body, `'status'`, "inline select should target status field")
+		assertContains(t, body, "inline-select", "select element should have inline-select class")
+	})
+
+	t.Run("priority_cell_has_inline_select", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements", nil))
+		body := rec.Body.String()
+		assertContains(t, body, `'priority'`, "inline select should target priority field")
+	})
+
+	t.Run("status_options_include_all_values", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements", nil))
+		body := rec.Body.String()
+		assertContains(t, body, `value="NOT_STARTED"`, "status select should include NOT_STARTED option")
+		assertContains(t, body, `value="MISSING"`, "status select should include MISSING option")
+		assertContains(t, body, `value="PARTIAL"`, "status select should include PARTIAL option")
+		assertContains(t, body, `value="COMPLETE"`, "status select should include COMPLETE option")
+	})
+
+	t.Run("row_partial_has_inline_select", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements/row/REQ-CLI-001", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "inlineSelect(", "row partial should include inlineSelect component")
+		assertContains(t, body, "inline-edit-cell", "row cells should have inline-edit-cell class")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-018: Inline edit text cells
+// --------------------------------------------------------------------------
+
+func TestInlineEditTextCells(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-018")
+	db := integrationDB(t)
+	cfg := &config.Config{}
+	mux := NewDashboardMuxWithPath(db, cfg, "")
+
+	t.Run("assignee_cell_has_inline_text", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "inlineText(", "assignee cell should use inlineText Alpine component")
+		assertContains(t, body, `'assignee'`, "inline text should target assignee field")
+		assertContains(t, body, "inline-input", "input element should have inline-input class")
+	})
+
+	t.Run("sprint_cell_has_inline_text", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements", nil))
+		body := rec.Body.String()
+		assertContains(t, body, `'sprint'`, "inline text should target sprint field")
+	})
+
+	t.Run("text_input_commits_on_blur_and_enter", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements", nil))
+		body := rec.Body.String()
+		assertContains(t, body, `@blur="save($el.value)"`, "text input should save on blur")
+		assertContains(t, body, `@keydown.enter="save($el.value)"`, "text input should save on Enter")
+		assertContains(t, body, `@keydown.escape="cancel()"`, "text input should cancel on Escape")
+	})
+
+	t.Run("row_partial_has_inline_text", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements/row/REQ-CLI-001", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "inlineText(", "row partial should include inlineText component")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-019: Inline edit cancel and loading
+// --------------------------------------------------------------------------
+
+func TestInlineEditCancelAndLoading(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-019")
+
+	js := dashboard.ReadStaticFile("app.js")
+
+	t.Run("escape_cancels_edit", func(t *testing.T) {
+		assertContains(t, js, "cancel()", "inline editors should have cancel method")
+		// Verify cancel restores original value for text editor
+		assertContains(t, js, "this.value = this.original", "cancel should revert to original value")
+	})
+
+	t.Run("loading_state_during_patch", func(t *testing.T) {
+		assertContains(t, js, "loading: false", "inline editors should track loading state")
+		assertContains(t, js, "this.loading = true", "save should set loading to true during PATCH")
+		assertContains(t, js, "self.loading = false", "loading should be cleared after PATCH completes")
+	})
+
+	t.Run("escape_keydown_wired_in_template", func(t *testing.T) {
+		db := integrationDB(t)
+		cfg := &config.Config{}
+		mux := NewDashboardMuxWithPath(db, cfg, "")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements", nil))
+		body := rec.Body.String()
+		assertContains(t, body, `@keydown.escape="cancel()"`, "inputs should wire Escape to cancel")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-021: Sortable column headers
+// --------------------------------------------------------------------------
+
+func TestSortableColumnHeaders(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-021")
+	db := integrationDB(t)
+	cfg := &config.Config{}
+	mux := NewDashboardMuxWithPath(db, cfg, "")
+
+	t.Run("default_sort_shows_req_id_asc", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "sort-active", "default sort column should have sort-active class")
+		assertContains(t, body, "sort-indicator", "headers should have sort-indicator span")
+		// Default is req_id asc, so the ID header should show up-arrow (&#9650; = unicode 9650)
+		assertContains(t, body, "&#9650;", "ascending sort should show up-arrow indicator")
+	})
+
+	t.Run("sort_desc_shows_down_arrow", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements?sort=priority&order=desc", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "&#9660;", "descending sort should show down-arrow indicator")
+	})
+
+	t.Run("headers_toggle_sort_direction", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements?sort=req_id&order=asc", nil))
+		body := rec.Body.String()
+		// When req_id is asc, clicking it should switch to desc
+		assertContains(t, body, `sort=req_id&order=desc`, "active asc column click should toggle to desc")
+	})
+
+	t.Run("headers_include_filter_state", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "sortable-header", "column headers should have sortable-header class")
+		assertContains(t, body, `hx-include`, "sort headers should include filter inputs")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-024: Search input with debounced query
+// --------------------------------------------------------------------------
+
+func TestTableSearchInput(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-024")
+	db := integrationDB(t)
+	cfg := &config.Config{}
+	mux := NewDashboardMuxWithPath(db, cfg, "")
+
+	t.Run("search_input_attributes", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements", nil))
+		body := rec.Body.String()
+		assertContains(t, body, `name="search"`, "search input should have name=search")
+		assertContains(t, body, `hx-trigger="keyup changed delay:200ms"`, "search should debounce at 200ms")
+		assertContains(t, body, `hx-get="/partials/requirements"`, "search should target partials endpoint")
+	})
+
+	t.Run("search_preserves_value", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements?search=registration", nil))
+		body := rec.Body.String()
+		assertContains(t, body, `value="registration"`, "search input should preserve current search value")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-026: Panel slide animation CSS
+// --------------------------------------------------------------------------
+
+func TestPanelSlideCSS(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-026")
+
+	css := dashboard.ReadStaticFile("styles.css")
+
+	t.Run("panel_transition_css", func(t *testing.T) {
+		assertContains(t, css, "panel-enter", "CSS should include panel-enter transition")
+		assertContains(t, css, "panel-leave", "CSS should include panel-leave transition")
+		assertContains(t, css, "translateX(100%)", "panel should slide from off-screen right")
+		assertContains(t, css, "translateX(0)", "panel should slide to visible position")
+	})
+
+	t.Run("backdrop_css", func(t *testing.T) {
+		assertContains(t, css, "backdrop-enter", "CSS should include backdrop-enter transition")
+		assertContains(t, css, "backdrop-leave", "CSS should include backdrop-leave transition")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-031: Command palette modal
+// --------------------------------------------------------------------------
+
+func TestPaletteModalTrigger(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-031")
+
+	t.Run("cmd_k_handler_in_js", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		assertContains(t, js, "e.metaKey", "Cmd+K handler should check metaKey")
+		assertContains(t, js, "e.ctrlKey", "Cmd+K handler should check ctrlKey")
+		assertContains(t, js, "e.key === 'k'", "handler should check for k key")
+		assertContains(t, js, "paletteOpen", "handler should toggle paletteOpen state")
+	})
+
+	t.Run("palette_css", func(t *testing.T) {
+		css := dashboard.ReadStaticFile("styles.css")
+		assertContains(t, css, "palette-input", "CSS should style the palette input")
+		assertContains(t, css, "palette-enter", "CSS should have palette enter transition")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-027: Req-id links open panel across views
+// --------------------------------------------------------------------------
+
+func TestReqIdLinksTargetPanel(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-027")
+	db := integrationDB(t)
+	cfg := &config.Config{}
+	mux := NewDashboardMuxWithPath(db, cfg, "")
+
+	t.Run("kanban_req_ids_target_panel", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/kanban", nil))
+		body := rec.Body.String()
+		assertContains(t, body, `hx-target="#detail-panel-body"`, "kanban req-id links should target detail panel")
+	})
+
+	t.Run("releases_rows_target_panel", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/releases", nil))
+		body := rec.Body.String()
+		assertContains(t, body, `hx-target="#detail-panel-body"`, "release rows should target detail panel")
+	})
+
+	t.Run("detail_dep_links_target_panel", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/detail/REQ-CLI-001", nil))
+		body := rec.Body.String()
+		// Dependency links should target the panel, not #content
+		assertContains(t, body, `hx-target="#detail-panel-body"`, "detail dep links should target panel")
+	})
+}
+
 // Test helpers
 // --------------------------------------------------------------------------
 

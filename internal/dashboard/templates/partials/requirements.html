@@ -3,23 +3,24 @@
     <h2 style="font-size: 1.5rem; font-weight: 700;">Requirements</h2>
     <div style="display: flex; gap: 0.5rem;">
       <input type="text" placeholder="Search..." class="form-input"
-             hx-get="/partials/requirements" hx-target="#content" hx-trigger="keyup changed delay:300ms"
-             name="search">
+             hx-get="/partials/requirements" hx-target="#content" hx-trigger="keyup changed delay:200ms"
+             hx-include="[name='status'],[name='category']"
+             name="search" value="{{.FilterSearch}}">
       <select name="status" class="form-input"
               hx-get="/partials/requirements" hx-target="#content" hx-trigger="change"
               hx-include="[name='search'],[name='category']">
         <option value="">All Status</option>
-        <option value="COMPLETE">Complete</option>
-        <option value="PARTIAL">Partial</option>
-        <option value="MISSING">Missing</option>
-        <option value="NOT_STARTED">Not Started</option>
+        <option value="COMPLETE"{{if eq .FilterStatus "COMPLETE"}} selected{{end}}>Complete</option>
+        <option value="PARTIAL"{{if eq .FilterStatus "PARTIAL"}} selected{{end}}>Partial</option>
+        <option value="MISSING"{{if eq .FilterStatus "MISSING"}} selected{{end}}>Missing</option>
+        <option value="NOT_STARTED"{{if eq .FilterStatus "NOT_STARTED"}} selected{{end}}>Not Started</option>
       </select>
       <select name="category" class="form-input"
               hx-get="/partials/requirements" hx-target="#content" hx-trigger="change"
               hx-include="[name='search'],[name='status']">
         <option value="">All Categories</option>
         {{range .Categories}}
-        <option value="{{.}}">{{.}}</option>
+        <option value="{{.}}"{{if eq $.FilterCat .}} selected{{end}}>{{.}}</option>
         {{end}}
       </select>
     </div>
@@ -29,22 +30,69 @@
     <table class="data-table">
       <thead>
         <tr>
-          <th hx-get="/partials/requirements?sort=req_id" hx-target="#content">ID</th>
-          <th hx-get="/partials/requirements?sort=status" hx-target="#content">Status</th>
-          <th hx-get="/partials/requirements?sort=priority" hx-target="#content">Priority</th>
-          <th hx-get="/partials/requirements?sort=category" hx-target="#content">Category</th>
+          {{$sf := .SortField}}{{$so := .SortOrder}}
+          <th class="sortable-header{{if eq $sf "req_id"}} sort-active{{end}}"
+              hx-get="/partials/requirements?sort=req_id&order={{if and (eq $sf "req_id") (eq $so "asc")}}desc{{else}}asc{{end}}"
+              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category']">
+            ID <span class="sort-indicator">{{if eq $sf "req_id"}}{{if eq $so "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</span>
+          </th>
+          <th class="sortable-header{{if eq $sf "status"}} sort-active{{end}}"
+              hx-get="/partials/requirements?sort=status&order={{if and (eq $sf "status") (eq $so "asc")}}desc{{else}}asc{{end}}"
+              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category']">
+            Status <span class="sort-indicator">{{if eq $sf "status"}}{{if eq $so "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</span>
+          </th>
+          <th class="sortable-header{{if eq $sf "priority"}} sort-active{{end}}"
+              hx-get="/partials/requirements?sort=priority&order={{if and (eq $sf "priority") (eq $so "asc")}}desc{{else}}asc{{end}}"
+              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category']">
+            Priority <span class="sort-indicator">{{if eq $sf "priority"}}{{if eq $so "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</span>
+          </th>
+          <th class="sortable-header{{if eq $sf "category"}} sort-active{{end}}"
+              hx-get="/partials/requirements?sort=category&order={{if and (eq $sf "category") (eq $so "asc")}}desc{{else}}asc{{end}}"
+              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category']">
+            Category <span class="sort-indicator">{{if eq $sf "category"}}{{if eq $so "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</span>
+          </th>
           <th>Description</th>
-          <th hx-get="/partials/requirements?sort=effort_weeks" hx-target="#content">Effort</th>
+          <th>Assignee</th>
+          <th>Sprint</th>
+          <th class="sortable-header{{if eq $sf "effort_weeks"}} sort-active{{end}}"
+              hx-get="/partials/requirements?sort=effort_weeks&order={{if and (eq $sf "effort_weeks") (eq $so "asc")}}desc{{else}}asc{{end}}"
+              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category']">
+            Effort <span class="sort-indicator">{{if eq $sf "effort_weeks"}}{{if eq $so "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</span>
+          </th>
         </tr>
       </thead>
       <tbody>
         {{range .Requirements}}
-        <tr hx-get="/partials/detail/{{.ReqID}}" hx-target="#content" hx-push-url="/requirements/{{.ReqID}}" style="cursor: pointer;">
-          <td class="req-id">{{.ReqID}}</td>
-          <td><span class="badge badge-{{.StatusClass}}">{{.Status}}</span></td>
-          <td>{{.Priority}}</td>
+        <tr id="row-{{.ReqID}}" data-req-id="{{.ReqID}}">
+          <td class="req-id" hx-get="/partials/detail/{{.ReqID}}" hx-target="#detail-panel-body" style="cursor: pointer;">{{.ReqID}}</td>
+          <td x-data="inlineSelect('{{.ReqID}}', 'status', '{{.Status}}')" class="inline-edit-cell">
+            <span x-show="!editing" @click.stop="startEdit()" class="badge badge-{{.StatusClass}}" style="cursor: pointer;">{{.Status}}</span>
+            <select x-show="editing" x-ref="input" @change="save($el.value)" @keydown.escape="cancel()" class="inline-select">
+              <option value="NOT_STARTED"{{if eq .Status "NOT_STARTED"}} selected{{end}}>NOT_STARTED</option>
+              <option value="MISSING"{{if eq .Status "MISSING"}} selected{{end}}>MISSING</option>
+              <option value="PARTIAL"{{if eq .Status "PARTIAL"}} selected{{end}}>PARTIAL</option>
+              <option value="COMPLETE"{{if eq .Status "COMPLETE"}} selected{{end}}>COMPLETE</option>
+            </select>
+          </td>
+          <td x-data="inlineSelect('{{.ReqID}}', 'priority', '{{.Priority}}')" class="inline-edit-cell">
+            <span x-show="!editing" @click.stop="startEdit()" style="cursor: pointer;">{{.Priority}}</span>
+            <select x-show="editing" x-ref="input" @change="save($el.value)" @keydown.escape="cancel()" class="inline-select">
+              <option value="P0"{{if eq .Priority "P0"}} selected{{end}}>P0</option>
+              <option value="HIGH"{{if eq .Priority "HIGH"}} selected{{end}}>HIGH</option>
+              <option value="MEDIUM"{{if eq .Priority "MEDIUM"}} selected{{end}}>MEDIUM</option>
+              <option value="LOW"{{if eq .Priority "LOW"}} selected{{end}}>LOW</option>
+            </select>
+          </td>
           <td>{{.Category}}</td>
           <td>{{.Description}}</td>
+          <td x-data="inlineText('{{.ReqID}}', 'assignee', '{{.Assignee}}')" class="inline-edit-cell">
+            <span x-show="!editing" @click.stop="startEdit()" style="cursor: pointer; min-width: 40px; display: inline-block;" x-text="value || '--'"></span>
+            <input x-show="editing" x-ref="input" type="text" :value="value" @blur="save($el.value)" @keydown.enter="save($el.value)" @keydown.escape="cancel()" class="inline-input">
+          </td>
+          <td x-data="inlineText('{{.ReqID}}', 'sprint', '{{.Sprint}}')" class="inline-edit-cell">
+            <span x-show="!editing" @click.stop="startEdit()" style="cursor: pointer; min-width: 40px; display: inline-block;" x-text="value || '--'"></span>
+            <input x-show="editing" x-ref="input" type="text" :value="value" @blur="save($el.value)" @keydown.enter="save($el.value)" @keydown.escape="cancel()" class="inline-input">
+          </td>
           <td>{{.Effort}}</td>
         </tr>
         {{end}}

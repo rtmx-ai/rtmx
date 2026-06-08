@@ -28,7 +28,7 @@
       </thead>
       <tbody>
         {{range .Requirements}}
-        <tr hx-get="/partials/detail/{{.ReqID}}" hx-target="#content" style="cursor: pointer;">
+        <tr hx-get="/partials/detail/{{.ReqID}}" hx-target="#detail-panel-body" style="cursor: pointer;">
           <td class="req-id">{{.ReqID}}</td>
           <td><span class="badge badge-{{.StatusClass}}">{{.Status}}</span></td>
           <td>{{.Priority}}</td>

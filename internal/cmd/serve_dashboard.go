@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/rtmx-ai/rtmx/internal/dashboard"
@@ -38,6 +39,11 @@ type requirementsListData struct {
 	Categories   []string
 	HasMore      bool
 	NextPage     int
+	SortField    string
+	SortOrder    string
+	FilterStatus string
+	FilterCat    string
+	FilterSearch string
 }
 
 type reqRowData struct {
@@ -48,6 +54,8 @@ type reqRowData struct {
 	Category    string
 	Description string
 	Effort      string
+	Assignee    string
+	Sprint      string
 }
 
 // detailData holds template data for the detail partial.
@@ -190,6 +198,7 @@ func registerDashboardRoutes(mux *http.ServeMux, db *database.Database, g *graph
 	// Partials (htmx targets)
 	mux.HandleFunc("/partials/status", handlePartialStatus(db))
 	mux.HandleFunc("/partials/requirements", handlePartialRequirements(db))
+	mux.HandleFunc("/partials/requirements/row/", handlePartialRequirementRow(db))
 	mux.HandleFunc("/partials/detail/", handlePartialDetail(db, g))
 	mux.HandleFunc("/partials/graph", handlePartialGraph(db, g))
 	mux.HandleFunc("/partials/kanban", handlePartialKanban(db, g))
@@ -233,8 +242,10 @@ func handlePartialStatus(db *database.Database) http.HandlerFunc {
 
 func handlePartialRequirements(db *database.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
 		reqs := db.All()
-		// Collect categories
+
+		// Collect categories for filter dropdown
 		catSet := make(map[string]bool)
 		for _, req := range reqs {
 			catSet[req.Category] = true
@@ -243,11 +254,13 @@ func handlePartialRequirements(db *database.Database) http.HandlerFunc {
 		for c := range catSet {
 			cats = append(cats, c)
 		}
+		sort.Strings(cats)
 
-		// Apply filters
-		status := r.URL.Query().Get("status")
-		category := r.URL.Query().Get("category")
-		search := r.URL.Query().Get("search")
+		// REQ-DASH-020: Apply filters from query params
+		status := q.Get("status")
+		category := q.Get("category")
+		search := q.Get("search")
+		priority := q.Get("priority")
 
 		var filtered []*database.Requirement
 		for _, req := range reqs {
@@ -257,10 +270,26 @@ func handlePartialRequirements(db *database.Database) http.HandlerFunc {
 			if category != "" && req.Category != category {
 				continue
 			}
+			if priority != "" && string(req.Priority) != priority {
+				continue
+			}
 			if search != "" && !strings.Contains(strings.ToLower(req.ReqID+req.RequirementText), strings.ToLower(search)) {
 				continue
 			}
 			filtered = append(filtered, req)
+		}
+
+		// REQ-DASH-020: Sort support
+		sortField := q.Get("sort")
+		if sortField == "" {
+			sortField = "req_id"
+		}
+		order := q.Get("order")
+		if order == "" {
+			order = "asc"
+		}
+		if validSortFields[sortField] {
+			sortRequirements(filtered, sortField, order == "desc")
 		}
 
 		rows := make([]reqRowData, 0, len(filtered))
@@ -273,16 +302,50 @@ func handlePartialRequirements(db *database.Database) http.HandlerFunc {
 				Category:    req.Category,
 				Description: req.RequirementText,
 				Effort:      fmt.Sprintf("%.1fw", req.EffortWeeks),
+				Assignee:    req.Assignee,
+				Sprint:      req.Sprint,
 			})
 		}
 
 		data := requirementsListData{
 			Requirements: rows,
 			Categories:   cats,
+			SortField:    sortField,
+			SortOrder:    order,
+			FilterStatus: status,
+			FilterCat:    category,
+			FilterSearch: search,
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_ = dashboard.RenderPartial(w, "requirements", data)
+	}
+}
+
+// REQ-DASH-016: Row partial endpoint returns a single table row.
+func handlePartialRequirementRow(db *database.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		reqID := strings.TrimPrefix(r.URL.Path, "/partials/requirements/row/")
+		req := db.Get(reqID)
+		if req == nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		data := reqRowData{
+			ReqID:       req.ReqID,
+			Status:      string(req.Status),
+			StatusClass: statusClassFor(req.Status),
+			Priority:    string(req.Priority),
+			Category:    req.Category,
+			Description: req.RequirementText,
+			Effort:      fmt.Sprintf("%.1fw", req.EffortWeeks),
+			Assignee:    req.Assignee,
+			Sprint:      req.Sprint,
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = dashboard.RenderPartial(w, "requirement_row", data)
 	}
 }
 

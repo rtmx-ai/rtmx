@@ -45,6 +45,16 @@ func RenderLayout(w io.Writer, data LayoutData) error {
 	return tmpl.Execute(w, data)
 }
 
+// ReadStaticFile returns the contents of a static asset as a string.
+// Returns an empty string if the file is not found.
+func ReadStaticFile(name string) string {
+	data, err := fs.ReadFile(assets, "static/"+name)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
 // RenderPartial renders a named partial template.
 func RenderPartial(w io.Writer, name string, data interface{}) error {
 	path := "templates/partials/" + name + ".html"
