@@ -55,7 +55,7 @@ func integrationMux(t *testing.T, db *database.Database) http.Handler {
 
 // TestHtmxPartialAttributes verifies that each partial endpoint returns HTML
 // containing the expected htmx attributes for client-side interactivity.
-// REQ-DASH-001: Embedded SPA with htmx, Alpine.js, and Tailwind via embed.FS.
+// REQ-DASH-001: Embedded SPA with htmx, Alpine.js, and custom CSS via embed.FS.
 // REQ-DASH-002: Requirements list partial with htmx dynamic updates.
 func TestHtmxPartialAttributes(t *testing.T) {
 	rtmx.Req(t, "REQ-DASH-001")
@@ -193,8 +193,8 @@ func TestHtmxPartialAttributes(t *testing.T) {
 		// Data from test DB (sprints assigned)
 		assertContains(t, body, "v1.0.0", "releases should show v1.0.0")
 		assertContains(t, body, "v2.0.0", "releases should show v2.0.0")
-		assertContains(t, body, "Gate: PASS", "v1.0.0 should show Gate: PASS")
-		assertContains(t, body, "Gate: FAIL", "v2.0.0 should show Gate: FAIL")
+		assertContains(t, body, "gate-pass", "v1.0.0 should show gate-pass badge")
+		assertContains(t, body, "gate-fail", "v2.0.0 should show gate-fail badge")
 	})
 
 	t.Run("health_partial_has_structural_elements", func(t *testing.T) {
@@ -260,7 +260,7 @@ func TestHtmxPartialAttributes(t *testing.T) {
 
 // TestSPAShellIntegration verifies the full SPA shell served at /app includes
 // all required client-side framework scripts, navigation, and pre-rendered content.
-// REQ-DASH-001: Embedded SPA with htmx, Alpine.js, and Tailwind via embed.FS.
+// REQ-DASH-001: Embedded SPA with htmx, Alpine.js, and custom CSS via embed.FS.
 func TestSPAShellIntegration(t *testing.T) {
 	rtmx.Req(t, "REQ-DASH-001")
 
@@ -274,21 +274,21 @@ func TestSPAShellIntegration(t *testing.T) {
 			t.Fatalf("status = %d, want 200", rec.Code)
 		}
 		body := rec.Body.String()
-		assertContains(t, body, "htmx.org", "SPA shell must include htmx script tag")
+		assertContains(t, body, "htmx.min.js", "SPA shell must include htmx script tag")
 	})
 
 	t.Run("shell_includes_alpinejs_script", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/app", nil))
 		body := rec.Body.String()
-		assertContains(t, body, "alpinejs", "SPA shell must include Alpine.js script tag")
+		assertContains(t, body, "alpine.min.js", "SPA shell must include Alpine.js script tag")
 	})
 
-	t.Run("shell_includes_tailwind_css", func(t *testing.T) {
+	t.Run("shell_includes_custom_styles", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/app", nil))
 		body := rec.Body.String()
-		assertContains(t, body, "tailwind", "SPA shell must include Tailwind CSS")
+		assertContains(t, body, "styles.css", "SPA shell must include custom styles")
 	})
 
 	t.Run("shell_includes_all_nav_links", func(t *testing.T) {

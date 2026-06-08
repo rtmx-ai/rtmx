@@ -1415,13 +1415,13 @@ func TestDashboardReleasePlanning(t *testing.T) {
 		mux.ServeHTTP(rec, req)
 
 		body := rec.Body.String()
-		// v1.0.0 has 2 COMPLETE reqs -> Gate: PASS
-		if !strings.Contains(body, "Gate: PASS") {
-			t.Error("v1.0.0 should show Gate: PASS")
+		// v1.0.0 has 2 COMPLETE reqs -> gate-pass PASS
+		if !strings.Contains(body, "gate-pass") {
+			t.Error("v1.0.0 should show gate-pass badge")
 		}
-		// v2.0.0 has 1 PARTIAL + 1 MISSING -> Gate: FAIL
-		if !strings.Contains(body, "Gate: FAIL") {
-			t.Error("v2.0.0 should show Gate: FAIL")
+		// v2.0.0 has 1 PARTIAL + 1 MISSING -> gate-fail FAIL
+		if !strings.Contains(body, "gate-fail") {
+			t.Error("v2.0.0 should show gate-fail badge")
 		}
 	})
 

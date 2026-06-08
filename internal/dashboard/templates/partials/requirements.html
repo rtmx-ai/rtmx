@@ -1,11 +1,11 @@
-<div class="space-y-4">
-  <div class="flex items-center justify-between">
-    <h2 class="text-2xl font-bold">Requirements</h2>
-    <div class="flex gap-2">
-      <input type="text" placeholder="Search..." class="border rounded px-3 py-1.5 text-sm"
+<div style="display: flex; flex-direction: column; gap: 1rem;">
+  <div style="display: flex; align-items: center; justify-content: space-between;">
+    <h2 style="font-size: 1.5rem; font-weight: 700;">Requirements</h2>
+    <div style="display: flex; gap: 0.5rem;">
+      <input type="text" placeholder="Search..." class="form-input"
              hx-get="/partials/requirements" hx-target="#content" hx-trigger="keyup changed delay:300ms"
              name="search">
-      <select name="status" class="border rounded px-3 py-1.5 text-sm"
+      <select name="status" class="form-input"
               hx-get="/partials/requirements" hx-target="#content" hx-trigger="change"
               hx-include="[name='search'],[name='category']">
         <option value="">All Status</option>
@@ -14,7 +14,7 @@
         <option value="MISSING">Missing</option>
         <option value="NOT_STARTED">Not Started</option>
       </select>
-      <select name="category" class="border rounded px-3 py-1.5 text-sm"
+      <select name="category" class="form-input"
               hx-get="/partials/requirements" hx-target="#content" hx-trigger="change"
               hx-include="[name='search'],[name='status']">
         <option value="">All Categories</option>
@@ -25,7 +25,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" style="padding: 0; overflow: hidden;">
     <table class="data-table">
       <thead>
         <tr>
@@ -40,7 +40,7 @@
       <tbody>
         {{range .Requirements}}
         <tr hx-get="/partials/detail/{{.ReqID}}" hx-target="#content" hx-push-url="/requirements/{{.ReqID}}" style="cursor: pointer;">
-          <td class="font-mono text-sm">{{.ReqID}}</td>
+          <td class="req-id">{{.ReqID}}</td>
           <td><span class="badge badge-{{.StatusClass}}">{{.Status}}</span></td>
           <td>{{.Priority}}</td>
           <td>{{.Category}}</td>
@@ -52,8 +52,8 @@
     </table>
 
     {{if .HasMore}}
-    <div class="mt-4 flex justify-center">
-      <button class="px-4 py-2 text-sm border rounded hover:bg-gray-50"
+    <div style="padding: 1rem; display: flex; justify-content: center;">
+      <button class="btn-secondary"
               hx-get="/partials/requirements?page={{.NextPage}}" hx-target="#content">
         Load More
       </button>

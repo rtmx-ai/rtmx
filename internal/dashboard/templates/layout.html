@@ -4,16 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{.Title}} - RTMX Dashboard</title>
-  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-  <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.17/tailwind.min.css" rel="stylesheet">
-  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="/static/vendor/htmx.min.js"></script>
+  <script defer src="/static/vendor/alpine.min.js"></script>
+  <script src="/static/vendor/d3.v7.min.js"></script>
   <link rel="stylesheet" href="/static/styles.css">
 </head>
-<body class="bg-gray-50 text-gray-900 min-h-screen" x-data="rtmxApp()">
-  <nav class="bg-gray-900 text-white px-6 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-6">
-      <span class="font-bold text-lg tracking-tight">RTMX</span>
+<body x-data="rtmxApp()">
+  <nav style="background: var(--rtmx-bg-card); border-bottom: 1px solid var(--rtmx-border); padding: 0.75rem 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+    <div style="display: flex; align-items: center; gap: 1.5rem;">
+      <span style="font-weight: 700; font-size: 1.125rem; letter-spacing: -0.025em; color: var(--rtmx-emerald);">RTMX</span>
       <a href="/" class="nav-link" :class="{'nav-active': page === 'status'}"
          @click.prevent="navigate('status')" hx-get="/partials/status" hx-target="#content" hx-push-url="/">Status</a>
       <a href="/requirements" class="nav-link" :class="{'nav-active': page === 'requirements'}"
@@ -29,13 +28,13 @@
       <a href="/agents" class="nav-link" :class="{'nav-active': page === 'agents'}"
          @click.prevent="navigate('agents')" hx-get="/partials/agents" hx-target="#content" hx-push-url="/agents">Agents</a>
     </div>
-    <div class="text-sm text-gray-400" id="connection-status">
-      <span x-show="connected" class="text-green-400">Connected</span>
-      <span x-show="!connected" class="text-red-400">Disconnected</span>
+    <div style="font-size: 0.8rem;">
+      <span x-show="connected" style="color: var(--rtmx-complete);">Connected</span>
+      <span x-show="!connected" style="color: var(--rtmx-missing);">Disconnected</span>
     </div>
   </nav>
 
-  <main class="max-w-7xl mx-auto px-6 py-6">
+  <main style="max-width: 72rem; margin: 0 auto; padding: 1.5rem;">
     <div id="content">
       {{.Content}}
     </div>

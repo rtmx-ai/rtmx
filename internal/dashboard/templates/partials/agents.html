@@ -1,22 +1,24 @@
-<div class="space-y-4">
-  <h2 class="text-2xl font-bold">Agent Monitor</h2>
+<div style="display: flex; flex-direction: column; gap: 1rem;">
+  <h2 style="font-size: 1.5rem; font-weight: 700;">Agent Monitor</h2>
 
-  <div class="grid grid-cols-3 gap-4">
-    <div class="card text-center">
-      <div class="text-3xl font-bold">{{.ActiveCount}}</div>
-      <div class="text-sm text-gray-500">Active Claims</div>
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+    <div class="card" style="text-align: center;">
+      <div class="stat-value">{{.ActiveCount}}</div>
+      <div class="stat-label">Active Claims</div>
     </div>
-    <div class="card text-center">
-      <div class="text-3xl font-bold" style="color: #d97706;">{{.StaleCount}}</div>
-      <div class="text-sm text-gray-500">Stale Claims</div>
+    <div class="card" style="text-align: center;">
+      <div class="stat-value stat-partial">{{.StaleCount}}</div>
+      <div class="stat-label">Stale Claims</div>
     </div>
-    <div class="card text-center">
-      <div class="text-3xl font-bold" style="color: #3b82f6;">{{.AgentCount}}</div>
-      <div class="text-sm text-gray-500">Unique Agents</div>
+    <div class="card" style="text-align: center;">
+      <div class="stat-value" style="color: var(--rtmx-medium);">{{.AgentCount}}</div>
+      <div class="stat-label">Unique Agents</div>
     </div>
   </div>
 
-  <div class="card" hx-get="/partials/agents" hx-trigger="every 10s" hx-target="#content">
+  <div class="card" hx-get="/partials/agents" hx-trigger="every 10s" hx-target="#content"
+       {{if not .Claims}}style="padding: 0;"{{end}}>
+    {{if .Claims}}
     <table class="data-table">
       <thead>
         <tr>
@@ -30,24 +32,23 @@
       <tbody>
         {{range .Claims}}
         <tr>
-          <td class="font-mono text-sm">{{.ReqID}}</td>
+          <td class="req-id">{{.ReqID}}</td>
           <td>{{.AgentID}}</td>
-          <td class="text-sm text-gray-500">{{.ClaimedAt}}</td>
+          <td class="text-muted" style="font-size: 0.8rem;">{{.ClaimedAt}}</td>
           <td>
             {{if .Stale}}
-            <span class="badge" style="background: #d97706; color: white;">STALE</span>
+            <span class="badge badge-partial">STALE</span>
             {{else}}
-            <span class="badge" style="background: #16a34a; color: white;">Active</span>
+            <span class="badge badge-complete">Active</span>
             {{end}}
           </td>
-          <td class="text-sm">{{.Description}}</td>
+          <td style="font-size: 0.8rem;">{{.Description}}</td>
         </tr>
         {{end}}
       </tbody>
     </table>
-
-    {{if not .Claims}}
-    <p class="text-center text-gray-400 py-8">No active agent claims.</p>
+    {{else}}
+    <p class="text-dim" style="text-align: center; padding: 2rem;">No active agent claims.</p>
     {{end}}
   </div>
 </div>
