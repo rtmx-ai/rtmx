@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/rtmx-ai/rtmx/internal/config"
@@ -86,7 +89,35 @@ func runServe(cmd *cobra.Command, args []string) error {
 		cmd.Printf("  Sync: %s\n", serveSyncURL)
 	}
 
-	return http.ListenAndServe(addr, handler)
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: handler,
+	}
+
+	// Graceful shutdown on SIGINT/SIGTERM
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- srv.ListenAndServe()
+	}()
+
+	select {
+	case err := <-errCh:
+		if err != nil && err != http.ErrServerClosed {
+			return err
+		}
+	case sig := <-stop:
+		cmd.Printf("\nReceived %s, shutting down...\n", sig)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(ctx); err != nil {
+			return fmt.Errorf("shutdown error: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // NewDashboardMux creates an HTTP handler for the RTMX web dashboard.
