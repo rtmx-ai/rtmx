@@ -55,10 +55,15 @@ func ReadStaticFile(name string) string {
 	return string(data)
 }
 
+// templateFuncs provides custom functions available in all templates.
+var templateFuncs = template.FuncMap{
+	"list": func(args ...string) []string { return args },
+}
+
 // RenderPartial renders a named partial template.
 func RenderPartial(w io.Writer, name string, data interface{}) error {
 	path := "templates/partials/" + name + ".html"
-	tmpl, err := template.ParseFS(assets, path)
+	tmpl, err := template.New(name + ".html").Funcs(templateFuncs).ParseFS(assets, path)
 	if err != nil {
 		return err
 	}

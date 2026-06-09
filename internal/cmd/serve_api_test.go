@@ -1544,3 +1544,115 @@ func TestDashboardHealthTrends(t *testing.T) {
 		}
 	})
 }
+
+// --------------------------------------------------------------------------
+// REQ-DASH-041: Bulk update API
+// --------------------------------------------------------------------------
+
+func TestBulkUpdateAPI(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-041")
+
+	t.Run("bulk_update_status", func(t *testing.T) {
+		db := testDB()
+		tmpFile := filepath.Join(t.TempDir(), "test_db.csv")
+		_ = db.Save(tmpFile)
+		cfg := &config.Config{}
+		mux := NewDashboardMuxWithPath(db, cfg, tmpFile)
+
+		body := `{"req_ids":["REQ-MCP-001","REQ-MCP-002"],"updates":{"status":"COMPLETE"}}`
+		req := httptest.NewRequest("POST", "/api/requirements/bulk", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+		}
+
+		var resp map[string]interface{}
+		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+			t.Fatalf("invalid JSON response: %v", err)
+		}
+		if resp["updated"] != float64(2) {
+			t.Errorf("expected updated=2, got %v", resp["updated"])
+		}
+
+		// Verify requirements were actually updated
+		if db.Get("REQ-MCP-001").Status != database.StatusComplete {
+			t.Error("REQ-MCP-001 should be COMPLETE after bulk update")
+		}
+		if db.Get("REQ-MCP-002").Status != database.StatusComplete {
+			t.Error("REQ-MCP-002 should be COMPLETE after bulk update")
+		}
+	})
+
+	t.Run("bulk_update_toast_trigger", func(t *testing.T) {
+		db := testDB()
+		tmpFile := filepath.Join(t.TempDir(), "test_db.csv")
+		_ = db.Save(tmpFile)
+		cfg := &config.Config{}
+		mux := NewDashboardMuxWithPath(db, cfg, tmpFile)
+
+		body := `{"req_ids":["REQ-CLI-001"],"updates":{"assignee":"carol"}}`
+		req := httptest.NewRequest("POST", "/api/requirements/bulk", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		trigger := rec.Header().Get("HX-Trigger")
+		if trigger == "" {
+			t.Error("bulk update should include HX-Trigger header")
+		}
+		if !strings.Contains(trigger, "showToast") {
+			t.Error("HX-Trigger should contain showToast event")
+		}
+	})
+
+	t.Run("bulk_update_empty_ids_rejected", func(t *testing.T) {
+		db := testDB()
+		cfg := &config.Config{}
+		mux := NewDashboardMuxWithPath(db, cfg, "")
+
+		body := `{"req_ids":[],"updates":{"status":"COMPLETE"}}`
+		req := httptest.NewRequest("POST", "/api/requirements/bulk", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want 400", rec.Code)
+		}
+	})
+
+	t.Run("bulk_update_invalid_field_rejected", func(t *testing.T) {
+		db := testDB()
+		cfg := &config.Config{}
+		mux := NewDashboardMuxWithPath(db, cfg, "")
+
+		body := `{"req_ids":["REQ-CLI-001"],"updates":{"req_id":"HACKED"}}`
+		req := httptest.NewRequest("POST", "/api/requirements/bulk", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, want 400", rec.Code)
+		}
+	})
+
+	t.Run("bulk_update_nonexistent_id_rejected", func(t *testing.T) {
+		db := testDB()
+		cfg := &config.Config{}
+		mux := NewDashboardMuxWithPath(db, cfg, "")
+
+		body := `{"req_ids":["REQ-NOPE-999"],"updates":{"status":"COMPLETE"}}`
+		req := httptest.NewRequest("POST", "/api/requirements/bulk", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("status = %d, want 404", rec.Code)
+		}
+	})
+}

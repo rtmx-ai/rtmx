@@ -47,7 +47,7 @@
         <button @click="editing = !editing" class="content-link" style="font-size: 0.8rem;"
                 x-text="editing ? 'Cancel' : 'Edit'"></button>
       </div>
-      <form hx-patch="/api/requirements/{{.ReqID}}" hx-target="#content" hx-swap="innerHTML"
+      <form hx-patch="/api/requirements/{{.ReqID}}" hx-target="#detail-panel-body" hx-swap="innerHTML"
             x-show="editing">
         <div style="display: flex; flex-direction: column; gap: 0.75rem;">
           <div>

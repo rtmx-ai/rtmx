@@ -1,4 +1,7 @@
 <tr id="row-{{.ReqID}}" data-req-id="{{.ReqID}}">
+  <td style="text-align: center;" @click.stop>
+    <input type="checkbox" class="bulk-select" value="{{.ReqID}}">
+  </td>
   <td class="req-id" hx-get="/partials/detail/{{.ReqID}}" hx-target="#detail-panel-body" style="cursor: pointer;">{{.ReqID}}</td>
   <td x-data="inlineSelect('{{.ReqID}}', 'status', '{{.Status}}')" class="inline-edit-cell">
     <span x-show="!editing" @click.stop="startEdit()" class="badge badge-{{.StatusClass}}" style="cursor: pointer;">{{.Status}}</span>

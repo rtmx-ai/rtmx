@@ -4,11 +4,11 @@
     <div style="display: flex; gap: 0.5rem;">
       <input type="text" placeholder="Search..." class="form-input"
              hx-get="/partials/requirements" hx-target="#content" hx-trigger="keyup changed delay:200ms"
-             hx-include="[name='status'],[name='category']"
+             hx-include="[name='status'],[name='category'],[name='priority']"
              name="search" value="{{.FilterSearch}}">
       <select name="status" class="form-input"
               hx-get="/partials/requirements" hx-target="#content" hx-trigger="change"
-              hx-include="[name='search'],[name='category']">
+              hx-include="[name='search'],[name='category'],[name='priority']">
         <option value="">All Status</option>
         <option value="COMPLETE"{{if eq .FilterStatus "COMPLETE"}} selected{{end}}>Complete</option>
         <option value="PARTIAL"{{if eq .FilterStatus "PARTIAL"}} selected{{end}}>Partial</option>
@@ -17,7 +17,7 @@
       </select>
       <select name="category" class="form-input"
               hx-get="/partials/requirements" hx-target="#content" hx-trigger="change"
-              hx-include="[name='search'],[name='status']">
+              hx-include="[name='search'],[name='status'],[name='priority']">
         <option value="">All Categories</option>
         {{range .Categories}}
         <option value="{{.}}"{{if eq $.FilterCat .}} selected{{end}}>{{.}}</option>
@@ -26,37 +26,85 @@
     </div>
   </div>
 
+  {{if .ActiveFilters}}
+  <div class="filter-chips" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+    {{range .ActiveFilters}}
+    <span class="filter-chip" data-param="{{.Param}}" data-value="{{.Value}}">
+      {{.Field}}: {{.Value}}
+      <button class="filter-chip-remove" onclick="removeFilterChip(this)" aria-label="Remove filter">&times;</button>
+    </span>
+    {{end}}
+    <a href="#" class="filter-clear-all" onclick="clearAllFilters(); return false;">Clear all</a>
+  </div>
+  {{end}}
+
   <div class="card" style="padding: 0; overflow: hidden;">
     <table class="data-table">
       <thead>
         <tr>
           {{$sf := .SortField}}{{$so := .SortOrder}}
+          <th style="width: 36px; text-align: center;">
+            <input type="checkbox" class="bulk-select-all" @click="document.querySelectorAll('.bulk-select').forEach(function(cb) { cb.checked = $el.checked; })">
+          </th>
           <th class="sortable-header{{if eq $sf "req_id"}} sort-active{{end}}"
               hx-get="/partials/requirements?sort=req_id&order={{if and (eq $sf "req_id") (eq $so "asc")}}desc{{else}}asc{{end}}"
-              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category']">
+              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category'],[name='priority']">
             ID <span class="sort-indicator">{{if eq $sf "req_id"}}{{if eq $so "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</span>
           </th>
-          <th class="sortable-header{{if eq $sf "status"}} sort-active{{end}}"
+          <th class="sortable-header{{if eq $sf "status"}} sort-active{{end}}" style="position: relative;"
               hx-get="/partials/requirements?sort=status&order={{if and (eq $sf "status") (eq $so "asc")}}desc{{else}}asc{{end}}"
-              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category']">
+              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category'],[name='priority']">
             Status <span class="sort-indicator">{{if eq $sf "status"}}{{if eq $so "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</span>
+            <span x-data="columnFilter('status', '{{$.FilterStatus}}', ['COMPLETE','PARTIAL','MISSING','NOT_STARTED'])" class="column-filter-wrap">
+              <button class="column-filter-btn" @click.stop="toggle()" aria-label="Filter status">&#9662;</button>
+              <div class="column-filter-dropdown" x-show="open" @click.outside="open = false" @click.stop>
+                {{range $i, $s := (list "COMPLETE" "PARTIAL" "MISSING" "NOT_STARTED")}}
+                <label class="column-filter-option">
+                  <input type="checkbox" value="{{$s}}" :checked="selected['{{$s}}']" @change="toggleValue('{{$s}}')"> {{$s}}
+                </label>
+                {{end}}
+                <button class="column-filter-apply" @click="apply()">Apply</button>
+              </div>
+            </span>
           </th>
-          <th class="sortable-header{{if eq $sf "priority"}} sort-active{{end}}"
+          <th class="sortable-header{{if eq $sf "priority"}} sort-active{{end}}" style="position: relative;"
               hx-get="/partials/requirements?sort=priority&order={{if and (eq $sf "priority") (eq $so "asc")}}desc{{else}}asc{{end}}"
-              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category']">
+              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category'],[name='priority']">
             Priority <span class="sort-indicator">{{if eq $sf "priority"}}{{if eq $so "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</span>
+            <span x-data="columnFilter('priority', '{{$.FilterPriority}}', ['P0','HIGH','MEDIUM','LOW'])" class="column-filter-wrap">
+              <button class="column-filter-btn" @click.stop="toggle()" aria-label="Filter priority">&#9662;</button>
+              <div class="column-filter-dropdown" x-show="open" @click.outside="open = false" @click.stop>
+                {{range $i, $s := (list "P0" "HIGH" "MEDIUM" "LOW")}}
+                <label class="column-filter-option">
+                  <input type="checkbox" value="{{$s}}" :checked="selected['{{$s}}']" @change="toggleValue('{{$s}}')"> {{$s}}
+                </label>
+                {{end}}
+                <button class="column-filter-apply" @click="apply()">Apply</button>
+              </div>
+            </span>
           </th>
-          <th class="sortable-header{{if eq $sf "category"}} sort-active{{end}}"
+          <th class="sortable-header{{if eq $sf "category"}} sort-active{{end}}" style="position: relative;"
               hx-get="/partials/requirements?sort=category&order={{if and (eq $sf "category") (eq $so "asc")}}desc{{else}}asc{{end}}"
-              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category']">
+              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category'],[name='priority']">
             Category <span class="sort-indicator">{{if eq $sf "category"}}{{if eq $so "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</span>
+            <span x-data="columnFilter('category', '{{$.FilterCat}}', [{{range $i, $c := .Categories}}{{if $i}},{{end}}'{{$c}}'{{end}}])" class="column-filter-wrap">
+              <button class="column-filter-btn" @click.stop="toggle()" aria-label="Filter category">&#9662;</button>
+              <div class="column-filter-dropdown" x-show="open" @click.outside="open = false" @click.stop>
+                {{range .Categories}}
+                <label class="column-filter-option">
+                  <input type="checkbox" value="{{.}}" :checked="selected['{{.}}']" @change="toggleValue('{{.}}')"> {{.}}
+                </label>
+                {{end}}
+                <button class="column-filter-apply" @click="apply()">Apply</button>
+              </div>
+            </span>
           </th>
           <th>Description</th>
           <th>Assignee</th>
           <th>Sprint</th>
           <th class="sortable-header{{if eq $sf "effort_weeks"}} sort-active{{end}}"
               hx-get="/partials/requirements?sort=effort_weeks&order={{if and (eq $sf "effort_weeks") (eq $so "asc")}}desc{{else}}asc{{end}}"
-              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category']">
+              hx-target="#content" hx-include="[name='search'],[name='status'],[name='category'],[name='priority']">
             Effort <span class="sort-indicator">{{if eq $sf "effort_weeks"}}{{if eq $so "asc"}}&#9650;{{else}}&#9660;{{end}}{{end}}</span>
           </th>
         </tr>
@@ -64,6 +112,9 @@
       <tbody>
         {{range .Requirements}}
         <tr id="row-{{.ReqID}}" data-req-id="{{.ReqID}}">
+          <td style="text-align: center;" @click.stop>
+            <input type="checkbox" class="bulk-select" value="{{.ReqID}}">
+          </td>
           <td class="req-id" hx-get="/partials/detail/{{.ReqID}}" hx-target="#detail-panel-body" style="cursor: pointer;">{{.ReqID}}</td>
           <td x-data="inlineSelect('{{.ReqID}}', 'status', '{{.Status}}')" class="inline-edit-cell">
             <span x-show="!editing" @click.stop="startEdit()" class="badge badge-{{.StatusClass}}" style="cursor: pointer;">{{.Status}}</span>

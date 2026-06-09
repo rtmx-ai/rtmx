@@ -126,6 +126,7 @@ func NewDashboardMuxWithPath(db *database.Database, cfg *config.Config, dbPath s
 	})
 
 	mux.HandleFunc("/api/requirements", handleAPIRequirements(db))
+	mux.HandleFunc("/api/requirements/bulk", handleAPIBulkUpdate(db, dbPath, mu))
 	mux.HandleFunc("/api/requirements/", handleAPIRequirementDetail(db, dbPath, mu))
 	mux.HandleFunc("/api/graph", handleAPIGraph(db))
 	mux.HandleFunc("/api/backlog", handleAPIBacklog(db))

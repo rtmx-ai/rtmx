@@ -1022,6 +1022,34 @@ func TestPanelSlideCSS(t *testing.T) {
 }
 
 // --------------------------------------------------------------------------
+// REQ-DASH-028: Panel close interactions
+// --------------------------------------------------------------------------
+
+func TestPanelCloseInteractions(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-028")
+
+	t.Run("escape_closes_panel_in_layout", func(t *testing.T) {
+		var buf strings.Builder
+		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
+		html := buf.String()
+		assertContains(t, html, `@keydown.escape.window="panelOpen = false"`, "layout should close panel on Escape")
+	})
+
+	t.Run("backdrop_click_closes_panel", func(t *testing.T) {
+		var buf strings.Builder
+		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
+		html := buf.String()
+		assertContains(t, html, `@click="panelOpen = false"`, "backdrop click should close panel")
+	})
+
+	t.Run("htmx_swap_opens_panel", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		assertContains(t, js, "detail-panel-body", "JS should listen for htmx swaps to panel body")
+		assertContains(t, js, "panelOpen = true", "htmx swap into panel body should open panel")
+	})
+}
+
+// --------------------------------------------------------------------------
 // REQ-DASH-031: Command palette modal
 // --------------------------------------------------------------------------
 
@@ -1040,6 +1068,57 @@ func TestPaletteModalTrigger(t *testing.T) {
 		css := dashboard.ReadStaticFile("styles.css")
 		assertContains(t, css, "palette-input", "CSS should style the palette input")
 		assertContains(t, css, "palette-enter", "CSS should have palette enter transition")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-032: Palette search with debounced API
+// --------------------------------------------------------------------------
+
+func TestPaletteSearch(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-032")
+	db := integrationDB(t)
+	cfg := &config.Config{}
+	mux := NewDashboardMuxWithPath(db, cfg, "")
+
+	t.Run("returns_matching_results", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/palette-results?search=Build", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		body := rec.Body.String()
+		assertContains(t, body, "REQ-CLI-001", "palette should return matching requirement")
+		assertContains(t, body, "palette-result", "results should use palette-result class")
+	})
+
+	t.Run("returns_empty_for_no_match", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/palette-results?search=xyznonexistent", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "No matching requirements", "empty search should show placeholder")
+	})
+
+	t.Run("returns_empty_for_blank_search", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/palette-results?search=", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "No matching requirements", "blank search should show placeholder")
+	})
+
+	t.Run("results_link_to_detail_panel", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/palette-results?search=CLI", nil))
+		body := rec.Body.String()
+		assertContains(t, body, `hx-target="#detail-panel-body"`, "palette results should target detail panel")
+	})
+
+	t.Run("palette_input_has_debounce", func(t *testing.T) {
+		var buf strings.Builder
+		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
+		html := buf.String()
+		assertContains(t, html, `delay:150ms`, "palette search should debounce at 150ms")
+		assertContains(t, html, `/partials/palette-results`, "palette should target palette-results endpoint")
 	})
 }
 
@@ -1073,6 +1152,405 @@ func TestReqIdLinksTargetPanel(t *testing.T) {
 		body := rec.Body.String()
 		// Dependency links should target the panel, not #content
 		assertContains(t, body, `hx-target="#detail-panel-body"`, "detail dep links should target panel")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-035: j/k row selection
+// --------------------------------------------------------------------------
+
+func TestTableRowKeyboardSelect(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-035")
+
+	t.Run("jk_handler_in_js", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		assertContains(t, js, "e.key === 'j'", "JS should handle j key for row selection")
+		assertContains(t, js, "e.key === 'k'", "JS should handle k key for row selection")
+		assertContains(t, js, "row-selected", "JS should add row-selected class")
+		assertContains(t, js, "scrollIntoView", "selected row should scroll into view")
+	})
+
+	t.Run("row_selected_css", func(t *testing.T) {
+		css := dashboard.ReadStaticFile("styles.css")
+		assertContains(t, css, "row-selected", "CSS should style row-selected class")
+		assertContains(t, css, "rtmx-emerald", "selected row should use emerald highlight")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-036: g-prefix page navigation
+// --------------------------------------------------------------------------
+
+func TestGlobalPageShortcuts(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-036")
+
+	t.Run("g_prefix_handler_in_js", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		assertContains(t, js, "gPending", "JS should track g-prefix pending state")
+		assertContains(t, js, "e.key === 'g'", "JS should handle g key press")
+		// Verify page mappings
+		assertContains(t, js, "s: 'status'", "g+s should navigate to status")
+		assertContains(t, js, "r: 'requirements'", "g+r should navigate to requirements")
+		assertContains(t, js, "k: 'kanban'", "g+k should navigate to kanban")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-029: Panel URL state management
+// --------------------------------------------------------------------------
+
+func TestPanelURLState(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-029")
+
+	t.Run("push_state_on_panel_open", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		assertContains(t, js, "history.pushState", "JS should push URL state when panel opens")
+		assertContains(t, js, "panel:", "pushState should include panel identifier")
+	})
+
+	t.Run("pop_state_closes_panel", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		assertContains(t, js, "e.state && e.state.panel", "popstate handler should check for panel state")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-030: Panel edit OOB swap
+// --------------------------------------------------------------------------
+
+func TestPanelEditOOBSwap(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-030")
+	db := integrationDB(t)
+	cfg := &config.Config{}
+	tmpFile := t.TempDir() + "/test_db.csv"
+	_ = db.Save(tmpFile)
+	mux := NewDashboardMuxWithPath(db, cfg, tmpFile)
+
+	t.Run("htmx_patch_returns_oob_row", func(t *testing.T) {
+		body := strings.NewReader(`{"status":"COMPLETE"}`)
+		req := httptest.NewRequest("PATCH", "/api/requirements/REQ-MCP-002", body)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("HX-Request", "true")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200, body: %s", rec.Code, rec.Body.String())
+		}
+		respBody := rec.Body.String()
+		assertContains(t, respBody, `hx-swap-oob="true"`, "htmx PATCH should return OOB swap attribute")
+		assertContains(t, respBody, "row-REQ-MCP-002", "OOB row should have correct ID")
+	})
+
+	t.Run("non_htmx_patch_returns_json", func(t *testing.T) {
+		body := strings.NewReader(`{"assignee":"carol"}`)
+		req := httptest.NewRequest("PATCH", "/api/requirements/REQ-CLI-001", body)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		ct := rec.Header().Get("Content-Type")
+		assertContains(t, ct, "application/json", "non-htmx PATCH should return JSON")
+	})
+
+	t.Run("detail_form_targets_panel", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/detail/REQ-CLI-001", nil))
+		body := rec.Body.String()
+		assertContains(t, body, `hx-target="#detail-panel-body"`, "detail form should target panel body")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-033: Palette arrow key navigation
+// --------------------------------------------------------------------------
+
+func TestPaletteKeyboardNav(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-033")
+
+	t.Run("arrow_key_handler_in_js", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		assertContains(t, js, "paletteKeyNav", "JS should define paletteKeyNav function")
+		assertContains(t, js, "ArrowDown", "handler should support ArrowDown")
+		assertContains(t, js, "ArrowUp", "handler should support ArrowUp")
+		assertContains(t, js, "Enter", "handler should support Enter to select")
+	})
+
+	t.Run("palette_input_wired_to_keynav", func(t *testing.T) {
+		var buf strings.Builder
+		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
+		html := buf.String()
+		assertContains(t, html, "paletteKeyNav", "palette input should wire @keydown to paletteKeyNav")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-034: Palette action prefixes
+// --------------------------------------------------------------------------
+
+func TestPaletteActionPrefixes(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-034")
+	db := integrationDB(t)
+	cfg := &config.Config{}
+	mux := NewDashboardMuxWithPath(db, cfg, "")
+
+	t.Run("navigation_prefix", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/palette-results?search=>", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "Go to Status", "> prefix should show navigation commands")
+		assertContains(t, body, "Go to Requirements", "> prefix should include Requirements")
+	})
+
+	t.Run("assignee_prefix", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/palette-results?search=@", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "assignee", "@ prefix should show assignee filter options")
+	})
+
+	t.Run("category_prefix", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/palette-results?search=%23", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "category", "# prefix should show category filter options")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-037: Keyboard help overlay
+// --------------------------------------------------------------------------
+
+func TestKeyboardHelpOverlay(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-037")
+
+	t.Run("help_overlay_in_layout", func(t *testing.T) {
+		var buf strings.Builder
+		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
+		html := buf.String()
+		assertContains(t, html, "keyboard-help", "layout must contain keyboard-help element")
+		assertContains(t, html, "keyboardHelpOverlay", "layout must reference help overlay component")
+		assertContains(t, html, "Keyboard Shortcuts", "help overlay must contain title")
+	})
+
+	t.Run("question_mark_handler_in_js", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		assertContains(t, js, "e.key === '?'", "JS should handle ? key")
+		assertContains(t, js, "toggle-help", "? key should dispatch toggle-help event")
+	})
+
+	t.Run("help_component_in_js", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		assertContains(t, js, "keyboardHelpOverlay", "JS should define help overlay component")
+		assertContains(t, js, "shortcuts:", "help component should list shortcuts")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-038: Input field suppression
+// --------------------------------------------------------------------------
+
+func TestShortcutInputSuppression(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-038")
+
+	t.Run("suppression_in_js", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		assertContains(t, js, "tag === 'INPUT'", "shortcuts should be suppressed in INPUT elements")
+		assertContains(t, js, "tag === 'SELECT'", "shortcuts should be suppressed in SELECT elements")
+		assertContains(t, js, "tag === 'TEXTAREA'", "shortcuts should be suppressed in TEXTAREA elements")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-039: Checkbox selection column
+// --------------------------------------------------------------------------
+
+func TestBulkCheckboxSelection(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-039")
+	db := integrationDB(t)
+	cfg := &config.Config{}
+	mux := NewDashboardMuxWithPath(db, cfg, "")
+
+	t.Run("requirements_table_has_checkboxes", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "bulk-select-all", "table should have select-all checkbox")
+		assertContains(t, body, "bulk-select", "rows should have individual checkboxes")
+	})
+
+	t.Run("row_partial_has_checkbox", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/requirements/row/REQ-CLI-001", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "bulk-select", "row partial should include checkbox")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-040: Floating action bar
+// --------------------------------------------------------------------------
+
+func TestBulkActionBar(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-040")
+
+	t.Run("action_bar_in_layout", func(t *testing.T) {
+		var buf strings.Builder
+		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
+		html := buf.String()
+		assertContains(t, html, "bulk-action-bar", "layout must contain bulk-action-bar element")
+		assertContains(t, html, "bulkActionBar", "layout must reference bulkActionBar component")
+		assertContains(t, html, "selectedCount", "action bar should show selected count")
+		assertContains(t, html, "Set Status", "action bar should have Set Status button")
+		assertContains(t, html, "Set Priority", "action bar should have Set Priority button")
+		assertContains(t, html, "Set Assignee", "action bar should have Set Assignee button")
+		assertContains(t, html, "Set Sprint", "action bar should have Set Sprint button")
+	})
+
+	t.Run("action_bar_component_in_js", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		assertContains(t, js, "bulkActionBar", "JS should define bulkActionBar component")
+		assertContains(t, js, "getSelectedIds", "component should have getSelectedIds method")
+		assertContains(t, js, "clearSelection", "component should have clearSelection method")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-042: Bulk action execution
+// --------------------------------------------------------------------------
+
+func TestBulkActionExecution(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-042")
+
+	t.Run("execute_bulk_in_js", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		assertContains(t, js, "executeBulk", "JS should define executeBulk method")
+		assertContains(t, js, "/api/requirements/bulk", "executeBulk should call bulk API endpoint")
+		assertContains(t, js, "showToast", "executeBulk should show toast on completion")
+		assertContains(t, js, "/partials/requirements", "executeBulk should refresh table after update")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-022: Per-column filter dropdowns
+// --------------------------------------------------------------------------
+
+func TestColumnFilterDropdowns(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-022")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+
+	t.Run("status_column_has_filter_dropdown", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/partials/requirements", nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		body := w.Body.String()
+		assertContains(t, body, "columnFilter('status'", "Status column should have columnFilter component")
+		assertContains(t, body, `aria-label="Filter status"`, "Status column should have filter button with aria-label")
+		assertContains(t, body, "column-filter-dropdown", "Should contain dropdown div")
+	})
+
+	t.Run("priority_column_has_filter_dropdown", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/partials/requirements", nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		body := w.Body.String()
+		assertContains(t, body, "columnFilter('priority'", "Priority column should have columnFilter component")
+		assertContains(t, body, `aria-label="Filter priority"`, "Priority column should have filter button")
+	})
+
+	t.Run("category_column_has_filter_dropdown", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/partials/requirements", nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		body := w.Body.String()
+		assertContains(t, body, "columnFilter('category'", "Category column should have columnFilter component")
+		assertContains(t, body, `aria-label="Filter category"`, "Category column should have filter button")
+	})
+
+	t.Run("column_filter_js_component", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		assertContains(t, js, "function columnFilter(", "JS should define columnFilter component")
+		assertContains(t, js, "toggleValue", "component should have toggleValue method")
+		assertContains(t, js, "apply()", "component should have apply method")
+	})
+
+	t.Run("column_filter_css", func(t *testing.T) {
+		css := dashboard.ReadStaticFile("styles.css")
+		assertContains(t, css, ".column-filter-dropdown", "CSS should define column-filter-dropdown")
+		assertContains(t, css, ".column-filter-btn", "CSS should define column-filter-btn")
+		assertContains(t, css, ".column-filter-option", "CSS should define column-filter-option")
+	})
+
+	t.Run("multi_select_comma_separated_filter", func(t *testing.T) {
+		// Filter by two statuses: COMPLETE and PARTIAL -- should return 3 of 5 reqs
+		req := httptest.NewRequest("GET", "/partials/requirements?status=COMPLETE,PARTIAL", nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		body := w.Body.String()
+		assertContains(t, body, "REQ-CLI-001", "COMPLETE req should be in results")
+		assertContains(t, body, "REQ-CLI-002", "COMPLETE req should be in results")
+		assertContains(t, body, "REQ-MCP-001", "PARTIAL req should be in results")
+		if strings.Contains(body, "REQ-API-001") {
+			t.Error("MISSING req should not be in COMPLETE,PARTIAL filter")
+		}
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-023: Active filter chips with clear-all
+// --------------------------------------------------------------------------
+
+func TestFilterChips(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-023")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+
+	t.Run("active_filters_shown_as_chips", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/partials/requirements?status=COMPLETE", nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		body := w.Body.String()
+		assertContains(t, body, "filter-chip", "Active filter should render as chip")
+		assertContains(t, body, "Status: COMPLETE", "Chip should show field and value")
+		assertContains(t, body, "filter-chip-remove", "Chip should have remove button")
+	})
+
+	t.Run("clear_all_link_present", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/partials/requirements?status=COMPLETE&category=CLI", nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		body := w.Body.String()
+		assertContains(t, body, "filter-clear-all", "Should have clear-all link when filters active")
+		assertContains(t, body, "Clear all", "Clear all link text")
+	})
+
+	t.Run("no_chips_without_filters", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/partials/requirements", nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		body := w.Body.String()
+		if strings.Contains(body, "filter-chip") {
+			t.Error("Should not show filter chips when no filters active")
+		}
+		if strings.Contains(body, "filter-clear-all") {
+			t.Error("Should not show clear-all when no filters active")
+		}
+	})
+
+	t.Run("chip_remove_js_function", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		assertContains(t, js, "removeFilterChip", "JS should define removeFilterChip function")
+		assertContains(t, js, "clearAllFilters", "JS should define clearAllFilters function")
+	})
+
+	t.Run("chip_css", func(t *testing.T) {
+		css := dashboard.ReadStaticFile("styles.css")
+		assertContains(t, css, ".filter-chip", "CSS should define filter-chip")
+		assertContains(t, css, ".filter-chip-remove", "CSS should define filter-chip-remove")
+		assertContains(t, css, ".filter-clear-all", "CSS should define filter-clear-all")
 	})
 }
 

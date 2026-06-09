@@ -35,15 +35,24 @@ type categoryData struct {
 
 // requirementsListData holds template data for the requirements partial.
 type requirementsListData struct {
-	Requirements []reqRowData
-	Categories   []string
-	HasMore      bool
-	NextPage     int
-	SortField    string
-	SortOrder    string
-	FilterStatus string
-	FilterCat    string
-	FilterSearch string
+	Requirements   []reqRowData
+	Categories     []string
+	Priorities     []string
+	HasMore        bool
+	NextPage       int
+	SortField      string
+	SortOrder      string
+	FilterStatus   string
+	FilterCat      string
+	FilterPriority string
+	FilterSearch   string
+	ActiveFilters  []activeFilter
+}
+
+type activeFilter struct {
+	Field string
+	Value string
+	Param string
 }
 
 type reqRowData struct {
@@ -155,6 +164,11 @@ type agentClaimData struct {
 	Description string
 }
 
+// paletteResultsData holds template data for the palette results partial.
+type paletteResultsData struct {
+	Results []reqRowData
+}
+
 func statusClassFor(status database.Status) string {
 	switch status {
 	case database.StatusComplete:
@@ -205,6 +219,7 @@ func registerDashboardRoutes(mux *http.ServeMux, db *database.Database, g *graph
 	mux.HandleFunc("/partials/releases", handlePartialReleases(db))
 	mux.HandleFunc("/partials/health", handlePartialHealth(db, g))
 	mux.HandleFunc("/partials/agents", handlePartialAgents(db))
+	mux.HandleFunc("/partials/palette-results", handlePartialPaletteResults(db))
 }
 
 func handleDashboardShell(db *database.Database) http.HandlerFunc {
@@ -256,21 +271,25 @@ func handlePartialRequirements(db *database.Database) http.HandlerFunc {
 		}
 		sort.Strings(cats)
 
-		// REQ-DASH-020: Apply filters from query params
+		// REQ-DASH-020/022: Apply filters from query params (comma-separated multi-select)
 		status := q.Get("status")
 		category := q.Get("category")
 		search := q.Get("search")
 		priority := q.Get("priority")
 
+		statusSet := splitFilter(status)
+		categorySet := splitFilter(category)
+		prioritySet := splitFilter(priority)
+
 		var filtered []*database.Requirement
 		for _, req := range reqs {
-			if status != "" && string(req.Status) != status {
+			if len(statusSet) > 0 && !statusSet[string(req.Status)] {
 				continue
 			}
-			if category != "" && req.Category != category {
+			if len(categorySet) > 0 && !categorySet[req.Category] {
 				continue
 			}
-			if priority != "" && string(req.Priority) != priority {
+			if len(prioritySet) > 0 && !prioritySet[string(req.Priority)] {
 				continue
 			}
 			if search != "" && !strings.Contains(strings.ToLower(req.ReqID+req.RequirementText), strings.ToLower(search)) {
@@ -307,14 +326,28 @@ func handlePartialRequirements(db *database.Database) http.HandlerFunc {
 			})
 		}
 
+		// Collect priorities for filter dropdown
+		priSet := make(map[string]bool)
+		for _, req := range db.All() {
+			priSet[string(req.Priority)] = true
+		}
+		pris := make([]string, 0, len(priSet))
+		for p := range priSet {
+			pris = append(pris, p)
+		}
+		sort.Strings(pris)
+
 		data := requirementsListData{
-			Requirements: rows,
-			Categories:   cats,
-			SortField:    sortField,
-			SortOrder:    order,
-			FilterStatus: status,
-			FilterCat:    category,
-			FilterSearch: search,
+			Requirements:   rows,
+			Categories:     cats,
+			Priorities:     pris,
+			SortField:      sortField,
+			SortOrder:      order,
+			FilterStatus:   status,
+			FilterCat:      category,
+			FilterPriority: priority,
+			FilterSearch:   search,
+			ActiveFilters:  buildActiveFilters(status, category, priority),
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -618,6 +651,96 @@ func handlePartialAgents(db *database.Database) http.HandlerFunc {
 	}
 }
 
+// REQ-DASH-032/034: Palette search results partial with action prefixes.
+func handlePartialPaletteResults(db *database.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		search := r.URL.Query().Get("search")
+		reqs := db.All()
+
+		var results []reqRowData
+
+		// REQ-DASH-034: Handle action prefixes
+		if strings.HasPrefix(search, ">") {
+			// Page navigation commands
+			pages := []struct{ id, desc string }{
+				{"status", "Go to Status"},
+				{"requirements", "Go to Requirements"},
+				{"graph", "Go to Graph"},
+				{"kanban", "Go to Kanban"},
+				{"releases", "Go to Releases"},
+				{"health", "Go to Health"},
+				{"agents", "Go to Agents"},
+			}
+			query := strings.ToLower(strings.TrimPrefix(search, ">"))
+			for _, p := range pages {
+				if query == "" || strings.Contains(strings.ToLower(p.desc), strings.TrimSpace(query)) {
+					results = append(results, reqRowData{
+						ReqID:       ">" + p.id,
+						Description: p.desc,
+						StatusClass: "not-started",
+						Status:      "NAV",
+					})
+				}
+			}
+		} else if strings.HasPrefix(search, "@") {
+			// Assignee filter
+			query := strings.ToLower(strings.TrimPrefix(search, "@"))
+			assigneeSet := make(map[string]bool)
+			for _, req := range reqs {
+				if req.Assignee != "" {
+					assigneeSet[req.Assignee] = true
+				}
+			}
+			for assignee := range assigneeSet {
+				if query == "" || strings.Contains(strings.ToLower(assignee), strings.TrimSpace(query)) {
+					results = append(results, reqRowData{
+						ReqID:       "@" + assignee,
+						Description: "Filter by assignee: " + assignee,
+						StatusClass: "not-started",
+						Status:      "FILTER",
+					})
+				}
+			}
+		} else if strings.HasPrefix(search, "#") {
+			// Category filter
+			query := strings.ToLower(strings.TrimPrefix(search, "#"))
+			catSet := make(map[string]bool)
+			for _, req := range reqs {
+				catSet[req.Category] = true
+			}
+			for cat := range catSet {
+				if query == "" || strings.Contains(strings.ToLower(cat), strings.TrimSpace(query)) {
+					results = append(results, reqRowData{
+						ReqID:       "#" + cat,
+						Description: "Filter by category: " + cat,
+						StatusClass: "not-started",
+						Status:      "FILTER",
+					})
+				}
+			}
+		} else if search != "" {
+			// Standard requirement search
+			needle := strings.ToLower(search)
+			for _, req := range reqs {
+				if strings.Contains(strings.ToLower(req.ReqID+req.RequirementText), needle) {
+					results = append(results, reqRowData{
+						ReqID:       req.ReqID,
+						Status:      string(req.Status),
+						StatusClass: statusClassFor(req.Status),
+						Description: req.RequirementText,
+					})
+					if len(results) >= 20 {
+						break
+					}
+				}
+			}
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = dashboard.RenderPartial(w, "palette_results", paletteResultsData{Results: results})
+	}
+}
+
 func buildStatusData(db *database.Database) statusData {
 	reqs := db.All()
 	complete, partial, missing := 0, 0, 0
@@ -686,4 +809,48 @@ func titleCase(s string) string {
 		return s
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// splitFilter splits a comma-separated filter string into a set for multi-select matching.
+// Returns nil if the input is empty (meaning no filter is active).
+func splitFilter(s string) map[string]bool {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	m := make(map[string]bool, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			m[p] = true
+		}
+	}
+	if len(m) == 0 {
+		return nil
+	}
+	return m
+}
+
+// buildActiveFilters constructs filter chips from current filter params.
+func buildActiveFilters(status, category, priority string) []activeFilter {
+	var filters []activeFilter
+	for _, v := range strings.Split(status, ",") {
+		v = strings.TrimSpace(v)
+		if v != "" {
+			filters = append(filters, activeFilter{Field: "Status", Value: v, Param: "status"})
+		}
+	}
+	for _, v := range strings.Split(priority, ",") {
+		v = strings.TrimSpace(v)
+		if v != "" {
+			filters = append(filters, activeFilter{Field: "Priority", Value: v, Param: "priority"})
+		}
+	}
+	for _, v := range strings.Split(category, ",") {
+		v = strings.TrimSpace(v)
+		if v != "" {
+			filters = append(filters, activeFilter{Field: "Category", Value: v, Param: "category"})
+		}
+	}
+	return filters
 }
