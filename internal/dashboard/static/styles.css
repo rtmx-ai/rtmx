@@ -691,3 +691,72 @@ a.content-link:hover {
   background: var(--rtmx-emerald);
   color: var(--rtmx-text);
 }
+
+/* REQ-DASH-051: Node fill color via CSS classes */
+.node-complete circle.node-circle { fill: var(--rtmx-complete); }
+.node-partial circle.node-circle { fill: var(--rtmx-partial); }
+.node-missing circle.node-circle { fill: var(--rtmx-missing); }
+.node-not-started circle.node-circle { fill: var(--rtmx-not-started); }
+
+/* REQ-DASH-052: Priority ring via CSS classes */
+.priority-p0 circle.node-circle { stroke: var(--rtmx-missing); stroke-width: 3px; }
+.priority-high circle.node-circle { stroke: var(--rtmx-partial); stroke-width: 2px; }
+.priority-medium circle.node-circle { stroke: var(--rtmx-medium); stroke-width: 1px; }
+.priority-low circle.node-circle { stroke: none; }
+
+/* REQ-DASH-054: Blocked node dashed border + reduced opacity */
+.node-blocked circle.node-circle { stroke-dasharray: 5 3; }
+.node-blocked { opacity: 0.7; }
+
+/* REQ-DASH-053: Critical path edge animation */
+@keyframes critical-path-flow {
+  to { stroke-dashoffset: -12; }
+}
+.edge-critical {
+  stroke: var(--rtmx-emerald);
+  stroke-width: 3px;
+  stroke-dasharray: 8 4;
+  animation: critical-path-flow 2s linear infinite;
+}
+.edge-normal {
+  stroke: var(--rtmx-border);
+  stroke-width: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .edge-critical { animation: none; }
+}
+
+/* REQ-DASH-055: Cycle member warning glow */
+@keyframes cycle-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+.node-cycle .cycle-badge { fill: var(--rtmx-partial); }
+.node-cycle .cycle-glow {
+  animation: cycle-pulse 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .node-cycle .cycle-glow { animation: none; opacity: 0.5; }
+}
+
+/* REQ-DASH-056: Node labels */
+.node-label-id {
+  fill: var(--rtmx-text-muted);
+  font-size: 10px;
+  font-family: var(--rtmx-font-mono);
+  text-anchor: middle;
+}
+.node-label-desc {
+  fill: var(--rtmx-text-dim);
+  font-size: 9px;
+  font-family: var(--rtmx-font-body);
+  text-anchor: middle;
+  display: none;
+}
+.labels-expanded .node-label-desc { display: block; }
+.labels-hidden .node-label-id,
+.labels-hidden .node-label-desc { opacity: 0; }
+
+/* REQ-DASH-053: Arrow markers for critical vs normal edges */
+.marker-critical { fill: var(--rtmx-emerald); }
+.marker-normal { fill: var(--rtmx-border); }

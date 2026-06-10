@@ -463,19 +463,21 @@ func handlePartialGraph(db *database.Database, g *graph.Graph) http.HandlerFunc 
 
 		// Build enriched JSON for D3/dagre (REQ-DASH-044, 045, 046, 047)
 		type gNode struct {
-			ID            string  `json:"id"`
-			Status        string  `json:"status"`
-			Group         string  `json:"group"`
-			EffortWeeks   float64 `json:"effort_weeks"`
-			Priority      string  `json:"priority"`
-			Phase         int     `json:"phase"`
-			Assignee      string  `json:"assignee"`
-			Sprint        string  `json:"sprint"`
-			IsBlocked     bool    `json:"is_blocked"`
-			IsCritical    bool    `json:"is_critical"`
-			IsCycleMember bool    `json:"is_cycle_member"`
-			Layer         int     `json:"layer"`
-			WebID         int     `json:"web_id"`
+			ID            string   `json:"id"`
+			Status        string   `json:"status"`
+			Group         string   `json:"group"`
+			Description   string   `json:"description"`
+			EffortWeeks   float64  `json:"effort_weeks"`
+			Priority      string   `json:"priority"`
+			Phase         int      `json:"phase"`
+			Assignee      string   `json:"assignee"`
+			Sprint        string   `json:"sprint"`
+			IsBlocked     bool     `json:"is_blocked"`
+			IsCritical    bool     `json:"is_critical"`
+			IsCycleMember bool     `json:"is_cycle_member"`
+			Layer         int      `json:"layer"`
+			WebID         int      `json:"web_id"`
+			BlockingIDs   []string `json:"blocking_ids"`
 		}
 		type gEdge struct {
 			Source         string `json:"source"`
@@ -483,10 +485,11 @@ func handlePartialGraph(db *database.Database, g *graph.Graph) http.HandlerFunc 
 			IsCriticalPath bool   `json:"is_critical_path"`
 		}
 		type gJSON struct {
-			Nodes      []gNode `json:"nodes"`
-			Edges      []gEdge `json:"edges"`
-			LayerCount int     `json:"layer_count"`
-			WebCount   int     `json:"web_count"`
+			Nodes      []gNode    `json:"nodes"`
+			Edges      []gEdge    `json:"edges"`
+			Cycles     [][]string `json:"cycles"`
+			LayerCount int        `json:"layer_count"`
+			WebCount   int        `json:"web_count"`
 		}
 
 		// Pre-compute graph analysis (once per request)
@@ -597,10 +600,19 @@ func handlePartialGraph(db *database.Database, g *graph.Graph) http.HandlerFunc 
 			if idx, ok := webIndex[req.ReqID]; ok {
 				wid = idx
 			}
+			// REQ-DASH-095: Compute blocking_ids (incomplete direct deps)
+			blockingIDs := []string{}
+			for dep := range req.Dependencies {
+				if depReq := db.Get(dep); depReq != nil && !depReq.IsComplete() {
+					blockingIDs = append(blockingIDs, dep)
+				}
+			}
+			sort.Strings(blockingIDs)
 			gData.Nodes = append(gData.Nodes, gNode{
 				ID:            req.ReqID,
 				Status:        string(req.Status),
 				Group:         req.Category,
+				Description:   req.RequirementText,
 				EffortWeeks:   req.EffortWeeks,
 				Priority:      string(req.Priority),
 				Phase:         req.Phase,
@@ -611,9 +623,16 @@ func handlePartialGraph(db *database.Database, g *graph.Graph) http.HandlerFunc 
 				IsCycleMember: cycleSet[req.ReqID],
 				Layer:         layer,
 				WebID:         wid,
+				BlockingIDs:   blockingIDs,
 			})
 		}
 		gData.LayerCount = filteredLayerCount
+
+		// REQ-DASH-096: Add cycle paths (SCCs of size >= 2)
+		gData.Cycles = [][]string{}
+		for _, cycle := range cycles {
+			gData.Cycles = append(gData.Cycles, cycle)
+		}
 
 		// Build edges with critical path flag
 		// Two consecutive nodes on the critical path connected by an edge are critical path edges

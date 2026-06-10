@@ -2290,6 +2290,492 @@ func TestTreemapPartialTemplateSkeleton(t *testing.T) {
 	})
 }
 
+// --------------------------------------------------------------------------
+// Tier 2: Visual Encoding Tests
+// --------------------------------------------------------------------------
+
+// TestNodeSizeEffortEncoding verifies REQ-DASH-050: node radius proportional to effort_weeks.
+func TestNodeSizeEffortEncoding(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-050")
+
+	// Read app.js
+	appJS := dashboard.ReadStaticFile("app.js")
+
+	t.Run("effort_radius_function_exists", func(t *testing.T) {
+		assertContains(t, appJS, "function effortRadius", "app.js should define effortRadius function")
+	})
+
+	t.Run("default_radius_12", func(t *testing.T) {
+		assertContains(t, appJS, "return 12", "default radius for unset effort should be 12")
+	})
+
+	t.Run("min_radius_8", func(t *testing.T) {
+		assertContains(t, appJS, "return 8", "minimum radius should be 8")
+	})
+
+	t.Run("max_radius_28", func(t *testing.T) {
+		assertContains(t, appJS, "return 28", "maximum radius should be 28")
+	})
+
+	t.Run("radius_used_in_dagre_dimensions", func(t *testing.T) {
+		assertContains(t, appJS, "effortRadius(n.effort_weeks)", "renderGraph should call effortRadius with effort_weeks")
+	})
+
+	t.Run("dagre_node_dimensions_use_radius", func(t *testing.T) {
+		assertContains(t, appJS, "2 * r", "dagre node dimensions should use 2*radius")
+	})
+}
+
+// TestNodeFillStatusColor verifies REQ-DASH-051: node fill color encodes status.
+func TestNodeFillStatusColor(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-051")
+
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	t.Run("css_classes_defined", func(t *testing.T) {
+		assertContains(t, cssContent, ".node-complete", "CSS should define .node-complete")
+		assertContains(t, cssContent, ".node-partial", "CSS should define .node-partial")
+		assertContains(t, cssContent, ".node-missing", "CSS should define .node-missing")
+		assertContains(t, cssContent, ".node-not-started", "CSS should define .node-not-started")
+	})
+
+	t.Run("uses_design_tokens", func(t *testing.T) {
+		assertContains(t, cssContent, "--rtmx-complete", "node-complete should use --rtmx-complete token")
+		assertContains(t, cssContent, "--rtmx-partial", "node-partial should use --rtmx-partial token")
+		assertContains(t, cssContent, "--rtmx-missing", "node-missing should use --rtmx-missing token")
+		assertContains(t, cssContent, "--rtmx-not-started", "node-not-started should use --rtmx-not-started token")
+	})
+
+	t.Run("js_status_class_function", func(t *testing.T) {
+		appJS := dashboard.ReadStaticFile("app.js")
+		assertContains(t, appJS, "function statusClass", "app.js should define statusClass function")
+	})
+
+	t.Run("applied_via_css_classes_not_inline", func(t *testing.T) {
+		appJS := dashboard.ReadStaticFile("app.js")
+		assertContains(t, appJS, "statusClass(n.status)", "renderGraph should apply status via CSS class")
+	})
+}
+
+// TestNodeBorderPriority verifies REQ-DASH-052: node border ring encodes priority.
+func TestNodeBorderPriority(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-052")
+
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	t.Run("priority_css_classes", func(t *testing.T) {
+		assertContains(t, cssContent, ".priority-p0", "CSS should define .priority-p0")
+		assertContains(t, cssContent, ".priority-high", "CSS should define .priority-high")
+		assertContains(t, cssContent, ".priority-medium", "CSS should define .priority-medium")
+		assertContains(t, cssContent, ".priority-low", "CSS should define .priority-low")
+	})
+
+	t.Run("p0_has_3px_stroke", func(t *testing.T) {
+		assertContains(t, cssContent, "stroke-width: 3px", "P0 ring should be 3px")
+	})
+
+	t.Run("high_has_2px_stroke", func(t *testing.T) {
+		assertContains(t, cssContent, "stroke-width: 2px", "HIGH ring should be 2px")
+	})
+
+	t.Run("medium_has_1px_stroke", func(t *testing.T) {
+		assertContains(t, cssContent, "stroke-width: 1px", "MEDIUM ring should be 1px")
+	})
+
+	t.Run("js_priority_class_function", func(t *testing.T) {
+		appJS := dashboard.ReadStaticFile("app.js")
+		assertContains(t, appJS, "function priorityClass", "app.js should define priorityClass function")
+	})
+
+	t.Run("stroke_width_in_dagre_dimensions", func(t *testing.T) {
+		appJS := dashboard.ReadStaticFile("app.js")
+		assertContains(t, appJS, "2 * strokeW", "dagre dimensions should account for stroke width")
+	})
+}
+
+// TestCriticalPathEdgeRendering verifies REQ-DASH-053: critical path edge visual distinction.
+func TestCriticalPathEdgeRendering(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-053")
+
+	cssContent := dashboard.ReadStaticFile("styles.css")
+	appJS := dashboard.ReadStaticFile("app.js")
+
+	t.Run("edge_critical_css_class", func(t *testing.T) {
+		assertContains(t, cssContent, ".edge-critical", "CSS should define .edge-critical")
+	})
+
+	t.Run("edge_normal_css_class", func(t *testing.T) {
+		assertContains(t, cssContent, ".edge-normal", "CSS should define .edge-normal")
+	})
+
+	t.Run("critical_path_animation", func(t *testing.T) {
+		assertContains(t, cssContent, "critical-path-flow", "CSS should define critical-path-flow animation")
+		assertContains(t, cssContent, "stroke-dashoffset", "animation should use stroke-dashoffset")
+	})
+
+	t.Run("reduced_motion_support", func(t *testing.T) {
+		assertContains(t, cssContent, "prefers-reduced-motion", "should respect prefers-reduced-motion")
+	})
+
+	t.Run("separate_arrow_markers", func(t *testing.T) {
+		assertContains(t, appJS, "arrow-normal", "should have normal arrow marker")
+		assertContains(t, appJS, "arrow-critical", "should have critical arrow marker")
+	})
+
+	t.Run("critical_edges_rendered_on_top", func(t *testing.T) {
+		assertContains(t, appJS, "normalEdges.forEach", "normal edges should render first")
+		assertContains(t, appJS, "criticalEdges.forEach", "critical edges should render after normal")
+	})
+
+	t.Run("marker_css_classes", func(t *testing.T) {
+		assertContains(t, cssContent, ".marker-critical", "CSS should define .marker-critical")
+		assertContains(t, cssContent, ".marker-normal", "CSS should define .marker-normal")
+	})
+}
+
+// TestBlockedNodeVisualTreatment verifies REQ-DASH-054: blocked node dashed border + opacity.
+func TestBlockedNodeVisualTreatment(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-054")
+
+	cssContent := dashboard.ReadStaticFile("styles.css")
+	appJS := dashboard.ReadStaticFile("app.js")
+
+	t.Run("node_blocked_css_class", func(t *testing.T) {
+		assertContains(t, cssContent, ".node-blocked", "CSS should define .node-blocked")
+	})
+
+	t.Run("dashed_border", func(t *testing.T) {
+		assertContains(t, cssContent, "stroke-dasharray: 5 3", "blocked nodes should have dashed border")
+	})
+
+	t.Run("reduced_opacity", func(t *testing.T) {
+		assertContains(t, cssContent, "opacity: 0.7", "blocked nodes should have reduced opacity")
+	})
+
+	t.Run("js_applies_blocked_class", func(t *testing.T) {
+		assertContains(t, appJS, "node-blocked", "renderGraph should apply node-blocked class")
+		assertContains(t, appJS, "n.is_blocked", "renderGraph should check is_blocked field")
+	})
+}
+
+// TestCycleMemberIndicator verifies REQ-DASH-055: cycle member warning badge + glow.
+func TestCycleMemberIndicator(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-055")
+
+	cssContent := dashboard.ReadStaticFile("styles.css")
+	appJS := dashboard.ReadStaticFile("app.js")
+
+	t.Run("cycle_badge_rendered", func(t *testing.T) {
+		assertContains(t, appJS, "cycle-badge", "renderGraph should create cycle badge")
+		assertContains(t, appJS, "polygon", "cycle badge should be a triangle (polygon)")
+	})
+
+	t.Run("cycle_glow_animation", func(t *testing.T) {
+		assertContains(t, cssContent, "cycle-pulse", "CSS should define cycle-pulse animation")
+		assertContains(t, appJS, "cycle-glow", "renderGraph should create cycle glow element")
+	})
+
+	t.Run("cycle_highlight_on_click", func(t *testing.T) {
+		assertContains(t, appJS, "cycleHighlightActive", "renderGraph should track cycle highlight state")
+		assertContains(t, appJS, "cycleMembership", "renderGraph should build cycle membership lookup")
+	})
+
+	t.Run("reduced_motion_for_glow", func(t *testing.T) {
+		assertContains(t, cssContent, "prefers-reduced-motion", "glow animation should respect reduced motion")
+	})
+
+	t.Run("click_background_exits_highlight", func(t *testing.T) {
+		assertContains(t, appJS, "event.target === svg.node()", "clicking SVG background should exit cycle highlight")
+	})
+}
+
+// TestNodeLabelsAlwaysVisible verifies REQ-DASH-056: always-visible labels with zoom-responsive detail.
+func TestNodeLabelsAlwaysVisible(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-056")
+
+	cssContent := dashboard.ReadStaticFile("styles.css")
+	appJS := dashboard.ReadStaticFile("app.js")
+
+	t.Run("label_id_css_class", func(t *testing.T) {
+		assertContains(t, cssContent, ".node-label-id", "CSS should define .node-label-id")
+	})
+
+	t.Run("label_desc_css_class", func(t *testing.T) {
+		assertContains(t, cssContent, ".node-label-desc", "CSS should define .node-label-desc")
+	})
+
+	t.Run("label_uses_mono_font", func(t *testing.T) {
+		assertContains(t, cssContent, "font-mono", "label ID should use monospace font token")
+	})
+
+	t.Run("zoom_threshold_1_5", func(t *testing.T) {
+		assertContains(t, appJS, "1.5", "zoom threshold for expanded labels should be 1.5")
+		assertContains(t, appJS, "labels-expanded", "SVG should get labels-expanded class")
+	})
+
+	t.Run("labels_hidden_below_0_5", func(t *testing.T) {
+		assertContains(t, appJS, "0.5", "zoom threshold for hidden labels should be 0.5")
+		assertContains(t, appJS, "labels-hidden", "SVG should get labels-hidden class")
+	})
+
+	t.Run("description_truncated_40_chars", func(t *testing.T) {
+		assertContains(t, appJS, "40", "description should be truncated at 40 chars")
+		assertContains(t, appJS, "...", "truncated description should end with ellipsis")
+	})
+
+	t.Run("label_below_node", func(t *testing.T) {
+		assertContains(t, appJS, "r + 12", "label y-offset should be radius + 12")
+	})
+}
+
+// TestEdgePathRendering verifies REQ-DASH-083: dagre edge paths with rounded corners.
+func TestEdgePathRendering(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-083")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+
+	t.Run("edge_path_function", func(t *testing.T) {
+		assertContains(t, appJS, "function edgePath", "app.js should define edgePath function")
+	})
+
+	t.Run("uses_svg_path_not_line", func(t *testing.T) {
+		assertContains(t, appJS, "append('path')", "edges should be rendered as SVG path elements")
+	})
+
+	t.Run("rounded_corners", func(t *testing.T) {
+		assertContains(t, appJS, "cornerRadius", "edge paths should use corner radius")
+		assertContains(t, appJS, "Q", "paths should use quadratic bezier for rounded corners")
+	})
+
+	t.Run("uses_dagre_edge_points", func(t *testing.T) {
+		assertContains(t, appJS, "g.edge(e.source, e.target)", "should use dagre-computed edge data")
+		assertContains(t, appJS, "edgeData.points", "should use dagre edge points array")
+	})
+}
+
+// TestInteractionLayer verifies REQ-DASH-084: zoom, pan, hover preservation on dagre layout.
+func TestInteractionLayer(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-084")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+
+	t.Run("zoom_on_svg_group", func(t *testing.T) {
+		assertContains(t, appJS, "graph-root", "zoom should operate on graph-root SVG group")
+	})
+
+	t.Run("hover_scale_enlargement", func(t *testing.T) {
+		assertContains(t, appJS, "1.1", "hover should scale node to 1.1x")
+	})
+
+	t.Run("no_node_drag", func(t *testing.T) {
+		if strings.Contains(appJS, "d3.drag") {
+			t.Error("dagre layout should not have d3.drag -- positions are deterministic")
+		}
+	})
+
+	t.Run("double_click_reset_zoom", func(t *testing.T) {
+		assertContains(t, appJS, "dblclick.zoom", "double-click should reset zoom")
+		assertContains(t, appJS, "zoomIdentity", "reset should use d3.zoomIdentity")
+	})
+
+	t.Run("description_in_node_data", func(t *testing.T) {
+		db := integrationDB(t)
+		mux := integrationMux(t, db)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "description", "graph JSON nodes should include description field")
+	})
+}
+
+// TestBlockingIDsJSON verifies REQ-DASH-095: blocking_ids array in enriched node JSON.
+func TestBlockingIDsJSON(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-095")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+
+	extractGraphJSON := func(t *testing.T) map[string]json.RawMessage {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+		body := rec.Body.String()
+		start := strings.Index(body, "var graphData = ")
+		if start < 0 {
+			t.Fatal("graphData not found")
+		}
+		start += len("var graphData = ")
+		end := strings.Index(body[start:], ";\n")
+		if end < 0 {
+			end = strings.Index(body[start:], ";")
+		}
+		jsonStr := body[start : start+end]
+		var result map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
+			t.Fatalf("failed to parse graphData: %v", err)
+		}
+		return result
+	}
+
+	t.Run("blocking_ids_field_present", func(t *testing.T) {
+		data := extractGraphJSON(t)
+		var nodes []map[string]interface{}
+		_ = json.Unmarshal(data["nodes"], &nodes)
+		for _, node := range nodes {
+			id := node["id"].(string)
+			if _, ok := node["blocking_ids"]; !ok {
+				t.Errorf("node %s missing blocking_ids field", id)
+			}
+		}
+	})
+
+	t.Run("blocking_ids_is_array_not_null", func(t *testing.T) {
+		data := extractGraphJSON(t)
+		var nodes []map[string]interface{}
+		_ = json.Unmarshal(data["nodes"], &nodes)
+		for _, node := range nodes {
+			id := node["id"].(string)
+			bids := node["blocking_ids"]
+			if bids == nil {
+				t.Errorf("node %s blocking_ids should be [] not null", id)
+			}
+			// Should be an array
+			if _, ok := bids.([]interface{}); !ok {
+				t.Errorf("node %s blocking_ids should be array, got %T", id, bids)
+			}
+		}
+	})
+
+	t.Run("unblocked_node_has_empty_array", func(t *testing.T) {
+		data := extractGraphJSON(t)
+		var nodes []map[string]interface{}
+		_ = json.Unmarshal(data["nodes"], &nodes)
+		for _, node := range nodes {
+			id := node["id"].(string)
+			if id == "REQ-CLI-001" {
+				bids := node["blocking_ids"].([]interface{})
+				if len(bids) != 0 {
+					t.Errorf("REQ-CLI-001 has no deps, blocking_ids should be empty, got %v", bids)
+				}
+			}
+		}
+	})
+
+	t.Run("blocked_node_lists_incomplete_deps", func(t *testing.T) {
+		data := extractGraphJSON(t)
+		var nodes []map[string]interface{}
+		_ = json.Unmarshal(data["nodes"], &nodes)
+		for _, node := range nodes {
+			id := node["id"].(string)
+			// MCP-002 depends on MCP-001 which is PARTIAL (incomplete)
+			if id == "REQ-MCP-002" {
+				bids := node["blocking_ids"].([]interface{})
+				if len(bids) == 0 {
+					t.Error("REQ-MCP-002 should have blocking_ids containing REQ-MCP-001")
+				}
+				found := false
+				for _, b := range bids {
+					if b.(string) == "REQ-MCP-001" {
+						found = true
+					}
+				}
+				if !found {
+					t.Errorf("REQ-MCP-002 blocking_ids should contain REQ-MCP-001, got %v", bids)
+				}
+			}
+		}
+	})
+
+	t.Run("complete_dep_not_in_blocking_ids", func(t *testing.T) {
+		data := extractGraphJSON(t)
+		var nodes []map[string]interface{}
+		_ = json.Unmarshal(data["nodes"], &nodes)
+		for _, node := range nodes {
+			id := node["id"].(string)
+			// CLI-002 depends on CLI-001 which is COMPLETE
+			if id == "REQ-CLI-002" {
+				bids := node["blocking_ids"].([]interface{})
+				if len(bids) != 0 {
+					t.Errorf("REQ-CLI-002 dep CLI-001 is COMPLETE, blocking_ids should be empty, got %v", bids)
+				}
+			}
+		}
+	})
+}
+
+// TestCyclePathJSON verifies REQ-DASH-096: cycles array in enriched graph JSON.
+func TestCyclePathJSON(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-096")
+
+	t.Run("cycles_field_present_and_empty", func(t *testing.T) {
+		db := integrationDB(t)
+		mux := integrationMux(t, db)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+		body := rec.Body.String()
+		start := strings.Index(body, "var graphData = ")
+		start += len("var graphData = ")
+		end := strings.Index(body[start:], ";\n")
+		if end < 0 {
+			end = strings.Index(body[start:], ";")
+		}
+		jsonStr := body[start : start+end]
+		var result map[string]json.RawMessage
+		_ = json.Unmarshal([]byte(jsonStr), &result)
+
+		if _, ok := result["cycles"]; !ok {
+			t.Fatal("graph JSON should include cycles field")
+		}
+		var cycles [][]string
+		if err := json.Unmarshal(result["cycles"], &cycles); err != nil {
+			t.Fatalf("cycles should be [][]string: %v", err)
+		}
+		// Integration DB has no cycles
+		if len(cycles) != 0 {
+			t.Errorf("acyclic graph should have empty cycles array, got %v", cycles)
+		}
+	})
+
+	t.Run("cycles_detected_for_cyclic_graph", func(t *testing.T) {
+		// Create a DB with a cycle: A -> B -> A
+		db := database.NewDatabase()
+		reqA := &database.Requirement{ReqID: "A", Category: "TEST", Status: database.StatusMissing, Dependencies: database.StringSet{"B": {}}, Blocks: database.StringSet{}}
+		reqB := &database.Requirement{ReqID: "B", Category: "TEST", Status: database.StatusMissing, Dependencies: database.StringSet{"A": {}}, Blocks: database.StringSet{}}
+		_ = db.Add(reqA)
+		_ = db.Add(reqB)
+		mux := integrationMux(t, db)
+
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+		body := rec.Body.String()
+		start := strings.Index(body, "var graphData = ")
+		start += len("var graphData = ")
+		end := strings.Index(body[start:], ";\n")
+		if end < 0 {
+			end = strings.Index(body[start:], ";")
+		}
+		jsonStr := body[start : start+end]
+		var result map[string]json.RawMessage
+		_ = json.Unmarshal([]byte(jsonStr), &result)
+
+		var cycles [][]string
+		_ = json.Unmarshal(result["cycles"], &cycles)
+		if len(cycles) == 0 {
+			t.Fatal("cyclic graph should have at least one cycle in cycles array")
+		}
+		// Cycle should contain both A and B
+		cycle := cycles[0]
+		hasA, hasB := false, false
+		for _, id := range cycle {
+			if id == "A" { hasA = true }
+			if id == "B" { hasB = true }
+		}
+		if !hasA || !hasB {
+			t.Errorf("cycle should contain both A and B, got %v", cycle)
+		}
+	})
+}
+
 // Test helpers
 // --------------------------------------------------------------------------
 

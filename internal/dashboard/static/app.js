@@ -465,7 +465,60 @@ function clearAllFilters() {
   htmx.ajax('GET', '/partials/requirements?' + params.toString(), { target: '#content', swap: 'innerHTML' });
 }
 
-// REQ-DASH-048: Dagre layered (Sugiyama) layout replacing force simulation
+// REQ-DASH-050: Effort-based radius computation
+function effortRadius(effortWeeks) {
+  if (!effortWeeks || effortWeeks <= 0) return 12;
+  if (effortWeeks < 0.25) return 8;
+  if (effortWeeks > 4.0) return 28;
+  return Math.round(8 + (effortWeeks - 0.25) * (20 / 3.75));
+}
+
+// REQ-DASH-051: Status to CSS class mapping
+function statusClass(status) {
+  var map = { 'COMPLETE': 'node-complete', 'PARTIAL': 'node-partial', 'MISSING': 'node-missing', 'NOT_STARTED': 'node-not-started' };
+  return map[status] || 'node-not-started';
+}
+
+// REQ-DASH-052: Priority to CSS class mapping
+function priorityClass(priority) {
+  var map = { 'P0': 'priority-p0', 'HIGH': 'priority-high', 'MEDIUM': 'priority-medium', 'LOW': 'priority-low' };
+  return map[priority] || 'priority-low';
+}
+
+// REQ-DASH-083: Build SVG path from dagre edge points with rounded corners
+function edgePath(points) {
+  if (!points || points.length < 2) return '';
+  var d = 'M' + points[0].x + ',' + points[0].y;
+  var cornerRadius = 5;
+  for (var i = 1; i < points.length; i++) {
+    if (i < points.length - 1 && cornerRadius > 0) {
+      // Compute rounded corner via quadratic bezier at intermediate points
+      var prev = points[i - 1];
+      var curr = points[i];
+      var next = points[i + 1];
+      var dx1 = curr.x - prev.x, dy1 = curr.y - prev.y;
+      var dx2 = next.x - curr.x, dy2 = next.y - curr.y;
+      var len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+      var len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+      var r = Math.min(cornerRadius, len1 / 2, len2 / 2);
+      if (r > 0 && len1 > 0 && len2 > 0) {
+        var cx1 = curr.x - (dx1 / len1) * r;
+        var cy1 = curr.y - (dy1 / len1) * r;
+        var cx2 = curr.x + (dx2 / len2) * r;
+        var cy2 = curr.y + (dy2 / len2) * r;
+        d += ' L' + cx1 + ',' + cy1;
+        d += ' Q' + curr.x + ',' + curr.y + ' ' + cx2 + ',' + cy2;
+      } else {
+        d += ' L' + curr.x + ',' + curr.y;
+      }
+    } else {
+      d += ' L' + points[i].x + ',' + points[i].y;
+    }
+  }
+  return d;
+}
+
+// REQ-DASH-048: Dagre layered (Sugiyama) layout with full visual encoding
 function renderGraph(data) {
   var container = document.getElementById('graph-container');
   var svg = d3.select('#graph-svg');
@@ -473,28 +526,40 @@ function renderGraph(data) {
 
   svg.selectAll('*').remove();
 
-  var statusColor = {
-    'COMPLETE': '#16a34a',
-    'PARTIAL': '#d97706',
-    'MISSING': '#dc2626',
-    'NOT_STARTED': '#71717a'
-  };
-
   var nodes = (data.nodes || []);
   var edges = (data.edges || []);
+  var cycles = (data.cycles || []);
 
   if (nodes.length === 0) return;
+
+  // Build cycle membership lookup for highlight mode
+  var cycleMembership = {}; // nodeId -> array of cycle arrays
+  cycles.forEach(function(cycle) {
+    cycle.forEach(function(id) {
+      if (!cycleMembership[id]) cycleMembership[id] = [];
+      cycleMembership[id].push(cycle);
+    });
+  });
 
   // Create dagre graph
   var g = new dagre.graphlib.Graph();
   g.setGraph({ rankdir: 'TB', ranksep: 80, nodesep: 40, marginx: 20, marginy: 20 });
   g.setDefaultEdgeLabel(function() { return {}; });
 
-  // Add nodes with dimensions
+  // REQ-DASH-050: Add nodes with effort-proportional dimensions
   var nodeMap = {};
   nodes.forEach(function(n) {
     nodeMap[n.id] = n;
-    g.setNode(n.id, { label: n.id, width: 120, height: 32 });
+    var r = effortRadius(n.effort_weeks);
+    // REQ-DASH-052: Account for priority ring stroke width in dagre dimensions
+    var strokeW = 0;
+    if (n.priority === 'P0') strokeW = 3;
+    else if (n.priority === 'HIGH') strokeW = 2;
+    else if (n.priority === 'MEDIUM') strokeW = 1;
+    // REQ-DASH-056: Account for label height (id + 12px gap)
+    var nodeW = 2 * r + 2 * strokeW;
+    var nodeH = 2 * r + 2 * strokeW + 24;
+    g.setNode(n.id, { label: n.id, width: Math.max(nodeW, 80), height: nodeH });
   });
 
   // Add edges
@@ -523,60 +588,186 @@ function renderGraph(data) {
 
   var root = svg.append('g').attr('class', 'graph-root');
 
-  // Zoom and pan (no drag on nodes -- dagre positions are deterministic)
-  svg.call(d3.zoom()
+  // REQ-DASH-084: Zoom and pan on SVG group, no node drag
+  var zoomBehavior = d3.zoom()
     .scaleExtent([0.1, 4])
-    .on('zoom', function(event) { root.attr('transform', event.transform); }));
-
-  // Arrow marker
-  svg.append('defs').append('marker')
-    .attr('id', 'arrow')
-    .attr('viewBox', '0 -3 6 6')
-    .attr('refX', 6)
-    .attr('refY', 0)
-    .attr('markerWidth', 6)
-    .attr('markerHeight', 6)
-    .attr('orient', 'auto')
-    .append('path')
-    .attr('d', 'M0,-3L6,0L0,3')
-    .attr('fill', '#9ca3af');
-
-  // Draw edges as lines (straight from source to target center)
-  var linkGroup = root.append('g').attr('class', 'edges');
-  edges.forEach(function(e) {
-    var srcNode = g.node(e.source);
-    var tgtNode = g.node(e.target);
-    if (!srcNode || !tgtNode) return;
-    linkGroup.append('line')
-      .attr('x1', srcNode.x)
-      .attr('y1', srcNode.y + srcNode.height / 2)
-      .attr('x2', tgtNode.x)
-      .attr('y2', tgtNode.y - tgtNode.height / 2)
-      .attr('stroke', '#9ca3af')
-      .attr('stroke-opacity', 0.4)
-      .attr('stroke-width', 1)
-      .attr('marker-end', 'url(#arrow)');
+    .on('zoom', function(event) {
+      root.attr('transform', event.transform);
+      // REQ-DASH-056: Toggle label detail based on zoom level
+      var scale = event.transform.k;
+      svg.classed('labels-expanded', scale > 1.5);
+      svg.classed('labels-hidden', scale < 0.5);
+    });
+  svg.call(zoomBehavior);
+  // REQ-DASH-084: Double-click to reset zoom
+  svg.on('dblclick.zoom', function() {
+    svg.transition().duration(500).call(zoomBehavior.transform, d3.zoomIdentity);
   });
 
-  // Draw nodes as circles positioned by dagre
+  // REQ-DASH-053: Arrow markers for normal and critical edges
+  var defs = svg.append('defs');
+  defs.append('marker')
+    .attr('id', 'arrow-normal')
+    .attr('class', 'marker-normal')
+    .attr('viewBox', '0 -3 6 6')
+    .attr('refX', 6).attr('refY', 0)
+    .attr('markerWidth', 6).attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path').attr('d', 'M0,-3L6,0L0,3');
+  defs.append('marker')
+    .attr('id', 'arrow-critical')
+    .attr('class', 'marker-critical')
+    .attr('viewBox', '0 -3 6 6')
+    .attr('refX', 6).attr('refY', 0)
+    .attr('markerWidth', 6).attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path').attr('d', 'M0,-3L6,0L0,3');
+
+  // REQ-DASH-053: Draw normal edges first, then critical path edges on top
+  var linkGroup = root.append('g').attr('class', 'edges');
+  var normalEdges = edges.filter(function(e) { return !e.is_critical_path; });
+  var criticalEdges = edges.filter(function(e) { return e.is_critical_path; });
+
+  // REQ-DASH-083: Render edges as SVG paths using dagre edge points
+  function renderEdge(e, isCritical) {
+    var edgeData = g.edge(e.source, e.target);
+    if (!edgeData) return;
+    var points = edgeData.points;
+    if (!points || points.length < 2) return;
+    var pathD = edgePath(points);
+    linkGroup.append('path')
+      .attr('d', pathD)
+      .attr('fill', 'none')
+      .attr('class', isCritical ? 'edge-critical' : 'edge-normal')
+      .attr('marker-end', isCritical ? 'url(#arrow-critical)' : 'url(#arrow-normal)')
+      .attr('data-source', e.source)
+      .attr('data-target', e.target);
+  }
+
+  normalEdges.forEach(function(e) { renderEdge(e, false); });
+  criticalEdges.forEach(function(e) { renderEdge(e, true); });
+
+  // Draw nodes with visual encoding
   var nodeGroup = root.append('g').attr('class', 'nodes');
+  var cycleHighlightActive = false;
+
   nodes.forEach(function(n) {
     var pos = g.node(n.id);
     if (!pos) return;
+    var r = effortRadius(n.effort_weeks);
+
+    // Build CSS classes for the node group
+    var classes = ['graph-node', statusClass(n.status), priorityClass(n.priority)];
+    if (n.is_blocked) classes.push('node-blocked');
+    if (n.is_cycle_member) classes.push('node-cycle');
+
     var ng = nodeGroup.append('g')
-      .attr('transform', 'translate(' + pos.x + ',' + pos.y + ')');
+      .attr('transform', 'translate(' + pos.x + ',' + pos.y + ')')
+      .attr('class', classes.join(' '))
+      .attr('data-id', n.id);
+
+    // REQ-DASH-055: Cycle member glow effect (rendered behind node)
+    if (n.is_cycle_member) {
+      ng.append('circle')
+        .attr('class', 'cycle-glow')
+        .attr('r', r + 6)
+        .attr('fill', 'none')
+        .attr('stroke', '#f59e0b')
+        .attr('stroke-width', 3)
+        .attr('stroke-opacity', 0.5);
+    }
+
+    // REQ-DASH-050/051/052: Node circle with effort radius, status fill, priority ring
     ng.append('circle')
-      .attr('r', 6)
-      .attr('fill', statusColor[n.status] || '#71717a')
-      .attr('stroke', '#fff')
-      .attr('stroke-width', 1.5);
-    ng.append('title')
-      .text(n.id + ' (' + n.group + ')');
+      .attr('class', 'node-circle')
+      .attr('r', r);
+
+    // REQ-DASH-055: Warning triangle badge for cycle members
+    if (n.is_cycle_member) {
+      var badgeSize = Math.max(8, r * 0.5);
+      var bx = r * 0.7;
+      var by = -r * 0.7;
+      var tri = ng.append('g')
+        .attr('class', 'cycle-badge')
+        .attr('transform', 'translate(' + bx + ',' + by + ')');
+      tri.append('polygon')
+        .attr('points', function() {
+          var h = badgeSize;
+          var w = badgeSize;
+          return '0,' + (-h/2) + ' ' + (w/2) + ',' + (h/2) + ' ' + (-w/2) + ',' + (h/2);
+        });
+      tri.append('text')
+        .attr('text-anchor', 'middle')
+        .attr('dy', '0.35em')
+        .attr('font-size', Math.max(6, badgeSize * 0.7) + 'px')
+        .attr('fill', '#0a0a0a')
+        .attr('font-weight', 'bold')
+        .text('!');
+    }
+
+    // REQ-DASH-056: Always-visible node label (requirement ID)
+    ng.append('text')
+      .attr('class', 'node-label-id')
+      .attr('y', r + 12)
+      .text(n.id);
+
+    // REQ-DASH-056: Zoom-expanded description label
+    if (n.description) {
+      var desc = n.description.length > 40 ? n.description.substring(0, 40) + '...' : n.description;
+      ng.append('text')
+        .attr('class', 'node-label-desc')
+        .attr('y', r + 23)
+        .text(desc);
+    }
+
+    // REQ-DASH-084: Hover interaction (scale enlargement, no drag)
     ng.on('mouseover', function() {
-      d3.select(this).select('circle').attr('r', 9);
+      d3.select(this).select('.node-circle')
+        .transition().duration(100)
+        .attr('r', r * 1.1);
     }).on('mouseout', function() {
-      d3.select(this).select('circle').attr('r', 6);
+      d3.select(this).select('.node-circle')
+        .transition().duration(100)
+        .attr('r', r);
     });
+
+    // REQ-DASH-055: Click cycle member to highlight full cycle
+    if (n.is_cycle_member) {
+      ng.on('click', function() {
+        if (cycleHighlightActive) {
+          // Restore all nodes and edges
+          nodeGroup.selectAll('.graph-node').style('opacity', null);
+          linkGroup.selectAll('path').style('opacity', null);
+          cycleHighlightActive = false;
+          return;
+        }
+        // Find cycles this node belongs to
+        var memberCycles = cycleMembership[n.id] || [];
+        var highlightSet = {};
+        memberCycles.forEach(function(cycle) {
+          cycle.forEach(function(id) { highlightSet[id] = true; });
+        });
+        // Dim non-cycle nodes and edges
+        nodeGroup.selectAll('.graph-node').style('opacity', function() {
+          return highlightSet[d3.select(this).attr('data-id')] ? 1.0 : 0.3;
+        });
+        linkGroup.selectAll('path').style('opacity', function() {
+          var src = d3.select(this).attr('data-source');
+          var tgt = d3.select(this).attr('data-target');
+          return (highlightSet[src] && highlightSet[tgt]) ? 1.0 : 0.3;
+        });
+        cycleHighlightActive = true;
+      });
+    }
+  });
+
+  // REQ-DASH-055: Click background to exit cycle highlight
+  svg.on('click', function(event) {
+    if (event.target === svg.node() && cycleHighlightActive) {
+      nodeGroup.selectAll('.graph-node').style('opacity', null);
+      linkGroup.selectAll('path').style('opacity', null);
+      cycleHighlightActive = false;
+    }
   });
 }
 
