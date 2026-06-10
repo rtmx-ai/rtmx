@@ -2011,6 +2011,285 @@ func TestGraphWebIDs(t *testing.T) {
 	})
 }
 
+// --------------------------------------------------------------------------
+// REQ-DASH-048: Dagre layout replacing force simulation
+// --------------------------------------------------------------------------
+
+func TestDagreLayout(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-048")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+
+	getGraphBody := func(t *testing.T) string {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		return rec.Body.String()
+	}
+
+	t.Run("no_force_simulation_references", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		if strings.Contains(js, "forceSimulation") {
+			t.Error("app.js should not contain d3.forceSimulation (replaced by dagre)")
+		}
+		if strings.Contains(js, "forceManyBody") {
+			t.Error("app.js should not contain d3.forceManyBody")
+		}
+	})
+
+	t.Run("dagre_layout_in_renderGraph", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		if !strings.Contains(js, "dagre.graphlib.Graph") {
+			t.Error("renderGraph should create a dagre.graphlib.Graph")
+		}
+		if !strings.Contains(js, "dagre.layout") {
+			t.Error("renderGraph should call dagre.layout()")
+		}
+	})
+
+	t.Run("configurable_spacing", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		if !strings.Contains(js, "ranksep") {
+			t.Error("renderGraph should set ranksep for dagre")
+		}
+		if !strings.Contains(js, "nodesep") {
+			t.Error("renderGraph should set nodesep for dagre")
+		}
+	})
+
+	t.Run("no_node_drag", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		if strings.Contains(js, "d3.drag()") {
+			t.Error("renderGraph should not use d3.drag (dagre positions are deterministic)")
+		}
+	})
+
+	t.Run("auto_size_viewbox", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		if !strings.Contains(js, "viewBox") {
+			t.Error("renderGraph should set SVG viewBox to auto-size")
+		}
+	})
+
+	t.Run("renders_with_dagre_check", func(t *testing.T) {
+		body := getGraphBody(t)
+		// The script should check for dagre availability
+		if !strings.Contains(body, "dagre") {
+			t.Error("graph partial script should reference dagre")
+		}
+	})
+
+	t.Run("arrow_markers_present", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		if !strings.Contains(js, "marker") {
+			t.Error("renderGraph should define arrow markers")
+		}
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-066: View switcher component
+// --------------------------------------------------------------------------
+
+func TestViewSwitcher(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-066")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+
+	t.Run("graph_partial_contains_view_switcher", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "view-switcher", "graph partial should contain view switcher")
+		assertContains(t, body, "DAG", "view switcher should have DAG option")
+		assertContains(t, body, "Timeline", "view switcher should have Timeline option")
+		assertContains(t, body, "Treemap", "view switcher should have Treemap option")
+	})
+
+	t.Run("view_switcher_js_component", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		if !strings.Contains(js, "viewSwitcher") {
+			t.Error("app.js should contain viewSwitcher Alpine component")
+		}
+		if !strings.Contains(js, "switchView") {
+			t.Error("viewSwitcher should have switchView method")
+		}
+	})
+
+	t.Run("view_switcher_css", func(t *testing.T) {
+		css := dashboard.ReadStaticFile("styles.css")
+		if !strings.Contains(css, ".view-switcher") {
+			t.Error("styles.css should contain .view-switcher class")
+		}
+		if !strings.Contains(css, ".view-switcher-btn") {
+			t.Error("styles.css should contain .view-switcher-btn class")
+		}
+	})
+
+	t.Run("graph_view_content_target", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "graph-view-content", "graph partial should have view content container for htmx swap")
+	})
+
+	t.Run("timeline_button_targets_correct_partial", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "/partials/timeline", "timeline button should target /partials/timeline")
+	})
+
+	t.Run("keyboard_accessible", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "role=", "view switcher buttons should have ARIA roles")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-091: Reusable tooltip component
+// --------------------------------------------------------------------------
+
+func TestReusableTooltipComponent(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-091")
+
+	t.Run("tooltip_js_component", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		if !strings.Contains(js, "function tooltip()") {
+			t.Error("app.js should contain tooltip() Alpine component function")
+		}
+		if !strings.Contains(js, "show:") || !strings.Contains(js, "hide:") {
+			t.Error("tooltip should have show and hide methods")
+		}
+	})
+
+	t.Run("viewport_aware_positioning", func(t *testing.T) {
+		js := dashboard.ReadStaticFile("app.js")
+		if !strings.Contains(js, "innerWidth") || !strings.Contains(js, "innerHeight") {
+			t.Error("tooltip should check viewport dimensions for repositioning")
+		}
+	})
+
+	t.Run("tooltip_css", func(t *testing.T) {
+		css := dashboard.ReadStaticFile("styles.css")
+		if !strings.Contains(css, ".rtmx-tooltip") {
+			t.Error("styles.css should contain .rtmx-tooltip class")
+		}
+		if !strings.Contains(css, "max-width") {
+			t.Error("tooltip CSS should set max-width")
+		}
+	})
+
+	t.Run("tooltip_uses_design_tokens", func(t *testing.T) {
+		css := dashboard.ReadStaticFile("styles.css")
+		if !strings.Contains(css, "var(--rtmx-bg-card)") {
+			t.Error("tooltip should use --rtmx-bg-card design token")
+		}
+		if !strings.Contains(css, "var(--rtmx-border)") {
+			t.Error("tooltip should use --rtmx-border design token")
+		}
+	})
+
+	t.Run("tooltip_key_value_structure", func(t *testing.T) {
+		css := dashboard.ReadStaticFile("styles.css")
+		if !strings.Contains(css, ".rtmx-tooltip-key") {
+			t.Error("tooltip should have key-value row styling")
+		}
+		if !strings.Contains(css, ".rtmx-tooltip-value") {
+			t.Error("tooltip should have value styling")
+		}
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-092: Timeline partial template skeleton
+// --------------------------------------------------------------------------
+
+func TestTimelinePartialTemplateSkeleton(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-092")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+
+	t.Run("timeline_route_returns_200", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/timeline", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("timeline status = %d, want 200", rec.Code)
+		}
+	})
+
+	t.Run("timeline_contains_svg_container", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/timeline", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "timeline-svg", "timeline should have SVG element with id timeline-svg")
+	})
+
+	t.Run("timeline_contains_json_data_block", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/timeline", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "application/json", "timeline should have JSON script block")
+		assertContains(t, body, "timeline-data", "timeline should have timeline-data script id")
+	})
+
+	t.Run("timeline_has_zoom_controls", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/timeline", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "timelineZoom", "timeline should have zoom control buttons")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-093: Treemap partial template skeleton
+// --------------------------------------------------------------------------
+
+func TestTreemapPartialTemplateSkeleton(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-093")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+
+	t.Run("treemap_route_returns_200", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/treemap", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("treemap status = %d, want 200", rec.Code)
+		}
+	})
+
+	t.Run("treemap_contains_svg_container", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/treemap", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "treemap-svg", "treemap should have SVG element with id treemap-svg")
+	})
+
+	t.Run("treemap_contains_json_data_block", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/treemap", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "application/json", "treemap should have JSON script block")
+		assertContains(t, body, "treemap-data", "treemap should have treemap-data script id")
+	})
+
+	t.Run("treemap_has_16_9_aspect", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/treemap", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "16/9", "treemap container should have 16:9 aspect ratio")
+	})
+}
+
 // Test helpers
 // --------------------------------------------------------------------------
 

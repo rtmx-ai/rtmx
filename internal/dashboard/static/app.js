@@ -465,18 +465,13 @@ function clearAllFilters() {
   htmx.ajax('GET', '/partials/requirements?' + params.toString(), { target: '#content', swap: 'innerHTML' });
 }
 
-// D3.js force-directed graph renderer
+// REQ-DASH-048: Dagre layered (Sugiyama) layout replacing force simulation
 function renderGraph(data) {
   var container = document.getElementById('graph-container');
   var svg = d3.select('#graph-svg');
   if (!container || !svg.node()) return;
 
   svg.selectAll('*').remove();
-
-  var width = container.clientWidth;
-  var height = container.clientHeight || 600;
-
-  svg.attr('viewBox', [0, 0, width, height]);
 
   var statusColor = {
     'COMPLETE': '#16a34a',
@@ -485,36 +480,59 @@ function renderGraph(data) {
     'NOT_STARTED': '#71717a'
   };
 
-  var nodes = (data.nodes || []).map(function(n) { return Object.assign({}, n); });
-  var links = (data.edges || []).map(function(e) { return {source: e.source, target: e.target}; });
+  var nodes = (data.nodes || []);
+  var edges = (data.edges || []);
 
-  var simulation = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id(function(d) { return d.id; }).distance(60))
-    .force('charge', d3.forceManyBody().strength(-80))
-    .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius(12));
+  if (nodes.length === 0) return;
 
-  var g = svg.append('g');
+  // Create dagre graph
+  var g = new dagre.graphlib.Graph();
+  g.setGraph({ rankdir: 'TB', ranksep: 80, nodesep: 40, marginx: 20, marginy: 20 });
+  g.setDefaultEdgeLabel(function() { return {}; });
 
-  // Zoom
+  // Add nodes with dimensions
+  var nodeMap = {};
+  nodes.forEach(function(n) {
+    nodeMap[n.id] = n;
+    g.setNode(n.id, { label: n.id, width: 120, height: 32 });
+  });
+
+  // Add edges
+  edges.forEach(function(e) {
+    g.setEdge(e.source, e.target);
+  });
+
+  // Compute layout
+  dagre.layout(g);
+
+  // Calculate bounding box and auto-size viewBox
+  var padding = 40;
+  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  g.nodes().forEach(function(id) {
+    var n = g.node(id);
+    if (n) {
+      minX = Math.min(minX, n.x - n.width / 2);
+      minY = Math.min(minY, n.y - n.height / 2);
+      maxX = Math.max(maxX, n.x + n.width / 2);
+      maxY = Math.max(maxY, n.y + n.height / 2);
+    }
+  });
+  var vbW = (maxX - minX) + padding * 2;
+  var vbH = (maxY - minY) + padding * 2;
+  svg.attr('viewBox', [(minX - padding), (minY - padding), vbW, vbH].join(' '));
+
+  var root = svg.append('g').attr('class', 'graph-root');
+
+  // Zoom and pan (no drag on nodes -- dagre positions are deterministic)
   svg.call(d3.zoom()
     .scaleExtent([0.1, 4])
-    .on('zoom', function(event) { g.attr('transform', event.transform); }));
-
-  var link = g.append('g')
-    .selectAll('line')
-    .data(links)
-    .join('line')
-    .attr('stroke', '#9ca3af')
-    .attr('stroke-opacity', 0.4)
-    .attr('stroke-width', 1)
-    .attr('marker-end', 'url(#arrow)');
+    .on('zoom', function(event) { root.attr('transform', event.transform); }));
 
   // Arrow marker
   svg.append('defs').append('marker')
     .attr('id', 'arrow')
     .attr('viewBox', '0 -3 6 6')
-    .attr('refX', 14)
+    .attr('refX', 6)
     .attr('refY', 0)
     .attr('markerWidth', 6)
     .attr('markerHeight', 6)
@@ -523,53 +541,81 @@ function renderGraph(data) {
     .attr('d', 'M0,-3L6,0L0,3')
     .attr('fill', '#9ca3af');
 
-  var node = g.append('g')
-    .selectAll('g')
-    .data(nodes)
-    .join('g')
-    .call(d3.drag()
-      .on('start', function(event, d) {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x; d.fy = d.y;
-      })
-      .on('drag', function(event, d) { d.fx = event.x; d.fy = event.y; })
-      .on('end', function(event, d) {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null; d.fy = null;
-      }));
-
-  node.append('circle')
-    .attr('r', 6)
-    .attr('fill', function(d) { return statusColor[d.status] || '#71717a'; })
-    .attr('stroke', '#fff')
-    .attr('stroke-width', 1.5);
-
-  node.append('title')
-    .text(function(d) { return d.id + ' (' + d.group + ')'; });
-
-  // Show labels on hover
-  node.on('mouseover', function(event, d) {
-    d3.select(this).select('circle').attr('r', 9);
-    g.append('text')
-      .attr('class', 'hover-label')
-      .attr('x', d.x + 12)
-      .attr('y', d.y + 4)
-      .attr('fill', '#374151')
-      .attr('font-size', '11px')
-      .text(d.id);
-  }).on('mouseout', function() {
-    d3.select(this).select('circle').attr('r', 6);
-    g.selectAll('.hover-label').remove();
+  // Draw edges as lines (straight from source to target center)
+  var linkGroup = root.append('g').attr('class', 'edges');
+  edges.forEach(function(e) {
+    var srcNode = g.node(e.source);
+    var tgtNode = g.node(e.target);
+    if (!srcNode || !tgtNode) return;
+    linkGroup.append('line')
+      .attr('x1', srcNode.x)
+      .attr('y1', srcNode.y + srcNode.height / 2)
+      .attr('x2', tgtNode.x)
+      .attr('y2', tgtNode.y - tgtNode.height / 2)
+      .attr('stroke', '#9ca3af')
+      .attr('stroke-opacity', 0.4)
+      .attr('stroke-width', 1)
+      .attr('marker-end', 'url(#arrow)');
   });
 
-  simulation.on('tick', function() {
-    link
-      .attr('x1', function(d) { return d.source.x; })
-      .attr('y1', function(d) { return d.source.y; })
-      .attr('x2', function(d) { return d.target.x; })
-      .attr('y2', function(d) { return d.target.y; });
-    node.attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
+  // Draw nodes as circles positioned by dagre
+  var nodeGroup = root.append('g').attr('class', 'nodes');
+  nodes.forEach(function(n) {
+    var pos = g.node(n.id);
+    if (!pos) return;
+    var ng = nodeGroup.append('g')
+      .attr('transform', 'translate(' + pos.x + ',' + pos.y + ')');
+    ng.append('circle')
+      .attr('r', 6)
+      .attr('fill', statusColor[n.status] || '#71717a')
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 1.5);
+    ng.append('title')
+      .text(n.id + ' (' + n.group + ')');
+    ng.on('mouseover', function() {
+      d3.select(this).select('circle').attr('r', 9);
+    }).on('mouseout', function() {
+      d3.select(this).select('circle').attr('r', 6);
+    });
   });
+}
+
+// REQ-DASH-091: Reusable tooltip component
+function tooltip() {
+  return {
+    visible: false,
+    content: [],
+    x: 0,
+    y: 0,
+    show: function(event, items) {
+      this.content = items || [];
+      this.x = event.clientX + 12;
+      this.y = event.clientY + 12;
+      // Viewport-aware repositioning
+      var vw = window.innerWidth;
+      var vh = window.innerHeight;
+      if (this.x + 320 > vw) this.x = event.clientX - 320 - 12;
+      if (this.y + 200 > vh) this.y = event.clientY - 200 - 12;
+      this.visible = true;
+    },
+    hide: function() {
+      this.visible = false;
+    }
+  };
+}
+
+// REQ-DASH-066: View switcher Alpine component
+function viewSwitcher() {
+  var params = new URLSearchParams(window.location.search);
+  return {
+    active: params.get('view') || 'dag',
+    switchView: function(view) {
+      this.active = view;
+      var url = new URL(window.location);
+      url.searchParams.set('view', view);
+      history.replaceState(null, '', url);
+    }
+  };
 }
 
 // Re-render graph after htmx swaps content

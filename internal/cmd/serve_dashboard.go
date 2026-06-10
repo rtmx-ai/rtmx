@@ -98,6 +98,16 @@ type graphPartialData struct {
 	GraphJSON  template.JS
 }
 
+// timelinePartialData holds template data for the timeline partial.
+type timelinePartialData struct {
+	TimelineJSON template.JS
+}
+
+// treemapPartialData holds template data for the treemap partial.
+type treemapPartialData struct {
+	TreemapJSON template.JS
+}
+
 // kanbanData holds template data for the kanban partial.
 type kanbanData struct {
 	Columns []kanbanColumnData
@@ -215,6 +225,8 @@ func registerDashboardRoutes(mux *http.ServeMux, db *database.Database, g *graph
 	mux.HandleFunc("/partials/requirements/row/", handlePartialRequirementRow(db))
 	mux.HandleFunc("/partials/detail/", handlePartialDetail(db, g))
 	mux.HandleFunc("/partials/graph", handlePartialGraph(db, g))
+	mux.HandleFunc("/partials/timeline", handlePartialTimeline(db))
+	mux.HandleFunc("/partials/treemap", handlePartialTreemap(db))
 	mux.HandleFunc("/partials/kanban", handlePartialKanban(db, g))
 	mux.HandleFunc("/partials/releases", handlePartialReleases(db))
 	mux.HandleFunc("/partials/health", handlePartialHealth(db, g))
@@ -647,6 +659,30 @@ func handlePartialGraph(db *database.Database, g *graph.Graph) http.HandlerFunc 
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_ = dashboard.RenderPartial(w, "graph", data)
+	}
+}
+
+// REQ-DASH-092: Timeline partial template skeleton
+func handlePartialTimeline(db *database.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Placeholder JSON -- REQ-DASH-067 will build the real timeline data structure
+		data := timelinePartialData{
+			TimelineJSON: template.JS(`{"sprints":[],"categories":[],"requirements":[]}`),
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = dashboard.RenderPartial(w, "timeline", data)
+	}
+}
+
+// REQ-DASH-093: Treemap partial template skeleton
+func handlePartialTreemap(db *database.Database) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Placeholder JSON -- REQ-DASH-071 will build the real treemap data structure
+		data := treemapPartialData{
+			TreemapJSON: template.JS(`{"name":"root","children":[]}`),
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = dashboard.RenderPartial(w, "treemap", data)
 	}
 }
 

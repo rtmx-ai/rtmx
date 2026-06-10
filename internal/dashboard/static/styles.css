@@ -628,3 +628,66 @@ a.content-link:hover {
 .palette-result.selected {
   background-color: var(--rtmx-bg-elevated);
 }
+
+/* REQ-DASH-091: Tooltip component */
+.rtmx-tooltip {
+  position: fixed;
+  z-index: 100;
+  max-width: 320px;
+  background: var(--rtmx-bg-card);
+  border: 1px solid var(--rtmx-border);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  box-shadow: var(--rtmx-shadow);
+  font-size: 0.8rem;
+  pointer-events: none;
+}
+
+.rtmx-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.125rem 0;
+}
+
+.rtmx-tooltip-key {
+  color: var(--rtmx-text-muted);
+  white-space: nowrap;
+}
+
+.rtmx-tooltip-value {
+  color: var(--rtmx-text);
+  text-align: right;
+}
+
+/* REQ-DASH-066: View switcher */
+.view-switcher {
+  display: inline-flex;
+  border: 1px solid var(--rtmx-border);
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.view-switcher-btn {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: var(--rtmx-bg-card);
+  color: var(--rtmx-text-muted);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.view-switcher-btn:not(:last-child) {
+  border-right: 1px solid var(--rtmx-border);
+}
+
+.view-switcher-btn:hover {
+  background: var(--rtmx-bg-elevated);
+}
+
+.view-switcher-btn.active {
+  background: var(--rtmx-emerald);
+  color: var(--rtmx-text);
+}
