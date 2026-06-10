@@ -9,7 +9,7 @@ Vendor dagre.js (the Sugiyama-based directed graph layout library) as a static J
 1. `internal/dashboard/static/vendor/dagre.min.js` exists and contains a UMD or IIFE build of dagre (version >= 0.8.5).
 2. The vendored file exposes a global `dagre` object when loaded in a browser without module bundlers.
 3. `internal/dashboard/templates/layout.html` includes a `<script>` tag loading `dagre.min.js` before `app.js`.
-4. `dagre.min.js` file size is under 100KB (uncompressed).
+4. `dagre.min.js` file size is under 300KB (uncompressed; dagre@0.8.5 bundles graphlib at ~280KB).
 5. The embed.FS in `internal/dashboard/embed.go` includes the new vendor file without changes (wildcard glob already covers `static/vendor/`).
 6. `dagre.graphlib.Graph` is constructable from browser console when dashboard is loaded, confirming the library is available.
 7. No npm, no package.json, no node_modules directory is created.

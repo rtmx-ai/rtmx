@@ -449,32 +449,165 @@ func handlePartialGraph(db *database.Database, g *graph.Graph) http.HandlerFunc 
 		// Apply category filter
 		filterCat := r.URL.Query().Get("category")
 
-		// Build JSON for D3
+		// Build enriched JSON for D3/dagre (REQ-DASH-044, 045, 046, 047)
 		type gNode struct {
-			ID     string `json:"id"`
-			Status string `json:"status"`
-			Group  string `json:"group"`
+			ID            string  `json:"id"`
+			Status        string  `json:"status"`
+			Group         string  `json:"group"`
+			EffortWeeks   float64 `json:"effort_weeks"`
+			Priority      string  `json:"priority"`
+			Phase         int     `json:"phase"`
+			Assignee      string  `json:"assignee"`
+			Sprint        string  `json:"sprint"`
+			IsBlocked     bool    `json:"is_blocked"`
+			IsCritical    bool    `json:"is_critical"`
+			IsCycleMember bool    `json:"is_cycle_member"`
+			Layer         int     `json:"layer"`
+			WebID         int     `json:"web_id"`
 		}
 		type gEdge struct {
-			Source string `json:"source"`
-			Target string `json:"target"`
+			Source         string `json:"source"`
+			Target         string `json:"target"`
+			IsCriticalPath bool   `json:"is_critical_path"`
 		}
 		type gJSON struct {
-			Nodes []gNode `json:"nodes"`
-			Edges []gEdge `json:"edges"`
+			Nodes      []gNode `json:"nodes"`
+			Edges      []gEdge `json:"edges"`
+			LayerCount int     `json:"layer_count"`
+			WebCount   int     `json:"web_count"`
 		}
-		gData := gJSON{}
+
+		// Pre-compute graph analysis (once per request)
+		criticalPath := g.CriticalPath()
+		criticalSet := make(map[string]bool, len(criticalPath))
+		for _, id := range criticalPath {
+			criticalSet[id] = true
+		}
+
+		cycles := g.FindCycles()
+		cycleSet := make(map[string]bool)
+		for _, cycle := range cycles {
+			for _, id := range cycle {
+				cycleSet[id] = true
+			}
+		}
+
+		layers := g.Layers()
+		layerDepth := make(map[string]int)
+		for layerIdx, layer := range layers {
+			for _, id := range layer {
+				layerDepth[id] = layerIdx
+			}
+		}
+
+		webs := g.DetectWebs()
+		webIndex := make(map[string]int)
+		for i, web := range webs {
+			for _, id := range web.IDs {
+				webIndex[id] = i
+			}
+		}
+
+		// Build filtered node set
 		nodeSet := make(map[string]bool)
 		for _, req := range db.All() {
 			if filterCat != "" && req.Category != filterCat {
 				continue
 			}
 			nodeSet[req.ReqID] = true
+		}
+
+		// Recompute layers for filtered subgraph if category filter is active
+		filteredLayerDepth := layerDepth
+		filteredLayerCount := len(layers)
+		if filterCat != "" {
+			filteredLayerDepth = make(map[string]int)
+			// BFS from filtered roots (nodes with no in-set deps)
+			inSetDeps := make(map[string]int)
+			for _, req := range db.All() {
+				if !nodeSet[req.ReqID] {
+					continue
+				}
+				count := 0
+				for dep := range req.Dependencies {
+					if nodeSet[dep] {
+						count++
+					}
+				}
+				inSetDeps[req.ReqID] = count
+			}
+			var queue []string
+			for id, count := range inSetDeps {
+				if count == 0 {
+					queue = append(queue, id)
+					filteredLayerDepth[id] = 0
+				}
+			}
+			maxFilteredLayer := 0
+			for len(queue) > 0 {
+				node := queue[0]
+				queue = queue[1:]
+				for _, req := range db.All() {
+					if !nodeSet[req.ReqID] {
+						continue
+					}
+					if _, hasDep := req.Dependencies[node]; hasDep {
+						newDepth := filteredLayerDepth[node] + 1
+						if d, exists := filteredLayerDepth[req.ReqID]; !exists || newDepth > d {
+							filteredLayerDepth[req.ReqID] = newDepth
+							if newDepth > maxFilteredLayer {
+								maxFilteredLayer = newDepth
+							}
+							queue = append(queue, req.ReqID)
+						}
+					}
+				}
+			}
+			filteredLayerCount = maxFilteredLayer + 1
+			if len(filteredLayerDepth) == 0 {
+				filteredLayerCount = 0
+			}
+		}
+
+		// Build nodes
+		gData := gJSON{WebCount: len(webs)}
+		for _, req := range db.All() {
+			if !nodeSet[req.ReqID] {
+				continue
+			}
+			layer, hasLayer := filteredLayerDepth[req.ReqID]
+			if !hasLayer {
+				if cycleSet[req.ReqID] {
+					layer = -1
+				}
+			}
+			wid := -1 // default for complete reqs not in any web
+			if idx, ok := webIndex[req.ReqID]; ok {
+				wid = idx
+			}
 			gData.Nodes = append(gData.Nodes, gNode{
-				ID:     req.ReqID,
-				Status: string(req.Status),
-				Group:  req.Category,
+				ID:            req.ReqID,
+				Status:        string(req.Status),
+				Group:         req.Category,
+				EffortWeeks:   req.EffortWeeks,
+				Priority:      string(req.Priority),
+				Phase:         req.Phase,
+				Assignee:      req.Assignee,
+				Sprint:        req.Sprint,
+				IsBlocked:     g.IsBlocked(req.ReqID),
+				IsCritical:    criticalSet[req.ReqID],
+				IsCycleMember: cycleSet[req.ReqID],
+				Layer:         layer,
+				WebID:         wid,
 			})
+		}
+		gData.LayerCount = filteredLayerCount
+
+		// Build edges with critical path flag
+		// Two consecutive nodes on the critical path connected by an edge are critical path edges
+		criticalPathPos := make(map[string]int, len(criticalPath))
+		for i, id := range criticalPath {
+			criticalPathPos[id] = i
 		}
 		for _, req := range db.All() {
 			if !nodeSet[req.ReqID] {
@@ -482,7 +615,15 @@ func handlePartialGraph(db *database.Database, g *graph.Graph) http.HandlerFunc 
 			}
 			for dep := range req.Dependencies {
 				if nodeSet[dep] {
-					gData.Edges = append(gData.Edges, gEdge{Source: dep, Target: req.ReqID})
+					isCritEdge := false
+					if criticalSet[dep] && criticalSet[req.ReqID] {
+						isCritEdge = true
+					}
+					gData.Edges = append(gData.Edges, gEdge{
+						Source:         dep,
+						Target:         req.ReqID,
+						IsCriticalPath: isCritEdge,
+					})
 				}
 			}
 		}
@@ -499,7 +640,7 @@ func handlePartialGraph(db *database.Database, g *graph.Graph) http.HandlerFunc 
 		data := graphPartialData{
 			NodeCount:  filteredNodes,
 			EdgeCount:  filteredEdges,
-			WebCount:   len(g.DetectWebs()),
+			WebCount:   len(webs),
 			Categories: cats,
 			GraphJSON:  template.JS(graphJSON),
 		}

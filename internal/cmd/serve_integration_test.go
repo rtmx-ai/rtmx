@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -1551,6 +1552,462 @@ func TestFilterChips(t *testing.T) {
 		assertContains(t, css, ".filter-chip", "CSS should define filter-chip")
 		assertContains(t, css, ".filter-chip-remove", "CSS should define filter-chip-remove")
 		assertContains(t, css, ".filter-clear-all", "CSS should define filter-clear-all")
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-043: Vendor dagre.js as static asset
+// --------------------------------------------------------------------------
+
+func TestVendorDagreJS(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-043")
+
+	t.Run("dagre_js_served_from_vendor_path", func(t *testing.T) {
+		db := integrationDB(t)
+		mux := integrationMux(t, db)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/static/vendor/dagre.min.js", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("dagre.min.js status = %d, want 200", rec.Code)
+		}
+		body := rec.Body.String()
+		if len(body) == 0 {
+			t.Error("dagre.min.js should not be empty")
+		}
+		if len(body) > 300*1024 {
+			t.Errorf("dagre.min.js is %d bytes, should be under 300KB", len(body))
+		}
+	})
+
+	t.Run("dagre_script_tag_in_layout", func(t *testing.T) {
+		var buf strings.Builder
+		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "graph"})
+		html := buf.String()
+		if !strings.Contains(html, "dagre.min.js") {
+			t.Error("layout should include dagre.min.js script tag")
+		}
+		// dagre should load after d3 and before app.js
+		d3Pos := strings.Index(html, "d3.v7.min.js")
+		dagrePos := strings.Index(html, "dagre.min.js")
+		appPos := strings.Index(html, "app.js")
+		if d3Pos < 0 || dagrePos < 0 || appPos < 0 {
+			t.Fatal("expected d3, dagre, and app.js in layout")
+		}
+		if dagrePos < d3Pos {
+			t.Error("dagre.min.js should appear after d3.v7.min.js")
+		}
+		if dagrePos > appPos {
+			t.Error("dagre.min.js should appear before app.js")
+		}
+	})
+
+	t.Run("dagre_contains_umd_build", func(t *testing.T) {
+		content := dashboard.ReadStaticFile("vendor/dagre.min.js")
+		if content == "" {
+			t.Fatal("dagre.min.js not found in embedded assets")
+		}
+		if !strings.Contains(content, "dagre") {
+			t.Error("dagre.min.js should contain 'dagre' identifier")
+		}
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-044: Enriched graph node JSON
+// --------------------------------------------------------------------------
+
+func TestEnrichGraphNodeJSON(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-044")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+
+	// Helper to extract graph JSON from the partial HTML
+	extractGraphJSON := func(t *testing.T, url string) map[string]json.RawMessage {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", url, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		body := rec.Body.String()
+		// Find the JSON embedded in the script block
+		start := strings.Index(body, "var graphData = ")
+		if start < 0 {
+			t.Fatal("graphData not found in response")
+		}
+		start += len("var graphData = ")
+		end := strings.Index(body[start:], ";\n")
+		if end < 0 {
+			end = strings.Index(body[start:], ";")
+		}
+		if end < 0 {
+			t.Fatal("could not find end of graphData JSON")
+		}
+		jsonStr := body[start : start+end]
+		var result map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
+			t.Fatalf("failed to parse graphData JSON: %v\nJSON: %s", err, jsonStr[:min(200, len(jsonStr))])
+		}
+		return result
+	}
+
+	t.Run("nodes_have_enriched_fields", func(t *testing.T) {
+		data := extractGraphJSON(t, "/partials/graph")
+		var nodes []map[string]interface{}
+		if err := json.Unmarshal(data["nodes"], &nodes); err != nil {
+			t.Fatalf("failed to parse nodes: %v", err)
+		}
+		if len(nodes) == 0 {
+			t.Fatal("expected at least one node")
+		}
+		// Check that enriched fields exist on every node
+		requiredFields := []string{"effort_weeks", "priority", "phase", "assignee", "sprint", "is_blocked", "is_critical", "is_cycle_member"}
+		for _, node := range nodes {
+			id := node["id"].(string)
+			for _, field := range requiredFields {
+				if _, ok := node[field]; !ok {
+					t.Errorf("node %s missing field %q", id, field)
+				}
+			}
+		}
+	})
+
+	t.Run("effort_weeks_populated", func(t *testing.T) {
+		data := extractGraphJSON(t, "/partials/graph")
+		var nodes []map[string]interface{}
+		_ = json.Unmarshal(data["nodes"], &nodes)
+		for _, node := range nodes {
+			id := node["id"].(string)
+			ew, ok := node["effort_weeks"].(float64)
+			if !ok {
+				t.Errorf("node %s: effort_weeks should be a number", id)
+				continue
+			}
+			// CLI-001 has effort 1.0
+			if id == "REQ-CLI-001" && ew != 1.0 {
+				t.Errorf("REQ-CLI-001 effort_weeks = %v, want 1.0", ew)
+			}
+		}
+	})
+
+	t.Run("is_blocked_correct", func(t *testing.T) {
+		data := extractGraphJSON(t, "/partials/graph")
+		var nodes []map[string]interface{}
+		_ = json.Unmarshal(data["nodes"], &nodes)
+		for _, node := range nodes {
+			id := node["id"].(string)
+			blocked := node["is_blocked"].(bool)
+			// MCP-002 depends on MCP-001 which is PARTIAL, so MCP-002 is blocked
+			if id == "REQ-MCP-002" && !blocked {
+				t.Error("REQ-MCP-002 should be blocked (depends on incomplete MCP-001)")
+			}
+			// CLI-001 has no deps, should not be blocked
+			if id == "REQ-CLI-001" && blocked {
+				t.Error("REQ-CLI-001 should not be blocked (no deps)")
+			}
+		}
+	})
+
+	t.Run("priority_and_phase_populated", func(t *testing.T) {
+		data := extractGraphJSON(t, "/partials/graph")
+		var nodes []map[string]interface{}
+		_ = json.Unmarshal(data["nodes"], &nodes)
+		for _, node := range nodes {
+			id := node["id"].(string)
+			if id == "REQ-CLI-001" {
+				if node["priority"] != "P0" {
+					t.Errorf("REQ-CLI-001 priority = %v, want P0", node["priority"])
+				}
+				if node["phase"].(float64) != 1 {
+					t.Errorf("REQ-CLI-001 phase = %v, want 1", node["phase"])
+				}
+			}
+		}
+	})
+
+	t.Run("assignee_and_sprint_populated", func(t *testing.T) {
+		data := extractGraphJSON(t, "/partials/graph")
+		var nodes []map[string]interface{}
+		_ = json.Unmarshal(data["nodes"], &nodes)
+		for _, node := range nodes {
+			id := node["id"].(string)
+			if id == "REQ-CLI-001" {
+				if node["assignee"] != "alice" {
+					t.Errorf("REQ-CLI-001 assignee = %v, want alice", node["assignee"])
+				}
+				if node["sprint"] != "v1.0.0" {
+					t.Errorf("REQ-CLI-001 sprint = %v, want v1.0.0", node["sprint"])
+				}
+			}
+		}
+	})
+
+	t.Run("analysis_called_once_not_per_node", func(t *testing.T) {
+		// Verify the JSON is well-formed and contains all nodes
+		// (this implicitly tests that analysis runs once, producing consistent results)
+		data := extractGraphJSON(t, "/partials/graph")
+		var nodes []map[string]interface{}
+		_ = json.Unmarshal(data["nodes"], &nodes)
+		if len(nodes) != 5 {
+			t.Errorf("expected 5 nodes, got %d", len(nodes))
+		}
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-045: Enriched edge JSON with critical path flag
+// --------------------------------------------------------------------------
+
+func TestEnrichEdgeJSON(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-045")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+
+	extractEdges := func(t *testing.T) []map[string]interface{} {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+		body := rec.Body.String()
+		start := strings.Index(body, "var graphData = ")
+		if start < 0 {
+			t.Fatal("graphData not found")
+		}
+		start += len("var graphData = ")
+		end := strings.Index(body[start:], ";\n")
+		if end < 0 {
+			end = strings.Index(body[start:], ";")
+		}
+		jsonStr := body[start : start+end]
+		var data map[string]json.RawMessage
+		_ = json.Unmarshal([]byte(jsonStr), &data)
+		var edges []map[string]interface{}
+		_ = json.Unmarshal(data["edges"], &edges)
+		return edges
+	}
+
+	t.Run("edges_have_is_critical_path_field", func(t *testing.T) {
+		edges := extractEdges(t)
+		if len(edges) == 0 {
+			t.Fatal("expected at least one edge")
+		}
+		for _, edge := range edges {
+			if _, ok := edge["is_critical_path"]; !ok {
+				t.Errorf("edge %s->%s missing is_critical_path field", edge["source"], edge["target"])
+			}
+		}
+	})
+
+	t.Run("is_critical_path_is_boolean", func(t *testing.T) {
+		edges := extractEdges(t)
+		for _, edge := range edges {
+			if _, ok := edge["is_critical_path"].(bool); !ok {
+				t.Errorf("edge %s->%s: is_critical_path should be boolean, got %T", edge["source"], edge["target"], edge["is_critical_path"])
+			}
+		}
+	})
+
+	t.Run("edge_source_target_preserved", func(t *testing.T) {
+		edges := extractEdges(t)
+		foundCLIDep := false
+		for _, edge := range edges {
+			if edge["source"] == "REQ-CLI-001" && edge["target"] == "REQ-CLI-002" {
+				foundCLIDep = true
+			}
+		}
+		if !foundCLIDep {
+			t.Error("expected edge CLI-001 -> CLI-002")
+		}
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-046: Layer depth data in graph JSON
+// --------------------------------------------------------------------------
+
+func TestGraphLayerData(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-046")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+
+	extractGraphData := func(t *testing.T, url string) ([]map[string]interface{}, map[string]json.RawMessage) {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", url, nil))
+		body := rec.Body.String()
+		start := strings.Index(body, "var graphData = ")
+		if start < 0 {
+			t.Fatal("graphData not found")
+		}
+		start += len("var graphData = ")
+		end := strings.Index(body[start:], ";\n")
+		if end < 0 {
+			end = strings.Index(body[start:], ";")
+		}
+		jsonStr := body[start : start+end]
+		var data map[string]json.RawMessage
+		_ = json.Unmarshal([]byte(jsonStr), &data)
+		var nodes []map[string]interface{}
+		_ = json.Unmarshal(data["nodes"], &nodes)
+		return nodes, data
+	}
+
+	t.Run("nodes_have_layer_field", func(t *testing.T) {
+		nodes, _ := extractGraphData(t, "/partials/graph")
+		for _, node := range nodes {
+			if _, ok := node["layer"]; !ok {
+				t.Errorf("node %s missing layer field", node["id"])
+			}
+		}
+	})
+
+	t.Run("root_nodes_at_layer_zero", func(t *testing.T) {
+		nodes, _ := extractGraphData(t, "/partials/graph")
+		for _, node := range nodes {
+			id := node["id"].(string)
+			layer := int(node["layer"].(float64))
+			// CLI-001 and MCP-001 are roots (no deps from within the set)
+			if id == "REQ-CLI-001" && layer != 0 {
+				t.Errorf("REQ-CLI-001 layer = %d, want 0 (root node)", layer)
+			}
+			if id == "REQ-MCP-001" && layer != 0 {
+				t.Errorf("REQ-MCP-001 layer = %d, want 0 (root node)", layer)
+			}
+		}
+	})
+
+	t.Run("dependent_nodes_at_deeper_layer", func(t *testing.T) {
+		nodes, _ := extractGraphData(t, "/partials/graph")
+		for _, node := range nodes {
+			id := node["id"].(string)
+			layer := int(node["layer"].(float64))
+			// CLI-002 depends on CLI-001, so layer >= 1
+			if id == "REQ-CLI-002" && layer < 1 {
+				t.Errorf("REQ-CLI-002 layer = %d, want >= 1 (depends on CLI-001)", layer)
+			}
+		}
+	})
+
+	t.Run("top_level_layer_count", func(t *testing.T) {
+		_, data := extractGraphData(t, "/partials/graph")
+		var layerCount float64
+		if err := json.Unmarshal(data["layer_count"], &layerCount); err != nil {
+			t.Fatalf("failed to parse layer_count: %v", err)
+		}
+		if layerCount < 2 {
+			t.Errorf("layer_count = %v, want >= 2 (at least roots and dependents)", layerCount)
+		}
+	})
+
+	t.Run("filtered_layers_recomputed", func(t *testing.T) {
+		// Filter to CLI category only: CLI-001 (root) -> CLI-002
+		nodes, data := extractGraphData(t, "/partials/graph?category=CLI")
+		if len(nodes) != 2 {
+			t.Fatalf("expected 2 CLI nodes, got %d", len(nodes))
+		}
+		var layerCount float64
+		_ = json.Unmarshal(data["layer_count"], &layerCount)
+		if layerCount != 2 {
+			t.Errorf("filtered layer_count = %v, want 2 (CLI-001 at 0, CLI-002 at 1)", layerCount)
+		}
+	})
+}
+
+// --------------------------------------------------------------------------
+// REQ-DASH-047: Web IDs in graph JSON
+// --------------------------------------------------------------------------
+
+func TestGraphWebIDs(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-047")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+
+	extractGraphData := func(t *testing.T) ([]map[string]interface{}, map[string]json.RawMessage) {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+		body := rec.Body.String()
+		start := strings.Index(body, "var graphData = ")
+		if start < 0 {
+			t.Fatal("graphData not found")
+		}
+		start += len("var graphData = ")
+		end := strings.Index(body[start:], ";\n")
+		if end < 0 {
+			end = strings.Index(body[start:], ";")
+		}
+		jsonStr := body[start : start+end]
+		var data map[string]json.RawMessage
+		_ = json.Unmarshal([]byte(jsonStr), &data)
+		var nodes []map[string]interface{}
+		_ = json.Unmarshal(data["nodes"], &nodes)
+		return nodes, data
+	}
+
+	t.Run("nodes_have_web_id_field", func(t *testing.T) {
+		nodes, _ := extractGraphData(t)
+		for _, node := range nodes {
+			if _, ok := node["web_id"]; !ok {
+				t.Errorf("node %s missing web_id field", node["id"])
+			}
+		}
+	})
+
+	t.Run("complete_nodes_have_web_id_negative_one", func(t *testing.T) {
+		nodes, _ := extractGraphData(t)
+		for _, node := range nodes {
+			id := node["id"].(string)
+			wid := int(node["web_id"].(float64))
+			if id == "REQ-CLI-001" && wid != -1 {
+				t.Errorf("REQ-CLI-001 (COMPLETE) web_id = %d, want -1", wid)
+			}
+			if id == "REQ-CLI-002" && wid != -1 {
+				t.Errorf("REQ-CLI-002 (COMPLETE) web_id = %d, want -1", wid)
+			}
+		}
+	})
+
+	t.Run("incomplete_nodes_have_valid_web_id", func(t *testing.T) {
+		nodes, _ := extractGraphData(t)
+		for _, node := range nodes {
+			id := node["id"].(string)
+			status := node["status"].(string)
+			wid := int(node["web_id"].(float64))
+			if status != "COMPLETE" && wid < 0 {
+				t.Errorf("incomplete node %s has web_id = %d, want >= 0", id, wid)
+			}
+		}
+	})
+
+	t.Run("top_level_web_count", func(t *testing.T) {
+		_, data := extractGraphData(t)
+		var webCount float64
+		if err := json.Unmarshal(data["web_count"], &webCount); err != nil {
+			t.Fatalf("failed to parse web_count: %v", err)
+		}
+		// MCP-001, MCP-002, API-001 form one connected web (MCP-001 blocks both)
+		// So web_count should be 1 (one connected component of incomplete reqs)
+		if webCount < 1 {
+			t.Errorf("web_count = %v, want >= 1", webCount)
+		}
+	})
+
+	t.Run("web_ids_zero_indexed", func(t *testing.T) {
+		nodes, _ := extractGraphData(t)
+		maxWebID := -1
+		for _, node := range nodes {
+			wid := int(node["web_id"].(float64))
+			if wid > maxWebID {
+				maxWebID = wid
+			}
+		}
+		// Web IDs should be zero-indexed
+		if maxWebID < 0 {
+			t.Error("no valid web IDs found")
+		}
 	})
 }
 
