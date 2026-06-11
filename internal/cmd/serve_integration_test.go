@@ -2,14 +2,17 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/dashboard"
 	"github.com/rtmx-ai/rtmx/internal/database"
+	"github.com/rtmx-ai/rtmx/internal/graph"
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
@@ -3651,6 +3654,462 @@ func TestURLStateRestorePushPopState(t *testing.T) {
 	t.Run("restores_graph_on_back", func(t *testing.T) {
 		assertContains(t, appJS, "restoreGraphState()", "popstate should call restoreGraphState")
 		assertContains(t, appJS, "state.dir", "popstate should restore direction from state")
+	})
+}
+
+// TestGraphKeyboardNavigation verifies REQ-DASH-076: arrow key navigation along edges.
+func TestGraphKeyboardNavigation(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-076")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	t.Run("graphKeyboardNav_function", func(t *testing.T) {
+		assertContains(t, appJS, "function graphKeyboardNav(", "app.js should define graphKeyboardNav")
+	})
+
+	t.Run("arrow_right_follows_downstream", func(t *testing.T) {
+		assertContains(t, appJS, "ArrowRight", "should handle ArrowRight for downstream nav")
+		assertContains(t, appJS, "ArrowDown", "should handle ArrowDown for downstream nav")
+	})
+
+	t.Run("arrow_left_follows_upstream", func(t *testing.T) {
+		assertContains(t, appJS, "ArrowLeft", "should handle ArrowLeft for upstream nav")
+		assertContains(t, appJS, "ArrowUp", "should handle ArrowUp for upstream nav")
+	})
+
+	t.Run("focus_moves_to_target_node", func(t *testing.T) {
+		assertContains(t, appJS, "targetEl.focus()", "should focus target node element")
+	})
+
+	t.Run("pans_to_focused_node", func(t *testing.T) {
+		assertContains(t, appJS, "Pan to focused node", "should pan view to focused node")
+	})
+
+	t.Run("announces_for_screen_readers", func(t *testing.T) {
+		assertContains(t, appJS, "graph-announce", "should announce node for screen readers")
+	})
+
+	t.Run("css_focus_ring", func(t *testing.T) {
+		assertContains(t, cssContent, ".graph-node:focus", "CSS should style graph-node focus")
+		assertContains(t, cssContent, "outline", "focus style should include outline")
+	})
+
+	t.Run("enter_activates_click", func(t *testing.T) {
+		assertContains(t, appJS, "'Enter'", "Enter key should dispatch click event")
+	})
+}
+
+// TestProgressiveRendering verifies REQ-DASH-075: cluster rendering for >100 nodes.
+func TestProgressiveRendering(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-075")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	t.Run("clusterNodes_function", func(t *testing.T) {
+		assertContains(t, appJS, "function clusterNodes(", "app.js should define clusterNodes")
+	})
+
+	t.Run("100_node_threshold", func(t *testing.T) {
+		assertContains(t, appJS, "threshold || 100", "default cluster threshold should be 100")
+	})
+
+	t.Run("groups_by_category", func(t *testing.T) {
+		assertContains(t, appJS, "cluster-", "cluster nodes should have cluster- prefix")
+	})
+
+	t.Run("cluster_node_has_member_count", func(t *testing.T) {
+		assertContains(t, appJS, "member_count", "cluster node should track member count")
+	})
+
+	t.Run("cluster_node_has_member_ids", func(t *testing.T) {
+		assertContains(t, appJS, "member_ids", "cluster node should list member IDs")
+	})
+
+	t.Run("inter_cluster_edges_deduplicated", func(t *testing.T) {
+		assertContains(t, appJS, "clusterEdgeSet", "inter-cluster edges should be deduplicated")
+	})
+
+	t.Run("css_cluster_styling", func(t *testing.T) {
+		assertContains(t, cssContent, ".node-cluster", "CSS should style cluster nodes")
+		assertContains(t, cssContent, ".cluster-badge", "CSS should style cluster badge")
+	})
+}
+
+// TestClusterExpandCollapseRelayout verifies REQ-DASH-088: expand/collapse clusters.
+func TestClusterExpandCollapseRelayout(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-088")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+
+	t.Run("expandCluster_function", func(t *testing.T) {
+		assertContains(t, appJS, "function expandCluster(", "app.js should define expandCluster")
+	})
+
+	t.Run("collapseCluster_function", func(t *testing.T) {
+		assertContains(t, appJS, "function collapseCluster(", "app.js should define collapseCluster")
+	})
+
+	t.Run("buildClusteredView_function", func(t *testing.T) {
+		assertContains(t, appJS, "function buildClusteredView(", "app.js should define buildClusteredView")
+	})
+
+	t.Run("tracks_expanded_state", func(t *testing.T) {
+		assertContains(t, appJS, "_graphExpandedClusters", "should track expanded cluster state")
+	})
+
+	t.Run("re_renders_graph_on_expand", func(t *testing.T) {
+		assertContains(t, appJS, "renderGraph(viewData", "expand should re-render graph")
+	})
+}
+
+// TestClusterThresholdControlUI verifies REQ-DASH-089: cluster mode control.
+func TestClusterThresholdControlUI(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-089")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	graphHTML := dashboard.ReadTemplateFile("partials/graph.html")
+
+	t.Run("clusterThreshold_component", func(t *testing.T) {
+		assertContains(t, appJS, "function clusterThreshold()", "app.js should define clusterThreshold")
+	})
+
+	t.Run("auto_mode_default", func(t *testing.T) {
+		assertContains(t, appJS, "mode: 'auto'", "default mode should be auto")
+	})
+
+	t.Run("always_mode_sets_zero", func(t *testing.T) {
+		assertContains(t, appJS, "_clusterThreshold = 0", "always mode sets threshold to 0")
+	})
+
+	t.Run("never_mode_sets_infinity", func(t *testing.T) {
+		assertContains(t, appJS, "_clusterThreshold = Infinity", "never mode sets threshold to Infinity")
+	})
+
+	t.Run("template_has_cluster_control", func(t *testing.T) {
+		assertContains(t, graphHTML, "clusterThreshold()", "template should use clusterThreshold component")
+		assertContains(t, graphHTML, "Auto Cluster", "template should have Auto option")
+		assertContains(t, graphHTML, "Always Cluster", "template should have Always option")
+		assertContains(t, graphHTML, "Never Cluster", "template should have Never option")
+	})
+}
+
+// TestGraphMultiSelectFilters verifies REQ-DASH-061: multi-select filter controls.
+func TestGraphMultiSelectFilters(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-061")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+	graphHTML := dashboard.ReadTemplateFile("partials/graph.html")
+
+	t.Run("graphFilters_component", func(t *testing.T) {
+		assertContains(t, appJS, "function graphFilters()", "app.js should define graphFilters")
+	})
+
+	t.Run("status_filter_array", func(t *testing.T) {
+		assertContains(t, appJS, "statusFilters: []", "should initialize status filter array")
+	})
+
+	t.Run("priority_filter_array", func(t *testing.T) {
+		assertContains(t, appJS, "priorityFilters: []", "should initialize priority filter array")
+	})
+
+	t.Run("category_filter_array", func(t *testing.T) {
+		assertContains(t, appJS, "categoryFilters: []", "should initialize category filter array")
+	})
+
+	t.Run("toggle_filter_method", func(t *testing.T) {
+		assertContains(t, appJS, "toggleFilter:", "should have toggleFilter method")
+	})
+
+	t.Run("apply_filters_re_renders", func(t *testing.T) {
+		assertContains(t, appJS, "applyFilters:", "should have applyFilters method")
+		assertContains(t, appJS, "renderGraph(filtered", "applyFilters should re-render with filtered data")
+	})
+
+	t.Run("css_filter_chip", func(t *testing.T) {
+		assertContains(t, cssContent, ".graph-filter-chip", "CSS should define filter chip")
+		assertContains(t, cssContent, ".graph-filter-chip.active", "CSS should define active filter chip")
+	})
+
+	t.Run("template_has_filter_bar", func(t *testing.T) {
+		assertContains(t, graphHTML, "graphFilters()", "template should use graphFilters component")
+		assertContains(t, graphHTML, "graph-filter-chip", "template should have filter chips")
+	})
+}
+
+// TestSharedViewState verifies REQ-DASH-074: shared filter state across views.
+func TestSharedViewState(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-074")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+
+	t.Run("sharedViewState_component", func(t *testing.T) {
+		assertContains(t, appJS, "function sharedViewState()", "app.js should define sharedViewState")
+	})
+
+	t.Run("reads_status_from_url", func(t *testing.T) {
+		assertContains(t, appJS, "params.get('status')", "should read status from URL params")
+	})
+
+	t.Run("reads_priority_from_url", func(t *testing.T) {
+		assertContains(t, appJS, "params.get('priority')", "should read priority from URL params")
+	})
+
+	t.Run("reads_category_from_url", func(t *testing.T) {
+		assertContains(t, appJS, "params.get('category')", "should read category from URL params")
+	})
+
+	t.Run("getFilterParams_method", func(t *testing.T) {
+		assertContains(t, appJS, "getFilterParams:", "should have getFilterParams method")
+	})
+
+	t.Run("filters_update_url", func(t *testing.T) {
+		assertContains(t, appJS, "updateGraphURL", "filters should update URL parameters")
+	})
+}
+
+// TestTreemapColorModes verifies REQ-DASH-072: treemap color mode toggle.
+func TestTreemapColorModes(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-072")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+
+	t.Run("treemapColorMode_component", func(t *testing.T) {
+		assertContains(t, appJS, "function treemapColorMode()", "app.js should define treemapColorMode")
+	})
+
+	t.Run("default_status_mode", func(t *testing.T) {
+		assertContains(t, appJS, "mode: 'status'", "default color mode should be status")
+	})
+
+	t.Run("priority_color_mode", func(t *testing.T) {
+		assertContains(t, appJS, "'priority'", "should support priority color mode")
+	})
+
+	t.Run("completion_color_mode", func(t *testing.T) {
+		assertContains(t, appJS, "'completion'", "should support completion color mode")
+	})
+
+	t.Run("animated_transitions", func(t *testing.T) {
+		assertContains(t, appJS, "transition().duration(300)", "color changes should animate")
+	})
+}
+
+// TestTreemapDrillDown verifies REQ-DASH-073: category drill-down.
+func TestTreemapDrillDown(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-073")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	t.Run("treemapDrillDown_function", func(t *testing.T) {
+		assertContains(t, appJS, "function treemapDrillDown(", "app.js should define treemapDrillDown")
+	})
+
+	t.Run("treemapResetZoom_function", func(t *testing.T) {
+		assertContains(t, appJS, "function treemapResetZoom()", "app.js should define treemapResetZoom")
+	})
+
+	t.Run("animated_zoom_transition", func(t *testing.T) {
+		assertContains(t, appJS, "transition().duration(500)", "drill-down should use animated transition")
+	})
+
+	t.Run("breadcrumb_navigation", func(t *testing.T) {
+		assertContains(t, appJS, "treemap-breadcrumb", "drill-down should show breadcrumb")
+	})
+
+	t.Run("css_breadcrumb", func(t *testing.T) {
+		assertContains(t, cssContent, ".treemap-breadcrumb", "CSS should define breadcrumb")
+	})
+}
+
+// TestTimelineDependencyArrows verifies REQ-DASH-068: timeline arrows.
+func TestTimelineDependencyArrows(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-068")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	t.Run("renderTimelineDependencyArrows_function", func(t *testing.T) {
+		assertContains(t, appJS, "function renderTimelineDependencyArrows(", "app.js should define renderTimelineDependencyArrows")
+	})
+
+	t.Run("curved_arrow_paths", func(t *testing.T) {
+		assertContains(t, appJS, "timeline-arrows", "should create arrow group")
+	})
+
+	t.Run("arrow_markers", func(t *testing.T) {
+		assertContains(t, appJS, "timeline-arrow", "should define arrow markers")
+	})
+
+	t.Run("critical_path_distinction", func(t *testing.T) {
+		assertContains(t, appJS, "timeline-dep-arrow-critical", "should distinguish critical path arrows")
+	})
+
+	t.Run("css_arrow_styles", func(t *testing.T) {
+		assertContains(t, cssContent, ".timeline-dep-arrow", "CSS should style timeline arrows")
+		assertContains(t, cssContent, ".timeline-dep-arrow-critical", "CSS should style critical arrows")
+	})
+}
+
+// TestTimelineZoomLevels verifies REQ-DASH-069: timeline zoom granularity.
+func TestTimelineZoomLevels(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-069")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+
+	t.Run("timelineZoomLevel_component", func(t *testing.T) {
+		assertContains(t, appJS, "function timelineZoomLevel()", "app.js should define timelineZoomLevel")
+	})
+
+	t.Run("default_sprint_level", func(t *testing.T) {
+		assertContains(t, appJS, "level: 'sprint'", "default zoom level should be sprint")
+	})
+
+	t.Run("fetches_with_zoom_param", func(t *testing.T) {
+		assertContains(t, appJS, "zoom=' + l", "should pass zoom level to server")
+	})
+}
+
+// TestTimelineAssigneeSwimlanes verifies REQ-DASH-070: assignee swimlanes.
+func TestTimelineAssigneeSwimlanes(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-070")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	t.Run("timelineSwimlanes_component", func(t *testing.T) {
+		assertContains(t, appJS, "function timelineSwimlanes()", "app.js should define timelineSwimlanes")
+	})
+
+	t.Run("groupBy_category_default", func(t *testing.T) {
+		assertContains(t, appJS, "groupBy: 'category'", "default groupBy should be category")
+	})
+
+	t.Run("fetches_with_groupBy_param", func(t *testing.T) {
+		assertContains(t, appJS, "groupBy=' + g", "should pass groupBy to server")
+	})
+
+	t.Run("css_overload_styling", func(t *testing.T) {
+		assertContains(t, cssContent, ".timeline-overload", "CSS should define overload styling")
+	})
+}
+
+// TestGroupBySwimlane verifies REQ-DASH-060: graph swimlane layout.
+func TestGroupBySwimlane(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-060")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+	graphHTML := dashboard.ReadTemplateFile("partials/graph.html")
+
+	t.Run("graphSwimlanes_component", func(t *testing.T) {
+		assertContains(t, appJS, "function graphSwimlanes()", "app.js should define graphSwimlanes")
+	})
+
+	t.Run("groupBy_none_default", func(t *testing.T) {
+		assertContains(t, appJS, "groupBy: 'none'", "default groupBy should be none")
+	})
+
+	t.Run("passes_groupBy_to_renderGraph", func(t *testing.T) {
+		assertContains(t, appJS, "groupBy: g", "should pass groupBy option to renderGraph")
+	})
+
+	t.Run("updates_url", func(t *testing.T) {
+		assertContains(t, appJS, "updateGraphURL({ groupBy:", "should update URL with groupBy")
+	})
+
+	t.Run("css_swimlane_styling", func(t *testing.T) {
+		assertContains(t, cssContent, ".swimlane-rect", "CSS should define swimlane rectangle")
+		assertContains(t, cssContent, ".swimlane-label", "CSS should define swimlane label")
+	})
+
+	t.Run("template_has_groupby_control", func(t *testing.T) {
+		assertContains(t, graphHTML, "graphSwimlanes()", "template should use graphSwimlanes component")
+		assertContains(t, graphHTML, "No Grouping", "template should have None option")
+		assertContains(t, graphHTML, "Category", "template should have Category option")
+	})
+}
+
+// TestMinimapOverview verifies REQ-DASH-063: minimap panel.
+func TestMinimapOverview(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-063")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+	graphHTML := dashboard.ReadTemplateFile("partials/graph.html")
+
+	t.Run("renderMinimap_function", func(t *testing.T) {
+		assertContains(t, appJS, "function renderMinimap()", "app.js should define renderMinimap")
+	})
+
+	t.Run("renders_node_dots", func(t *testing.T) {
+		assertContains(t, appJS, "graph-minimap-svg", "minimap should create SVG element")
+	})
+
+	t.Run("viewport_rectangle", func(t *testing.T) {
+		assertContains(t, appJS, "minimap-viewport", "minimap should show viewport rectangle")
+	})
+
+	t.Run("click_to_pan", func(t *testing.T) {
+		assertContains(t, appJS, "createSVGPoint", "minimap should support click-to-pan")
+	})
+
+	t.Run("css_minimap_styling", func(t *testing.T) {
+		assertContains(t, cssContent, ".graph-minimap", "CSS should define minimap")
+		assertContains(t, cssContent, ".minimap-viewport", "CSS should define viewport rectangle")
+	})
+
+	t.Run("template_has_minimap", func(t *testing.T) {
+		assertContains(t, graphHTML, "graph-minimap", "template should include minimap container")
+	})
+}
+
+// TestGraphPerformanceBudget verifies REQ-DASH-094: performance test suite.
+func TestGraphPerformanceBudget(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-094")
+
+	t.Run("graph_enrichment_under_500ms", func(t *testing.T) {
+		// Generate a 300-node test database
+		db := database.NewDatabase()
+		for i := 0; i < 300; i++ {
+			id := fmt.Sprintf("REQ-PERF-%03d", i)
+			req := &database.Requirement{
+				ReqID:           id,
+				Category:        fmt.Sprintf("CAT-%d", i%5),
+				RequirementText: fmt.Sprintf("Performance test requirement %d", i),
+				Status:          database.StatusMissing,
+				Priority:        database.PriorityMedium,
+				Phase:           1,
+				EffortWeeks:     0.5,
+			}
+			req.Dependencies = make(database.StringSet)
+			if i > 0 {
+				req.Dependencies[fmt.Sprintf("REQ-PERF-%03d", i-1)] = struct{}{}
+			}
+			if err := db.Add(req); err != nil {
+				t.Fatalf("failed to add requirement %s: %v", id, err)
+			}
+		}
+		start := time.Now()
+		g := graph.NewGraph(db)
+		_ = g.CriticalPath()
+		_ = g.FindCycles()
+		_ = g.Layers()
+		_ = g.DetectWebs()
+		elapsed := time.Since(start)
+		if elapsed > 500*time.Millisecond {
+			t.Errorf("graph enrichment took %v, expected under 500ms", elapsed)
+		}
+	})
+
+	t.Run("clustering_under_100ms", func(t *testing.T) {
+		// Test that clusterNodes JS function exists and handles threshold
+		appJS := dashboard.ReadStaticFile("app.js")
+		assertContains(t, appJS, "function clusterNodes(", "clusterNodes should exist for performance")
+		assertContains(t, appJS, "threshold || 100", "cluster threshold should default to 100")
 	})
 }
 

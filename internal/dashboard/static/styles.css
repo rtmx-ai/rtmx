@@ -908,3 +908,47 @@ a.content-link:hover {
 /* REQ-DASH-085: Legend interactive filter highlight */
 .graph-legend-section.legend-active { border-left: 2px solid var(--rtmx-emerald); padding-left: 0.25rem; }
 .graph-legend-section { cursor: pointer; border-left: 2px solid transparent; padding-left: 0.25rem; }
+
+/* REQ-DASH-076: Graph keyboard navigation focus ring */
+.graph-node:focus { outline: 2px solid var(--rtmx-emerald); outline-offset: 4px; border-radius: 50%; }
+.graph-node:focus-visible { outline: 2px solid var(--rtmx-emerald); outline-offset: 4px; }
+
+/* REQ-DASH-075: Cluster node styling */
+.node-cluster .node-circle { stroke-dasharray: 6 3; }
+.cluster-badge { font-size: 0.65rem; fill: var(--rtmx-text); }
+.cluster-expand-btn { cursor: pointer; fill: var(--rtmx-emerald); }
+
+/* REQ-DASH-089: Cluster threshold control */
+.cluster-control { font-size: 0.75rem; }
+.cluster-control select { font-size: 0.75rem; padding: 0.15rem 0.3rem; }
+
+/* REQ-DASH-061: Multi-select filter controls */
+.graph-filter-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.graph-filter-chip { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 0.25rem; background: var(--rtmx-bg-elevated); border: 1px solid var(--rtmx-border); cursor: pointer; }
+.graph-filter-chip.active { background: var(--rtmx-emerald); color: #0a0a0a; border-color: var(--rtmx-emerald); }
+
+/* REQ-DASH-060: Swimlane layout */
+.swimlane-rect { fill: var(--rtmx-bg-elevated); stroke: var(--rtmx-border); stroke-width: 1; opacity: 0.3; }
+.swimlane-label { font-size: 0.75rem; fill: var(--rtmx-text-muted); font-weight: 600; }
+
+/* REQ-DASH-063: Minimap overview */
+.graph-minimap { position: absolute; bottom: 8px; right: 8px; width: 160px; height: 100px; background: var(--rtmx-bg-card); border: 1px solid var(--rtmx-border); border-radius: 0.25rem; overflow: hidden; z-index: 10; }
+.minimap-viewport { stroke: var(--rtmx-emerald); stroke-width: 2; fill: rgba(16, 185, 129, 0.1); }
+
+/* REQ-DASH-068: Timeline dependency arrows */
+.timeline-dep-arrow { stroke: var(--rtmx-border); stroke-width: 1; }
+.timeline-dep-arrow-critical { stroke: var(--rtmx-emerald); stroke-width: 2; }
+
+/* REQ-DASH-069: Timeline zoom controls */
+.timeline-zoom-control { font-size: 0.75rem; }
+
+/* REQ-DASH-070: Timeline assignee swimlanes */
+.timeline-overload { fill: var(--rtmx-missing); opacity: 0.15; }
+
+/* REQ-DASH-072: Treemap color mode control */
+.treemap-controls { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+
+/* REQ-DASH-073: Treemap drill-down breadcrumb */
+.treemap-breadcrumb { font-size: 0.8rem; display: none; margin-bottom: 0.5rem; }
+.treemap-breadcrumb a { color: var(--rtmx-emerald); text-decoration: none; }
+.treemap-group { cursor: pointer; }

@@ -1230,6 +1230,495 @@ window.addEventListener('popstate', function(e) {
   }
 });
 
+// REQ-DASH-076: Graph keyboard navigation via edge connections
+function graphKeyboardNav(event) {
+  var nodeGroup = window._graphNodeGroup;
+  var edges = window._graphEdges;
+  var nodeMap = window._graphNodeMap;
+  var g = window._graphG;
+  if (!nodeGroup || !edges) return;
+
+  var focused = document.activeElement;
+  if (!focused || !focused.classList.contains('graph-node')) return;
+  var currentId = focused.getAttribute('data-id');
+  if (!currentId) return;
+
+  var targetId = null;
+  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+    // Follow downstream (current is source)
+    for (var i = 0; i < edges.length; i++) {
+      if (edges[i].source === currentId) { targetId = edges[i].target; break; }
+    }
+  } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+    // Follow upstream (current is target)
+    for (var j = 0; j < edges.length; j++) {
+      if (edges[j].target === currentId) { targetId = edges[j].source; break; }
+    }
+  } else if (event.key === 'Enter' || event.key === ' ') {
+    focused.dispatchEvent(new Event('click', { bubbles: true }));
+    event.preventDefault();
+    return;
+  } else {
+    return;
+  }
+
+  if (targetId) {
+    event.preventDefault();
+    var targetEl = nodeGroup.select('[data-id="' + targetId + '"]').node();
+    if (targetEl) {
+      targetEl.focus();
+      // Pan to focused node
+      var pos = g ? g.node(targetId) : null;
+      if (pos && window._graphSvg && window._graphZoomBehavior) {
+        var container = document.getElementById('graph-container');
+        if (container) {
+          var cw = container.clientWidth;
+          var ch = container.clientHeight;
+          window._graphSvg.transition().duration(200).call(
+            window._graphZoomBehavior.transform,
+            d3.zoomIdentity.translate(cw / 2 - pos.x, ch / 2 - pos.y).scale(1)
+          );
+        }
+      }
+      // Announce for screen readers
+      var announceEl = document.getElementById('graph-announce');
+      var nd = nodeMap[targetId];
+      if (announceEl && nd) {
+        announceEl.textContent = nd.id + ': ' + (nd.description || '') + ' (' + nd.status + ')';
+      }
+    }
+  }
+}
+document.addEventListener('keydown', function(e) {
+  var tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', ' '].indexOf(e.key) >= 0) {
+    if (document.activeElement && document.activeElement.classList.contains('graph-node')) {
+      graphKeyboardNav(e);
+    }
+  }
+});
+
+// REQ-DASH-075: Cluster rendering for large graphs (>100 nodes)
+function clusterNodes(data, threshold) {
+  threshold = threshold || 100;
+  if (!data || !data.nodes || data.nodes.length <= threshold) return null;
+  // Group by category
+  var catMap = {};
+  data.nodes.forEach(function(n) {
+    var cat = n.category || 'Uncategorized';
+    if (!catMap[cat]) catMap[cat] = [];
+    catMap[cat].push(n);
+  });
+  // Build cluster nodes
+  var clusterNodes = [];
+  var clusterIdMap = {}; // original id -> cluster id
+  for (var cat in catMap) {
+    var members = catMap[cat];
+    var clusterId = 'cluster-' + cat;
+    var totalEffort = 0;
+    var completeCount = 0;
+    members.forEach(function(m) {
+      totalEffort += (m.effort_weeks || 0);
+      if (m.status === 'COMPLETE') completeCount++;
+      clusterIdMap[m.id] = clusterId;
+    });
+    clusterNodes.push({
+      id: clusterId,
+      category: cat,
+      is_cluster: true,
+      member_count: members.length,
+      member_ids: members.map(function(m) { return m.id; }),
+      effort_weeks: totalEffort,
+      status: completeCount === members.length ? 'COMPLETE' : (completeCount > 0 ? 'PARTIAL' : 'NOT_STARTED'),
+      priority: 'MEDIUM',
+      description: cat + ' (' + members.length + ' reqs)',
+      completion_pct: Math.round(100 * completeCount / members.length)
+    });
+  }
+  // Build inter-cluster edges (deduplicated)
+  var clusterEdgeSet = {};
+  var clusterEdges = [];
+  (data.edges || []).forEach(function(e) {
+    var src = clusterIdMap[e.source];
+    var tgt = clusterIdMap[e.target];
+    if (src && tgt && src !== tgt) {
+      var key = src + '->' + tgt;
+      if (!clusterEdgeSet[key]) {
+        clusterEdgeSet[key] = true;
+        clusterEdges.push({ source: src, target: tgt, is_critical_path: e.is_critical_path });
+      }
+    }
+  });
+  return { nodes: clusterNodes, edges: clusterEdges, cycles: [] };
+}
+
+// REQ-DASH-088: Cluster expand/collapse with dagre re-layout
+function expandCluster(clusterId) {
+  var data = window._graphDataFull;
+  var expanded = window._graphExpandedClusters || {};
+  if (!data) return;
+  expanded[clusterId] = true;
+  window._graphExpandedClusters = expanded;
+  var viewData = buildClusteredView(data, expanded);
+  renderGraph(viewData, { rankdir: window._graphDirection || 'TB' });
+}
+
+function collapseCluster(clusterId) {
+  var expanded = window._graphExpandedClusters || {};
+  delete expanded[clusterId];
+  window._graphExpandedClusters = expanded;
+  var data = window._graphDataFull;
+  if (!data) return;
+  var viewData = buildClusteredView(data, expanded);
+  renderGraph(viewData, { rankdir: window._graphDirection || 'TB' });
+}
+
+function buildClusteredView(data, expanded) {
+  if (!data || !data.nodes) return data;
+  var threshold = window._clusterThreshold || 100;
+  if (data.nodes.length <= threshold) return data;
+  // Group by category
+  var catMap = {};
+  data.nodes.forEach(function(n) {
+    var cat = n.category || 'Uncategorized';
+    if (!catMap[cat]) catMap[cat] = [];
+    catMap[cat].push(n);
+  });
+  var viewNodes = [];
+  var clusterIdMap = {};
+  for (var cat in catMap) {
+    var clusterId = 'cluster-' + cat;
+    if (expanded && expanded[clusterId]) {
+      catMap[cat].forEach(function(n) { viewNodes.push(n); });
+    } else {
+      var members = catMap[cat];
+      var totalEffort = 0, completeCount = 0;
+      members.forEach(function(m) {
+        totalEffort += (m.effort_weeks || 0);
+        if (m.status === 'COMPLETE') completeCount++;
+        clusterIdMap[m.id] = clusterId;
+      });
+      viewNodes.push({
+        id: clusterId, category: cat, is_cluster: true,
+        member_count: members.length,
+        member_ids: members.map(function(m) { return m.id; }),
+        effort_weeks: totalEffort,
+        status: completeCount === members.length ? 'COMPLETE' : (completeCount > 0 ? 'PARTIAL' : 'NOT_STARTED'),
+        priority: 'MEDIUM',
+        description: cat + ' (' + members.length + ' reqs)',
+        completion_pct: Math.round(100 * completeCount / members.length)
+      });
+    }
+  }
+  // Build edges
+  var nodeIdSet = {};
+  viewNodes.forEach(function(n) { nodeIdSet[n.id] = true; });
+  var edgeSet = {};
+  var viewEdges = [];
+  (data.edges || []).forEach(function(e) {
+    var src = clusterIdMap[e.source] || e.source;
+    var tgt = clusterIdMap[e.target] || e.target;
+    if (nodeIdSet[src] && nodeIdSet[tgt] && src !== tgt) {
+      var key = src + '->' + tgt;
+      if (!edgeSet[key]) {
+        edgeSet[key] = true;
+        viewEdges.push({ source: src, target: tgt, is_critical_path: e.is_critical_path });
+      }
+    }
+  });
+  return { nodes: viewNodes, edges: viewEdges, cycles: data.cycles || [] };
+}
+
+// REQ-DASH-089: Cluster threshold control with Auto/Always/Never modes
+function clusterThreshold() {
+  return {
+    mode: 'auto',
+    setMode: function(m) {
+      this.mode = m;
+      if (m === 'always') window._clusterThreshold = 0;
+      else if (m === 'never') window._clusterThreshold = Infinity;
+      else window._clusterThreshold = 100;
+      var data = window._graphDataFull || window._graphData;
+      if (data) {
+        window._graphExpandedClusters = {};
+        var viewData = (m === 'never' || data.nodes.length <= (window._clusterThreshold || 100)) ? data : buildClusteredView(data, {});
+        renderGraph(viewData, { rankdir: window._graphDirection || 'TB' });
+      }
+    }
+  };
+}
+
+// REQ-DASH-061: Multi-select filter controls for status/priority/category
+function graphFilters() {
+  return {
+    statusFilters: [],
+    priorityFilters: [],
+    categoryFilters: [],
+    toggleFilter: function(type, value) {
+      var arr = this[type + 'Filters'];
+      var idx = arr.indexOf(value);
+      if (idx >= 0) arr.splice(idx, 1); else arr.push(value);
+      this.applyFilters();
+    },
+    applyFilters: function() {
+      var data = window._graphDataFull || window._graphData;
+      if (!data) return;
+      var sf = this.statusFilters;
+      var pf = this.priorityFilters;
+      var cf = this.categoryFilters;
+      var filteredNodes = data.nodes.filter(function(n) {
+        if (sf.length > 0 && sf.indexOf(n.status) < 0) return false;
+        if (pf.length > 0 && pf.indexOf(n.priority) < 0) return false;
+        if (cf.length > 0 && cf.indexOf(n.category) < 0) return false;
+        return true;
+      });
+      var nodeIdSet = {};
+      filteredNodes.forEach(function(n) { nodeIdSet[n.id] = true; });
+      var filteredEdges = (data.edges || []).filter(function(e) {
+        return nodeIdSet[e.source] && nodeIdSet[e.target];
+      });
+      var filtered = { nodes: filteredNodes, edges: filteredEdges, cycles: data.cycles || [] };
+      renderGraph(filtered, { rankdir: window._graphDirection || 'TB' });
+      // REQ-DASH-074: Update URL with filter state
+      updateGraphURL({
+        status: sf.join(',') || undefined,
+        priority: pf.join(',') || undefined,
+        category: cf.join(',') || undefined
+      });
+    },
+    clearAll: function() {
+      this.statusFilters = [];
+      this.priorityFilters = [];
+      this.categoryFilters = [];
+      this.applyFilters();
+    }
+  };
+}
+
+// REQ-DASH-074: Shared filter state across DAG/Timeline/Treemap views
+function sharedViewState() {
+  var params = new URLSearchParams(window.location.search);
+  return {
+    statusFilters: (params.get('status') || '').split(',').filter(Boolean),
+    priorityFilters: (params.get('priority') || '').split(',').filter(Boolean),
+    categoryFilters: (params.get('category') || '').split(',').filter(Boolean),
+    search: params.get('search') || '',
+    getFilterParams: function() {
+      var p = {};
+      if (this.statusFilters.length) p.status = this.statusFilters.join(',');
+      if (this.priorityFilters.length) p.priority = this.priorityFilters.join(',');
+      if (this.categoryFilters.length) p.category = this.categoryFilters.join(',');
+      if (this.search) p.search = this.search;
+      return p;
+    }
+  };
+}
+
+// REQ-DASH-072: Treemap color modes for Status/Priority/Completion
+function treemapColorMode() {
+  return {
+    mode: 'status',
+    setMode: function(m) {
+      this.mode = m;
+      this.recolor();
+    },
+    recolor: function() {
+      var mode = this.mode;
+      var statusColor = {
+        'COMPLETE': 'var(--rtmx-complete)',
+        'PARTIAL': 'var(--rtmx-partial)',
+        'MISSING': 'var(--rtmx-missing)',
+        'NOT_STARTED': 'var(--rtmx-not-started)'
+      };
+      var priorityColor = {
+        'P0': 'var(--rtmx-missing)',
+        'HIGH': 'var(--rtmx-partial)',
+        'MEDIUM': 'var(--rtmx-medium)',
+        'LOW': 'var(--rtmx-not-started)'
+      };
+      d3.selectAll('.treemap-cell rect').each(function() {
+        var cell = d3.select(this);
+        var data = cell.datum ? cell.datum() : null;
+        if (!data) return;
+        if (mode === 'priority') {
+          cell.transition().duration(300).attr('fill', priorityColor[data.priority] || priorityColor['LOW']);
+        } else if (mode === 'completion') {
+          var pct = data.completion_pct || 0;
+          var hue = Math.round(pct * 1.2); // 0=red, 120=green
+          cell.transition().duration(300).attr('fill', 'hsl(' + hue + ', 60%, 45%)');
+        } else {
+          cell.transition().duration(300).attr('fill', statusColor[data.status] || statusColor['NOT_STARTED']);
+        }
+      });
+    }
+  };
+}
+
+// REQ-DASH-073: Treemap drill-down with animated zoom
+function treemapDrillDown(category) {
+  var svg = d3.select('#treemap-svg');
+  if (!svg.node()) return;
+  var group = svg.selectAll('.treemap-group').filter(function() {
+    return d3.select(this).attr('data-category') === category;
+  });
+  if (group.empty()) return;
+  var box = group.node().getBBox();
+  var w = parseInt(svg.attr('width'));
+  var h = parseInt(svg.attr('height'));
+  var scale = Math.min(w / box.width, h / box.height) * 0.9;
+  var tx = w / 2 - (box.x + box.width / 2) * scale;
+  var ty = h / 2 - (box.y + box.height / 2) * scale;
+  svg.transition().duration(500)
+    .attr('viewBox', [box.x - 10, box.y - 10, box.width + 20, box.height + 20].join(' '));
+  // Show breadcrumb
+  var bc = document.getElementById('treemap-breadcrumb');
+  if (bc) {
+    bc.innerHTML = '<a href="#" onclick="treemapResetZoom(); return false;">All</a> / ' + category;
+    bc.style.display = 'block';
+  }
+}
+
+function treemapResetZoom() {
+  var svg = d3.select('#treemap-svg');
+  if (!svg.node()) return;
+  var w = parseInt(svg.attr('width'));
+  var h = parseInt(svg.attr('height'));
+  svg.transition().duration(500).attr('viewBox', '0 0 ' + w + ' ' + h);
+  var bc = document.getElementById('treemap-breadcrumb');
+  if (bc) bc.style.display = 'none';
+}
+
+// REQ-DASH-068: Timeline dependency arrows with critical path highlighting
+function renderTimelineDependencyArrows(data, edges) {
+  var svg = d3.select('#timeline-svg');
+  if (!svg.node() || !edges || edges.length === 0) return;
+  var arrowGroup = svg.append('g').attr('class', 'timeline-arrows');
+  // Define arrow marker
+  var defs = svg.select('defs').empty() ? svg.append('defs') : svg.select('defs');
+  defs.append('marker')
+    .attr('id', 'timeline-arrow')
+    .attr('viewBox', '0 -3 6 6')
+    .attr('refX', 6).attr('refY', 0)
+    .attr('markerWidth', 6).attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path').attr('d', 'M0,-3L6,0L0,3').attr('fill', 'var(--rtmx-border)');
+  defs.append('marker')
+    .attr('id', 'timeline-arrow-critical')
+    .attr('viewBox', '0 -3 6 6')
+    .attr('refX', 6).attr('refY', 0)
+    .attr('markerWidth', 6).attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path').attr('d', 'M0,-3L6,0L0,3').attr('fill', 'var(--rtmx-emerald)');
+
+  edges.forEach(function(e) {
+    var srcBar = svg.select('[data-req-id="' + e.source + '"]');
+    var tgtBar = svg.select('[data-req-id="' + e.target + '"]');
+    if (srcBar.empty() || tgtBar.empty()) return;
+    var sx = parseFloat(srcBar.attr('x')) + parseFloat(srcBar.attr('width'));
+    var sy = parseFloat(srcBar.attr('y')) + parseFloat(srcBar.attr('height')) / 2;
+    var tx = parseFloat(tgtBar.attr('x'));
+    var ty = parseFloat(tgtBar.attr('y')) + parseFloat(tgtBar.attr('height')) / 2;
+    var mx = (sx + tx) / 2;
+    var cls = e.is_critical_path ? 'timeline-dep-arrow-critical' : 'timeline-dep-arrow';
+    arrowGroup.append('path')
+      .attr('d', 'M' + sx + ',' + sy + ' C' + mx + ',' + sy + ' ' + mx + ',' + ty + ' ' + tx + ',' + ty)
+      .attr('class', cls)
+      .attr('fill', 'none')
+      .attr('marker-end', e.is_critical_path ? 'url(#timeline-arrow-critical)' : 'url(#timeline-arrow)');
+  });
+}
+
+// REQ-DASH-069: Timeline zoom levels (Sprint/Phase/Quarter)
+function timelineZoomLevel() {
+  return {
+    level: 'sprint',
+    setLevel: function(l) {
+      this.level = l;
+      // Re-fetch timeline with different granularity
+      htmx.ajax('GET', '/partials/timeline?zoom=' + l, { target: '#graph-view-content', swap: 'innerHTML' });
+    }
+  };
+}
+
+// REQ-DASH-070: Timeline assignee swimlanes
+function timelineSwimlanes() {
+  return {
+    groupBy: 'category',
+    setGroupBy: function(g) {
+      this.groupBy = g;
+      htmx.ajax('GET', '/partials/timeline?groupBy=' + g, { target: '#graph-view-content', swap: 'innerHTML' });
+    }
+  };
+}
+
+// REQ-DASH-060: Swimlane layout for graph view
+function graphSwimlanes() {
+  return {
+    groupBy: 'none',
+    setGroupBy: function(g) {
+      this.groupBy = g;
+      var data = window._graphDataFull || window._graphData;
+      if (!data) return;
+      renderGraph(data, { rankdir: window._graphDirection || 'TB', groupBy: g });
+      updateGraphURL({ groupBy: g });
+    }
+  };
+}
+
+// REQ-DASH-063: Minimap overview with viewport rectangle
+function renderMinimap() {
+  var svgEl = document.getElementById('graph-svg');
+  var minimap = document.getElementById('graph-minimap');
+  if (!svgEl || !minimap) return;
+  var minimapSvg = d3.select('#graph-minimap-svg');
+  if (minimapSvg.empty()) {
+    minimapSvg = d3.select(minimap).append('svg')
+      .attr('id', 'graph-minimap-svg')
+      .attr('width', '100%').attr('height', '100%');
+  }
+  minimapSvg.selectAll('*').remove();
+  // Clone main SVG content scaled down
+  var vb = svgEl.getAttribute('viewBox');
+  if (vb) minimapSvg.attr('viewBox', vb);
+  // Simplified node dots
+  var nodeGroup = window._graphNodeGroup;
+  var g = window._graphG;
+  if (!nodeGroup || !g) return;
+  g.nodes().forEach(function(id) {
+    var pos = g.node(id);
+    if (pos) {
+      minimapSvg.append('circle')
+        .attr('cx', pos.x).attr('cy', pos.y).attr('r', 3)
+        .attr('fill', 'var(--rtmx-emerald)');
+    }
+  });
+  // Viewport rectangle
+  minimapSvg.append('rect')
+    .attr('class', 'minimap-viewport')
+    .attr('fill', 'none')
+    .attr('stroke', 'var(--rtmx-emerald)')
+    .attr('stroke-width', 2);
+  // Click to pan
+  minimapSvg.on('click', function(event) {
+    var pt = minimapSvg.node().createSVGPoint();
+    pt.x = event.clientX;
+    pt.y = event.clientY;
+    var svgPt = pt.matrixTransform(minimapSvg.node().getScreenCTM().inverse());
+    if (window._graphSvg && window._graphZoomBehavior) {
+      var container = document.getElementById('graph-container');
+      if (container) {
+        var cw = container.clientWidth;
+        var ch = container.clientHeight;
+        window._graphSvg.transition().duration(200).call(
+          window._graphZoomBehavior.transform,
+          d3.zoomIdentity.translate(cw / 2 - svgPt.x, ch / 2 - svgPt.y).scale(1)
+        );
+      }
+    }
+  });
+}
+
 // REQ-DASH-086: Timeline D3 SVG rendering
 function renderTimeline(data) {
   var svg = d3.select('#timeline-svg');
