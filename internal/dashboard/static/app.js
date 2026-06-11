@@ -518,11 +518,31 @@ function edgePath(points) {
   return d;
 }
 
+// REQ-DASH-049: Graph layout direction toggle
+function graphDirection() {
+  return {
+    dir: 'TB',
+    toggle: function() {
+      this.dir = this.dir === 'TB' ? 'LR' : 'TB';
+      var graphData = window._graphData;
+      if (graphData) renderGraph(graphData, { rankdir: this.dir });
+    }
+  };
+}
+
 // REQ-DASH-048: Dagre layered (Sugiyama) layout with full visual encoding
-function renderGraph(data) {
+function renderGraph(data, options) {
   var container = document.getElementById('graph-container');
   var svg = d3.select('#graph-svg');
   if (!container || !svg.node()) return;
+
+  options = options || {};
+  var rankdir = options.rankdir || 'TB';
+  window._graphData = data; // store for re-render
+
+  // REQ-DASH-081: Loading state
+  var loadingEl = document.getElementById('graph-loading');
+  if (loadingEl) loadingEl.style.display = 'flex';
 
   svg.selectAll('*').remove();
 
@@ -541,9 +561,9 @@ function renderGraph(data) {
     });
   });
 
-  // Create dagre graph
+  // Create dagre graph with configurable direction (REQ-DASH-049)
   var g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: 'TB', ranksep: 80, nodesep: 40, marginx: 20, marginy: 20 });
+  g.setGraph({ rankdir: rankdir, ranksep: 80, nodesep: 40, marginx: 20, marginy: 20 });
   g.setDefaultEdgeLabel(function() { return {}; });
 
   // REQ-DASH-050: Add nodes with effort-proportional dimensions
@@ -568,7 +588,16 @@ function renderGraph(data) {
   });
 
   // Compute layout
-  dagre.layout(g);
+  // REQ-DASH-081: Layout with error handling and timeout
+  try {
+    dagre.layout(g);
+  } catch (layoutErr) {
+    console.error('Graph layout failed:', layoutErr);
+    if (loadingEl) loadingEl.style.display = 'none';
+    showToast('error', 'Graph layout failed: ' + layoutErr.message);
+    return;
+  }
+  if (loadingEl) loadingEl.style.display = 'none';
 
   // Calculate bounding box and auto-size viewBox
   var padding = 40;
@@ -585,6 +614,10 @@ function renderGraph(data) {
   var vbW = (maxX - minX) + padding * 2;
   var vbH = (maxY - minY) + padding * 2;
   svg.attr('viewBox', [(minX - padding), (minY - padding), vbW, vbH].join(' '));
+
+  // REQ-DASH-077: Screen reader accessible SVG
+  svg.attr('role', 'img')
+     .attr('aria-label', 'Dependency graph with ' + nodes.length + ' nodes and ' + edges.length + ' edges');
 
   var root = svg.append('g').attr('class', 'graph-root');
 
@@ -664,7 +697,10 @@ function renderGraph(data) {
     var ng = nodeGroup.append('g')
       .attr('transform', 'translate(' + pos.x + ',' + pos.y + ')')
       .attr('class', classes.join(' '))
-      .attr('data-id', n.id);
+      .attr('data-id', n.id)
+      .attr('role', 'button')
+      .attr('aria-label', n.id + ': ' + (n.description || '') + ' (' + n.status + ')')
+      .attr('tabindex', '-1');
 
     // REQ-DASH-055: Cycle member glow effect (rendered behind node)
     if (n.is_cycle_member) {
@@ -1088,6 +1124,111 @@ function viewSwitcher() {
     }
   };
 }
+
+// REQ-DASH-078: Export graph as standalone SVG
+function exportGraphSVG() {
+  var svgEl = document.getElementById('graph-svg');
+  if (!svgEl) return;
+  var clone = svgEl.cloneNode(true);
+  // Inline styles from computed styles
+  clone.querySelectorAll('*').forEach(function(el) {
+    var computed = window.getComputedStyle(el);
+    var important = ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'opacity', 'font-size', 'font-family', 'font-weight', 'text-anchor'];
+    important.forEach(function(prop) {
+      var val = computed.getPropertyValue(prop);
+      if (val) el.style[prop] = val;
+    });
+  });
+  // Remove interactive attributes
+  clone.querySelectorAll('[cursor]').forEach(function(el) { el.removeAttribute('cursor'); });
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  var title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  title.setAttribute('x', '10'); title.setAttribute('y', '20');
+  title.setAttribute('font-size', '14'); title.setAttribute('fill', '#f9fafb');
+  title.textContent = 'RTMX Dependency Graph -- ' + new Date().toISOString().slice(0, 10);
+  clone.insertBefore(title, clone.firstChild);
+  var svgData = new XMLSerializer().serializeToString(clone);
+  var blob = new Blob([svgData], { type: 'image/svg+xml' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'rtmx-graph-' + new Date().toISOString().slice(0, 10) + '.svg';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// REQ-DASH-079: Export graph as PNG image
+function exportGraphPNG(scale) {
+  scale = scale || 2;
+  var svgEl = document.getElementById('graph-svg');
+  if (!svgEl) return;
+  var clone = svgEl.cloneNode(true);
+  clone.querySelectorAll('*').forEach(function(el) {
+    var computed = window.getComputedStyle(el);
+    ['fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'opacity', 'font-size', 'font-family'].forEach(function(prop) {
+      var val = computed.getPropertyValue(prop);
+      if (val) el.style[prop] = val;
+    });
+  });
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  var svgData = new XMLSerializer().serializeToString(clone);
+  var canvas = document.createElement('canvas');
+  var bbox = svgEl.getBoundingClientRect();
+  canvas.width = bbox.width * scale;
+  canvas.height = bbox.height * scale;
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  var img = new Image();
+  img.onload = function() {
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    try {
+      var pngUrl = canvas.toDataURL('image/png');
+      var a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = 'rtmx-graph-' + new Date().toISOString().slice(0, 10) + '.png';
+      a.click();
+    } catch (e) {
+      showToast('error', 'PNG export failed: ' + e.message);
+    }
+  };
+  img.onerror = function() { showToast('error', 'PNG export failed: image load error'); };
+  img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+}
+
+// REQ-DASH-082: URL query parameter encoding for graph settings
+function updateGraphURL(params) {
+  var url = new URL(window.location);
+  var defaults = { view: 'dag', dir: 'TB', groupBy: 'none' };
+  for (var key in params) {
+    if (params[key] && params[key] !== defaults[key]) {
+      url.searchParams.set(key, params[key]);
+    } else {
+      url.searchParams.delete(key);
+    }
+  }
+  history.pushState({ graph: true }, '', url);
+}
+
+// REQ-DASH-090: URL state restore on page load
+function restoreGraphState() {
+  var params = new URLSearchParams(window.location.search);
+  return {
+    view: params.get('view') || 'dag',
+    dir: params.get('dir') || 'TB',
+    groupBy: params.get('groupBy') || 'none',
+    filter: params.get('filter') || '',
+    search: params.get('search') || ''
+  };
+}
+
+// REQ-DASH-090: popstate handler for browser back/forward
+window.addEventListener('popstate', function(e) {
+  if (e.state && e.state.graph && window._graphData) {
+    var state = restoreGraphState();
+    renderGraph(window._graphData, { rankdir: state.dir });
+  }
+});
 
 // REQ-DASH-086: Timeline D3 SVG rendering
 function renderTimeline(data) {

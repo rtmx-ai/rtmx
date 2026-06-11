@@ -847,3 +847,64 @@ a.content-link:hover {
 .treemap-cell:hover { filter: brightness(1.15); }
 .treemap-cell-text { font-size: 9px; fill: var(--rtmx-text); font-family: var(--rtmx-font-mono); pointer-events: none; }
 .treemap-group-label { font-size: 11px; fill: var(--rtmx-text); font-weight: 600; pointer-events: none; }
+
+/* REQ-DASH-076: Graph keyboard navigation focus ring */
+.graph-node:focus { outline: none; }
+.graph-node:focus circle.node-circle {
+  stroke: var(--rtmx-emerald);
+  stroke-width: 2px;
+  filter: drop-shadow(0 0 3px var(--rtmx-emerald));
+}
+[aria-live="polite"].graph-a11y-announce {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* REQ-DASH-081: Graph loading state */
+.graph-loading {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: var(--rtmx-bg-card);
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+.graph-loading-skeleton {
+  width: 80%;
+  height: 60%;
+  border-radius: 0.375rem;
+  background: var(--rtmx-bg-elevated);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* REQ-DASH-080: Print-optimized CSS */
+@media print {
+  body { background: #fff; color: #000; }
+  .sidebar, .zoom-toolbar, .graph-legend-toggle, .toast-container,
+  .palette-overlay, .graph-search-input, .graph-search-count,
+  .btn-secondary, .view-switcher, select, .graph-loading { display: none !important; }
+  .card { border: 1px solid #ccc; box-shadow: none; background: #fff; }
+  #graph-svg { max-width: 100%; height: auto; }
+  .graph-legend { position: static; background: #fff; border: 1px solid #ccc; color: #000; }
+  .graph-legend-body { display: flex !important; }
+  .node-label-id { fill: #000; }
+  .node-label-desc { fill: #333; display: block; }
+  .edge-normal { stroke: #000; }
+  .edge-critical { stroke: #000; stroke-width: 2px; animation: none; }
+  @page { margin: 0.5in; }
+}
+
+/* REQ-DASH-078/079: Export buttons */
+.export-btn { font-size: 0.75rem; padding: 0.2rem 0.5rem; }
+
+/* REQ-DASH-085: Legend interactive filter highlight */
+.graph-legend-section.legend-active { border-left: 2px solid var(--rtmx-emerald); padding-left: 0.25rem; }
+.graph-legend-section { cursor: pointer; border-left: 2px solid transparent; padding-left: 0.25rem; }

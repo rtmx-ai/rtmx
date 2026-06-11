@@ -3359,6 +3359,301 @@ func TestTreemapD3Rendering(t *testing.T) {
 	})
 }
 
+// TestGraphDirectionToggle verifies REQ-DASH-049: TB/LR direction toggle.
+func TestGraphDirectionToggle(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-049")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	graphHTML := dashboard.ReadTemplateFile("partials/graph.html")
+
+	t.Run("graphDirection_alpine_component", func(t *testing.T) {
+		assertContains(t, appJS, "function graphDirection()", "app.js should define graphDirection component")
+	})
+
+	t.Run("default_TB_direction", func(t *testing.T) {
+		assertContains(t, appJS, "dir: 'TB'", "graphDirection should default to TB")
+	})
+
+	t.Run("toggle_between_TB_LR", func(t *testing.T) {
+		assertContains(t, appJS, "this.dir === 'TB' ? 'LR' : 'TB'", "toggle should flip between TB and LR")
+	})
+
+	t.Run("re_renders_graph_on_toggle", func(t *testing.T) {
+		assertContains(t, appJS, "renderGraph(graphData, { rankdir: this.dir })", "toggle should re-render graph with new direction")
+	})
+
+	t.Run("renderGraph_accepts_rankdir_option", func(t *testing.T) {
+		assertContains(t, appJS, "rankdir: rankdir", "renderGraph should pass rankdir to dagre")
+	})
+
+	t.Run("template_has_direction_toggle", func(t *testing.T) {
+		assertContains(t, graphHTML, "graphDirection()", "graph.html should use graphDirection component")
+		assertContains(t, graphHTML, "@click=\"toggle()\"", "graph.html should have toggle click handler")
+	})
+}
+
+// TestScreenReaderSupport verifies REQ-DASH-077: ARIA roles and live regions.
+func TestScreenReaderSupport(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-077")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	graphHTML := dashboard.ReadTemplateFile("partials/graph.html")
+
+	t.Run("svg_role_img", func(t *testing.T) {
+		assertContains(t, appJS, "role', 'img'", "SVG should have role=img")
+	})
+
+	t.Run("svg_aria_label", func(t *testing.T) {
+		assertContains(t, appJS, "aria-label", "SVG should have aria-label")
+	})
+
+	t.Run("node_role_button", func(t *testing.T) {
+		assertContains(t, appJS, "role', 'button'", "nodes should have role=button")
+	})
+
+	t.Run("node_aria_label_with_description", func(t *testing.T) {
+		assertContains(t, appJS, "n.description", "node aria-label should include description")
+	})
+
+	t.Run("template_accessible_summary", func(t *testing.T) {
+		assertContains(t, graphHTML, "graph-summary", "template should have graph summary element")
+		assertContains(t, graphHTML, "aria-live=\"polite\"", "template should have aria-live region")
+	})
+
+	t.Run("template_live_region", func(t *testing.T) {
+		assertContains(t, graphHTML, "graph-announce", "template should have announcement element")
+	})
+
+	t.Run("controls_have_aria_labels", func(t *testing.T) {
+		assertContains(t, graphHTML, "aria-label=\"Zoom in\"", "zoom in should have aria-label")
+		assertContains(t, graphHTML, "aria-label=\"Zoom out\"", "zoom out should have aria-label")
+		assertContains(t, graphHTML, "aria-label=\"Fit to view\"", "fit should have aria-label")
+		assertContains(t, graphHTML, "aria-label=\"Search graph nodes\"", "search should have aria-label")
+		assertContains(t, graphHTML, "aria-label=\"Toggle layout direction\"", "direction toggle should have aria-label")
+	})
+
+	t.Run("graph_partial_a11y", func(t *testing.T) {
+		db := integrationDB(t)
+		mux := integrationMux(t, db)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "aria-live", "rendered graph partial should have aria-live")
+		assertContains(t, body, "graph-summary", "rendered graph partial should have summary")
+	})
+}
+
+// TestExportGraphSVG verifies REQ-DASH-078: SVG export.
+func TestExportGraphSVG(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-078")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	graphHTML := dashboard.ReadTemplateFile("partials/graph.html")
+
+	t.Run("exportGraphSVG_function", func(t *testing.T) {
+		assertContains(t, appJS, "function exportGraphSVG()", "app.js should define exportGraphSVG")
+	})
+
+	t.Run("clones_svg_element", func(t *testing.T) {
+		assertContains(t, appJS, "cloneNode(true)", "export should clone SVG")
+	})
+
+	t.Run("inlines_computed_styles", func(t *testing.T) {
+		assertContains(t, appJS, "getComputedStyle", "export should inline computed styles")
+	})
+
+	t.Run("adds_xmlns_attribute", func(t *testing.T) {
+		assertContains(t, appJS, "xmlns", "export should add SVG xmlns")
+	})
+
+	t.Run("creates_blob_download", func(t *testing.T) {
+		assertContains(t, appJS, "image/svg+xml", "export should create SVG blob")
+		assertContains(t, appJS, ".download =", "export should trigger download")
+	})
+
+	t.Run("template_has_svg_export_button", func(t *testing.T) {
+		assertContains(t, graphHTML, "exportGraphSVG()", "template should have SVG export button")
+	})
+}
+
+// TestExportGraphPNG verifies REQ-DASH-079: PNG export.
+func TestExportGraphPNG(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-079")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	graphHTML := dashboard.ReadTemplateFile("partials/graph.html")
+
+	t.Run("exportGraphPNG_function", func(t *testing.T) {
+		assertContains(t, appJS, "function exportGraphPNG(", "app.js should define exportGraphPNG")
+	})
+
+	t.Run("default_2x_scale", func(t *testing.T) {
+		assertContains(t, appJS, "scale = scale || 2", "PNG export should default to 2x scale")
+	})
+
+	t.Run("canvas_rendering", func(t *testing.T) {
+		assertContains(t, appJS, "createElement('canvas')", "PNG export should create canvas")
+		assertContains(t, appJS, "getContext('2d')", "PNG export should get 2d context")
+	})
+
+	t.Run("downloads_png_file", func(t *testing.T) {
+		assertContains(t, appJS, "image/png", "PNG export should produce PNG data")
+		assertContains(t, appJS, ".png", "PNG export should use .png extension")
+	})
+
+	t.Run("error_handling", func(t *testing.T) {
+		assertContains(t, appJS, "PNG export failed", "PNG export should handle errors")
+	})
+
+	t.Run("template_has_png_export_button", func(t *testing.T) {
+		assertContains(t, graphHTML, "exportGraphPNG()", "template should have PNG export button")
+	})
+}
+
+// TestPrintOptimizedCSS verifies REQ-DASH-080: print media query.
+func TestPrintOptimizedCSS(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-080")
+
+	cssContent := dashboard.ReadStaticFile("styles.css")
+	graphHTML := dashboard.ReadTemplateFile("partials/graph.html")
+
+	t.Run("media_print_rule", func(t *testing.T) {
+		assertContains(t, cssContent, "@media print", "CSS should have @media print rules")
+	})
+
+	t.Run("white_background", func(t *testing.T) {
+		assertContains(t, cssContent, "background: #fff", "print should use white background")
+	})
+
+	t.Run("hides_interactive_controls", func(t *testing.T) {
+		assertContains(t, cssContent, ".sidebar", "print should hide sidebar")
+		assertContains(t, cssContent, ".zoom-toolbar", "print should hide zoom toolbar")
+	})
+
+	t.Run("graph_svg_fills_page", func(t *testing.T) {
+		assertContains(t, cssContent, "#graph-svg", "print should style graph SVG")
+	})
+
+	t.Run("page_margins", func(t *testing.T) {
+		assertContains(t, cssContent, "@page", "print should set page margins")
+	})
+
+	t.Run("template_has_print_button", func(t *testing.T) {
+		assertContains(t, graphHTML, "window.print()", "template should have print button")
+	})
+}
+
+// TestGraphLoadingState verifies REQ-DASH-081: loading skeleton and error handling.
+func TestGraphLoadingState(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-081")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+	graphHTML := dashboard.ReadTemplateFile("partials/graph.html")
+
+	t.Run("loading_element_shown_during_layout", func(t *testing.T) {
+		assertContains(t, appJS, "graph-loading", "renderGraph should reference loading element")
+		assertContains(t, appJS, "display = 'flex'", "renderGraph should show loading state")
+	})
+
+	t.Run("loading_hidden_after_layout", func(t *testing.T) {
+		assertContains(t, appJS, "display = 'none'", "renderGraph should hide loading after layout")
+	})
+
+	t.Run("layout_error_handling", func(t *testing.T) {
+		assertContains(t, appJS, "Graph layout failed", "renderGraph should catch layout errors")
+	})
+
+	t.Run("css_skeleton_animation", func(t *testing.T) {
+		assertContains(t, cssContent, ".graph-loading", "CSS should define .graph-loading")
+		assertContains(t, cssContent, ".graph-loading-skeleton", "CSS should define skeleton")
+		assertContains(t, cssContent, "skeleton-pulse", "CSS should define pulse animation")
+	})
+
+	t.Run("template_has_loading_element", func(t *testing.T) {
+		assertContains(t, graphHTML, "graph-loading", "template should have loading element")
+		assertContains(t, graphHTML, "graph-loading-skeleton", "template should have skeleton")
+	})
+}
+
+// TestGraphStatePersistence verifies REQ-DASH-082: URL query parameter encoding.
+func TestGraphStatePersistence(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-082")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+
+	t.Run("updateGraphURL_function", func(t *testing.T) {
+		assertContains(t, appJS, "function updateGraphURL(", "app.js should define updateGraphURL")
+	})
+
+	t.Run("uses_pushState", func(t *testing.T) {
+		assertContains(t, appJS, "history.pushState", "updateGraphURL should use pushState")
+	})
+
+	t.Run("encodes_non_default_params", func(t *testing.T) {
+		assertContains(t, appJS, "defaults", "updateGraphURL should track default values")
+		assertContains(t, appJS, "searchParams.set", "should set non-default params")
+		assertContains(t, appJS, "searchParams.delete", "should delete default params")
+	})
+
+	t.Run("default_values", func(t *testing.T) {
+		assertContains(t, appJS, "view: 'dag'", "default view should be dag")
+		assertContains(t, appJS, "dir: 'TB'", "default direction should be TB")
+	})
+}
+
+// TestLegendInteractiveFilter verifies REQ-DASH-085: legend filter and highlight.
+func TestLegendInteractiveFilter(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-085")
+
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	t.Run("legend_active_highlight", func(t *testing.T) {
+		assertContains(t, cssContent, ".legend-active", "CSS should define .legend-active class")
+	})
+
+	t.Run("legend_section_cursor", func(t *testing.T) {
+		assertContains(t, cssContent, ".graph-legend-section", "CSS should style legend sections")
+		assertContains(t, cssContent, "cursor: pointer", "legend sections should be clickable")
+	})
+
+	t.Run("active_border_indicator", func(t *testing.T) {
+		assertContains(t, cssContent, "border-left: 2px solid var(--rtmx-emerald)", "active legend should have emerald border")
+	})
+}
+
+// TestURLStateRestorePushPopState verifies REQ-DASH-090: URL state restore.
+func TestURLStateRestorePushPopState(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-090")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+
+	t.Run("restoreGraphState_function", func(t *testing.T) {
+		assertContains(t, appJS, "function restoreGraphState()", "app.js should define restoreGraphState")
+	})
+
+	t.Run("reads_url_params", func(t *testing.T) {
+		assertContains(t, appJS, "URLSearchParams(window.location.search)", "should read URL search params")
+	})
+
+	t.Run("returns_state_object", func(t *testing.T) {
+		assertContains(t, appJS, "view:", "state should include view")
+		assertContains(t, appJS, "groupBy:", "state should include groupBy")
+		assertContains(t, appJS, "filter:", "state should include filter")
+		assertContains(t, appJS, "search:", "state should include search")
+	})
+
+	t.Run("popstate_handler", func(t *testing.T) {
+		assertContains(t, appJS, "popstate", "app.js should handle popstate events")
+		assertContains(t, appJS, "e.state && e.state.graph", "popstate should check for graph state")
+	})
+
+	t.Run("restores_graph_on_back", func(t *testing.T) {
+		assertContains(t, appJS, "restoreGraphState()", "popstate should call restoreGraphState")
+		assertContains(t, appJS, "state.dir", "popstate should restore direction from state")
+	})
+}
+
 // Test helpers
 // --------------------------------------------------------------------------
 
