@@ -4113,6 +4113,32 @@ func TestGraphPerformanceBudget(t *testing.T) {
 	})
 }
 
+// TestParallelDashboard validates REQ-ORCH-017: parallel workstream dashboard visualization.
+func TestParallelDashboard(t *testing.T) {
+	rtmx.Req(t, "REQ-ORCH-017")
+
+	t.Run("parallel_template_exists", func(t *testing.T) {
+		tmpl := dashboard.ReadTemplateFile("partials/parallel.html")
+		if tmpl == "" {
+			t.Fatal("parallel.html template should exist")
+		}
+		assertContains(t, tmpl, "parallel-swimlane", "template should have swimlane container")
+		assertContains(t, tmpl, "renderParallelSwimlane", "template should invoke swimlane renderer")
+		assertContains(t, tmpl, "ParallelJSON", "template should reference ParallelJSON data")
+	})
+
+	t.Run("swimlane_renderer_in_app_js", func(t *testing.T) {
+		appJS := dashboard.ReadStaticFile("app.js")
+		assertContains(t, appJS, "function renderParallelSwimlane(", "app.js should define renderParallelSwimlane")
+		assertContains(t, appJS, "parallel-swimlane", "renderer should target swimlane container")
+	})
+
+	t.Run("parallel_css_styles", func(t *testing.T) {
+		css := dashboard.ReadStaticFile("styles.css")
+		assertContains(t, css, ".parallel-dashboard", "CSS should style parallel dashboard")
+	})
+}
+
 // Test helpers
 // --------------------------------------------------------------------------
 

@@ -421,6 +421,15 @@ func (s *Server) handleToolsList() interface{} {
 			},
 		},
 	}
+	// REQ-ORCH-018: parallel-plan tool
+	tools = append(tools, toolDef{
+		Name:        "parallel_plan",
+		Description: "Get parallel execution plan with web grouping and merge ordering (~200 tokens)",
+		InputSchema: map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		},
+	})
 
 	return map[string]interface{}{"tools": tools}
 }
@@ -475,6 +484,8 @@ func (s *Server) handleToolsCall(params json.RawMessage) (interface{}, *rpcError
 		result, rpcErr := s.toolReleaseAssign(db, call.Arguments)
 		s.logToolResult(call.Name, result)
 		return result, rpcErr
+	case "parallel_plan":
+		data = s.toolParallelPlan(db)
 	default:
 		return nil, &rpcError{Code: errNoMethod, Message: fmt.Sprintf("unknown tool: %s", call.Name)}
 	}
@@ -1412,5 +1423,74 @@ func (s *Server) toolReleaseAssign(db *database.Database, args map[string]interf
 	return toolResult{
 		Content: []toolContent{{Type: "text", Text: string(data)}},
 	}, nil
+}
+
+// REQ-ORCH-018: parallel-plan tool returns execution plan JSON.
+func (s *Server) toolParallelPlan(db *database.Database) interface{} {
+	g := graph.NewGraph(db)
+	webs := g.DetectWebs()
+	groups := g.ParallelGroups(webs)
+	deps := g.WebDependencies(webs)
+	mergeOrder := g.MergeOrder(webs)
+
+	type ppWeb struct {
+		Index       int      `json:"index"`
+		IDs         []string `json:"ids"`
+		TotalEffort float64  `json:"total_effort"`
+		Unblocked   int      `json:"unblocked"`
+		Blocked     int      `json:"blocked"`
+	}
+	type ppPhase struct {
+		Phase      int     `json:"phase"`
+		Webs       []ppWeb `json:"webs"`
+		MergeOrder []int   `json:"merge_order"`
+	}
+	type ppDep struct {
+		From int `json:"from"`
+		To   int `json:"to"`
+	}
+	type ppResult struct {
+		Phases      []ppPhase `json:"phases"`
+		Deps        []ppDep   `json:"deps"`
+		TotalWebs   int       `json:"total_webs"`
+		TotalEffort float64   `json:"total_effort"`
+		CritPath    float64   `json:"critical_path_effort"`
+		Parallelism float64   `json:"parallelism_factor"`
+	}
+
+	out := ppResult{TotalWebs: len(webs)}
+	for _, w := range webs {
+		out.TotalEffort += w.TotalEffort
+	}
+	for i, grp := range groups {
+		phase := ppPhase{Phase: i}
+		maxEffort := 0.0
+		for _, wi := range grp.WebIndices {
+			w := webs[wi]
+			phase.Webs = append(phase.Webs, ppWeb{
+				Index: wi, IDs: w.IDs, TotalEffort: w.TotalEffort,
+				Unblocked: len(w.Unblocked), Blocked: len(w.Blocked),
+			})
+			if w.TotalEffort > maxEffort {
+				maxEffort = w.TotalEffort
+			}
+		}
+		out.CritPath += maxEffort
+		for _, mi := range mergeOrder {
+			for _, wi := range grp.WebIndices {
+				if mi == wi {
+					phase.MergeOrder = append(phase.MergeOrder, mi)
+				}
+			}
+		}
+		out.Phases = append(out.Phases, phase)
+	}
+	if out.CritPath > 0 {
+		out.Parallelism = out.TotalEffort / out.CritPath
+	}
+	for _, d := range deps {
+		out.Deps = append(out.Deps, ppDep{From: d.From, To: d.To})
+	}
+	return out
 }
 

@@ -227,6 +227,7 @@ func registerDashboardRoutes(mux *http.ServeMux, db *database.Database, g *graph
 	mux.HandleFunc("/partials/graph", handlePartialGraph(db, g))
 	mux.HandleFunc("/partials/timeline", handlePartialTimeline(db))
 	mux.HandleFunc("/partials/treemap", handlePartialTreemap(db))
+	mux.HandleFunc("/partials/parallel", handlePartialParallel(db, g))
 	mux.HandleFunc("/partials/kanban", handlePartialKanban(db, g))
 	mux.HandleFunc("/partials/releases", handlePartialReleases(db))
 	mux.HandleFunc("/partials/health", handlePartialHealth(db, g))
@@ -1152,4 +1153,85 @@ func buildActiveFilters(status, category, priority string) []activeFilter {
 		}
 	}
 	return filters
+}
+
+// REQ-ORCH-017: Parallel workstream dashboard visualization.
+func handlePartialParallel(db *database.Database, g *graph.Graph) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		webs := g.DetectWebs()
+		groups := g.ParallelGroups(webs)
+		deps := g.WebDependencies(webs)
+
+		type parallelWeb struct {
+			Index       int      `json:"index"`
+			IDs         []string `json:"ids"`
+			TotalEffort float64  `json:"total_effort"`
+			Unblocked   int      `json:"unblocked"`
+			Blocked     int      `json:"blocked"`
+			Progress    float64  `json:"progress"`
+		}
+
+		type parallelPhase struct {
+			Phase int           `json:"phase"`
+			Webs  []parallelWeb `json:"webs"`
+		}
+
+		type parallelDep struct {
+			From int `json:"from"`
+			To   int `json:"to"`
+		}
+
+		type parallelJSON struct {
+			Phases      []parallelPhase `json:"phases"`
+			Deps        []parallelDep   `json:"deps"`
+			TotalWebs   int             `json:"total_webs"`
+			TotalEffort float64         `json:"total_effort"`
+		}
+
+		data := parallelJSON{
+			TotalWebs: len(webs),
+		}
+
+		for _, web := range webs {
+			data.TotalEffort += web.TotalEffort
+		}
+
+		for i, grp := range groups {
+			phase := parallelPhase{Phase: i}
+			for _, wi := range grp.WebIndices {
+				web := webs[wi]
+				complete := 0
+				for _, id := range web.IDs {
+					req := db.Get(id)
+					if req != nil && !req.IsIncomplete() {
+						complete++
+					}
+				}
+				pct := 0.0
+				if len(web.IDs) > 0 {
+					pct = float64(complete) / float64(len(web.IDs)) * 100
+				}
+				phase.Webs = append(phase.Webs, parallelWeb{
+					Index:       wi,
+					IDs:         web.IDs,
+					TotalEffort: web.TotalEffort,
+					Unblocked:   len(web.Unblocked),
+					Blocked:     len(web.Blocked),
+					Progress:    pct,
+				})
+			}
+			data.Phases = append(data.Phases, phase)
+		}
+
+		for _, d := range deps {
+			data.Deps = append(data.Deps, parallelDep{From: d.From, To: d.To})
+		}
+
+		jsonData, _ := json.Marshal(data)
+		_ = dashboard.RenderPartial(w, "parallel", map[string]interface{}{
+			"ParallelJSON": template.JS(jsonData),
+			"PhaseCount":   len(groups),
+			"WebCount":     len(webs),
+		})
+	}
 }

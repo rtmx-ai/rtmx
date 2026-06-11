@@ -1893,6 +1893,98 @@ function renderTreemap(data) {
   });
 }
 
+// REQ-ORCH-017: Parallel workstream swimlane visualization
+function renderParallelSwimlane(data) {
+  var container = document.getElementById('parallel-swimlane');
+  if (!container || !data) return;
+  container.innerHTML = '';
+  var svg = d3.select(container).append('svg')
+    .attr('width', '100%')
+    .attr('height', '100%');
+
+  var phases = data.phases || [];
+  var deps = data.deps || [];
+  var phaseW = 200;
+  var webH = 40;
+  var phaseGap = 60;
+  var padding = 20;
+  var totalW = phases.length * (phaseW + phaseGap) + padding * 2;
+  var maxWebs = 0;
+  phases.forEach(function(p) { if (p.webs.length > maxWebs) maxWebs = p.webs.length; });
+  var totalH = maxWebs * (webH + 10) + 80;
+  svg.attr('viewBox', '0 0 ' + totalW + ' ' + totalH);
+
+  var webPositions = {}; // webIndex -> {x, y}
+
+  phases.forEach(function(phase, pi) {
+    var px = padding + pi * (phaseW + phaseGap);
+    var py = 30;
+    // Phase label
+    svg.append('text')
+      .attr('class', 'swimlane-label')
+      .attr('x', px + phaseW / 2)
+      .attr('y', 20)
+      .attr('text-anchor', 'middle')
+      .text('Phase ' + phase.phase);
+    // Phase background
+    svg.append('rect')
+      .attr('class', 'swimlane-rect')
+      .attr('x', px).attr('y', py)
+      .attr('width', phaseW)
+      .attr('height', phase.webs.length * (webH + 10) + 10)
+      .attr('rx', 4);
+
+    phase.webs.forEach(function(web, wi) {
+      var wx = px + 5;
+      var wy = py + 5 + wi * (webH + 10);
+      webPositions[web.index] = { x: wx + phaseW / 2, y: wy + webH / 2 };
+
+      // Web block
+      var progressW = (web.progress / 100) * (phaseW - 10);
+      svg.append('rect')
+        .attr('x', wx).attr('y', wy)
+        .attr('width', phaseW - 10).attr('height', webH)
+        .attr('fill', 'var(--rtmx-bg-elevated)')
+        .attr('stroke', 'var(--rtmx-border)')
+        .attr('rx', 3);
+      // Progress bar
+      svg.append('rect')
+        .attr('x', wx).attr('y', wy)
+        .attr('width', progressW).attr('height', webH)
+        .attr('fill', 'var(--rtmx-emerald)')
+        .attr('opacity', 0.3)
+        .attr('rx', 3);
+      // Label
+      svg.append('text')
+        .attr('x', wx + 5).attr('y', wy + 15)
+        .attr('fill', 'var(--rtmx-text)')
+        .attr('font-size', '0.7rem')
+        .text('Web ' + web.index + ' (' + web.ids.length + ' reqs)');
+      svg.append('text')
+        .attr('x', wx + 5).attr('y', wy + 30)
+        .attr('fill', 'var(--rtmx-text-muted)')
+        .attr('font-size', '0.6rem')
+        .text(web.total_effort.toFixed(1) + 'w, ' + Math.round(web.progress) + '% done');
+    });
+  });
+
+  // Draw dependency arrows between phases
+  deps.forEach(function(d) {
+    var from = webPositions[d.from];
+    var to = webPositions[d.to];
+    if (from && to) {
+      svg.append('line')
+        .attr('x1', from.x + phaseW / 2 - 5)
+        .attr('y1', from.y)
+        .attr('x2', to.x - phaseW / 2 + 5)
+        .attr('y2', to.y)
+        .attr('stroke', 'var(--rtmx-emerald)')
+        .attr('stroke-width', 1.5)
+        .attr('marker-end', 'url(#arrow-normal)');
+    }
+  });
+}
+
 // Re-render graph after htmx swaps content
 document.addEventListener('htmx:afterSwap', function(event) {
   var graphScript = event.detail.target.querySelector('script');

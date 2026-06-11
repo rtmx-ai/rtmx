@@ -237,6 +237,252 @@ func TestDetectOverlaps(t *testing.T) {
 	})
 }
 
+// TestWebDependencies verifies REQ-ORCH-010: cross-web dependency analysis.
+func TestWebDependencies(t *testing.T) {
+	rtmx.Req(t, "REQ-ORCH-010")
+
+	t.Run("no_cross_web_deps", func(t *testing.T) {
+		db := database.NewDatabase()
+		// Two independent webs with no cross-web edges
+		a := database.NewRequirement("REQ-A")
+		a.Status = database.StatusMissing
+		_ = db.Add(a)
+
+		b := database.NewRequirement("REQ-B")
+		b.Status = database.StatusMissing
+		_ = db.Add(b)
+
+		g := NewGraph(db)
+		webs := g.DetectWebs()
+		deps := g.WebDependencies(webs)
+		if len(deps) != 0 {
+			t.Errorf("expected 0 cross-web deps, got %d", len(deps))
+		}
+	})
+
+	t.Run("cross_web_via_complete_intermediary", func(t *testing.T) {
+		db := database.NewDatabase()
+		// Web 1: A (incomplete) depends on X (complete)
+		a := database.NewRequirement("REQ-A")
+		a.Status = database.StatusMissing
+		a.Dependencies.Add("REQ-X")
+		_ = db.Add(a)
+
+		// X is complete (excluded from webs) but depends on C
+		x := database.NewRequirement("REQ-X")
+		x.Status = database.StatusComplete
+		x.Dependencies.Add("REQ-C")
+		_ = db.Add(x)
+
+		// Web 2: C (incomplete, in its own web)
+		c := database.NewRequirement("REQ-C")
+		c.Status = database.StatusMissing
+		_ = db.Add(c)
+
+		g := NewGraph(db)
+		webs := g.DetectWebs()
+		// A and C are in separate webs (connected only through complete X)
+		if len(webs) != 2 {
+			t.Fatalf("expected 2 webs, got %d", len(webs))
+		}
+
+		deps := g.WebDependencies(webs)
+		if len(deps) != 1 {
+			t.Fatalf("expected 1 cross-web dep (A->X->C), got %d", len(deps))
+		}
+		// The dep should point from C's web to A's web
+		if deps[0].From == deps[0].To {
+			t.Errorf("cross-web dep should connect different webs")
+		}
+	})
+
+	t.Run("single_web_no_deps", func(t *testing.T) {
+		db := database.NewDatabase()
+		a := database.NewRequirement("REQ-A")
+		a.Status = database.StatusMissing
+		_ = db.Add(a)
+
+		g := NewGraph(db)
+		webs := g.DetectWebs()
+		deps := g.WebDependencies(webs)
+		if len(deps) != 0 {
+			t.Errorf("single web should have no deps, got %d", len(deps))
+		}
+	})
+}
+
+// TestMergeOrder verifies REQ-ORCH-011: safe merge ordering.
+func TestMergeOrder(t *testing.T) {
+	rtmx.Req(t, "REQ-ORCH-011")
+
+	t.Run("independent_webs_all_included", func(t *testing.T) {
+		db := database.NewDatabase()
+		a := database.NewRequirement("REQ-A")
+		a.Status = database.StatusMissing
+		_ = db.Add(a)
+
+		b := database.NewRequirement("REQ-B")
+		b.Status = database.StatusMissing
+		_ = db.Add(b)
+
+		g := NewGraph(db)
+		webs := g.DetectWebs()
+		order := g.MergeOrder(webs)
+		if len(order) != len(webs) {
+			t.Errorf("merge order has %d entries, want %d", len(order), len(webs))
+		}
+	})
+
+	t.Run("respects_cross_web_deps", func(t *testing.T) {
+		db := database.NewDatabase()
+		// A depends on X (complete), X depends on C
+		// Web 1: {A}, Web 2: {C}, cross-web dep via complete X
+		a := database.NewRequirement("REQ-A")
+		a.Status = database.StatusMissing
+		a.Dependencies.Add("REQ-X")
+		_ = db.Add(a)
+
+		x := database.NewRequirement("REQ-X")
+		x.Status = database.StatusComplete
+		x.Dependencies.Add("REQ-C")
+		_ = db.Add(x)
+
+		c := database.NewRequirement("REQ-C")
+		c.Status = database.StatusMissing
+		_ = db.Add(c)
+
+		g := NewGraph(db)
+		webs := g.DetectWebs()
+		order := g.MergeOrder(webs)
+
+		if len(order) != len(webs) {
+			t.Fatalf("merge order has %d entries, want %d", len(order), len(webs))
+		}
+
+		// Find which web index has C vs A
+		cWebIdx := -1
+		aWebIdx := -1
+		for i, web := range webs {
+			for _, id := range web.IDs {
+				if id == "REQ-C" {
+					cWebIdx = i
+				}
+				if id == "REQ-A" {
+					aWebIdx = i
+				}
+			}
+		}
+
+		// C's web should come before A's web in merge order
+		cPos := -1
+		aPos := -1
+		for i, idx := range order {
+			if idx == cWebIdx {
+				cPos = i
+			}
+			if idx == aWebIdx {
+				aPos = i
+			}
+		}
+		if cPos >= aPos {
+			t.Errorf("C's web (pos %d) should be merged before A's web (pos %d)", cPos, aPos)
+		}
+	})
+
+	t.Run("empty_webs", func(t *testing.T) {
+		db := database.NewDatabase()
+		g := NewGraph(db)
+		order := g.MergeOrder(nil)
+		if order != nil {
+			t.Errorf("empty webs should return nil order, got %v", order)
+		}
+	})
+}
+
+// TestParallelGroups verifies REQ-ORCH-012: parallel group partitioning.
+func TestParallelGroups(t *testing.T) {
+	rtmx.Req(t, "REQ-ORCH-012")
+
+	t.Run("independent_webs_single_group", func(t *testing.T) {
+		db := database.NewDatabase()
+		a := database.NewRequirement("REQ-A")
+		a.Status = database.StatusMissing
+		_ = db.Add(a)
+
+		b := database.NewRequirement("REQ-B")
+		b.Status = database.StatusMissing
+		_ = db.Add(b)
+
+		g := NewGraph(db)
+		webs := g.DetectWebs()
+		groups := g.ParallelGroups(webs)
+
+		if len(groups) != 1 {
+			t.Errorf("2 independent webs should form 1 parallel group, got %d", len(groups))
+		}
+		if len(groups) > 0 && len(groups[0].WebIndices) != 2 {
+			t.Errorf("group should contain 2 webs, got %d", len(groups[0].WebIndices))
+		}
+	})
+
+	t.Run("dependent_webs_multiple_groups", func(t *testing.T) {
+		db := database.NewDatabase()
+		// A depends on X (complete), X depends on C -> cross-web dep via intermediary
+		a := database.NewRequirement("REQ-A")
+		a.Status = database.StatusMissing
+		a.Dependencies.Add("REQ-X")
+		_ = db.Add(a)
+
+		x := database.NewRequirement("REQ-X")
+		x.Status = database.StatusComplete
+		x.Dependencies.Add("REQ-C")
+		_ = db.Add(x)
+
+		c := database.NewRequirement("REQ-C")
+		c.Status = database.StatusMissing
+		_ = db.Add(c)
+
+		g := NewGraph(db)
+		webs := g.DetectWebs()
+		groups := g.ParallelGroups(webs)
+
+		if len(groups) < 2 {
+			t.Errorf("dependent webs should form at least 2 groups, got %d", len(groups))
+		}
+	})
+
+	t.Run("overlapping_webs_separate_groups", func(t *testing.T) {
+		db := database.NewDatabase()
+		a := database.NewRequirement("REQ-A")
+		a.Status = database.StatusMissing
+		a.TestModule = "internal/cmd/foo_test.go"
+		_ = db.Add(a)
+
+		b := database.NewRequirement("REQ-B")
+		b.Status = database.StatusMissing
+		b.TestModule = "internal/cmd/bar_test.go"
+		_ = db.Add(b)
+
+		g := NewGraph(db)
+		webs := g.DetectWebs()
+		groups := g.ParallelGroups(webs)
+
+		// Both touch internal/cmd, so they overlap and need separate groups
+		if len(groups) < 2 {
+			t.Errorf("overlapping webs should be in separate groups, got %d groups", len(groups))
+		}
+	})
+
+	t.Run("empty_webs", func(t *testing.T) {
+		db := database.NewDatabase()
+		g := NewGraph(db)
+		groups := g.ParallelGroups(nil)
+		if groups != nil {
+			t.Errorf("empty webs should return nil groups")
+		}
+	})
+}
+
 func TestDetectWebsChain(t *testing.T) {
 	rtmx.Req(t, "REQ-ORCH-001")
 
