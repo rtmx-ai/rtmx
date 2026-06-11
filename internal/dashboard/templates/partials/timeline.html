@@ -11,4 +11,15 @@
     <svg id="timeline-svg" width="100%" style="min-height: 400px;"></svg>
   </div>
   <script type="application/json" id="timeline-data">{{.TimelineJSON}}</script>
+  <script>
+    (function() {
+      var el = document.getElementById('timeline-data');
+      if (el && typeof d3 !== 'undefined') {
+        try {
+          var data = JSON.parse(el.textContent);
+          renderTimeline(data);
+        } catch(e) {}
+      }
+    })();
+  </script>
 </div>

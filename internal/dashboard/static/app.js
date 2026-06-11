@@ -761,14 +761,294 @@ function renderGraph(data) {
     }
   });
 
-  // REQ-DASH-055: Click background to exit cycle highlight
+  // REQ-DASH-059: Hover tooltip using shared tooltip DOM element
+  var tooltipEl = document.getElementById('graph-tooltip');
+  var hoverTimer = null;
+  function showGraphTooltip(event, n) {
+    if (!tooltipEl) return;
+    var desc = n.description || '';
+    if (desc.length > 80) desc = desc.substring(0, 80) + '...';
+    var assignee = n.assignee || 'Unassigned';
+    tooltipEl.className = 'graph-tooltip-card';
+    tooltipEl.innerHTML = '<div class="tooltip-id">' + n.id + '</div>' +
+      '<div class="tooltip-desc">' + desc + '</div>' +
+      '<div class="tooltip-meta">' +
+        '<span class="status-' + statusClass(n.status).replace('node-', '') + '">' + n.status + '</span>' +
+        '<span>' + (n.priority || 'LOW') + '</span>' +
+        '<span>' + (n.effort_weeks || 0) + 'w</span>' +
+        '<span>' + assignee + '</span>' +
+      '</div>';
+    var x = event.clientX + 12;
+    var y = event.clientY + 12;
+    if (x + 320 > window.innerWidth) x = event.clientX - 320 - 12;
+    if (y + 100 > window.innerHeight) y = event.clientY - 100 - 12;
+    tooltipEl.style.left = x + 'px';
+    tooltipEl.style.top = y + 'px';
+    tooltipEl.style.display = 'block';
+  }
+  function hideGraphTooltip() {
+    if (tooltipEl) tooltipEl.style.display = 'none';
+    if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
+  }
+
+  // REQ-DASH-058/059/062: Add interaction events to each node
+  var selectedNodeId = null;
+  var highlightActive = false;
+  nodeGroup.selectAll('.graph-node')
+    .on('mouseover', function(event) {
+      var el = d3.select(this);
+      var nid = el.attr('data-id');
+      var nd = nodeMap[nid];
+      if (!nd) return;
+      var r = effortRadius(nd.effort_weeks);
+      el.select('.node-circle').transition().duration(100).attr('r', r * 1.1);
+      hoverTimer = setTimeout(function() { showGraphTooltip(event, nd); }, 200);
+    })
+    .on('mousemove', function(event) {
+      var nid = d3.select(this).attr('data-id');
+      var nd = nodeMap[nid];
+      if (nd && tooltipEl && tooltipEl.style.display === 'block') showGraphTooltip(event, nd);
+    })
+    .on('mouseout', function() {
+      var nid = d3.select(this).attr('data-id');
+      var nd = nodeMap[nid];
+      var r = nd ? effortRadius(nd.effort_weeks) : 6;
+      d3.select(this).select('.node-circle').transition().duration(100).attr('r', r);
+      hideGraphTooltip();
+    })
+    .on('click', function(event) {
+      event.stopPropagation();
+      hideGraphTooltip();
+      var nid = d3.select(this).attr('data-id');
+
+      // REQ-DASH-058: Toggle detail panel on click
+      if (selectedNodeId === nid) {
+        // Toggle off
+        nodeGroup.selectAll('.graph-node').classed('node-selected', false);
+        selectedNodeId = null;
+        var app = document.querySelector('[x-data]');
+        if (app && app.__x) app.__x.$data.panelOpen = false;
+      } else {
+        nodeGroup.selectAll('.graph-node').classed('node-selected', false);
+        d3.select(this).classed('node-selected', true);
+        selectedNodeId = nid;
+        htmx.ajax('GET', '/partials/detail/' + nid, { target: '#detail-panel-body', swap: 'innerHTML' });
+      }
+
+      // REQ-DASH-062: Dependency chain highlight
+      if (highlightActive && selectedNodeId === null) {
+        // Clear highlight
+        nodeGroup.selectAll('.graph-node')
+          .classed('highlight-upstream', false)
+          .classed('highlight-downstream', false)
+          .classed('highlight-selected', false)
+          .style('opacity', null);
+        linkGroup.selectAll('path').style('opacity', null);
+        highlightActive = false;
+        return;
+      }
+      if (selectedNodeId) {
+        // Build upstream and downstream sets from edges
+        var upstreamSet = {};
+        var downstreamSet = {};
+        function findUpstream(id) {
+          edges.forEach(function(e) {
+            if (e.target === id && !upstreamSet[e.source]) {
+              upstreamSet[e.source] = true;
+              findUpstream(e.source);
+            }
+          });
+        }
+        function findDownstream(id) {
+          edges.forEach(function(e) {
+            if (e.source === id && !downstreamSet[e.target]) {
+              downstreamSet[e.target] = true;
+              findDownstream(e.target);
+            }
+          });
+        }
+        findUpstream(nid);
+        findDownstream(nid);
+        var chainSet = {};
+        chainSet[nid] = true;
+        for (var k in upstreamSet) chainSet[k] = true;
+        for (var k2 in downstreamSet) chainSet[k2] = true;
+
+        nodeGroup.selectAll('.graph-node')
+          .classed('highlight-upstream', function() { return upstreamSet[d3.select(this).attr('data-id')] || false; })
+          .classed('highlight-downstream', function() { return downstreamSet[d3.select(this).attr('data-id')] || false; })
+          .classed('highlight-selected', function() { return d3.select(this).attr('data-id') === nid; })
+          .style('opacity', function() {
+            return chainSet[d3.select(this).attr('data-id')] ? 1.0 : 0.3;
+          });
+        linkGroup.selectAll('path').style('opacity', function() {
+          var src = d3.select(this).attr('data-source');
+          var tgt = d3.select(this).attr('data-target');
+          return (chainSet[src] && chainSet[tgt]) ? 1.0 : 0.3;
+        });
+        highlightActive = true;
+      }
+    });
+
+  // REQ-DASH-055/062: Click background to exit highlight modes
   svg.on('click', function(event) {
-    if (event.target === svg.node() && cycleHighlightActive) {
-      nodeGroup.selectAll('.graph-node').style('opacity', null);
-      linkGroup.selectAll('path').style('opacity', null);
-      cycleHighlightActive = false;
+    if (event.target === svg.node()) {
+      if (cycleHighlightActive) {
+        nodeGroup.selectAll('.graph-node').style('opacity', null);
+        linkGroup.selectAll('path').style('opacity', null);
+        cycleHighlightActive = false;
+      }
+      if (highlightActive) {
+        nodeGroup.selectAll('.graph-node')
+          .classed('highlight-upstream', false)
+          .classed('highlight-downstream', false)
+          .classed('highlight-selected', false)
+          .style('opacity', null);
+        linkGroup.selectAll('path').style('opacity', null);
+        highlightActive = false;
+      }
+      if (selectedNodeId) {
+        nodeGroup.selectAll('.graph-node').classed('node-selected', false);
+        selectedNodeId = null;
+      }
+      hideGraphTooltip();
     }
   });
+
+  // REQ-DASH-062: Escape clears highlight
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && (highlightActive || selectedNodeId)) {
+      nodeGroup.selectAll('.graph-node')
+        .classed('highlight-upstream', false)
+        .classed('highlight-downstream', false)
+        .classed('highlight-selected', false)
+        .classed('node-selected', false)
+        .style('opacity', null);
+      linkGroup.selectAll('path').style('opacity', null);
+      highlightActive = false;
+      selectedNodeId = null;
+    }
+  });
+
+  // REQ-DASH-064: Expose zoom controls globally
+  window._graphZoomBehavior = zoomBehavior;
+  window._graphSvg = svg;
+  window._graphRoot = root;
+  window._graphG = g;
+  window._graphNodes = nodes;
+  window._graphNodeGroup = nodeGroup;
+  window._graphLinkGroup = linkGroup;
+  window._graphEdges = edges;
+  window._graphNodeMap = nodeMap;
+
+  // Update zoom level indicator
+  function updateZoomIndicator(k) {
+    var el = document.getElementById('zoom-level');
+    if (el) el.textContent = Math.round(k * 100) + '%';
+  }
+  svg.on('zoom.indicator', null);
+  zoomBehavior.on('zoom.indicator', function(event) {
+    updateZoomIndicator(event.transform.k);
+  });
+}
+
+// REQ-DASH-064: Zoom control functions
+function graphZoom(action) {
+  var svg = window._graphSvg;
+  var zb = window._graphZoomBehavior;
+  var g = window._graphG;
+  if (!svg || !zb) return;
+
+  if (action === 'in') {
+    svg.transition().duration(200).call(zb.scaleBy, 1.25);
+  } else if (action === 'out') {
+    svg.transition().duration(200).call(zb.scaleBy, 0.8);
+  } else if (action === 'fit') {
+    // Fit all nodes into view with 40px padding
+    var container = document.getElementById('graph-container');
+    if (!container || !g) return;
+    var cw = container.clientWidth;
+    var ch = container.clientHeight;
+    var padding = 40;
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    g.nodes().forEach(function(id) {
+      var n = g.node(id);
+      if (n) {
+        minX = Math.min(minX, n.x - n.width / 2);
+        minY = Math.min(minY, n.y - n.height / 2);
+        maxX = Math.max(maxX, n.x + n.width / 2);
+        maxY = Math.max(maxY, n.y + n.height / 2);
+      }
+    });
+    var gw = maxX - minX + padding * 2;
+    var gh = maxY - minY + padding * 2;
+    var scale = Math.min(cw / gw, ch / gh, 4);
+    scale = Math.max(scale, 0.1);
+    var tx = (cw - gw * scale) / 2 - (minX - padding) * scale;
+    var ty = (ch - gh * scale) / 2 - (minY - padding) * scale;
+    svg.transition().duration(200).call(zb.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+  }
+}
+
+// REQ-DASH-064: Keyboard shortcuts for zoom (+ - 0)
+document.addEventListener('keydown', function(e) {
+  var tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (e.key === '+' || e.key === '=') { e.preventDefault(); graphZoom('in'); }
+  else if (e.key === '-') { e.preventDefault(); graphZoom('out'); }
+  else if (e.key === '0') { e.preventDefault(); graphZoom('fit'); }
+});
+
+// REQ-DASH-065: Graph search-to-highlight
+function graphSearch(query) {
+  var nodeGroup = window._graphNodeGroup;
+  var linkGroup = window._graphLinkGroup;
+  var nodes = window._graphNodes;
+  var nodeMap = window._graphNodeMap;
+  if (!nodeGroup || !nodes) return;
+
+  var countEl = document.getElementById('graph-search-count');
+  if (!query || query.trim() === '') {
+    nodeGroup.selectAll('.graph-node').classed('search-match', false).classed('search-dim', false);
+    if (countEl) countEl.textContent = '';
+    return;
+  }
+
+  var q = query.toLowerCase();
+  var matchCount = 0;
+  var firstMatch = null;
+  nodeGroup.selectAll('.graph-node').each(function() {
+    var el = d3.select(this);
+    var nid = el.attr('data-id');
+    var nd = nodeMap[nid];
+    var text = (nid + ' ' + (nd ? nd.description || '' : '')).toLowerCase();
+    var isMatch = text.indexOf(q) >= 0;
+    el.classed('search-match', isMatch).classed('search-dim', !isMatch);
+    if (isMatch) {
+      matchCount++;
+      if (!firstMatch) firstMatch = nid;
+    }
+  });
+
+  if (countEl) countEl.textContent = matchCount + ' match' + (matchCount !== 1 ? 'es' : '');
+
+  // Pan to first match
+  if (firstMatch && window._graphG && window._graphSvg && window._graphZoomBehavior) {
+    var pos = window._graphG.node(firstMatch);
+    if (pos) {
+      var container = document.getElementById('graph-container');
+      if (container) {
+        var cw = container.clientWidth;
+        var ch = container.clientHeight;
+        var tx = cw / 2 - pos.x;
+        var ty = ch / 2 - pos.y;
+        window._graphSvg.transition().duration(200).call(
+          window._graphZoomBehavior.transform,
+          d3.zoomIdentity.translate(tx, ty).scale(1)
+        );
+      }
+    }
+  }
 }
 
 // REQ-DASH-091: Reusable tooltip component
@@ -807,6 +1087,180 @@ function viewSwitcher() {
       history.replaceState(null, '', url);
     }
   };
+}
+
+// REQ-DASH-086: Timeline D3 SVG rendering
+function renderTimeline(data) {
+  var svg = d3.select('#timeline-svg');
+  if (!svg.node() || !data) return;
+  svg.selectAll('*').remove();
+
+  var statusColor = {
+    'COMPLETE': 'var(--rtmx-complete)',
+    'PARTIAL': 'var(--rtmx-partial)',
+    'MISSING': 'var(--rtmx-missing)',
+    'NOT_STARTED': 'var(--rtmx-not-started)'
+  };
+
+  var sprints = data.sprints || [];
+  var categories = data.categories || [];
+  var reqs = data.requirements || [];
+  if (sprints.length === 0 || categories.length === 0) return;
+
+  var margin = { top: 40, right: 20, bottom: 20, left: 120 };
+  var colWidth = Math.max(120, 800 / sprints.length);
+  var rowHeight = 22;
+
+  // Group reqs by category then sprint
+  var catSprReqs = {};
+  categories.forEach(function(cat) { catSprReqs[cat] = {}; });
+  reqs.forEach(function(r) {
+    var cat = r.category;
+    var spr = r.sprint || 'Unscheduled';
+    if (!catSprReqs[cat]) catSprReqs[cat] = {};
+    if (!catSprReqs[cat][spr]) catSprReqs[cat][spr] = [];
+    catSprReqs[cat][spr].push(r);
+  });
+
+  // Calculate heights per category
+  var catHeights = {};
+  var totalHeight = margin.top;
+  categories.forEach(function(cat) {
+    var maxRows = 0;
+    sprints.forEach(function(spr) {
+      var arr = (catSprReqs[cat] || {})[spr] || [];
+      maxRows = Math.max(maxRows, arr.length);
+    });
+    catHeights[cat] = Math.max(1, maxRows) * rowHeight + 10;
+    totalHeight += catHeights[cat] + 30;
+  });
+  totalHeight += margin.bottom;
+  var totalWidth = margin.left + sprints.length * colWidth + margin.right;
+
+  svg.attr('width', totalWidth).attr('height', Math.max(400, totalHeight))
+     .attr('viewBox', '0 0 ' + totalWidth + ' ' + Math.max(400, totalHeight));
+
+  // Sprint column headers
+  sprints.forEach(function(spr, i) {
+    svg.append('text')
+      .attr('class', 'timeline-sprint-label')
+      .attr('x', margin.left + i * colWidth + colWidth / 2)
+      .attr('y', 20)
+      .text(spr);
+  });
+
+  // Render rows per category
+  var y = margin.top;
+  categories.forEach(function(cat) {
+    svg.append('text')
+      .attr('class', 'timeline-category-label')
+      .attr('x', 8)
+      .attr('y', y + 14)
+      .text(cat);
+
+    sprints.forEach(function(spr, si) {
+      var arr = (catSprReqs[cat] || {})[spr] || [];
+      arr.forEach(function(r, ri) {
+        var barW = Math.max(20, (r.effort_weeks || 0.5) / 4 * (colWidth - 8));
+        barW = Math.min(barW, colWidth - 4);
+        var bx = margin.left + si * colWidth + 2;
+        var by = y + ri * rowHeight + 2;
+        svg.append('rect')
+          .attr('class', 'timeline-bar')
+          .attr('x', bx)
+          .attr('y', by)
+          .attr('width', barW)
+          .attr('height', rowHeight - 4)
+          .attr('rx', 3)
+          .attr('fill', statusColor[r.status] || statusColor['NOT_STARTED']);
+        if (barW > 40) {
+          svg.append('text')
+            .attr('class', 'timeline-label')
+            .attr('x', bx + 4)
+            .attr('y', by + 13)
+            .text(r.id);
+        }
+      });
+    });
+    y += catHeights[cat] + 30;
+  });
+}
+
+// REQ-DASH-087: Treemap D3 squarify rendering
+function renderTreemap(data) {
+  var svgEl = document.getElementById('treemap-svg');
+  var svg = d3.select('#treemap-svg');
+  if (!svg.node() || !data) return;
+  svg.selectAll('*').remove();
+
+  var statusColor = {
+    'COMPLETE': 'var(--rtmx-complete)',
+    'PARTIAL': 'var(--rtmx-partial)',
+    'MISSING': 'var(--rtmx-missing)',
+    'NOT_STARTED': 'var(--rtmx-not-started)'
+  };
+
+  var container = svgEl.parentElement;
+  var w = container ? container.clientWidth : 800;
+  var h = Math.max(400, Math.round(w * 9 / 16));
+  svg.attr('width', w).attr('height', h).attr('viewBox', '0 0 ' + w + ' ' + h);
+
+  // Build d3 hierarchy
+  var root = d3.hierarchy(data)
+    .sum(function(d) { return d.effort_weeks || 0; })
+    .sort(function(a, b) { return b.value - a.value; });
+
+  d3.treemap()
+    .tile(d3.treemapSquarify)
+    .size([w, h])
+    .padding(2)
+    .paddingTop(18)
+    (root);
+
+  // Render category groups
+  var groups = root.children || [];
+  groups.forEach(function(group) {
+    svg.append('rect')
+      .attr('x', group.x0)
+      .attr('y', group.y0)
+      .attr('width', group.x1 - group.x0)
+      .attr('height', group.y1 - group.y0)
+      .attr('fill', 'none')
+      .attr('stroke', 'var(--rtmx-border)')
+      .attr('stroke-width', 2);
+    svg.append('text')
+      .attr('class', 'treemap-group-label')
+      .attr('x', group.x0 + 4)
+      .attr('y', group.y0 + 13)
+      .text(group.data.name);
+
+    // Render requirement cells
+    var leaves = group.children || [];
+    leaves.forEach(function(leaf) {
+      var lw = leaf.x1 - leaf.x0;
+      var lh = leaf.y1 - leaf.y0;
+      var g = svg.append('g').attr('class', 'treemap-cell');
+      g.append('rect')
+        .attr('x', leaf.x0)
+        .attr('y', leaf.y0)
+        .attr('width', lw)
+        .attr('height', lh)
+        .attr('fill', statusColor[leaf.data.status] || statusColor['NOT_STARTED'])
+        .attr('rx', 2);
+      if (lw > 60 && lh > 20) {
+        g.append('text')
+          .attr('class', 'treemap-cell-text')
+          .attr('x', leaf.x0 + 3)
+          .attr('y', leaf.y0 + 13)
+          .text(leaf.data.id);
+      }
+      g.append('title')
+        .text(leaf.data.id + ': ' + (leaf.data.title || '') + ' (' + leaf.data.status + ', ' + leaf.data.effort_weeks + 'w)');
+      g.on('click', function() {
+        htmx.ajax('GET', '/partials/detail/' + leaf.data.id, { target: '#detail-panel-body', swap: 'innerHTML' });
+      });
+    });
+  });
 }
 
 // Re-render graph after htmx swaps content

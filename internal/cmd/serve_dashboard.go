@@ -681,24 +681,127 @@ func handlePartialGraph(db *database.Database, g *graph.Graph) http.HandlerFunc 
 	}
 }
 
-// REQ-DASH-092: Timeline partial template skeleton
+// REQ-DASH-067: Timeline Go handler building sprint-grouped JSON data structure
 func handlePartialTimeline(db *database.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Placeholder JSON -- REQ-DASH-067 will build the real timeline data structure
+		type tlReq struct {
+			ID          string  `json:"id"`
+			Title       string  `json:"title"`
+			Status      string  `json:"status"`
+			EffortWeeks float64 `json:"effort_weeks"`
+			Assignee    string  `json:"assignee"`
+			Sprint      string  `json:"sprint"`
+			Category    string  `json:"category"`
+		}
+		type tlJSON struct {
+			Sprints      []string `json:"sprints"`
+			Categories   []string `json:"categories"`
+			Requirements []tlReq  `json:"requirements"`
+		}
+
+		// Collect sprints (semver-sorted) and categories
+		versions := db.Versions()
+		catSet := make(map[string]bool)
+		hasUnscheduled := false
+		var reqs []tlReq
+
+		for _, req := range db.All() {
+			catSet[req.Category] = true
+			sprint := req.Sprint
+			if sprint == "" {
+				sprint = "Unscheduled"
+				hasUnscheduled = true
+			}
+			reqs = append(reqs, tlReq{
+				ID:          req.ReqID,
+				Title:       req.RequirementText,
+				Status:      string(req.Status),
+				EffortWeeks: req.EffortWeeks,
+				Assignee:    req.Assignee,
+				Sprint:      sprint,
+				Category:    req.Category,
+			})
+		}
+
+		sprints := make([]string, len(versions))
+		copy(sprints, versions)
+		if hasUnscheduled {
+			sprints = append(sprints, "Unscheduled")
+		}
+
+		cats := make([]string, 0, len(catSet))
+		for c := range catSet {
+			cats = append(cats, c)
+		}
+		sort.Strings(cats)
+
+		tl := tlJSON{
+			Sprints:      sprints,
+			Categories:   cats,
+			Requirements: reqs,
+		}
+		tlBytes, _ := json.Marshal(tl)
+
 		data := timelinePartialData{
-			TimelineJSON: template.JS(`{"sprints":[],"categories":[],"requirements":[]}`),
+			TimelineJSON: template.JS(tlBytes),
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_ = dashboard.RenderPartial(w, "timeline", data)
 	}
 }
 
-// REQ-DASH-093: Treemap partial template skeleton
+// REQ-DASH-071: Treemap Go handler building two-level hierarchy JSON
 func handlePartialTreemap(db *database.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Placeholder JSON -- REQ-DASH-071 will build the real treemap data structure
+		type tmReq struct {
+			ID          string  `json:"id"`
+			Title       string  `json:"title"`
+			Status      string  `json:"status"`
+			EffortWeeks float64 `json:"effort_weeks"`
+			Category    string  `json:"category"`
+			Assignee    string  `json:"assignee"`
+		}
+		type tmCat struct {
+			Name     string  `json:"name"`
+			Children []tmReq `json:"children"`
+		}
+		type tmRoot struct {
+			Name     string  `json:"name"`
+			Children []tmCat `json:"children"`
+		}
+
+		catMap := make(map[string][]tmReq)
+		var catOrder []string
+		for _, req := range db.All() {
+			if _, exists := catMap[req.Category]; !exists {
+				catOrder = append(catOrder, req.Category)
+			}
+			ew := req.EffortWeeks
+			if ew <= 0 {
+				ew = 0.25
+			}
+			catMap[req.Category] = append(catMap[req.Category], tmReq{
+				ID:          req.ReqID,
+				Title:       req.RequirementText,
+				Status:      string(req.Status),
+				EffortWeeks: ew,
+				Category:    req.Category,
+				Assignee:    req.Assignee,
+			})
+		}
+
+		sort.Strings(catOrder)
+		root := tmRoot{Name: "root"}
+		for _, cat := range catOrder {
+			reqs := catMap[cat]
+			if len(reqs) > 0 {
+				root.Children = append(root.Children, tmCat{Name: cat, Children: reqs})
+			}
+		}
+
+		tmBytes, _ := json.Marshal(root)
 		data := treemapPartialData{
-			TreemapJSON: template.JS(`{"name":"root","children":[]}`),
+			TreemapJSON: template.JS(tmBytes),
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_ = dashboard.RenderPartial(w, "treemap", data)

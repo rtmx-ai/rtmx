@@ -2776,6 +2776,589 @@ func TestCyclePathJSON(t *testing.T) {
 	})
 }
 
+// --------------------------------------------------------------------------
+// Tier 3: Interaction + Views Tests
+// --------------------------------------------------------------------------
+
+// TestInteractiveLegendPanel verifies REQ-DASH-057: collapsible legend panel.
+func TestInteractiveLegendPanel(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-057")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+	body := rec.Body.String()
+
+	t.Run("legend_panel_present", func(t *testing.T) {
+		assertContains(t, body, "graph-legend", "graph partial should include legend panel")
+	})
+
+	t.Run("legend_collapse_toggle", func(t *testing.T) {
+		assertContains(t, body, "graph-legend-toggle", "legend should have collapse toggle button")
+	})
+
+	t.Run("legend_sections", func(t *testing.T) {
+		assertContains(t, body, "Size = Effort", "legend should have size=effort section")
+		assertContains(t, body, "Fill = Status", "legend should have fill=status section")
+		assertContains(t, body, "Border = Priority", "legend should have border=priority section")
+		assertContains(t, body, "Edge = Critical Path", "legend should have edge=critical path section")
+		assertContains(t, body, "Dashed = Blocked", "legend should have dashed=blocked section")
+		assertContains(t, body, "Badge = Cycle", "legend should have badge=cycle section")
+	})
+
+	t.Run("legend_css_styles", func(t *testing.T) {
+		cssContent := dashboard.ReadStaticFile("styles.css")
+		assertContains(t, cssContent, ".graph-legend", "CSS should define .graph-legend")
+		assertContains(t, cssContent, "position: absolute", "legend should use absolute positioning")
+		assertContains(t, cssContent, "z-index", "legend should have z-index")
+	})
+
+	t.Run("legend_responsive", func(t *testing.T) {
+		cssContent := dashboard.ReadStaticFile("styles.css")
+		assertContains(t, cssContent, "768px", "legend should have responsive breakpoint")
+	})
+
+	t.Run("legend_design_tokens", func(t *testing.T) {
+		cssContent := dashboard.ReadStaticFile("styles.css")
+		assertContains(t, cssContent, "--rtmx-bg-card", "legend should use bg-card token")
+	})
+}
+
+// TestClickNodeDetailPanel verifies REQ-DASH-058: click node to open detail panel.
+func TestClickNodeDetailPanel(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-058")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	t.Run("click_handler_registered", func(t *testing.T) {
+		assertContains(t, appJS, "on('click'", "nodes should have click handler")
+	})
+
+	t.Run("dispatches_htmx_detail_request", func(t *testing.T) {
+		assertContains(t, appJS, "/partials/detail/", "click should dispatch htmx detail request")
+		assertContains(t, appJS, "detail-panel-body", "click should target detail-panel-body")
+	})
+
+	t.Run("toggle_behavior", func(t *testing.T) {
+		assertContains(t, appJS, "selectedNodeId === nid", "clicking same node should toggle panel")
+	})
+
+	t.Run("selected_node_visual_state", func(t *testing.T) {
+		assertContains(t, appJS, "node-selected", "clicked node should get selected class")
+		assertContains(t, cssContent, ".node-selected", "CSS should define node-selected style")
+	})
+
+	t.Run("escape_clears_selection", func(t *testing.T) {
+		assertContains(t, appJS, "Escape", "Escape key should clear node selection")
+	})
+}
+
+// TestNodeHoverTooltip verifies REQ-DASH-059: rich hover tooltip on graph nodes.
+func TestNodeHoverTooltip(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-059")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+	body := rec.Body.String()
+
+	t.Run("tooltip_dom_element", func(t *testing.T) {
+		assertContains(t, body, "graph-tooltip", "graph partial should include tooltip element")
+	})
+
+	t.Run("tooltip_shows_on_hover", func(t *testing.T) {
+		assertContains(t, appJS, "showGraphTooltip", "app.js should define showGraphTooltip function")
+		assertContains(t, appJS, "200", "tooltip should have 200ms delay")
+	})
+
+	t.Run("tooltip_contains_fields", func(t *testing.T) {
+		assertContains(t, appJS, "tooltip-id", "tooltip should show requirement ID")
+		assertContains(t, appJS, "tooltip-desc", "tooltip should show description")
+		assertContains(t, appJS, "tooltip-meta", "tooltip should show metadata")
+		assertContains(t, appJS, "Unassigned", "tooltip should show Unassigned placeholder")
+	})
+
+	t.Run("tooltip_viewport_repositioning", func(t *testing.T) {
+		assertContains(t, appJS, "window.innerWidth", "tooltip should check viewport width")
+		assertContains(t, appJS, "window.innerHeight", "tooltip should check viewport height")
+	})
+
+	t.Run("tooltip_hides_on_leave", func(t *testing.T) {
+		assertContains(t, appJS, "hideGraphTooltip", "app.js should define hideGraphTooltip function")
+	})
+
+	t.Run("tooltip_css_styling", func(t *testing.T) {
+		assertContains(t, cssContent, ".graph-tooltip-card", "CSS should define graph-tooltip-card")
+		assertContains(t, cssContent, "--rtmx-bg-elevated", "tooltip should use elevated background token")
+	})
+
+	t.Run("single_reusable_element", func(t *testing.T) {
+		assertContains(t, appJS, "getElementById('graph-tooltip')", "tooltip should reuse single DOM element")
+	})
+}
+
+// TestDependencyChainHighlight verifies REQ-DASH-062: upstream/downstream coloring.
+func TestDependencyChainHighlight(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-062")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	t.Run("upstream_downstream_traversal", func(t *testing.T) {
+		assertContains(t, appJS, "findUpstream", "app.js should traverse upstream dependencies")
+		assertContains(t, appJS, "findDownstream", "app.js should traverse downstream dependents")
+	})
+
+	t.Run("directional_coloring", func(t *testing.T) {
+		assertContains(t, cssContent, ".highlight-upstream", "CSS should define highlight-upstream")
+		assertContains(t, cssContent, ".highlight-downstream", "CSS should define highlight-downstream")
+		assertContains(t, cssContent, ".highlight-selected", "CSS should define highlight-selected")
+	})
+
+	t.Run("dim_non_chain_nodes", func(t *testing.T) {
+		assertContains(t, appJS, "0.3", "non-chain nodes should dim to 0.3 opacity")
+	})
+
+	t.Run("click_background_clears", func(t *testing.T) {
+		assertContains(t, appJS, "highlightActive", "app.js should track highlight state")
+	})
+
+	t.Run("escape_clears_highlight", func(t *testing.T) {
+		assertContains(t, appJS, "Escape", "Escape should clear highlight mode")
+	})
+}
+
+// TestZoomControlsToolbar verifies REQ-DASH-064: zoom in/out/fit controls.
+func TestZoomControlsToolbar(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-064")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+	body := rec.Body.String()
+
+	t.Run("zoom_toolbar_in_html", func(t *testing.T) {
+		assertContains(t, body, "zoom-toolbar", "graph partial should include zoom toolbar")
+		assertContains(t, body, "zoom-level", "graph partial should include zoom level indicator")
+	})
+
+	t.Run("zoom_in_out_fit_buttons", func(t *testing.T) {
+		assertContains(t, body, "graphZoom('in')", "should have zoom in button")
+		assertContains(t, body, "graphZoom('out')", "should have zoom out button")
+		assertContains(t, body, "graphZoom('fit')", "should have fit button")
+	})
+
+	t.Run("graphZoom_function", func(t *testing.T) {
+		assertContains(t, appJS, "function graphZoom", "app.js should define graphZoom")
+	})
+
+	t.Run("zoom_percentage_increments", func(t *testing.T) {
+		assertContains(t, appJS, "1.25", "zoom in should scale by 1.25")
+		assertContains(t, appJS, "0.8", "zoom out should scale by 0.8")
+	})
+
+	t.Run("fit_calculates_bounding_box", func(t *testing.T) {
+		assertContains(t, appJS, "clientWidth", "fit should use container width")
+		assertContains(t, appJS, "clientHeight", "fit should use container height")
+	})
+
+	t.Run("keyboard_shortcuts", func(t *testing.T) {
+		assertContains(t, appJS, "e.key === '+'", "+ key should zoom in")
+		assertContains(t, appJS, "e.key === '-'", "- key should zoom out")
+		assertContains(t, appJS, "e.key === '0'", "0 key should fit")
+	})
+
+	t.Run("zoom_level_indicator_updates", func(t *testing.T) {
+		assertContains(t, appJS, "updateZoomIndicator", "should update zoom indicator on zoom")
+	})
+
+	t.Run("zoom_toolbar_css", func(t *testing.T) {
+		assertContains(t, cssContent, ".zoom-toolbar", "CSS should define .zoom-toolbar")
+		assertContains(t, cssContent, ".zoom-btn", "CSS should define .zoom-btn")
+	})
+
+	t.Run("animated_transitions", func(t *testing.T) {
+		assertContains(t, appJS, "duration(200)", "zoom should use 200ms transitions")
+	})
+}
+
+// TestSearchToHighlight verifies REQ-DASH-065: search-to-highlight in graph view.
+func TestSearchToHighlight(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-065")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/graph", nil))
+	body := rec.Body.String()
+
+	t.Run("search_input_in_html", func(t *testing.T) {
+		assertContains(t, body, "graph-search", "graph partial should include search input")
+		assertContains(t, body, "graphSearch", "search input should call graphSearch")
+	})
+
+	t.Run("graphSearch_function", func(t *testing.T) {
+		assertContains(t, appJS, "function graphSearch", "app.js should define graphSearch")
+	})
+
+	t.Run("match_highlight", func(t *testing.T) {
+		assertContains(t, appJS, "search-match", "matching nodes should get search-match class")
+		assertContains(t, cssContent, ".search-match", "CSS should define search-match style")
+	})
+
+	t.Run("non_match_dim", func(t *testing.T) {
+		assertContains(t, appJS, "search-dim", "non-matching nodes should get search-dim class")
+		assertContains(t, cssContent, ".search-dim", "CSS should define search-dim with reduced opacity")
+	})
+
+	t.Run("match_count_display", func(t *testing.T) {
+		assertContains(t, body, "graph-search-count", "should have match count element")
+		assertContains(t, appJS, "matchCount", "should count matches")
+	})
+
+	t.Run("pan_to_first_match", func(t *testing.T) {
+		assertContains(t, appJS, "firstMatch", "should pan to first matching node")
+	})
+
+	t.Run("clear_restores_all", func(t *testing.T) {
+		assertContains(t, appJS, "classed('search-match', false)", "clearing search should remove match class")
+	})
+}
+
+// TestTimelineViewPartial verifies REQ-DASH-067: timeline Go handler with sprint-grouped JSON.
+func TestTimelineViewPartial(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-067")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+
+	t.Run("returns_200", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/timeline", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+	})
+
+	t.Run("json_has_sprints_array", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/timeline", nil))
+		body := rec.Body.String()
+		// Extract JSON from script block
+		start := strings.Index(body, "id=\"timeline-data\">")
+		if start < 0 {
+			t.Fatal("timeline-data script block not found")
+		}
+		start += len("id=\"timeline-data\">")
+		end := strings.Index(body[start:], "</script>")
+		jsonStr := body[start : start+end]
+		var data map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+			t.Fatalf("failed to parse timeline JSON: %v", err)
+		}
+		if _, ok := data["sprints"]; !ok {
+			t.Error("timeline JSON should have sprints array")
+		}
+		if _, ok := data["categories"]; !ok {
+			t.Error("timeline JSON should have categories array")
+		}
+		if _, ok := data["requirements"]; !ok {
+			t.Error("timeline JSON should have requirements array")
+		}
+	})
+
+	t.Run("sprints_semver_sorted", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/timeline", nil))
+		body := rec.Body.String()
+		start := strings.Index(body, "id=\"timeline-data\">") + len("id=\"timeline-data\">")
+		end := strings.Index(body[start:], "</script>")
+		jsonStr := body[start : start+end]
+		var data struct {
+			Sprints []string `json:"sprints"`
+		}
+		_ = json.Unmarshal([]byte(jsonStr), &data)
+		// v1.0.0 should come before v2.0.0
+		v1Idx, v2Idx := -1, -1
+		for i, s := range data.Sprints {
+			if s == "v1.0.0" { v1Idx = i }
+			if s == "v2.0.0" { v2Idx = i }
+		}
+		if v1Idx >= 0 && v2Idx >= 0 && v1Idx >= v2Idx {
+			t.Errorf("sprints not semver sorted: v1.0.0 at %d, v2.0.0 at %d", v1Idx, v2Idx)
+		}
+	})
+
+	t.Run("requirements_have_fields", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/timeline", nil))
+		body := rec.Body.String()
+		start := strings.Index(body, "id=\"timeline-data\">") + len("id=\"timeline-data\">")
+		end := strings.Index(body[start:], "</script>")
+		jsonStr := body[start : start+end]
+		var data struct {
+			Requirements []map[string]interface{} `json:"requirements"`
+		}
+		_ = json.Unmarshal([]byte(jsonStr), &data)
+		if len(data.Requirements) == 0 {
+			t.Fatal("expected requirements in timeline JSON")
+		}
+		fields := []string{"id", "title", "status", "effort_weeks", "sprint", "category"}
+		for _, field := range fields {
+			if _, ok := data.Requirements[0][field]; !ok {
+				t.Errorf("requirement missing field %q", field)
+			}
+		}
+	})
+
+	t.Run("unscheduled_at_end", func(t *testing.T) {
+		// Add a req with no sprint
+		dbWithUnsched := integrationDB(t)
+		unsched := &database.Requirement{
+			ReqID: "REQ-TEST-999", Category: "TEST", Status: database.StatusMissing,
+			RequirementText: "Unscheduled req", Dependencies: make(database.StringSet), Blocks: make(database.StringSet),
+		}
+		_ = dbWithUnsched.Add(unsched)
+		mux2 := integrationMux(t, dbWithUnsched)
+		rec := httptest.NewRecorder()
+		mux2.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/timeline", nil))
+		body := rec.Body.String()
+		start := strings.Index(body, "id=\"timeline-data\">") + len("id=\"timeline-data\">")
+		end := strings.Index(body[start:], "</script>")
+		jsonStr := body[start : start+end]
+		var data struct {
+			Sprints []string `json:"sprints"`
+		}
+		_ = json.Unmarshal([]byte(jsonStr), &data)
+		if len(data.Sprints) > 0 && data.Sprints[len(data.Sprints)-1] != "Unscheduled" {
+			t.Errorf("Unscheduled should be last sprint, got %v", data.Sprints)
+		}
+	})
+}
+
+// TestTreemapViewPartial verifies REQ-DASH-071: treemap Go handler with hierarchy JSON.
+func TestTreemapViewPartial(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-071")
+
+	db := integrationDB(t)
+	mux := integrationMux(t, db)
+
+	t.Run("returns_200", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/treemap", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+	})
+
+	t.Run("json_has_hierarchy_structure", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/treemap", nil))
+		body := rec.Body.String()
+		start := strings.Index(body, "id=\"treemap-data\">")
+		if start < 0 {
+			t.Fatal("treemap-data script block not found")
+		}
+		start += len("id=\"treemap-data\">")
+		end := strings.Index(body[start:], "</script>")
+		jsonStr := body[start : start+end]
+		var data struct {
+			Name     string `json:"name"`
+			Children []struct {
+				Name     string                   `json:"name"`
+				Children []map[string]interface{} `json:"children"`
+			} `json:"children"`
+		}
+		if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+			t.Fatalf("failed to parse treemap JSON: %v", err)
+		}
+		if data.Name != "root" {
+			t.Errorf("root name = %q, want 'root'", data.Name)
+		}
+		if len(data.Children) == 0 {
+			t.Fatal("treemap should have category children")
+		}
+	})
+
+	t.Run("categories_as_groups", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/treemap", nil))
+		body := rec.Body.String()
+		start := strings.Index(body, "id=\"treemap-data\">") + len("id=\"treemap-data\">")
+		end := strings.Index(body[start:], "</script>")
+		jsonStr := body[start : start+end]
+		var data struct {
+			Children []struct {
+				Name     string                   `json:"name"`
+				Children []map[string]interface{} `json:"children"`
+			} `json:"children"`
+		}
+		_ = json.Unmarshal([]byte(jsonStr), &data)
+		// Should have CLI, MCP, API categories
+		catNames := map[string]bool{}
+		for _, c := range data.Children {
+			catNames[c.Name] = true
+		}
+		for _, expected := range []string{"CLI", "MCP", "API"} {
+			if !catNames[expected] {
+				t.Errorf("treemap should have category %q", expected)
+			}
+		}
+	})
+
+	t.Run("requirements_have_fields", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/treemap", nil))
+		body := rec.Body.String()
+		start := strings.Index(body, "id=\"treemap-data\">") + len("id=\"treemap-data\">")
+		end := strings.Index(body[start:], "</script>")
+		jsonStr := body[start : start+end]
+		var data struct {
+			Children []struct {
+				Children []map[string]interface{} `json:"children"`
+			} `json:"children"`
+		}
+		_ = json.Unmarshal([]byte(jsonStr), &data)
+		if len(data.Children) == 0 || len(data.Children[0].Children) == 0 {
+			t.Fatal("expected requirements in treemap")
+		}
+		req := data.Children[0].Children[0]
+		fields := []string{"id", "title", "status", "effort_weeks", "category"}
+		for _, field := range fields {
+			if _, ok := req[field]; !ok {
+				t.Errorf("requirement missing field %q", field)
+			}
+		}
+	})
+
+	t.Run("zero_effort_has_minimum_value", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/treemap", nil))
+		body := rec.Body.String()
+		start := strings.Index(body, "id=\"treemap-data\">") + len("id=\"treemap-data\">")
+		end := strings.Index(body[start:], "</script>")
+		jsonStr := body[start : start+end]
+		var data struct {
+			Children []struct {
+				Children []map[string]interface{} `json:"children"`
+			} `json:"children"`
+		}
+		_ = json.Unmarshal([]byte(jsonStr), &data)
+		for _, cat := range data.Children {
+			for _, req := range cat.Children {
+				ew, _ := req["effort_weeks"].(float64)
+				if ew < 0.25 {
+					t.Errorf("requirement %v has effort_weeks %v, should be >= 0.25", req["id"], ew)
+				}
+			}
+		}
+	})
+}
+
+// TestTimelineD3Rendering verifies REQ-DASH-086: timeline SVG rendering.
+func TestTimelineD3Rendering(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-086")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	t.Run("renderTimeline_function", func(t *testing.T) {
+		assertContains(t, appJS, "function renderTimeline", "app.js should define renderTimeline")
+	})
+
+	t.Run("renders_bars_with_status_color", func(t *testing.T) {
+		assertContains(t, appJS, "timeline-bar", "should render timeline bars")
+		assertContains(t, appJS, "--rtmx-complete", "should use status design tokens")
+	})
+
+	t.Run("category_row_headers", func(t *testing.T) {
+		assertContains(t, appJS, "timeline-category-label", "should render category labels")
+	})
+
+	t.Run("sprint_column_headers", func(t *testing.T) {
+		assertContains(t, appJS, "timeline-sprint-label", "should render sprint labels")
+	})
+
+	t.Run("minimum_bar_width", func(t *testing.T) {
+		assertContains(t, appJS, "Math.max(20", "bars should have minimum 20px width")
+	})
+
+	t.Run("css_classes", func(t *testing.T) {
+		assertContains(t, cssContent, ".timeline-bar", "CSS should define .timeline-bar")
+		assertContains(t, cssContent, ".timeline-label", "CSS should define .timeline-label")
+	})
+
+	t.Run("auto_invoked_from_template", func(t *testing.T) {
+		db := integrationDB(t)
+		mux := integrationMux(t, db)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/timeline", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "renderTimeline", "timeline template should invoke renderTimeline")
+	})
+}
+
+// TestTreemapD3Rendering verifies REQ-DASH-087: treemap squarify rendering.
+func TestTreemapD3Rendering(t *testing.T) {
+	rtmx.Req(t, "REQ-DASH-087")
+
+	appJS := dashboard.ReadStaticFile("app.js")
+	cssContent := dashboard.ReadStaticFile("styles.css")
+
+	t.Run("renderTreemap_function", func(t *testing.T) {
+		assertContains(t, appJS, "function renderTreemap", "app.js should define renderTreemap")
+	})
+
+	t.Run("uses_treemapSquarify", func(t *testing.T) {
+		assertContains(t, appJS, "treemapSquarify", "treemap should use d3.treemapSquarify tiling")
+	})
+
+	t.Run("status_color_fill", func(t *testing.T) {
+		assertContains(t, appJS, "--rtmx-complete", "treemap should use status color tokens")
+	})
+
+	t.Run("category_group_borders", func(t *testing.T) {
+		assertContains(t, appJS, "--rtmx-border", "treemap should show group borders")
+		assertContains(t, appJS, "treemap-group-label", "treemap should have group labels")
+	})
+
+	t.Run("conditional_text_labels", func(t *testing.T) {
+		assertContains(t, appJS, "> 60", "text shown only if width > 60")
+		assertContains(t, appJS, "> 20", "text shown only if height > 20")
+	})
+
+	t.Run("click_opens_detail", func(t *testing.T) {
+		assertContains(t, appJS, "/partials/detail/", "clicking treemap cell should open detail panel")
+	})
+
+	t.Run("css_classes", func(t *testing.T) {
+		assertContains(t, cssContent, ".treemap-cell", "CSS should define .treemap-cell")
+		assertContains(t, cssContent, ".treemap-cell-text", "CSS should define .treemap-cell-text")
+	})
+
+	t.Run("auto_invoked_from_template", func(t *testing.T) {
+		db := integrationDB(t)
+		mux := integrationMux(t, db)
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/treemap", nil))
+		body := rec.Body.String()
+		assertContains(t, body, "renderTreemap", "treemap template should invoke renderTreemap")
+	})
+}
+
 // Test helpers
 // --------------------------------------------------------------------------
 
