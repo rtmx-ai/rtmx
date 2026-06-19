@@ -7,10 +7,12 @@ import (
 	"github.com/rtmx-ai/rtmx/internal/database"
 )
 
-// reqIDRegex matches REQ-<CATEGORY>-<NUMBER> where CATEGORY is uppercase
-// alphanumeric (e.g., CLI, MCP, E2E, V2, K8S). The first character must
-// be a letter; subsequent characters may include digits.
-var reqIDRegex = regexp.MustCompile(`REQ-[A-Z][A-Z0-9]*-\d+`)
+// reqIDRegex matches REQ-<CATEGORY>-<NUMBER> where CATEGORY is one or more
+// uppercase-alphanumeric segments (e.g., CLI, MCP, E2E, V2, K8S, INFRA-DT,
+// MODE-S). The first character of the prefix must be a letter; subsequent
+// characters may include digits. The final hyphen-delimited segment is always
+// the number.
+var reqIDRegex = regexp.MustCompile(`REQ-[A-Z][A-Z0-9]*(-[A-Z0-9]+)*-\d+`)
 
 // ExtractReqID finds the first RTMX requirement ID in text.
 // It handles bracketed titles ([REQ-CLI-001]), RTMX: prefixes,

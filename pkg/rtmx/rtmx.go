@@ -54,8 +54,10 @@ import (
 	"time"
 )
 
-// reqIDPattern validates requirement ID format.
-var reqIDPattern = regexp.MustCompile(`^REQ-[A-Z]+-[0-9]+$`)
+// reqIDPattern validates requirement ID format. The category prefix may be one
+// or more uppercase-alphanumeric segments (e.g. REQ-SW-009, REQ-E2E-010,
+// REQ-INFRA-DT-002, REQ-MODE-S-006); the final segment is the numeric index.
+var reqIDPattern = regexp.MustCompile(`^REQ-[A-Z][A-Z0-9]*(-[A-Z0-9]+)*-[0-9]+$`)
 
 // marker holds the requirement marker data for a test.
 type marker struct {
@@ -115,7 +117,8 @@ func Env(e string) Option {
 
 // Req registers a requirement marker for the current test.
 //
-// The reqID must match the pattern REQ-[A-Z]+-[0-9]+.
+// The reqID must match REQ-<CATEGORY>-<NUMBER> (e.g. REQ-FEAT-001 or
+// REQ-INFRA-DT-002), where the category may have multiple segments.
 // If the pattern doesn't match, the test fails immediately.
 //
 // Example:
@@ -131,7 +134,7 @@ func Req(t testing.TB, reqID string, opts ...Option) {
 	t.Helper()
 
 	if !reqIDPattern.MatchString(reqID) {
-		t.Fatalf("rtmx: invalid requirement ID format: %s (expected REQ-[A-Z]+-[0-9]+)", reqID)
+		t.Fatalf("rtmx: invalid requirement ID format: %s (expected REQ-<CATEGORY>-<NUMBER>, e.g. REQ-FEAT-001 or REQ-INFRA-DT-002)", reqID)
 	}
 
 	// Get caller info

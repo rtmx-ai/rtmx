@@ -152,7 +152,7 @@ func runVerify(cmd *cobra.Command, args []string) error {
 
 	if verifyResults != "" {
 		// Cross-language mode: read results file
-		verifyResultsList, err = runVerifyFromResults(cmd, db, cfg.RTMX.Completeness)
+		verifyResultsList, err = runVerifyFromResults(cmd, db, cfg.RTMX.Completeness, cfg.RTMX.ReqIDPattern)
 		if err != nil {
 			return err
 		}
@@ -278,7 +278,7 @@ func countFailingReqs(results []VerificationResult) int {
 }
 
 // runVerifyFromResults processes an RTMX results JSON file (cross-language).
-func runVerifyFromResults(cmd *cobra.Command, db *database.Database, policy config.CompletenessConfig) ([]VerificationResult, error) {
+func runVerifyFromResults(cmd *cobra.Command, db *database.Database, policy config.CompletenessConfig, reqIDPattern string) ([]VerificationResult, error) {
 	var r *os.File
 	var err error
 
@@ -302,9 +302,10 @@ func runVerifyFromResults(cmd *cobra.Command, db *database.Database, policy conf
 	// payloads do not silently produce zero requirement matches
 	// (REQ-VERIFY-004).
 	vocab := results.Vocabulary{
-		Scopes:     policy.Vocabulary.Scopes,
-		Techniques: policy.Vocabulary.Techniques,
-		Envs:       policy.Vocabulary.Envs,
+		Scopes:       policy.Vocabulary.Scopes,
+		Techniques:   policy.Vocabulary.Techniques,
+		Envs:         policy.Vocabulary.Envs,
+		ReqIDPattern: reqIDPattern,
 	}
 	if errs := results.ValidateWithVocabulary(parsed, vocab); len(errs) > 0 {
 		for _, e := range errs {
@@ -530,34 +531,34 @@ func runTests(cmd *cobra.Command, testPath string) (map[string]*TestResult, erro
 		if err := json.Unmarshal([]byte(line), &event); err == nil && event.Test != "" {
 			key := event.Package + "/" + event.Test
 			switch event.Action {
-		case "pass":
-			results[key] = &TestResult{
-				Package: event.Package,
-				Test:    event.Test,
-				Passed:  true,
+			case "pass":
+				results[key] = &TestResult{
+					Package: event.Package,
+					Test:    event.Test,
+					Passed:  true,
+				}
+				if verifyVerbose {
+					cmd.Printf("  %s %s\n", output.Color("✓", output.Green), event.Test)
+				}
+			case "fail":
+				results[key] = &TestResult{
+					Package: event.Package,
+					Test:    event.Test,
+					Failed:  true,
+				}
+				if verifyVerbose {
+					cmd.Printf("  %s %s\n", output.Color("✗", output.Red), event.Test)
+				}
+			case "skip":
+				results[key] = &TestResult{
+					Package: event.Package,
+					Test:    event.Test,
+					Skipped: true,
+				}
+				if verifyVerbose {
+					cmd.Printf("  %s %s (skipped)\n", output.Color("-", output.Yellow), event.Test)
+				}
 			}
-			if verifyVerbose {
-				cmd.Printf("  %s %s\n", output.Color("✓", output.Green), event.Test)
-			}
-		case "fail":
-			results[key] = &TestResult{
-				Package: event.Package,
-				Test:    event.Test,
-				Failed:  true,
-			}
-			if verifyVerbose {
-				cmd.Printf("  %s %s\n", output.Color("✗", output.Red), event.Test)
-			}
-		case "skip":
-			results[key] = &TestResult{
-				Package: event.Package,
-				Test:    event.Test,
-				Skipped: true,
-			}
-			if verifyVerbose {
-				cmd.Printf("  %s %s (skipped)\n", output.Color("-", output.Yellow), event.Test)
-			}
-		}
 			continue
 		}
 
@@ -827,11 +828,11 @@ func DetectTestCommand(dir string) (string, []string) {
 
 // AuditFinding represents a single audit diagnostic.
 type AuditFinding struct {
-	ReqID   string `json:"req_id"`
-	Kind    string `json:"kind"` // "unmatched", "stale_path", "unverified_complete", "empty_ref"
-	Field   string `json:"field,omitempty"`
-	Value   string `json:"value,omitempty"`
-	Detail  string `json:"detail,omitempty"`
+	ReqID  string `json:"req_id"`
+	Kind   string `json:"kind"` // "unmatched", "stale_path", "unverified_complete", "empty_ref"
+	Field  string `json:"field,omitempty"`
+	Value  string `json:"value,omitempty"`
+	Detail string `json:"detail,omitempty"`
 }
 
 // AuditResult holds all audit diagnostics.

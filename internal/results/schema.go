@@ -113,7 +113,15 @@ type Marker struct {
 	Line      int    `json:"line,omitempty"`
 }
 
-var reqIDPattern = regexp.MustCompile(`^REQ-[A-Z]+-[0-9]+$`)
+// DefaultReqIDPattern is the built-in regular expression for valid requirement
+// IDs. It accepts a single- or multi-segment uppercase-alphanumeric category
+// prefix followed by a numeric index, e.g. REQ-SW-009, REQ-E2E-010,
+// REQ-INFRA-DT-002, REQ-MODE-S-006. The final hyphen-delimited segment is
+// always the number. Projects with a different convention can override it via
+// rtmx.req_id_pattern in config (see Vocabulary.ReqIDPattern).
+const DefaultReqIDPattern = `^REQ-[A-Z][A-Z0-9]*(-[A-Z0-9]+)*-[0-9]+$`
+
+var reqIDPattern = regexp.MustCompile(DefaultReqIDPattern)
 
 var validScopes = map[string]bool{
 	"unit": true, "integration": true, "system": true, "acceptance": true,
@@ -145,6 +153,12 @@ type Vocabulary struct {
 	Scopes     []string
 	Techniques []string
 	Envs       []string
+
+	// ReqIDPattern optionally overrides the requirement-ID regular expression.
+	// When empty, DefaultReqIDPattern is used. An invalid pattern is reported
+	// as a single validation error and falls back to the default. See
+	// REQ-VERIFY-011.
+	ReqIDPattern string
 }
 
 // Validate checks results against the RTMX results schema using the built-in
@@ -161,11 +175,24 @@ func ValidateWithVocabulary(results []Result, vocab Vocabulary) []error {
 	envs := mergeVocabulary(validEnvs, vocab.Envs)
 
 	var errs []error
+
+	// Resolve the requirement-ID pattern: a configured override, or the
+	// built-in default. An invalid override is reported once and the default
+	// is used so the rest of validation still runs.
+	idPattern := reqIDPattern
+	if vocab.ReqIDPattern != "" {
+		if compiled, err := regexp.Compile(vocab.ReqIDPattern); err != nil {
+			errs = append(errs, fmt.Errorf("invalid req_id_pattern %q: %w", vocab.ReqIDPattern, err))
+		} else {
+			idPattern = compiled
+		}
+	}
+
 	for i, r := range results {
 		prefix := fmt.Sprintf("result[%d]", i)
 
-		if !reqIDPattern.MatchString(r.Marker.ReqID) {
-			errs = append(errs, fmt.Errorf("%s: invalid req_id %q (expected REQ-[A-Z]+-[0-9]+)", prefix, r.Marker.ReqID))
+		if !idPattern.MatchString(r.Marker.ReqID) {
+			errs = append(errs, fmt.Errorf("%s: invalid req_id %q (must match %s)", prefix, r.Marker.ReqID, idPattern.String()))
 		}
 		if r.Marker.TestName == "" {
 			errs = append(errs, fmt.Errorf("%s: missing required field test_name", prefix))

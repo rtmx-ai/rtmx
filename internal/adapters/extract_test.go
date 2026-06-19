@@ -35,6 +35,12 @@ func TestExtractReqID(t *testing.T) {
 		{"alphanumeric_k8s", "[REQ-K8S-042] Deploy config", "REQ-K8S-042"},
 		{"alphanumeric_ci2", "RTMX: REQ-CI2-005", "REQ-CI2-005"},
 
+		// Multi-segment category prefixes (REQ-VERIFY-011)
+		{"multi_segment_infra_dt", "Implements REQ-INFRA-DT-002 now", "REQ-INFRA-DT-002"},
+		{"multi_segment_mode_s", "[REQ-MODE-S-006] search mode", "REQ-MODE-S-006"},
+		{"multi_segment_sw_dsp", "RTMX: REQ-SW-DSP-015", "REQ-SW-DSP-015"},
+		{"multi_segment_three", "See REQ-A-B-C-001 mention", "REQ-A-B-C-001"},
+
 		// First match wins when multiple IDs present
 		{"multiple_ids", "REQ-CLI-001 depends on REQ-MCP-002", "REQ-CLI-001"},
 
