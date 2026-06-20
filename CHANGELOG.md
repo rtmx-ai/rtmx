@@ -3,6 +3,20 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.7.0]
+
+### Fixed
+
+- **`rtmx from-pytest` now carries marker dimensions and omits skipped tests.**
+  The JUnit-based pytest path emitted dimensionless results and recorded
+  `skipif`/`xfail` tests as failures. It now maps each test's
+  `scope_*`/`technique_*`/`env_*` pytest markers into the results schema's
+  `scope`/`technique`/`env` fields (e.g. `scope_unit` → `unit`,
+  `env_static_field` → `static_field`), so projects using a multi-dimensional
+  completeness policy can reach COMPLETE from the pytest path; and it omits
+  skipped tests entirely so a hardware-gated `skipif` no longer downgrades a
+  requirement. (REQ-LANG-004)
+
 ## [1.4.0] - 2026-06-04
 
 ### Added

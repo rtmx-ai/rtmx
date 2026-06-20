@@ -48,6 +48,45 @@ func TestBuildPytestRTMXResults(t *testing.T) {
 	}
 }
 
+func TestBuildPytestRTMXResultsDimensionsAndSkip(t *testing.T) {
+	rtmx.Req(t, "REQ-LANG-004",
+		rtmx.Scope("unit"), rtmx.Technique("nominal"), rtmx.Env("simulation"))
+
+	markers := []TestRequirement{
+		{ReqID: "REQ-PY-010", TestFile: "tests/test_x.py", TestFunction: "test_a", LineNumber: 5,
+			Markers: []string{"scope_unit", "technique_nominal", "env_simulation"}},
+		{ReqID: "REQ-PY-011", TestFile: "tests/test_x.py", TestFunction: "test_b", LineNumber: 9,
+			Markers: []string{"scope_integration", "technique_monte_carlo", "env_static_field"}},
+		{ReqID: "REQ-PY-012", TestFile: "tests/test_x.py", TestFunction: "test_skipped", LineNumber: 14,
+			Markers: []string{"scope_unit", "technique_nominal", "env_simulation"}},
+	}
+	cases := []junitTestCase{
+		{ClassName: "tests.test_x", Name: "test_a", Time: 0.1},
+		{ClassName: "tests.test_x", Name: "test_b", Time: 0.2},
+		{ClassName: "tests.test_x", Name: "test_skipped", Skipped: []interface{}{struct{}{}}},
+	}
+
+	got := buildPytestRTMXResults(markers, cases)
+
+	// The skipped test is omitted entirely (neither pass nor fail).
+	if len(got) != 2 {
+		t.Fatalf("expected 2 results (skipped omitted), got %d: %#v", len(got), got)
+	}
+	byReq := map[string]results.Marker{}
+	for _, r := range got {
+		byReq[r.Marker.ReqID] = r.Marker
+	}
+	if _, ok := byReq["REQ-PY-012"]; ok {
+		t.Error("skipped test must be omitted from results")
+	}
+	if m := byReq["REQ-PY-010"]; m.Scope != "unit" || m.Technique != "nominal" || m.Env != "simulation" {
+		t.Errorf("dimensions not mapped for REQ-PY-010: %#v", m)
+	}
+	if m := byReq["REQ-PY-011"]; m.Scope != "integration" || m.Technique != "monte_carlo" || m.Env != "static_field" {
+		t.Errorf("dimensions not mapped for REQ-PY-011: %#v", m)
+	}
+}
+
 func TestParsePytestJUnit(t *testing.T) {
 	rtmx.Req(t, "REQ-LANG-004")
 
