@@ -188,18 +188,47 @@ func buildPytestRTMXResults(markers []TestRequirement, cases []junitTestCase) []
 		if !ok {
 			continue
 		}
+		// A skipped (or xfail, which pytest reports as skipped in JUnit) test is
+		// not evidence: it must neither promote nor downgrade a requirement, so
+		// omit it entirely rather than recording it as a failure.
+		if len(tc.Skipped) > 0 {
+			continue
+		}
+		scope, technique, env := pytestMarkerDimensions(marker.Markers)
 		out = append(out, results.Result{
 			Marker: results.Marker{
-				ReqID:    marker.ReqID,
-				TestName: marker.TestFunction,
-				TestFile: filepath.ToSlash(marker.TestFile),
-				Line:     marker.LineNumber,
+				ReqID:     marker.ReqID,
+				Scope:     scope,
+				Technique: technique,
+				Env:       env,
+				TestName:  marker.TestFunction,
+				TestFile:  filepath.ToSlash(marker.TestFile),
+				Line:      marker.LineNumber,
 			},
-			Passed:   len(tc.Failures) == 0 && len(tc.Errors) == 0 && len(tc.Skipped) == 0,
+			Passed:   len(tc.Failures) == 0 && len(tc.Errors) == 0,
 			Duration: tc.Time * 1000,
 		})
 	}
 	return out
+}
+
+// pytestMarkerDimensions maps the scope_*/technique_*/env_* pytest markers
+// collected for a test into the results schema's scope/technique/env dimensions
+// (e.g. "scope_unit" -> "unit", "env_static_field" -> "static_field"). Without
+// this, the JUnit-based pytest path produced dimensionless results, so projects
+// using a multi-dimensional completeness policy could never reach COMPLETE.
+func pytestMarkerDimensions(markers []string) (scope, technique, env string) {
+	for _, m := range markers {
+		switch {
+		case strings.HasPrefix(m, "scope_"):
+			scope = strings.TrimPrefix(m, "scope_")
+		case strings.HasPrefix(m, "technique_"):
+			technique = strings.TrimPrefix(m, "technique_")
+		case strings.HasPrefix(m, "env_"):
+			env = strings.TrimPrefix(m, "env_")
+		}
+	}
+	return scope, technique, env
 }
 
 func pytestCaseKeys(tc junitTestCase) []string {
