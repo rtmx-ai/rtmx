@@ -21,7 +21,7 @@ var (
 )
 
 var fromPytestCmd = &cobra.Command{
-	Use:   "from-pytest [test_path]",
+	Use:   "from-pytest [test_path...]",
 	Short: "Generate RTMX results JSON from pytest markers and JUnit XML",
 	Long: `Generate RTMX results JSON from pytest tests marked with
 @pytest.mark.req("REQ-...").
@@ -68,17 +68,24 @@ type junitTestCase struct {
 }
 
 func runFromPytest(cmd *cobra.Command, args []string) error {
-	testPath := "tests"
+	// Accept one or more test paths so multi-package layouts (e.g. a top-level
+	// tests/ plus packages/*/tests/) are scanned and run together; default to
+	// "tests" when none are given.
+	testPaths := []string{"tests"}
 	if len(args) > 0 {
-		testPath = args[0]
+		testPaths = args
 	}
 
-	markers, err := scanPytestMarkers(testPath)
-	if err != nil {
-		return err
+	var markers []TestRequirement
+	for _, p := range testPaths {
+		m, err := scanPytestMarkers(p)
+		if err != nil {
+			return err
+		}
+		markers = append(markers, m...)
 	}
 	if len(markers) == 0 {
-		return fmt.Errorf("no pytest requirement markers found under %s", testPath)
+		return fmt.Errorf("no pytest requirement markers found under %s", strings.Join(testPaths, ", "))
 	}
 
 	junitPath := fromPytestJUnit
@@ -95,7 +102,7 @@ func runFromPytest(cmd *cobra.Command, args []string) error {
 	defer cleanup()
 
 	if !fromPytestNoRun {
-		if err := runPytestForJUnit(testPath, junitPath); err != nil {
+		if err := runPytestForJUnit(testPaths, junitPath); err != nil {
 			cmd.Printf("! pytest exited with error: %v\n", err)
 		}
 	}
@@ -129,13 +136,14 @@ func scanPytestMarkers(testPath string) ([]TestRequirement, error) {
 	return extractMarkersFromSingleFile(testPath)
 }
 
-func runPytestForJUnit(testPath, junitPath string) error {
+func runPytestForJUnit(testPaths []string, junitPath string) error {
 	parts := strings.Fields(fromPytestCommand)
 	if len(parts) == 0 {
 		return fmt.Errorf("empty pytest command")
 	}
 	args := append([]string{}, parts[1:]...)
-	args = append(args, testPath, "--junitxml", junitPath)
+	args = append(args, testPaths...)
+	args = append(args, "--junitxml", junitPath)
 	cmd := exec.Command(parts[0], args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -184,7 +192,14 @@ func buildPytestRTMXResults(markers []TestRequirement, cases []junitTestCase) []
 
 	var out []results.Result
 	for _, marker := range markers {
-		tc, ok := caseIndex[marker.TestFunction]
+		var tc junitTestCase
+		ok := false
+		for _, k := range markerJoinKeys(marker) {
+			if c, found := caseIndex[k]; found {
+				tc, ok = c, true
+				break
+			}
+		}
 		if !ok {
 			continue
 		}
@@ -233,13 +248,45 @@ func pytestMarkerDimensions(markers []string) (scope, technique, env string) {
 
 func pytestCaseKeys(tc junitTestCase) []string {
 	keys := []string{tc.Name}
+	var className string
 	if tc.ClassName != "" {
 		parts := strings.Split(tc.ClassName, ".")
-		className := parts[len(parts)-1]
+		className = parts[len(parts)-1]
 		if className != "" {
 			keys = append(keys, className+"::"+tc.Name)
 		}
 	}
+	// Path-qualified keys disambiguate tests that share a function name across
+	// files (common once a multi-package tree is scanned), preventing a passing
+	// test in one file from joining a same-named test in another. The JUnit
+	// `file` attribute and the scanner's TestFile are both repo-relative paths.
+	if p := pyPathKey(tc.File); p != "" {
+		keys = append(keys, p+"::"+tc.Name)
+		if className != "" {
+			keys = append(keys, p+"::"+className+"::"+tc.Name)
+		}
+	}
+	return keys
+}
+
+// pyPathKey normalizes a test file path (slash-separated, cleaned) for use in
+// join keys so the JUnit `file` attribute and the scanner's TestFile agree.
+func pyPathKey(path string) string {
+	if path == "" {
+		return ""
+	}
+	return filepath.ToSlash(filepath.Clean(path))
+}
+
+// markerJoinKeys returns the candidate caseIndex keys for a scanned marker,
+// most-specific (path-qualified) first, so a join prefers an exact file match
+// and only falls back to the bare function name when JUnit carries no file.
+func markerJoinKeys(m TestRequirement) []string {
+	keys := []string{}
+	if p := pyPathKey(m.TestFile); p != "" {
+		keys = append(keys, p+"::"+m.TestFunction)
+	}
+	keys = append(keys, m.TestFunction)
 	return keys
 }
 

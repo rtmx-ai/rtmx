@@ -87,6 +87,40 @@ func TestBuildPytestRTMXResultsDimensionsAndSkip(t *testing.T) {
 	}
 }
 
+func TestBuildPytestRTMXResultsFileQualifiedJoin(t *testing.T) {
+	rtmx.Req(t, "REQ-LANG-004",
+		rtmx.Scope("unit"), rtmx.Technique("stress"), rtmx.Env("simulation"))
+
+	// Two different files define a module-level test with the SAME function name.
+	// The passing one and the failing one must each join to their own file, not
+	// collide on the bare name.
+	markers := []TestRequirement{
+		{ReqID: "REQ-A-001", TestFile: "packages/foo/tests/test_dup.py", TestFunction: "test_thing", LineNumber: 3},
+		{ReqID: "REQ-B-001", TestFile: "tests/test_dup.py", TestFunction: "test_thing", LineNumber: 7},
+	}
+	cases := []junitTestCase{
+		{ClassName: "packages.foo.tests.test_dup", Name: "test_thing",
+			File: "packages/foo/tests/test_dup.py", Time: 0.1},
+		{ClassName: "tests.test_dup", Name: "test_thing",
+			File: "tests/test_dup.py", Failures: []interface{}{struct{}{}}},
+	}
+
+	got := buildPytestRTMXResults(markers, cases)
+	res := map[string]bool{}
+	for _, r := range got {
+		res[r.Marker.ReqID] = r.Passed
+	}
+	if len(got) != 2 {
+		t.Fatalf("expected 2 results, got %d: %#v", len(got), got)
+	}
+	if !res["REQ-A-001"] {
+		t.Error("REQ-A-001 (packages/foo) should join its PASSING case, not the failing same-named one")
+	}
+	if res["REQ-B-001"] {
+		t.Error("REQ-B-001 (tests/) should join its FAILING case, not the passing same-named one")
+	}
+}
+
 func TestParsePytestJUnit(t *testing.T) {
 	rtmx.Req(t, "REQ-LANG-004")
 

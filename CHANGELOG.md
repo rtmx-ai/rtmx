@@ -3,6 +3,24 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.8.0]
+
+### Added
+
+- **`rtmx from-pytest` accepts multiple test paths.** Previously it scanned and
+  ran only a single path (default `tests`), so a multi-package layout — a
+  top-level `tests/` plus `packages/*/tests/` — could not be reconciled in one
+  invocation (the other packages were silently never scored). It now accepts one
+  or more paths (`rtmx from-pytest tests packages/foo/tests packages/bar/tests`)
+  and scans + runs all of them.
+
+### Fixed
+
+- **Path-qualified JUnit join.** Test results are now matched to scanned markers
+  by repo-relative file path first, falling back to the bare function name. This
+  prevents a passing test in one file from being mis-attributed to a same-named
+  test in another file — a real hazard once a multi-package tree is scanned.
+
 ## [1.7.0]
 
 ### Fixed
