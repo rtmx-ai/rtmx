@@ -22,9 +22,9 @@ func extractJSMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	lines := strings.Split(string(data), "\n")
 
 	// Patterns for the three marker styles
-	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
-	reqCallPattern := regexp.MustCompile(`(?:rtmx\.)?req\(["'](REQ-[A-Z0-9-]+)["']\)`)
-	describeRtmxPattern := regexp.MustCompile(`describe\.rtmx\(["'](REQ-[A-Z0-9-]+)["']\s*,\s*["']([^"']+)["']`)
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
+	reqCallPattern := regexp.MustCompile(`(?:rtmx\.)?req\(["'](REQ-[A-Za-z0-9-]+)["']\)`)
+	describeRtmxPattern := regexp.MustCompile(`describe\.rtmx\(["'](REQ-[A-Za-z0-9-]+)["']\s*,\s*["']([^"']+)["']`)
 
 	// Pattern for test/it function definitions: test("name", ...) or it("name", ...)
 	testFuncPattern := regexp.MustCompile(`^\s*(?:test|it)\s*\(\s*["']([^"']+)["']`)
@@ -140,8 +140,8 @@ func extractCSharpMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	lines := strings.Split(string(data), "\n")
 
 	// Patterns
-	reqAttrPattern := regexp.MustCompile(`\[Req\("(REQ-[A-Z0-9-]+)"\)\]`)
-	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	reqAttrPattern := regexp.MustCompile(`\[Req\("(REQ-[A-Za-z0-9-]+)"\)\]`)
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
 	classPattern := regexp.MustCompile(`^\s*(?:public\s+)?class\s+(\w+)`)
 	methodPattern := regexp.MustCompile(`^\s*(?:public\s+)?(?:async\s+)?(?:\w+\s+)+(\w+)\s*\(`)
 
@@ -235,8 +235,8 @@ func extractCppMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	lines := strings.Split(string(data), "\n")
 
 	// Patterns
-	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
-	macroPattern := regexp.MustCompile(`RTMX_REQ\("(REQ-[A-Z0-9-]+)"\)`)
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
+	macroPattern := regexp.MustCompile(`RTMX_REQ\("(REQ-[A-Za-z0-9-]+)"\)`)
 
 	// GoogleTest patterns: TEST(Suite, Name), TEST_F(Suite, Name), TEST_P(Suite, Name)
 	gtestPattern := regexp.MustCompile(`^\s*TEST(?:_F|_P)?\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)`)
@@ -370,9 +370,9 @@ func extractTerraformMarkersFromFile(filePath string) ([]TestRequirement, error)
 	lines := strings.Split(string(data), "\n")
 
 	// Patterns
-	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
 	runBlockPattern := regexp.MustCompile(`^\s*run\s+"([^"]+)"\s*\{`)
-	labelsPattern := regexp.MustCompile(`labels\s*=\s*\{[^}]*req\s*=\s*"(REQ-[A-Z0-9-]+)"`)
+	labelsPattern := regexp.MustCompile(`labels\s*=\s*\{[^}]*req\s*=\s*"(REQ-[A-Za-z0-9-]+)"`)
 
 	var pendingReqIDs []struct {
 		reqID  string
@@ -462,8 +462,8 @@ func extractJavaMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
-	annotationPattern := regexp.MustCompile(`@Req\("(REQ-[A-Z0-9-]+)"\)`)
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
+	annotationPattern := regexp.MustCompile(`@Req\("(REQ-[A-Za-z0-9-]+)"\)`)
 	classPattern := regexp.MustCompile(`^\s*(?:public\s+)?class\s+(\w+)`)
 	methodPattern := regexp.MustCompile(`^\s*(?:public\s+|private\s+|protected\s+)?(?:static\s+)?(?:void|boolean|int|String|[A-Z]\w*)\s+(\w+)\s*\(`)
 
@@ -541,8 +541,8 @@ func extractSwiftMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
-	annotationPattern := regexp.MustCompile(`@Req\("(REQ-[A-Z0-9-]+)"\)`)
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
+	annotationPattern := regexp.MustCompile(`@Req\("(REQ-[A-Za-z0-9-]+)"\)`)
 	classPattern := regexp.MustCompile(`^\s*(?:final\s+)?class\s+(\w+)`)
 	funcPattern := regexp.MustCompile(`^\s*func\s+(test\w+)\s*\(`)
 
@@ -618,8 +618,8 @@ func extractDartMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
-	reqCallPattern := regexp.MustCompile(`req\(["'](REQ-[A-Z0-9-]+)["']\)`)
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
+	reqCallPattern := regexp.MustCompile(`req\(["'](REQ-[A-Za-z0-9-]+)["']\)`)
 	testFuncPattern := regexp.MustCompile(`^\s*(?:test|group)\s*\(\s*["']([^"']+)["']`)
 
 	var pendingReqIDs []struct {
@@ -689,7 +689,7 @@ func extractVerilogMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
 	modulePattern := regexp.MustCompile(`^\s*module\s+(\w+)`)
 	taskPattern := regexp.MustCompile(`^\s*task\s+(\w+)`)
 
@@ -753,7 +753,7 @@ func extractFortranMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`!\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	commentPattern := regexp.MustCompile(`!\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
 	subroutinePattern := regexp.MustCompile(`(?i)^\s*subroutine\s+(\w+)`)
 	funcPatternFortran := regexp.MustCompile(`(?i)^\s*(?:integer|real|logical|character|double\s+precision)?\s*function\s+(\w+)`)
 
@@ -817,8 +817,8 @@ func extractPHPMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
-	docblockPattern := regexp.MustCompile(`@req\("(REQ-[A-Z0-9-]+)"\)`)
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
+	docblockPattern := regexp.MustCompile(`@req\("(REQ-[A-Za-z0-9-]+)"\)`)
 	classPattern := regexp.MustCompile(`^\s*class\s+(\w+)`)
 	methodPattern := regexp.MustCompile(`^\s*(?:public\s+|protected\s+|private\s+)?(?:static\s+)?function\s+(\w+)\s*\(`)
 
@@ -896,8 +896,8 @@ func extractElixirMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
-	tagPattern := regexp.MustCompile(`@tag\s+req:\s*"(REQ-[A-Z0-9-]+)"`)
+	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
+	tagPattern := regexp.MustCompile(`@tag\s+req:\s*"(REQ-[A-Za-z0-9-]+)"`)
 	testPattern := regexp.MustCompile(`^\s*test\s+"([^"]+)"`)
 
 	var pendingReqIDs []struct {
@@ -958,7 +958,7 @@ func extractRMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
 	testThatPattern := regexp.MustCompile(`test_that\s*\(\s*["']([^"']+)["']`)
 	funcPattern := regexp.MustCompile(`^\s*(\w+)\s*<-\s*function\s*\(`)
 
@@ -1024,8 +1024,8 @@ func extractJuliaMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
-	macroPattern := regexp.MustCompile(`@req\("(REQ-[A-Z0-9-]+)"\)`)
+	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
+	macroPattern := regexp.MustCompile(`@req\("(REQ-[A-Za-z0-9-]+)"\)`)
 	testsetPattern := regexp.MustCompile(`@testset\s+"([^"]+)"`)
 	funcPattern := regexp.MustCompile(`^\s*function\s+(\w+)`)
 
@@ -1098,8 +1098,8 @@ func extractKotlinMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
-	annotationPattern := regexp.MustCompile(`@Req\("(REQ-[A-Z0-9-]+)"\)`)
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
+	annotationPattern := regexp.MustCompile(`@Req\("(REQ-[A-Za-z0-9-]+)"\)`)
 	classPattern := regexp.MustCompile(`^\s*class\s+(\w+)`)
 	funPattern := regexp.MustCompile(`^\s*(?:fun|suspend\s+fun)\s+(\w+)\s*\(`)
 
@@ -1177,8 +1177,8 @@ func extractScalaMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
-	annotationPattern := regexp.MustCompile(`@req\("(REQ-[A-Z0-9-]+)"\)`)
+	commentPattern := regexp.MustCompile(`//\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
+	annotationPattern := regexp.MustCompile(`@req\("(REQ-[A-Za-z0-9-]+)"\)`)
 	classPattern := regexp.MustCompile(`^\s*class\s+(\w+)`)
 	defPattern := regexp.MustCompile(`^\s*def\s+(\w+)`)
 	testStringPattern := regexp.MustCompile(`^\s*(?:test|it)\s*\(\s*"([^"]+)"`)
@@ -1260,7 +1260,7 @@ func extractPerlMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
 	subPattern := regexp.MustCompile(`^\s*sub\s+(\w+)`)
 	subtestPattern := regexp.MustCompile(`subtest\s+["']([^"']+)["']`)
 
@@ -1327,7 +1327,7 @@ func extractLuaMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`--\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	commentPattern := regexp.MustCompile(`--\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
 	funcPattern := regexp.MustCompile(`^\s*(?:local\s+)?function\s+(\w+)`)
 	itPattern := regexp.MustCompile(`^\s*it\s*\(\s*["']([^"']+)["']`)
 
@@ -1398,7 +1398,7 @@ func extractHaskellMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`--\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	commentPattern := regexp.MustCompile(`--\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
 	itPattern := regexp.MustCompile(`^\s*it\s+"([^"]+)"`)
 	describePattern := regexp.MustCompile(`^\s*describe\s+"([^"]+)"`)
 	funcPattern := regexp.MustCompile(`^(\w+)\s+::`)
@@ -1466,7 +1466,7 @@ func extractAssemblyMarkersFromFile(filePath string) ([]TestRequirement, error) 
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`;\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	commentPattern := regexp.MustCompile(`;\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
 	labelPattern := regexp.MustCompile(`^(\w+):`)
 
 	var pendingReqIDs []struct {
@@ -1525,8 +1525,8 @@ func extractRubyMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
-	rspecPattern := regexp.MustCompile(`it\s+["']([^"']+)["']\s*,\s*req:\s*["'](REQ-[A-Z0-9-]+)["']`)
+	commentPattern := regexp.MustCompile(`#\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
+	rspecPattern := regexp.MustCompile(`it\s+["']([^"']+)["']\s*,\s*req:\s*["'](REQ-[A-Za-z0-9-]+)["']`)
 	funcPattern := regexp.MustCompile(`^\s*def\s+(test_\w+)`)
 	itPattern := regexp.MustCompile(`^\s*it\s+["']([^"']+)["']`)
 
@@ -1619,9 +1619,9 @@ func extractCobolMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	lines := strings.Split(string(data), "\n")
 
 	// Fixed-format: column 7 is '*', rest contains rtmx:req
-	fixedPattern := regexp.MustCompile(`^\s{0,6}\*\s+rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	fixedPattern := regexp.MustCompile(`^\s{0,6}\*\s+rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
 	// Free-format: *> comment
-	freePattern := regexp.MustCompile(`^\*>\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	freePattern := regexp.MustCompile(`^\*>\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
 	// COBOL paragraph name: identifier followed by a period at the start of a line
 	// Paragraph names are typically uppercase with hyphens
 	paragraphPattern := regexp.MustCompile(`^\s{0,7}([A-Z][A-Z0-9-]*)\.\s*$`)
@@ -1703,7 +1703,7 @@ func extractMatlabMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`%\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
+	commentPattern := regexp.MustCompile(`%\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
 	funcPattern := regexp.MustCompile(`^\s*function\s+(?:\w+\s*=\s*)?(\w+)\s*\(`)
 
 	var pendingReqIDs []struct {
@@ -1771,8 +1771,8 @@ func extractAdaMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var results []TestRequirement
 	lines := strings.Split(string(data), "\n")
 
-	commentPattern := regexp.MustCompile(`--\s*rtmx:req\s+(REQ-[A-Z0-9-]+)`)
-	pragmaPattern := regexp.MustCompile(`pragma\s+Req\s*\(\s*["'](REQ-[A-Z0-9-]+)["']\s*\)`)
+	commentPattern := regexp.MustCompile(`--\s*rtmx:req\s+(REQ-[A-Za-z0-9-]+)`)
+	pragmaPattern := regexp.MustCompile(`pragma\s+Req\s*\(\s*["'](REQ-[A-Za-z0-9-]+)["']\s*\)`)
 	// Match procedure or function declarations
 	procPattern := regexp.MustCompile(`(?i)^\s*(?:overriding\s+)?(?:procedure|function)\s+(\w+)`)
 

@@ -209,3 +209,29 @@ class TestAuth:
 		t.Fatalf("unexpected result: %s", strings.TrimSpace(string(data)))
 	}
 }
+
+// TestScanPytestMarkersLowercaseSuffix is the regression for the Phoenix
+// decomposition convention: a req-id with an optional trailing lowercase
+// letter (REQ-HW-STRUCT-002c) must be CAPTURED by the pytest marker scanner.
+// Previously the capture char-class was uppercase-only ([A-Z0-9-]+), so the
+// whole @pytest.mark.req(...) match failed and the marker was silently dropped.
+func TestScanPytestMarkersLowercaseSuffix(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "test_lowercase.py")
+	body := "import pytest\n\n" +
+		"@pytest.mark.req(\"REQ-HW-STRUCT-002c\")\n" +
+		"@pytest.mark.scope_unit\n" +
+		"@pytest.mark.technique_nominal\n" +
+		"@pytest.mark.env_simulation\n" +
+		"def test_thing():\n    assert True\n"
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	markers, err := scanPytestMarkers(p)
+	if err != nil {
+		t.Fatalf("scan failed: %v", err)
+	}
+	if len(markers) != 1 || markers[0].ReqID != "REQ-HW-STRUCT-002c" {
+		t.Fatalf("expected to capture REQ-HW-STRUCT-002c, got %#v", markers)
+	}
+}

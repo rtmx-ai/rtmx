@@ -25,14 +25,16 @@ func TestDefaultReqIDPattern(t *testing.T) {
 	)
 
 	accepted := []string{
-		"REQ-SW-009",       // legacy single-segment
-		"REQ-VERIFY-011",   // single-segment, multi-char
-		"REQ-E2E-010",      // alphanumeric single-segment
-		"REQ-V2-001",       // leading-letter alphanumeric
-		"REQ-INFRA-DT-002", // two-segment category
-		"REQ-MODE-S-006",   // two-segment, short tail segment
-		"REQ-SW-DSP-015",   // two-segment category
-		"REQ-A-B-C-001",    // three-segment category
+		"REQ-SW-009",         // legacy single-segment
+		"REQ-VERIFY-011",     // single-segment, multi-char
+		"REQ-E2E-010",        // alphanumeric single-segment
+		"REQ-V2-001",         // leading-letter alphanumeric
+		"REQ-INFRA-DT-002",   // two-segment category
+		"REQ-MODE-S-006",     // two-segment, short tail segment
+		"REQ-SW-DSP-015",     // two-segment category
+		"REQ-A-B-C-001",      // three-segment category
+		"REQ-HW-RF-001b",     // decomposition child: optional lowercase suffix
+		"REQ-HW-STRUCT-002c", // decomposition child: optional lowercase suffix
 	}
 	for _, id := range accepted {
 		if errs := Validate([]Result{reqIDResult(id)}); len(errs) != 0 {
@@ -41,12 +43,13 @@ func TestDefaultReqIDPattern(t *testing.T) {
 	}
 
 	rejected := []string{
-		"REQ-sw-009",  // lowercase category
-		"REQ-SW-",     // missing number
-		"REQ-SW",      // no number segment
-		"REQ-123-001", // category starts with a digit
-		"SW-009",      // missing REQ- prefix
-		"REQ--009",    // empty category segment
+		"REQ-sw-009",   // lowercase category
+		"REQ-SW-",      // missing number
+		"REQ-SW",       // no number segment
+		"REQ-123-001",  // category starts with a digit
+		"SW-009",       // missing REQ- prefix
+		"REQ--009",     // empty category segment
+		"REQ-SW-001ab", // suffix is a SINGLE optional letter, not two
 	}
 	for _, id := range rejected {
 		if errs := Validate([]Result{reqIDResult(id)}); len(errs) == 0 {

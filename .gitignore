@@ -43,3 +43,12 @@ go.work
 .env.local
 *.local.yaml
 .claude/
+
+# Local Python tooling artifacts (pre-commit venv, test caches)
+venv/
+.venv/
+.coverage
+.coverage.*
+.hypothesis/
+__pycache__/
+*.py[cod]

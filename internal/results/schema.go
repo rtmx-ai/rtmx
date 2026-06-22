@@ -119,7 +119,7 @@ type Marker struct {
 // REQ-INFRA-DT-002, REQ-MODE-S-006. The final hyphen-delimited segment is
 // always the number. Projects with a different convention can override it via
 // rtmx.req_id_pattern in config (see Vocabulary.ReqIDPattern).
-const DefaultReqIDPattern = `^REQ-[A-Z][A-Z0-9]*(-[A-Z0-9]+)*-[0-9]+$`
+const DefaultReqIDPattern = `^REQ-[A-Z][A-Z0-9]*(-[A-Z0-9]+)*-[0-9]+[a-z]?$`
 
 var reqIDPattern = regexp.MustCompile(DefaultReqIDPattern)
 
