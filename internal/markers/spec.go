@@ -22,8 +22,9 @@ type Marker struct {
 
 // reqIDPattern validates the requirement ID format. The category prefix may be
 // one or more uppercase-alphanumeric segments (e.g. REQ-SW-009, REQ-E2E-010,
-// REQ-INFRA-DT-002, REQ-MODE-S-006); the final segment is the numeric index.
-var reqIDPattern = regexp.MustCompile(`^REQ-[A-Z][A-Z0-9]*(-[A-Z0-9]+)*-[0-9]+$`)
+// REQ-INFRA-DT-002, REQ-MODE-S-006); the final segment is the numeric index, with an
+// OPTIONAL trailing lowercase letter for decomposition children (REQ-HW-RF-001b).
+var reqIDPattern = regexp.MustCompile(`^REQ-[A-Z][A-Z0-9]*(-[A-Z0-9]+)*-[0-9]+[a-z]?$`)
 
 // ValidScopes lists all valid scope values.
 var ValidScopes = []string{"unit", "integration", "system", "acceptance"}

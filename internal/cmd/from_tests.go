@@ -442,7 +442,7 @@ func extractGoMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	currentFunc := ""
 
 	reqPattern := regexp.MustCompile(`rtmx\.Req\(t,\s*"(REQ-[^"]+)"`)
-	commentPattern := regexp.MustCompile(`//\s*(?:rtmx:req|@req)\s+(REQ-[A-Z0-9-]+)`)
+	commentPattern := regexp.MustCompile(`//\s*(?:rtmx:req|@req)\s+(REQ-[A-Za-z0-9-]+)`)
 	funcPattern := regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
 
 	for i, line := range lines {
@@ -482,7 +482,7 @@ func extractMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	isConftest := filepath.Base(filePath) == "conftest.py"
 
 	// Regex patterns for pytest markers
-	reqMarkerPattern := regexp.MustCompile(`@pytest\.mark\.req\(['"](REQ-[A-Z0-9-]+)['"]\)`)
+	reqMarkerPattern := regexp.MustCompile(`@pytest\.mark\.req\(['"](REQ-[A-Za-z0-9-]+)['"]\)`)
 	funcPattern := regexp.MustCompile(`^(?:async\s+)?def\s+(test_\w+)\s*\(`)
 	classPattern := regexp.MustCompile(`^class\s+(Test\w+)\s*[:(]`)
 	otherMarkerPattern := regexp.MustCompile(`@pytest\.mark\.(scope_\w+|technique_\w+|env_\w+)`)
@@ -669,9 +669,9 @@ func extractRustMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	lines := strings.Split(string(data), "\n")
 
 	// Patterns for marker styles
-	attrPattern := regexp.MustCompile(`#\[req\("(REQ-[A-Z0-9-]+)"`)
-	commentPattern := regexp.MustCompile(`//\s*(?:rtmx:req|@req)\s+(REQ-[A-Z0-9-]+)`)
-	callPattern := regexp.MustCompile(`rtmx::req\("(REQ-[A-Z0-9-]+)"`)
+	attrPattern := regexp.MustCompile(`#\[req\("(REQ-[A-Za-z0-9-]+)"`)
+	commentPattern := regexp.MustCompile(`//\s*(?:rtmx:req|@req)\s+(REQ-[A-Za-z0-9-]+)`)
+	callPattern := regexp.MustCompile(`rtmx::req\("(REQ-[A-Za-z0-9-]+)"`)
 
 	// Pattern for Rust function definitions (fn, pub fn, async fn, pub async fn)
 	funcPattern := regexp.MustCompile(`^\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)\s*\(`)
