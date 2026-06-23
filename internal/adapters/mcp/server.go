@@ -420,6 +420,20 @@ func (s *Server) handleToolsList() interface{} {
 				"required": []string{"version", "req_ids", "agent_id"},
 			},
 		},
+		{
+			Name:        "set_status",
+			Description: "Set a requirement status with provenance (~35 tokens, mutation: requires agent_id). Rejects COMPLETE.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"req_id":   map[string]interface{}{"type": "string", "description": "Requirement ID to update"},
+					"status":   map[string]interface{}{"type": "string", "description": "New status (e.g. PARTIAL, MISSING, NOT_STARTED). COMPLETE is rejected."},
+					"agent_id": map[string]interface{}{"type": "string", "description": "Agent identity performing the change"},
+					"reason":   map[string]interface{}{"type": "string", "description": "Why the status is being set (provenance)"},
+				},
+				"required": []string{"req_id", "status", "agent_id"},
+			},
+		},
 	}
 
 	return map[string]interface{}{"tools": tools}
@@ -473,6 +487,10 @@ func (s *Server) handleToolsCall(params json.RawMessage) (interface{}, *rpcError
 		return result, rpcErr
 	case "release_assign":
 		result, rpcErr := s.toolReleaseAssign(db, call.Arguments)
+		s.logToolResult(call.Name, result)
+		return result, rpcErr
+	case "set_status":
+		result, rpcErr := s.toolSetStatus(db, call.Arguments)
 		s.logToolResult(call.Name, result)
 		return result, rpcErr
 	default:
@@ -1407,6 +1425,51 @@ func (s *Server) toolReleaseAssign(db *database.Database, args map[string]interf
 	}
 	if len(errs) > 0 {
 		result["errors"] = errs
+	}
+	data, _ := json.Marshal(result)
+	return toolResult{
+		Content: []toolContent{{Type: "text", Text: string(data)}},
+	}, nil
+}
+
+// toolSetStatus sets a requirement's status with provenance. It deliberately
+// REFUSES to set COMPLETE: completion is verify-driven (tests decide closure),
+// so allowing an agent to mark a requirement COMPLETE would reintroduce a
+// self-grading loop. All other valid statuses (PARTIAL, MISSING, NOT_STARTED)
+// are permitted — e.g. to reopen a regressed requirement or park work.
+func (s *Server) toolSetStatus(db *database.Database, args map[string]interface{}) (interface{}, *rpcError) {
+	reqID, _ := args["req_id"].(string)
+	statusStr, _ := args["status"].(string)
+	agentID, _ := args["agent_id"].(string)
+	reason, _ := args["reason"].(string)
+
+	if reqID == "" || statusStr == "" || agentID == "" {
+		return errorResult("req_id, status, and agent_id are required"), nil
+	}
+	status, err := database.ParseStatus(statusStr)
+	if err != nil {
+		return errorResult(err.Error()), nil
+	}
+	if status == database.StatusComplete {
+		return errorResult("set_status cannot set COMPLETE; completion comes from verify (tests decide closure)"), nil
+	}
+
+	req := db.Get(reqID)
+	if req == nil {
+		return errorResult(fmt.Sprintf("%s: not found", reqID)), nil
+	}
+	previous := req.Status
+	req.Status = status
+	if err := db.Save(s.dbPath); err != nil {
+		return errorResult(fmt.Sprintf("failed to save database: %v", err)), nil
+	}
+
+	result := map[string]interface{}{
+		"req_id":   reqID,
+		"status":   status.String(),
+		"previous": previous.String(),
+		"agent_id": agentID,
+		"reason":   reason,
 	}
 	data, _ := json.Marshal(result)
 	return toolResult{
