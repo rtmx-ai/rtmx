@@ -87,7 +87,7 @@ jobs:
 
       # REQ-BENCH-021: Cache exemplar clone between runs
       - name: Restore exemplar cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4
         with:
           path: benchmarks/workdir/${{ matrix.language }}
           key: benchmark-exemplar-${{ matrix.language }}-${{ hashFiles(format('benchmarks/configs/{0}.yaml', matrix.language)) }}
