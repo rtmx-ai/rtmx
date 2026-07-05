@@ -24,8 +24,13 @@ import (
 // typos surface immediately rather than producing silent zero values.
 // See REQ-VERIFY-004.
 type Result struct {
-	Marker    Marker  `json:"marker"`
-	Passed    bool    `json:"passed"`
+	Marker Marker `json:"marker"`
+	Passed bool   `json:"passed"`
+	// Skipped marks a result as non-evidence: a skipped test neither promotes
+	// nor demotes a requirement's status and is not counted as a failure. This
+	// mirrors the native go-test path (see determineNewStatus) and the
+	// from-pytest scanner, which both omit skips as non-evidence (REQ-VERIFY-012).
+	Skipped   bool    `json:"skipped,omitempty"`
 	Duration  float64 `json:"duration_ms,omitempty"`
 	Error     string  `json:"error,omitempty"`
 	Timestamp string  `json:"timestamp,omitempty"`
@@ -37,6 +42,7 @@ type Result struct {
 type rawResult struct {
 	Marker    *Marker `json:"marker"`
 	Passed    *bool   `json:"passed"`
+	Skipped   *bool   `json:"skipped"`
 	Status    *string `json:"status"`
 	Duration  float64 `json:"duration_ms"`
 	Error     string  `json:"error"`
@@ -82,18 +88,30 @@ func (r *Result) UnmarshalJSON(data []byte) error {
 		r.Marker.Line = *raw.Line
 	}
 
+	// Resolve the outcome. Skip is a first-class, non-evidence outcome: an
+	// explicit "skipped": true, a status of "skip"/"skipped", or a record that
+	// supplies NEITHER passed nor status all decode as skipped rather than as a
+	// silent failure, so a skipped/incomplete leg cannot demote a requirement
+	// (REQ-VERIFY-012).
 	switch {
+	case raw.Skipped != nil && *raw.Skipped:
+		r.Skipped = true
 	case raw.Passed != nil:
 		r.Passed = *raw.Passed
 	case raw.Status != nil:
 		switch strings.ToLower(strings.TrimSpace(*raw.Status)) {
 		case "pass", "passed", "ok", "success":
 			r.Passed = true
-		case "fail", "failed", "error", "errored", "skip", "skipped":
+		case "skip", "skipped":
+			r.Skipped = true
+		case "fail", "failed", "error", "errored":
 			r.Passed = false
 		default:
-			return fmt.Errorf("decode result: unrecognized status %q (expected pass/fail)", *raw.Status)
+			return fmt.Errorf("decode result: unrecognized status %q (expected pass/fail/skip)", *raw.Status)
 		}
+	default:
+		// No outcome supplied at all: treat as non-evidence, not a failure.
+		r.Skipped = true
 	}
 
 	r.Duration = raw.Duration

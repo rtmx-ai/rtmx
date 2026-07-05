@@ -343,15 +343,24 @@ func runVerifyFromResults(cmd *cobra.Command, db *database.Database, policy conf
 
 		passed := 0
 		failed := 0
+		skipped := 0
 		for _, rr := range reqResults {
-			if rr.Passed {
+			switch {
+			case rr.Skipped:
+				skipped++
+			case rr.Passed:
 				passed++
-			} else {
+			default:
 				failed++
 			}
 			if verifyVerbose {
-				icon := output.Color("✓", output.Green)
-				if !rr.Passed {
+				var icon string
+				switch {
+				case rr.Skipped:
+					icon = output.Color("○", output.Yellow)
+				case rr.Passed:
+					icon = output.Color("✓", output.Green)
+				default:
 					icon = output.Color("✗", output.Red)
 				}
 				cmd.Printf("  %s %s\n", icon, rr.Marker.TestName)
@@ -367,6 +376,7 @@ func runVerifyFromResults(cmd *cobra.Command, db *database.Database, policy conf
 			TestsTotal:     len(reqResults),
 			TestsPassed:    passed,
 			TestsFailed:    failed,
+			TestsSkipped:   skipped,
 			PreviousStatus: req.Status,
 			NewStatus:      newStatus,
 			Updated:        newStatus != req.Status,
@@ -388,9 +398,16 @@ func runVerifyFromResults(cmd *cobra.Command, db *database.Database, policy conf
 func determineStatusWithPolicy(reqResults []results.Result, current database.Status, policy config.CompletenessConfig) database.Status {
 	passed, failed := 0, 0
 	for _, r := range reqResults {
-		if r.Passed {
+		switch {
+		case r.Skipped:
+			// Skipped results are non-evidence: they neither add positive
+			// coverage nor count as a failure, so a skipped test can never
+			// demote a COMPLETE requirement (REQ-VERIFY-012). This mirrors the
+			// native go-test path in determineNewStatus.
+			continue
+		case r.Passed:
 			passed++
-		} else {
+		default:
 			failed++
 		}
 	}
