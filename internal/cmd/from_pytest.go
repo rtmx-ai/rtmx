@@ -15,7 +15,7 @@ import (
 
 var (
 	fromPytestCommand string
-	fromPytestJUnit   string
+	fromPytestJUnit   []string
 	fromPytestOutput  string
 	fromPytestNoRun   bool
 )
@@ -33,13 +33,22 @@ used directly with:
 
   rtmx verify --results .rtmx/cache/pytest-results.json --update
 
-Use --junitxml with --no-run to convert an existing pytest JUnit XML file.`,
+Use --junitxml with --no-run to convert existing pytest JUnit XML file(s). The
+--junitxml flag may be repeated and its values may be globs, so a sharded CI
+matrix's per-leg junit-*.xml files can be ingested in one call:
+
+  rtmx from-pytest --no-run --junitxml 'output/junit-*.xml' -o results.json
+
+With --no-run, markers are discovered both from the given test paths AND from the
+source files referenced by the JUnit test cases, so results for tests outside the
+default test path (e.g. under a package layout) are joined without the caller
+enumerating every directory.`,
 	RunE: runFromPytest,
 }
 
 func init() {
 	fromPytestCmd.Flags().StringVar(&fromPytestCommand, "command", "pytest", "pytest command to run")
-	fromPytestCmd.Flags().StringVar(&fromPytestJUnit, "junitxml", "", "existing or generated pytest JUnit XML path")
+	fromPytestCmd.Flags().StringArrayVar(&fromPytestJUnit, "junitxml", nil, "existing or generated pytest JUnit XML path(s); repeatable and glob-expanded")
 	fromPytestCmd.Flags().StringVarP(&fromPytestOutput, "output", "o", ".rtmx/cache/pytest-results.json", "RTMX results JSON output path")
 	fromPytestCmd.Flags().BoolVar(&fromPytestNoRun, "no-run", false, "do not run pytest; read --junitxml instead")
 
@@ -72,44 +81,70 @@ func runFromPytest(cmd *cobra.Command, args []string) error {
 	// tests/ plus packages/*/tests/) are scanned and run together; default to
 	// "tests" when none are given.
 	testPaths := []string{"tests"}
-	if len(args) > 0 {
+	explicitPaths := len(args) > 0
+	if explicitPaths {
 		testPaths = args
 	}
 
+	// Resolve JUnit inputs: repeatable and glob-expanded so a sharded matrix's
+	// per-leg junit-*.xml files can be ingested in one call.
+	junitFiles, err := expandJUnitPaths(fromPytestJUnit)
+	if err != nil {
+		return err
+	}
+
+	cleanup := func() {}
+	defer func() { cleanup() }()
+	if !fromPytestNoRun {
+		// Run pytest, writing to the single provided junit path or a temp file.
+		junitPath := ""
+		if len(junitFiles) > 0 {
+			junitPath = junitFiles[0]
+		} else {
+			tmp, err := os.CreateTemp("", "rtmx-pytest-*.xml")
+			if err != nil {
+				return fmt.Errorf("failed to create temporary JUnit file: %w", err)
+			}
+			junitPath = tmp.Name()
+			_ = tmp.Close()
+			cleanup = func() { _ = os.Remove(junitPath) }
+		}
+		if err := runPytestForJUnit(testPaths, junitPath); err != nil {
+			cmd.Printf("! pytest exited with error: %v\n", err)
+		}
+		junitFiles = []string{junitPath}
+	}
+
+	if len(junitFiles) == 0 {
+		return fmt.Errorf("--no-run requires at least one --junitxml file")
+	}
+
+	cases, err := parsePytestJUnitFiles(junitFiles)
+	if err != nil {
+		return err
+	}
+
+	// Scan markers from the given/default test paths. A missing IMPLICIT default
+	// path is tolerated because markers are also discovered from the JUnit case
+	// source files below (so --no-run works without enumerating every directory).
 	var markers []TestRequirement
 	for _, p := range testPaths {
 		m, err := scanPytestMarkers(p)
 		if err != nil {
+			if !explicitPaths {
+				continue
+			}
 			return err
 		}
 		markers = append(markers, m...)
 	}
+	// Discover markers from the source files the JUnit cases point at, joining
+	// results for tests outside the scanned paths (e.g. a package layout).
+	markers = append(markers, discoverMarkersFromCases(cases, markers)...)
+
 	if len(markers) == 0 {
-		return fmt.Errorf("no pytest requirement markers found under %s", strings.Join(testPaths, ", "))
-	}
-
-	junitPath := fromPytestJUnit
-	cleanup := func() {}
-	if junitPath == "" {
-		tmp, err := os.CreateTemp("", "rtmx-pytest-*.xml")
-		if err != nil {
-			return fmt.Errorf("failed to create temporary JUnit file: %w", err)
-		}
-		junitPath = tmp.Name()
-		_ = tmp.Close()
-		cleanup = func() { _ = os.Remove(junitPath) }
-	}
-	defer cleanup()
-
-	if !fromPytestNoRun {
-		if err := runPytestForJUnit(testPaths, junitPath); err != nil {
-			cmd.Printf("! pytest exited with error: %v\n", err)
-		}
-	}
-
-	cases, err := parsePytestJUnit(junitPath)
-	if err != nil {
-		return err
+		return fmt.Errorf("no pytest requirement markers found in %s or the JUnit case source files",
+			strings.Join(testPaths, ", "))
 	}
 
 	rtmxResults := buildPytestRTMXResults(markers, cases)
@@ -123,6 +158,116 @@ func runFromPytest(cmd *cobra.Command, args []string) error {
 
 	cmd.Printf("Wrote %d RTMX pytest result(s) to %s\n", len(rtmxResults), fromPytestOutput)
 	return nil
+}
+
+// expandJUnitPaths glob-expands each --junitxml value and de-duplicates the
+// result, so a caller can pass a glob (output/junit-*.xml) or repeat the flag.
+// A pattern with no matches is preserved verbatim so a genuinely-missing literal
+// path still surfaces as a read error at parse time (prior single-file behavior).
+func expandJUnitPaths(patterns []string) ([]string, error) {
+	var out []string
+	seen := map[string]bool{}
+	for _, p := range patterns {
+		matches, err := filepath.Glob(p)
+		if err != nil {
+			return nil, fmt.Errorf("invalid --junitxml pattern %q: %w", p, err)
+		}
+		if matches == nil {
+			matches = []string{p}
+		}
+		for _, m := range matches {
+			if !seen[m] {
+				seen[m] = true
+				out = append(out, m)
+			}
+		}
+	}
+	return out, nil
+}
+
+// parsePytestJUnitFiles parses and concatenates the test cases from every JUnit
+// file, so a sharded matrix's per-leg reports become one result set.
+func parsePytestJUnitFiles(paths []string) ([]junitTestCase, error) {
+	var all []junitTestCase
+	for _, p := range paths {
+		cases, err := parsePytestJUnit(p)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, cases...)
+	}
+	return all, nil
+}
+
+// discoverMarkersFromCases scans the source file behind each JUnit test case for
+// requirement markers, returning those not already present in `existing`. This
+// lets `from-pytest --no-run` join results for tests the caller did not name a
+// path for — the source file is resolved from the case's `file` attribute, or,
+// when absent, from its dotted class name (hyphen-safe: dots become slashes and
+// hyphens are preserved, so a package like packages/signal-processing/tests is
+// handled the same as any other).
+func discoverMarkersFromCases(cases []junitTestCase, existing []TestRequirement) []TestRequirement {
+	seen := map[string]bool{}
+	for _, m := range existing {
+		seen[markerDedupKey(m)] = true
+	}
+	scanned := map[string]bool{}
+	var out []TestRequirement
+	for _, tc := range cases {
+		src := caseSourceFile(tc)
+		if src == "" || scanned[src] {
+			continue
+		}
+		scanned[src] = true
+		if info, err := os.Stat(src); err != nil || info.IsDir() {
+			continue
+		}
+		found, err := extractMarkersFromSingleFile(src)
+		if err != nil {
+			continue
+		}
+		for _, m := range found {
+			k := markerDedupKey(m)
+			if seen[k] {
+				continue
+			}
+			seen[k] = true
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// caseSourceFile resolves a JUnit test case to its source .py path: the `file`
+// attribute when present, else the dotted class name converted to a path.
+func caseSourceFile(tc junitTestCase) string {
+	if tc.File != "" {
+		return pyPathKey(tc.File)
+	}
+	return classNameToPath(tc.ClassName)
+}
+
+// classNameToPath converts a pytest dotted class name to a repo-relative source
+// path (dots -> slashes + ".py"), dropping a trailing ClassName segment for
+// class-based tests. Hyphens in directory components are preserved.
+func classNameToPath(className string) string {
+	if className == "" {
+		return ""
+	}
+	parts := strings.Split(className, ".")
+	// pytest test modules are conventionally named test_*.py; a trailing segment
+	// that is not the module (e.g. a ClassName) is dropped so the module path
+	// resolves to the file.
+	for len(parts) > 1 && !strings.HasPrefix(parts[len(parts)-1], "test") {
+		parts = parts[:len(parts)-1]
+	}
+	return pyPathKey(strings.Join(parts, "/") + ".py")
+}
+
+// markerDedupKey identifies a scanned marker by its file, function, and req so
+// path-scanned and JUnit-discovered markers are not double-counted.
+func markerDedupKey(m TestRequirement) string {
+	return pyPathKey(m.TestFile) + "::" + m.TestFunction + "::" + m.ReqID
 }
 
 func scanPytestMarkers(testPath string) ([]TestRequirement, error) {
@@ -279,15 +424,27 @@ func pyPathKey(path string) string {
 }
 
 // markerJoinKeys returns the candidate caseIndex keys for a scanned marker,
-// most-specific (path-qualified) first, so a join prefers an exact file match
-// and only falls back to the bare function name when JUnit carries no file.
+// most-specific first: path-qualified, then module-qualified (matching JUnit's
+// classname-derived key when no file attribute is present), then the bare
+// function name. Preferring the module-qualified key before the bare name keeps
+// same-named tests in different modules from colliding on a file-less JUnit.
 func markerJoinKeys(m TestRequirement) []string {
 	keys := []string{}
 	if p := pyPathKey(m.TestFile); p != "" {
 		keys = append(keys, p+"::"+m.TestFunction)
+		if mod := moduleBase(p); mod != "" {
+			keys = append(keys, mod+"::"+m.TestFunction)
+		}
 	}
 	keys = append(keys, m.TestFunction)
 	return keys
+}
+
+// moduleBase returns the module name for a test file path (base name without the
+// .py suffix), e.g. "packages/foo/tests/test_x.py" -> "test_x". This matches the
+// last segment of a pytest dotted class name.
+func moduleBase(path string) string {
+	return strings.TrimSuffix(filepath.Base(path), ".py")
 }
 
 func writeRTMXResults(path string, rtmxResults []results.Result) error {

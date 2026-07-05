@@ -495,15 +495,27 @@ func extractMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var pendingReqIDs []string
 	var pendingMarkers []string
 	var currentClass string
+	classIndent := 0
 
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
 
+		// Leave the current class once a non-blank, non-comment line appears at or
+		// below the class's own indentation: a module-level function defined after
+		// a test class must not inherit the class name (which would qualify its
+		// TestFunction as Class::func and break the JUnit join).
+		if currentClass != "" && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+			if lineIndent(line) <= classIndent {
+				currentClass = ""
+			}
+		}
+
 		// Check for class definition
 		if match := classPattern.FindStringSubmatch(trimmed); match != nil {
 			currentClass = match[1]
+			classIndent = lineIndent(line)
 			continue
 		}
 
@@ -565,6 +577,12 @@ func extractMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	}
 
 	return results, scanner.Err()
+}
+
+// lineIndent returns the leading-whitespace width of a source line (spaces and
+// tabs counted equally), used to detect when a class block has ended.
+func lineIndent(line string) int {
+	return len(line) - len(strings.TrimLeft(line, " \t"))
 }
 
 // extractConftestRegistrations parses conftest.py for marker registration patterns
