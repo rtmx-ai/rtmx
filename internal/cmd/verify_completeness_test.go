@@ -249,6 +249,37 @@ func TestDetermineStatusWithPolicy_SkipNonEvidence(t *testing.T) {
 	}
 }
 
+// TestClampNoDemote covers the raise-only rule for --no-demote (REQ-VERIFY-013):
+// a partial/sharded result set can raise a requirement's status but never lower it.
+func TestClampNoDemote(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-013",
+		rtmx.Scope("unit"),
+		rtmx.Technique("boundary"),
+		rtmx.Env("simulation"),
+	)
+	tests := []struct {
+		name     string
+		computed database.Status
+		current  database.Status
+		enabled  bool
+		expected database.Status
+	}{
+		{"enabled: a computed demotion is clamped to current", database.StatusPartial, database.StatusComplete, true, database.StatusComplete},
+		{"enabled: a promotion is still applied", database.StatusComplete, database.StatusPartial, true, database.StatusComplete},
+		{"enabled: an equal status is unchanged", database.StatusComplete, database.StatusComplete, true, database.StatusComplete},
+		{"enabled: MISSING->PARTIAL promotion applied", database.StatusPartial, database.StatusMissing, true, database.StatusPartial},
+		{"disabled: a demotion is applied (default behavior)", database.StatusPartial, database.StatusComplete, false, database.StatusPartial},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := clampNoDemote(tt.computed, tt.current, tt.enabled)
+			if got != tt.expected {
+				t.Errorf("clampNoDemote(%v, %v, %v) = %v, want %v", tt.computed, tt.current, tt.enabled, got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestDimensionTupleKey(t *testing.T) {
 	rtmx.Req(t, "REQ-VERIFY-009",
 		rtmx.Scope("unit"),

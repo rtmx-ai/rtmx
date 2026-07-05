@@ -18,13 +18,14 @@ import (
 )
 
 var (
-	verifyUpdate  bool
-	verifyDryRun  bool
-	verifyVerbose bool
-	verifyAudit   bool
-	verifyCommand string
-	verifyResults string
-	verifyVersion string
+	verifyUpdate   bool
+	verifyDryRun   bool
+	verifyVerbose  bool
+	verifyAudit    bool
+	verifyCommand  string
+	verifyResults  string
+	verifyVersion  string
+	verifyNoDemote bool
 )
 
 var verifyCmd = &cobra.Command{
@@ -84,6 +85,7 @@ func init() {
 	verifyCmd.Flags().StringVar(&verifyCommand, "command", "", "custom test command (default: go test -json)")
 	verifyCmd.Flags().StringVar(&verifyResults, "results", "", "RTMX results JSON file (cross-language)")
 	verifyCmd.Flags().StringVar(&verifyVersion, "version", "", "verify only requirements targeting this version")
+	verifyCmd.Flags().BoolVar(&verifyNoDemote, "no-demote", false, "raise-only: never lower a requirement's status (for partial/sharded result sets)")
 	verifyCmd.Flags().BoolVar(&verifyAudit, "audit", false, "show audit diagnostics for stale or unmatched test references")
 	verifyCmd.Flags().IntVar(&verifyWarnThreshold, "warn-threshold", 0, "status change count that triggers a warning (0=use config, default: 5)")
 	verifyCmd.Flags().IntVar(&verifyFailThreshold, "fail-threshold", 0, "status change count that blocks updates (0=use config, default: 15)")
@@ -370,7 +372,10 @@ func runVerifyFromResults(cmd *cobra.Command, db *database.Database, policy conf
 		// Determine status under the configured completeness policy. The
 		// "simple" policy reproduces the historical single-test rule; the
 		// "combinations" policy requires coverage across multiple dimensions.
-		newStatus := determineStatusWithPolicy(reqResults, req.Status, policy)
+		// With --no-demote the computed status is clamped so a partial or
+		// sharded result set can only raise status, never lower it
+		// (REQ-VERIFY-013).
+		newStatus := clampNoDemote(determineStatusWithPolicy(reqResults, req.Status, policy), req.Status, verifyNoDemote)
 		vResults = append(vResults, VerificationResult{
 			ReqID:          reqID,
 			TestsTotal:     len(reqResults),
@@ -466,6 +471,18 @@ func determineStatusWithPolicy(reqResults []results.Result, current database.Sta
 	}
 	// Passing evidence exists but does not yet meet the multi-dimensional bar.
 	return database.StatusPartial
+}
+
+// clampNoDemote implements the raise-only rule for --no-demote (REQ-VERIFY-013).
+// When enabled, it keeps whichever of {current, computed} status is more complete
+// (lower Status.Weight), so a partial or sharded result set — which legitimately
+// carries fewer combinations for a requirement covered in another leg — can only
+// raise a requirement's status, never lower it. When disabled it is a no-op.
+func clampNoDemote(newStatus, current database.Status, enabled bool) database.Status {
+	if enabled && newStatus.Weight() > current.Weight() {
+		return current
+	}
+	return newStatus
 }
 
 // dimensionTupleKey builds a stable key from the requested marker dimensions
