@@ -250,8 +250,8 @@ def pytest_configure(config):
 			expected: nil,
 		},
 		{
-			name: "empty file",
-			content: ``,
+			name:     "empty file",
+			content:  ``,
 			expected: nil,
 		},
 		{
@@ -768,7 +768,7 @@ func newPytestVerifyCmd() *cobra.Command {
 	var results string
 	var dryRun bool
 	verify := &cobra.Command{
-		Use:  "verify",
+		Use: "verify",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			verifyResults = results
 			verifyDryRun = dryRun
@@ -779,4 +779,50 @@ func newPytestVerifyCmd() *cobra.Command {
 	verify.Flags().BoolVar(&dryRun, "dry-run", false, "")
 	root.AddCommand(verify)
 	return root
+}
+
+// TestExtractMarkersModuleFuncAfterClass is the regression for the class-context
+// leak (REQ-LANG-032): a module-level test function defined AFTER a test class
+// must be recorded with a bare TestFunction, not qualified with the preceding
+// class name. The stale qualification broke the JUnit join for such tests (e.g.
+// Phoenix's packages/signal-processing/tests/test_range_vs_rcs.py, where the
+// SW-DSP module-level tests follow a REQ-DOC test class).
+func TestExtractMarkersModuleFuncAfterClass(t *testing.T) {
+	rtmx.Req(t, "REQ-LANG-032",
+		rtmx.Scope("unit"), rtmx.Technique("nominal"), rtmx.Env("simulation"))
+	dir := t.TempDir()
+	content := `import pytest
+
+
+class TestGroup:
+    @pytest.mark.req("REQ-CLS-001")
+    @pytest.mark.scope_unit
+    def test_in_class(self):
+        pass
+
+
+@pytest.mark.req("REQ-MOD-002")
+@pytest.mark.scope_unit
+@pytest.mark.technique_nominal
+def test_after_class():
+    pass
+`
+	f := filepath.Join(dir, "test_mixed.py")
+	if err := os.WriteFile(f, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	markers, err := extractMarkersFromFile(f)
+	if err != nil {
+		t.Fatalf("extractMarkersFromFile: %v", err)
+	}
+	byReq := map[string]string{}
+	for _, m := range markers {
+		byReq[m.ReqID] = m.TestFunction
+	}
+	if got := byReq["REQ-CLS-001"]; got != "TestGroup::test_in_class" {
+		t.Errorf("in-class TestFunction = %q, want TestGroup::test_in_class", got)
+	}
+	if got := byReq["REQ-MOD-002"]; got != "test_after_class" {
+		t.Errorf("module-level TestFunction after class = %q, want test_after_class (unqualified)", got)
+	}
 }
