@@ -781,6 +781,8 @@ func TestRunExportActualCreateSuccess(t *testing.T) {
 }
 
 func TestRunExportActualCreatePersistsExternalID(t *testing.T) {
+	rtmx.Req(t, "REQ-SYNC-001a")
+
 	req := database.NewRequirement("REQ-TEST-001")
 	req.Category = "TEST"
 	req.RequirementText = "Test requirement"
@@ -822,6 +824,8 @@ func TestRunExportActualCreatePersistsExternalID(t *testing.T) {
 }
 
 func TestRunExportRepeatIsIdempotent(t *testing.T) {
+	rtmx.Req(t, "REQ-SYNC-001a")
+
 	req := database.NewRequirement("REQ-TEST-001")
 	req.Category = "TEST"
 	req.RequirementText = "Test requirement"
