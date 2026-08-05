@@ -65,6 +65,7 @@ operator can recover the linkage without creating another ticket.
 - **Test Functions**:
   - `TestRunExportActualCreatePersistsExternalID`
   - `TestRunExportRepeatIsIdempotent`
+  - `TestRunExportCheckpointsBeforeLaterCreateFailure`
   - `TestRunExportEmptyExternalID`
   - `TestRunExportSaveFailureStopsWithRemoteID`
 - **Validation Method**: Integration Test

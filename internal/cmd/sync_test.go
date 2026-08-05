@@ -15,23 +15,26 @@ import (
 
 // mockAdapter implements adapters.ServiceAdapter for testing sync functions.
 type mockAdapter struct {
-	name            string
-	connected       bool
-	connMsg         string
-	items           []adapters.ExternalItem
-	fetchErr        error
-	createResult    string
-	createErr       error
-	updateResult    bool
-	statusMapping   map[string]database.Status
-	statusReverse   map[database.Status]string
-	createCalls     int
-	updateCalls     int
-	updateCallIDs   []string
+	name          string
+	connected     bool
+	connMsg       string
+	items         []adapters.ExternalItem
+	fetchErr      error
+	createResult  string
+	createResults []string
+	createErr     error
+	createErrors  []error
+	createHook    func()
+	updateResult  bool
+	statusMapping map[string]database.Status
+	statusReverse map[database.Status]string
+	createCalls   int
+	updateCalls   int
+	updateCallIDs []string
 }
 
-func (m *mockAdapter) Name() string { return m.name }
-func (m *mockAdapter) IsConfigured() bool { return true }
+func (m *mockAdapter) Name() string                   { return m.name }
+func (m *mockAdapter) IsConfigured() bool             { return true }
 func (m *mockAdapter) TestConnection() (bool, string) { return m.connected, m.connMsg }
 func (m *mockAdapter) FetchItems(_ map[string]interface{}) ([]adapters.ExternalItem, error) {
 	return m.items, m.fetchErr
@@ -45,8 +48,21 @@ func (m *mockAdapter) GetItem(externalID string) (*adapters.ExternalItem, error)
 	return nil, fmt.Errorf("not found")
 }
 func (m *mockAdapter) CreateItem(_ *database.Requirement) (string, error) {
+	callIndex := m.createCalls
 	m.createCalls++
-	return m.createResult, m.createErr
+	if m.createHook != nil {
+		m.createHook()
+	}
+
+	result := m.createResult
+	if callIndex < len(m.createResults) {
+		result = m.createResults[callIndex]
+	}
+	err := m.createErr
+	if callIndex < len(m.createErrors) {
+		err = m.createErrors[callIndex]
+	}
+	return result, err
 }
 func (m *mockAdapter) UpdateItem(externalID string, _ *database.Requirement) bool {
 	m.updateCalls++
@@ -862,6 +878,156 @@ func TestRunExportRepeatIsIdempotent(t *testing.T) {
 	}
 	if len(adapter.updateCallIDs) != 1 || adapter.updateCallIDs[0] != "EXT-NEW-1" {
 		t.Errorf("update IDs = %v, want [EXT-NEW-1]", adapter.updateCallIDs)
+	}
+}
+
+func TestRunExportCheckpointsBeforeLaterCreateFailure(t *testing.T) {
+	rtmx.Req(t, "REQ-SYNC-001a")
+
+	firstReq := database.NewRequirement("REQ-TEST-001")
+	firstReq.Category = "TEST"
+	firstReq.RequirementText = "First requirement"
+	firstReq.Status = database.StatusMissing
+
+	secondReq := database.NewRequirement("REQ-TEST-002")
+	secondReq.Category = "TEST"
+	secondReq.RequirementText = "Second requirement"
+	secondReq.Status = database.StatusMissing
+
+	dbPath := createTestDatabase(t, []*database.Requirement{firstReq, secondReq})
+	cfg := createTestConfig(dbPath)
+
+	adapter := &mockAdapter{
+		name:          "test-service",
+		connected:     true,
+		createResults: []string{"EXT-NEW-1", ""},
+		createErrors:  []error{nil, fmt.Errorf("API error: HTTP 500")},
+	}
+
+	oldStdout := os.Stdout
+	_, w, _ := os.Pipe()
+	os.Stdout = w
+
+	result := runExport(adapter, cfg, false)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	if len(result.Created) != 1 {
+		t.Errorf("created = %v, want one checkpointed requirement", result.Created)
+	}
+	if len(result.Errors) != 1 {
+		t.Fatalf("errors = %+v, want one later create error", result.Errors)
+	}
+
+	reloaded, err := database.Load(dbPath)
+	if err != nil {
+		t.Fatalf("failed to reload database: %v", err)
+	}
+	if got := reloaded.Get("REQ-TEST-001").ExternalID; got != "EXT-NEW-1" {
+		t.Errorf("first external_id = %q, want %q", got, "EXT-NEW-1")
+	}
+	if got := reloaded.Get("REQ-TEST-002").ExternalID; got != "" {
+		t.Errorf("failed requirement external_id = %q, want blank", got)
+	}
+}
+
+func TestRunExportEmptyExternalID(t *testing.T) {
+	rtmx.Req(t, "REQ-SYNC-001a")
+
+	req := database.NewRequirement("REQ-TEST-001")
+	req.Category = "TEST"
+	req.RequirementText = "Test requirement"
+	req.Status = database.StatusMissing
+
+	dbPath := createTestDatabase(t, []*database.Requirement{req})
+	cfg := createTestConfig(dbPath)
+	adapter := &mockAdapter{name: "test-service", connected: true}
+
+	oldStdout := os.Stdout
+	_, w, _ := os.Pipe()
+	os.Stdout = w
+
+	result := runExport(adapter, cfg, false)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	if len(result.Created) != 0 {
+		t.Errorf("created = %v, want none", result.Created)
+	}
+	if len(result.Errors) != 1 || !strings.Contains(result.Errors[0].Error, "empty external ID") {
+		t.Fatalf("errors = %+v, want empty external ID error", result.Errors)
+	}
+
+	reloaded, err := database.Load(dbPath)
+	if err != nil {
+		t.Fatalf("failed to reload database: %v", err)
+	}
+	if got := reloaded.Get("REQ-TEST-001").ExternalID; got != "" {
+		t.Errorf("external_id = %q, want blank", got)
+	}
+}
+
+func TestRunExportSaveFailureStopsWithRemoteID(t *testing.T) {
+	rtmx.Req(t, "REQ-SYNC-001a")
+
+	firstReq := database.NewRequirement("REQ-TEST-001")
+	firstReq.Category = "TEST"
+	firstReq.RequirementText = "First requirement"
+	firstReq.Status = database.StatusMissing
+
+	secondReq := database.NewRequirement("REQ-TEST-002")
+	secondReq.Category = "TEST"
+	secondReq.RequirementText = "Second requirement"
+	secondReq.Status = database.StatusMissing
+
+	dbPath := createTestDatabase(t, []*database.Requirement{firstReq, secondReq})
+	cfg := createTestConfig(dbPath)
+	var hookErr error
+	adapter := &mockAdapter{
+		name:         "test-service",
+		connected:    true,
+		createResult: "EXT-ORPHAN-1",
+		createHook: func() {
+			if err := os.Remove(dbPath); err != nil {
+				hookErr = fmt.Errorf("remove database before save: %w", err)
+				return
+			}
+			if err := os.Remove(filepath.Dir(dbPath)); err != nil {
+				hookErr = fmt.Errorf("remove database directory before save: %w", err)
+			}
+		},
+	}
+
+	oldStdout := os.Stdout
+	_, w, _ := os.Pipe()
+	os.Stdout = w
+
+	result := runExport(adapter, cfg, false)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	if hookErr != nil {
+		t.Fatalf("failed to arrange save failure: %v", hookErr)
+	}
+	if adapter.createCalls != 1 {
+		t.Errorf("create calls = %d, want export to stop after 1", adapter.createCalls)
+	}
+	if len(result.Created) != 0 {
+		t.Errorf("created = %v, want none when linkage save fails", result.Created)
+	}
+	if len(result.Errors) != 1 {
+		t.Fatalf("errors = %+v, want one persistence error", result.Errors)
+	}
+	syncErr := result.Errors[0]
+	if syncErr.ID != "REQ-TEST-001" {
+		t.Errorf("error ID = %q, want REQ-TEST-001", syncErr.ID)
+	}
+	if !strings.Contains(syncErr.Error, "EXT-ORPHAN-1") ||
+		!strings.Contains(syncErr.Error, "failed to persist") {
+		t.Errorf("error = %q, want recoverable remote key and persistence context", syncErr.Error)
 	}
 }
 
