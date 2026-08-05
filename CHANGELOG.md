@@ -3,6 +3,17 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.10.1] - 2026-08-05
+
+### Fixed
+
+- **Sync export now persists remote keys before reporting success.** Successful
+  Jira and issue-tracker creates immediately checkpoint the returned key in the
+  requirement's `external_id`, so a repeated export updates the existing item
+  instead of creating a duplicate. Empty keys are rejected, and a local save
+  failure stops further exports while reporting the created remote key for
+  recovery. (REQ-SYNC-001a)
+
 ## [1.8.0]
 
 ### Added
