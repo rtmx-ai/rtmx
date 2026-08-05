@@ -780,6 +780,87 @@ func TestRunExportActualCreateSuccess(t *testing.T) {
 	}
 }
 
+func TestRunExportActualCreatePersistsExternalID(t *testing.T) {
+	req := database.NewRequirement("REQ-TEST-001")
+	req.Category = "TEST"
+	req.RequirementText = "Test requirement"
+	req.Status = database.StatusMissing
+
+	dbPath := createTestDatabase(t, []*database.Requirement{req})
+	cfg := createTestConfig(dbPath)
+
+	adapter := &mockAdapter{
+		name:         "test-service",
+		connected:    true,
+		createResult: "EXT-NEW-1",
+	}
+
+	oldStdout := os.Stdout
+	_, w, _ := os.Pipe()
+	os.Stdout = w
+
+	result := runExport(adapter, cfg, false)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	if len(result.Errors) != 0 {
+		t.Fatalf("expected no export errors, got: %+v", result.Errors)
+	}
+
+	reloaded, err := database.Load(dbPath)
+	if err != nil {
+		t.Fatalf("failed to reload database: %v", err)
+	}
+	persisted := reloaded.Get("REQ-TEST-001")
+	if persisted == nil {
+		t.Fatal("exported requirement missing after reload")
+	}
+	if persisted.ExternalID != "EXT-NEW-1" {
+		t.Errorf("external_id = %q after reload, want %q", persisted.ExternalID, "EXT-NEW-1")
+	}
+}
+
+func TestRunExportRepeatIsIdempotent(t *testing.T) {
+	req := database.NewRequirement("REQ-TEST-001")
+	req.Category = "TEST"
+	req.RequirementText = "Test requirement"
+	req.Status = database.StatusMissing
+
+	dbPath := createTestDatabase(t, []*database.Requirement{req})
+	cfg := createTestConfig(dbPath)
+
+	adapter := &mockAdapter{
+		name:         "test-service",
+		connected:    true,
+		createResult: "EXT-NEW-1",
+		updateResult: true,
+	}
+
+	oldStdout := os.Stdout
+	_, w, _ := os.Pipe()
+	os.Stdout = w
+
+	first := runExport(adapter, cfg, false)
+	second := runExport(adapter, cfg, false)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+
+	if len(first.Errors) != 0 || len(second.Errors) != 0 {
+		t.Fatalf("expected no export errors, got first=%+v second=%+v", first.Errors, second.Errors)
+	}
+	if adapter.createCalls != 1 {
+		t.Errorf("create calls = %d, want 1", adapter.createCalls)
+	}
+	if adapter.updateCalls != 1 {
+		t.Errorf("update calls = %d, want 1", adapter.updateCalls)
+	}
+	if len(adapter.updateCallIDs) != 1 || adapter.updateCallIDs[0] != "EXT-NEW-1" {
+		t.Errorf("update IDs = %v, want [EXT-NEW-1]", adapter.updateCallIDs)
+	}
+}
+
 func TestRunExportActualCreateFailure(t *testing.T) {
 	req := database.NewRequirement("REQ-TEST-001")
 	req.Category = "TEST"
