@@ -82,6 +82,7 @@ rtmx:
       PLAN/Display:        patch    # display-only changes
       PLAN/Automation:     patch    # internal automation
       PLAN/Versioning:     minor    # versioning policy
+      SYNC/Persistence:    patch    # persistence and idempotency bug fixes
       SECURITY/ZeroTrust:  minor    # new security features
       DASH/Security:       minor    # auth middleware
       DASH/Realtime:       minor    # WebSocket features

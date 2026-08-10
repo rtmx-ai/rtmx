@@ -351,10 +351,28 @@ func runExport(adapter adapters.ServiceAdapter, cfg *config.Config, dryRun bool)
 				if err != nil {
 					fmt.Printf("  %s✗%s Failed to export %s: %v\n", output.Red, output.Reset, req.ReqID, err)
 					result.Errors = append(result.Errors, SyncError{ID: req.ReqID, Error: err.Error()})
-				} else {
-					fmt.Printf("  %s+%s Exported %s → %s\n", output.Green, output.Reset, req.ReqID, externalID)
-					result.Created = append(result.Created, req.ReqID)
+					continue
 				}
+				if strings.TrimSpace(externalID) == "" {
+					err := fmt.Errorf("adapter returned empty external ID")
+					fmt.Printf("  %s✗%s Failed to export %s: %v\n", output.Red, output.Reset, req.ReqID, err)
+					result.Errors = append(result.Errors, SyncError{ID: req.ReqID, Error: err.Error()})
+					return result
+				}
+
+				req.ExternalID = externalID
+				if err := db.Save(dbPath); err != nil {
+					syncErr := fmt.Sprintf(
+						"remote item %s created for %s but failed to persist external_id: %v",
+						externalID, req.ReqID, err,
+					)
+					fmt.Printf("  %s✗%s %s\n", output.Red, output.Reset, syncErr)
+					result.Errors = append(result.Errors, SyncError{ID: req.ReqID, Error: syncErr})
+					return result
+				}
+
+				fmt.Printf("  %s+%s Exported %s → %s\n", output.Green, output.Reset, req.ReqID, externalID)
+				result.Created = append(result.Created, req.ReqID)
 			}
 		}
 	}
