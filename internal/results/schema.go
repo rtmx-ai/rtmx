@@ -24,8 +24,13 @@ import (
 // typos surface immediately rather than producing silent zero values.
 // See REQ-VERIFY-004.
 type Result struct {
-	Marker    Marker  `json:"marker"`
-	Passed    bool    `json:"passed"`
+	Marker Marker `json:"marker"`
+	Passed bool   `json:"passed"`
+	// Skipped marks a result as non-evidence: a skipped test neither promotes
+	// nor demotes a requirement's status and is not counted as a failure. This
+	// mirrors the native go-test path (see determineNewStatus) and the
+	// from-pytest scanner, which both omit skips as non-evidence (REQ-VERIFY-012).
+	Skipped   bool    `json:"skipped,omitempty"`
 	Duration  float64 `json:"duration_ms,omitempty"`
 	Error     string  `json:"error,omitempty"`
 	Timestamp string  `json:"timestamp,omitempty"`
@@ -37,6 +42,7 @@ type Result struct {
 type rawResult struct {
 	Marker    *Marker `json:"marker"`
 	Passed    *bool   `json:"passed"`
+	Skipped   *bool   `json:"skipped"`
 	Status    *string `json:"status"`
 	Duration  float64 `json:"duration_ms"`
 	Error     string  `json:"error"`
@@ -82,18 +88,30 @@ func (r *Result) UnmarshalJSON(data []byte) error {
 		r.Marker.Line = *raw.Line
 	}
 
+	// Resolve the outcome. Skip is a first-class, non-evidence outcome: an
+	// explicit "skipped": true, a status of "skip"/"skipped", or a record that
+	// supplies NEITHER passed nor status all decode as skipped rather than as a
+	// silent failure, so a skipped/incomplete leg cannot demote a requirement
+	// (REQ-VERIFY-012).
 	switch {
+	case raw.Skipped != nil && *raw.Skipped:
+		r.Skipped = true
 	case raw.Passed != nil:
 		r.Passed = *raw.Passed
 	case raw.Status != nil:
 		switch strings.ToLower(strings.TrimSpace(*raw.Status)) {
 		case "pass", "passed", "ok", "success":
 			r.Passed = true
-		case "fail", "failed", "error", "errored", "skip", "skipped":
+		case "skip", "skipped":
+			r.Skipped = true
+		case "fail", "failed", "error", "errored":
 			r.Passed = false
 		default:
-			return fmt.Errorf("decode result: unrecognized status %q (expected pass/fail)", *raw.Status)
+			return fmt.Errorf("decode result: unrecognized status %q (expected pass/fail/skip)", *raw.Status)
 		}
+	default:
+		// No outcome supplied at all: treat as non-evidence, not a failure.
+		r.Skipped = true
 	}
 
 	r.Duration = raw.Duration
@@ -113,7 +131,15 @@ type Marker struct {
 	Line      int    `json:"line,omitempty"`
 }
 
-var reqIDPattern = regexp.MustCompile(`^REQ-[A-Z]+-[0-9]+$`)
+// DefaultReqIDPattern is the built-in regular expression for valid requirement
+// IDs. It accepts a single- or multi-segment uppercase-alphanumeric category
+// prefix followed by a numeric index, e.g. REQ-SW-009, REQ-E2E-010,
+// REQ-INFRA-DT-002, REQ-MODE-S-006. The final hyphen-delimited segment is
+// always the number. Projects with a different convention can override it via
+// rtmx.req_id_pattern in config (see Vocabulary.ReqIDPattern).
+const DefaultReqIDPattern = `^REQ-[A-Z][A-Z0-9]*(-[A-Z0-9]+)*-[0-9]+[a-z]?$`
+
+var reqIDPattern = regexp.MustCompile(DefaultReqIDPattern)
 
 var validScopes = map[string]bool{
 	"unit": true, "integration": true, "system": true, "acceptance": true,
@@ -145,6 +171,12 @@ type Vocabulary struct {
 	Scopes     []string
 	Techniques []string
 	Envs       []string
+
+	// ReqIDPattern optionally overrides the requirement-ID regular expression.
+	// When empty, DefaultReqIDPattern is used. An invalid pattern is reported
+	// as a single validation error and falls back to the default. See
+	// REQ-VERIFY-011.
+	ReqIDPattern string
 }
 
 // Validate checks results against the RTMX results schema using the built-in
@@ -161,11 +193,24 @@ func ValidateWithVocabulary(results []Result, vocab Vocabulary) []error {
 	envs := mergeVocabulary(validEnvs, vocab.Envs)
 
 	var errs []error
+
+	// Resolve the requirement-ID pattern: a configured override, or the
+	// built-in default. An invalid override is reported once and the default
+	// is used so the rest of validation still runs.
+	idPattern := reqIDPattern
+	if vocab.ReqIDPattern != "" {
+		if compiled, err := regexp.Compile(vocab.ReqIDPattern); err != nil {
+			errs = append(errs, fmt.Errorf("invalid req_id_pattern %q: %w", vocab.ReqIDPattern, err))
+		} else {
+			idPattern = compiled
+		}
+	}
+
 	for i, r := range results {
 		prefix := fmt.Sprintf("result[%d]", i)
 
-		if !reqIDPattern.MatchString(r.Marker.ReqID) {
-			errs = append(errs, fmt.Errorf("%s: invalid req_id %q (expected REQ-[A-Z]+-[0-9]+)", prefix, r.Marker.ReqID))
+		if !idPattern.MatchString(r.Marker.ReqID) {
+			errs = append(errs, fmt.Errorf("%s: invalid req_id %q (must match %s)", prefix, r.Marker.ReqID, idPattern.String()))
 		}
 		if r.Marker.TestName == "" {
 			errs = append(errs, fmt.Errorf("%s: missing required field test_name", prefix))

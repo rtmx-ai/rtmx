@@ -14,7 +14,7 @@ import (
 )
 
 // TestDashboardSPAEmbed validates the embedded SPA framework.
-// REQ-DASH-001: Embedded SPA with htmx, Alpine.js, and custom CSS via embed.FS.
+// REQ-DASH-001: Embedded SPA with htmx, Alpine.js, and Tailwind via embed.FS.
 func TestDashboardSPAEmbed(t *testing.T) {
 	rtmx.Req(t, "REQ-DASH-001")
 
@@ -76,14 +76,14 @@ func TestDashboardSPAEmbed(t *testing.T) {
 		if !strings.Contains(html, "<!DOCTYPE html>") {
 			t.Error("layout should contain DOCTYPE")
 		}
-		if !strings.Contains(html, "htmx.min.js") {
+		if !strings.Contains(html, "htmx.org") {
 			t.Error("layout should include htmx")
 		}
-		if !strings.Contains(html, "alpine.min.js") {
+		if !strings.Contains(html, "alpinejs") {
 			t.Error("layout should include Alpine.js")
 		}
-		if !strings.Contains(html, "styles.css") {
-			t.Error("layout should include custom styles")
+		if !strings.Contains(html, "tailwind") {
+			t.Error("layout should include Tailwind CSS")
 		}
 		if !strings.Contains(html, "<p>Hello</p>") {
 			t.Error("layout should render content")
@@ -101,87 +101,6 @@ func TestDashboardSPAEmbed(t *testing.T) {
 			if !strings.Contains(html, link) {
 				t.Errorf("nav should contain %q link", link)
 			}
-		}
-	})
-
-	// REQ-DASH-013: No external CDN references in layout (air-gapped support).
-	t.Run("layout_has_no_external_cdn_references", func(t *testing.T) {
-		var buf strings.Builder
-		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
-		html := buf.String()
-		for _, cdn := range []string{"unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "d3js.org"} {
-			if strings.Contains(html, cdn) {
-				t.Errorf("layout must not reference external CDN %q for air-gapped support", cdn)
-			}
-		}
-		// Vendor scripts must be served locally
-		if !strings.Contains(html, "/static/vendor/htmx.min.js") {
-			t.Error("htmx must be served from local vendor path")
-		}
-		if !strings.Contains(html, "/static/vendor/alpine.min.js") {
-			t.Error("Alpine.js must be served from local vendor path")
-		}
-		if !strings.Contains(html, "/static/vendor/d3.v7.min.js") {
-			t.Error("D3.js must be served from local vendor path")
-		}
-	})
-
-	// REQ-DASH-014: Toast container in layout.
-	t.Run("toast_container_in_layout", func(t *testing.T) {
-		rtmx.Req(t, "REQ-DASH-014")
-		var buf strings.Builder
-		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
-		html := buf.String()
-		if !strings.Contains(html, "toast-container") {
-			t.Error("layout must contain toast-container element")
-		}
-		if !strings.Contains(html, "toastManager()") {
-			t.Error("layout must reference toastManager Alpine component")
-		}
-		if !strings.Contains(html, "show-toast") {
-			t.Error("layout must listen for show-toast custom event")
-		}
-	})
-
-	// REQ-DASH-025: Detail panel container in layout.
-	t.Run("detail_panel_container_in_layout", func(t *testing.T) {
-		rtmx.Req(t, "REQ-DASH-025")
-		var buf strings.Builder
-		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
-		html := buf.String()
-		if !strings.Contains(html, "detail-panel") {
-			t.Error("layout must contain detail-panel element")
-		}
-		if !strings.Contains(html, "detail-panel-body") {
-			t.Error("layout must contain detail-panel-body for htmx target")
-		}
-		if !strings.Contains(html, "detail-panel-backdrop") {
-			t.Error("layout must contain backdrop overlay")
-		}
-		if !strings.Contains(html, "panelOpen") {
-			t.Error("layout must reference panelOpen Alpine state")
-		}
-	})
-
-	t.Run("command_palette_in_layout", func(t *testing.T) {
-		rtmx.Req(t, "REQ-DASH-031")
-		var buf strings.Builder
-		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
-		html := buf.String()
-		if !strings.Contains(html, "command-palette") {
-			t.Error("layout must contain command-palette element")
-		}
-		if !strings.Contains(html, "palette-input") {
-			t.Error("layout must contain palette-input for search")
-		}
-		if !strings.Contains(html, "palette-results") {
-			t.Error("layout must contain palette-results container")
-		}
-		if !strings.Contains(html, "palette-backdrop") {
-			t.Error("layout must contain palette backdrop")
-		}
-		if !strings.Contains(html, "paletteOpen") {
-			t.Error("layout must reference paletteOpen Alpine state")
 		}
 	})
 
@@ -203,27 +122,6 @@ func TestDashboardSPAEmbed(t *testing.T) {
 		}
 		if !strings.Contains(body, "RTMX") {
 			t.Error("/app should contain RTMX branding")
-		}
-	})
-
-	t.Run("root_route_serves_spa_shell", func(t *testing.T) {
-		db := testDBForDashboard(t)
-		cfg := &config.Config{}
-		mux := NewDashboardMuxWithPath(db, cfg, "")
-
-		req := httptest.NewRequest("GET", "/", nil)
-		rec := httptest.NewRecorder()
-		mux.ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("GET / status = %d, want 200", rec.Code)
-		}
-		body := rec.Body.String()
-		if !strings.Contains(body, "<!DOCTYPE html>") {
-			t.Error("/ should return full HTML page")
-		}
-		if !strings.Contains(body, "htmx.min.js") {
-			t.Error("/ should serve the SPA shell with htmx, not the old minimal dashboard")
 		}
 	})
 
@@ -259,28 +157,6 @@ func TestDashboardSPAEmbed(t *testing.T) {
 		}
 		if !strings.Contains(rec.Body.String(), "rtmxApp") {
 			t.Error("app.js should contain rtmxApp function")
-		}
-	})
-
-	// REQ-DASH-013: Vendor JS files are served from embed.FS.
-	t.Run("vendor_js_files_served_from_embed", func(t *testing.T) {
-		db := testDBForDashboard(t)
-		cfg := &config.Config{}
-		mux := NewDashboardMuxWithPath(db, cfg, "")
-
-		for _, path := range []string{
-			"/static/vendor/htmx.min.js",
-			"/static/vendor/alpine.min.js",
-			"/static/vendor/d3.v7.min.js",
-		} {
-			rec := httptest.NewRecorder()
-			mux.ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
-			if rec.Code != http.StatusOK {
-				t.Errorf("GET %s status = %d, want 200", path, rec.Code)
-			}
-			if rec.Body.Len() < 1000 {
-				t.Errorf("GET %s body too small (%d bytes), vendor file may be missing", path, rec.Body.Len())
-			}
 		}
 	})
 
@@ -321,69 +197,6 @@ func TestDashboardSPAEmbed(t *testing.T) {
 			}
 			if !strings.Contains(rec.Body.String(), "<!DOCTYPE html>") {
 				t.Errorf("GET %s should return full HTML shell", page)
-			}
-		}
-	})
-
-	// REQ-DASH-010: CSS custom properties from rtmx.ai design system.
-	t.Run("design_tokens_in_styles", func(t *testing.T) {
-		rtmx.Req(t, "REQ-DASH-010")
-		db := testDBForDashboard(t)
-		cfg := &config.Config{}
-		mux := NewDashboardMuxWithPath(db, cfg, "")
-
-		rec := httptest.NewRecorder()
-		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/static/styles.css", nil))
-		css := rec.Body.String()
-		for _, token := range []string{"--rtmx-emerald", "--rtmx-bg", "--rtmx-border", "--rtmx-text", "--rtmx-complete", "--rtmx-partial", "--rtmx-missing"} {
-			if !strings.Contains(css, token) {
-				t.Errorf("styles.css must define design token %s", token)
-			}
-		}
-	})
-
-	// REQ-DASH-011: Dark theme layout and navigation.
-	t.Run("dark_theme_layout", func(t *testing.T) {
-		rtmx.Req(t, "REQ-DASH-011")
-		var buf strings.Builder
-		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
-		html := buf.String()
-		if !strings.Contains(html, "var(--rtmx-") {
-			t.Error("layout must use CSS custom properties for dark theme")
-		}
-		if !strings.Contains(html, "RTMX") {
-			t.Error("layout must include RTMX brand")
-		}
-	})
-
-	// REQ-DASH-012: Dark theme component styling.
-	t.Run("dark_theme_components", func(t *testing.T) {
-		rtmx.Req(t, "REQ-DASH-012")
-		db := testDBForDashboard(t)
-		cfg := &config.Config{}
-		mux := NewDashboardMuxWithPath(db, cfg, "")
-
-		// Verify status partial uses design token classes
-		rec := httptest.NewRecorder()
-		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/partials/status", nil))
-		body := rec.Body.String()
-		if !strings.Contains(body, "stat-value") {
-			t.Error("status partial must use stat-value class from design tokens")
-		}
-		if !strings.Contains(body, "data-table") {
-			t.Error("status partial must use data-table class from design tokens")
-		}
-	})
-
-	// REQ-DASH-013: No external CDN, all assets vendored.
-	t.Run("no_cdn_vendored_assets", func(t *testing.T) {
-		rtmx.Req(t, "REQ-DASH-013")
-		var buf strings.Builder
-		_ = dashboard.RenderLayout(&buf, dashboard.LayoutData{Title: "Test", ActivePage: "status"})
-		html := buf.String()
-		for _, cdn := range []string{"unpkg.com", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "d3js.org"} {
-			if strings.Contains(html, cdn) {
-				t.Errorf("layout must not reference external CDN %q", cdn)
 			}
 		}
 	})

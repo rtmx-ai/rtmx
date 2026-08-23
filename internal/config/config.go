@@ -25,6 +25,13 @@ type RTMXConfig struct {
 	// Schema is the schema name (core or custom).
 	Schema string `yaml:"schema"`
 
+	// ReqIDPattern optionally overrides the regular expression used to
+	// validate requirement IDs. When empty, the built-in default is used
+	// (REQ-<CATEGORY>-<NUMBER> with a single- or multi-segment uppercase
+	// alphanumeric category, e.g. REQ-SW-009 or REQ-INFRA-DT-002). Projects
+	// with a different identifier convention can set their own anchored regex.
+	ReqIDPattern string `yaml:"req_id_pattern,omitempty"`
+
 	// Pytest configuration
 	Pytest PytestConfig `yaml:"pytest"`
 
@@ -64,11 +71,11 @@ type RTMXConfig struct {
 
 // VerifyConfig contains verification settings.
 type VerifyConfig struct {
-	AutoUpdate bool             `yaml:"auto_update"`
-	Thresholds ThresholdConfig  `yaml:"thresholds"`
-	AuditLog   bool             `yaml:"audit_log"`
-	WarnStale  *bool            `yaml:"warn_stale,omitempty"`
-	AutoVerify bool             `yaml:"auto_verify"`
+	AutoUpdate bool            `yaml:"auto_update"`
+	Thresholds ThresholdConfig `yaml:"thresholds"`
+	AuditLog   bool            `yaml:"audit_log"`
+	WarnStale  *bool           `yaml:"warn_stale,omitempty"`
+	AutoVerify bool            `yaml:"auto_verify"`
 }
 
 // ShouldWarnStale returns true if staleness warnings are enabled (default: true).
@@ -251,10 +258,10 @@ type GitLabAdapterConfig = GitLabConfig
 
 // SlackConfig contains Slack integration settings.
 type SlackConfig struct {
-	Enabled      bool              `yaml:"enabled"`
-	TokenEnv     string            `yaml:"token_env"`
-	SigningEnv   string            `yaml:"signing_secret_env"`
-	Channels     map[string]string `yaml:"channels"`
+	Enabled    bool              `yaml:"enabled"`
+	TokenEnv   string            `yaml:"token_env"`
+	SigningEnv string            `yaml:"signing_secret_env"`
+	Channels   map[string]string `yaml:"channels"`
 }
 
 // SlackAdapterConfig is an alias for SlackConfig used by the adapter.
@@ -289,10 +296,10 @@ type SyncConfig struct {
 
 // AdjudicationConfig contains automated requirement PR adjudication settings.
 type AdjudicationConfig struct {
-	Enabled   bool                       `yaml:"enabled"`
-	Rules     []AdjudicationRuleConfig   `yaml:"rules,omitempty"`
-	AutoMerge AdjudicationAutoMerge      `yaml:"auto_merge,omitempty"`
-	Labels    AdjudicationLabels         `yaml:"labels,omitempty"`
+	Enabled   bool                     `yaml:"enabled"`
+	Rules     []AdjudicationRuleConfig `yaml:"rules,omitempty"`
+	AutoMerge AdjudicationAutoMerge    `yaml:"auto_merge,omitempty"`
+	Labels    AdjudicationLabels       `yaml:"labels,omitempty"`
 }
 
 // AdjudicationRuleConfig defines a single adjudication rule in configuration.
@@ -319,12 +326,12 @@ type AdjudicationLabels struct {
 
 // SyncGrant represents an access delegation to a remote collaborator.
 type SyncGrant struct {
-	ID          string         `yaml:"id"`
-	Grantee     string         `yaml:"grantee"`
-	Role        string         `yaml:"role"`
+	ID          string          `yaml:"id"`
+	Grantee     string          `yaml:"grantee"`
+	Role        string          `yaml:"role"`
 	Constraints GrantConstraint `yaml:"constraints,omitempty"`
-	CreatedAt   string         `yaml:"created_at"`
-	CreatedBy   string         `yaml:"created_by"`
+	CreatedAt   string          `yaml:"created_at"`
+	CreatedBy   string          `yaml:"created_by"`
 }
 
 // GrantConstraint limits which requirements are visible to a grantee.

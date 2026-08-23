@@ -66,9 +66,12 @@ func TestReqIDPattern(t *testing.T) {
 		{"REQ-TEST-001", true},
 		{"REQ-AUTH-123", true},
 		{"REQ-A-1", true},
+		{"REQ-INFRA-DT-002", true},  // multi-segment category
+		{"REQ-HW-STRUCT-002c", true}, // decomposition child (trailing lowercase)
 		{"REQ-TEST-", false},
 		{"REQ--001", false},
-		{"REQ-test-001", false}, // lowercase
+		{"REQ-test-001", false},   // lowercase category
+		{"REQ-HW-002ab", false},   // only a single trailing lowercase letter allowed
 		{"INVALID", false},
 		{"REQ_TEST_001", false}, // underscores
 		{"", false},

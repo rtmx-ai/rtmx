@@ -420,16 +420,21 @@ func (s *Server) handleToolsList() interface{} {
 				"required": []string{"version", "req_ids", "agent_id"},
 			},
 		},
-	}
-	// REQ-ORCH-018: parallel-plan tool
-	tools = append(tools, toolDef{
-		Name:        "parallel_plan",
-		Description: "Get parallel execution plan with web grouping and merge ordering (~200 tokens)",
-		InputSchema: map[string]interface{}{
-			"type":       "object",
-			"properties": map[string]interface{}{},
+		{
+			Name:        "set_status",
+			Description: "Set a requirement status with provenance (~35 tokens, mutation: requires agent_id). Rejects COMPLETE.",
+			InputSchema: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"req_id":   map[string]interface{}{"type": "string", "description": "Requirement ID to update"},
+					"status":   map[string]interface{}{"type": "string", "description": "New status (e.g. PARTIAL, MISSING, NOT_STARTED). COMPLETE is rejected."},
+					"agent_id": map[string]interface{}{"type": "string", "description": "Agent identity performing the change"},
+					"reason":   map[string]interface{}{"type": "string", "description": "Why the status is being set (provenance)"},
+				},
+				"required": []string{"req_id", "status", "agent_id"},
+			},
 		},
-	})
+	}
 
 	return map[string]interface{}{"tools": tools}
 }
@@ -484,8 +489,10 @@ func (s *Server) handleToolsCall(params json.RawMessage) (interface{}, *rpcError
 		result, rpcErr := s.toolReleaseAssign(db, call.Arguments)
 		s.logToolResult(call.Name, result)
 		return result, rpcErr
-	case "parallel_plan":
-		data = s.toolParallelPlan(db)
+	case "set_status":
+		result, rpcErr := s.toolSetStatus(db, call.Arguments)
+		s.logToolResult(call.Name, result)
+		return result, rpcErr
 	default:
 		return nil, &rpcError{Code: errNoMethod, Message: fmt.Sprintf("unknown tool: %s", call.Name)}
 	}
@@ -1425,72 +1432,48 @@ func (s *Server) toolReleaseAssign(db *database.Database, args map[string]interf
 	}, nil
 }
 
-// REQ-ORCH-018: parallel-plan tool returns execution plan JSON.
-func (s *Server) toolParallelPlan(db *database.Database) interface{} {
-	g := graph.NewGraph(db)
-	webs := g.DetectWebs()
-	groups := g.ParallelGroups(webs)
-	deps := g.WebDependencies(webs)
-	mergeOrder := g.MergeOrder(webs)
+// toolSetStatus sets a requirement's status with provenance. It deliberately
+// REFUSES to set COMPLETE: completion is verify-driven (tests decide closure),
+// so allowing an agent to mark a requirement COMPLETE would reintroduce a
+// self-grading loop. All other valid statuses (PARTIAL, MISSING, NOT_STARTED)
+// are permitted — e.g. to reopen a regressed requirement or park work.
+func (s *Server) toolSetStatus(db *database.Database, args map[string]interface{}) (interface{}, *rpcError) {
+	reqID, _ := args["req_id"].(string)
+	statusStr, _ := args["status"].(string)
+	agentID, _ := args["agent_id"].(string)
+	reason, _ := args["reason"].(string)
 
-	type ppWeb struct {
-		Index       int      `json:"index"`
-		IDs         []string `json:"ids"`
-		TotalEffort float64  `json:"total_effort"`
-		Unblocked   int      `json:"unblocked"`
-		Blocked     int      `json:"blocked"`
+	if reqID == "" || statusStr == "" || agentID == "" {
+		return errorResult("req_id, status, and agent_id are required"), nil
 	}
-	type ppPhase struct {
-		Phase      int     `json:"phase"`
-		Webs       []ppWeb `json:"webs"`
-		MergeOrder []int   `json:"merge_order"`
+	status, err := database.ParseStatus(statusStr)
+	if err != nil {
+		return errorResult(err.Error()), nil
 	}
-	type ppDep struct {
-		From int `json:"from"`
-		To   int `json:"to"`
-	}
-	type ppResult struct {
-		Phases      []ppPhase `json:"phases"`
-		Deps        []ppDep   `json:"deps"`
-		TotalWebs   int       `json:"total_webs"`
-		TotalEffort float64   `json:"total_effort"`
-		CritPath    float64   `json:"critical_path_effort"`
-		Parallelism float64   `json:"parallelism_factor"`
+	if status == database.StatusComplete {
+		return errorResult("set_status cannot set COMPLETE; completion comes from verify (tests decide closure)"), nil
 	}
 
-	out := ppResult{TotalWebs: len(webs)}
-	for _, w := range webs {
-		out.TotalEffort += w.TotalEffort
+	req := db.Get(reqID)
+	if req == nil {
+		return errorResult(fmt.Sprintf("%s: not found", reqID)), nil
 	}
-	for i, grp := range groups {
-		phase := ppPhase{Phase: i}
-		maxEffort := 0.0
-		for _, wi := range grp.WebIndices {
-			w := webs[wi]
-			phase.Webs = append(phase.Webs, ppWeb{
-				Index: wi, IDs: w.IDs, TotalEffort: w.TotalEffort,
-				Unblocked: len(w.Unblocked), Blocked: len(w.Blocked),
-			})
-			if w.TotalEffort > maxEffort {
-				maxEffort = w.TotalEffort
-			}
-		}
-		out.CritPath += maxEffort
-		for _, mi := range mergeOrder {
-			for _, wi := range grp.WebIndices {
-				if mi == wi {
-					phase.MergeOrder = append(phase.MergeOrder, mi)
-				}
-			}
-		}
-		out.Phases = append(out.Phases, phase)
+	previous := req.Status
+	req.Status = status
+	if err := db.Save(s.dbPath); err != nil {
+		return errorResult(fmt.Sprintf("failed to save database: %v", err)), nil
 	}
-	if out.CritPath > 0 {
-		out.Parallelism = out.TotalEffort / out.CritPath
+
+	result := map[string]interface{}{
+		"req_id":   reqID,
+		"status":   status.String(),
+		"previous": previous.String(),
+		"agent_id": agentID,
+		"reason":   reason,
 	}
-	for _, d := range deps {
-		out.Deps = append(out.Deps, ppDep{From: d.From, To: d.To})
-	}
-	return out
+	data, _ := json.Marshal(result)
+	return toolResult{
+		Content: []toolContent{{Type: "text", Text: string(data)}},
+	}, nil
 }
 

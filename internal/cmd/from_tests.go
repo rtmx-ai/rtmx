@@ -442,7 +442,7 @@ func extractGoMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	currentFunc := ""
 
 	reqPattern := regexp.MustCompile(`rtmx\.Req\(t,\s*"(REQ-[^"]+)"`)
-	commentPattern := regexp.MustCompile(`//\s*(?:rtmx:req|@req)\s+(REQ-[A-Z0-9-]+)`)
+	commentPattern := regexp.MustCompile(`//\s*(?:rtmx:req|@req)\s+(REQ-[A-Za-z0-9-]+)`)
 	funcPattern := regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
 
 	for i, line := range lines {
@@ -482,7 +482,7 @@ func extractMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	isConftest := filepath.Base(filePath) == "conftest.py"
 
 	// Regex patterns for pytest markers
-	reqMarkerPattern := regexp.MustCompile(`@pytest\.mark\.req\(['"](REQ-[A-Z0-9-]+)['"]\)`)
+	reqMarkerPattern := regexp.MustCompile(`@pytest\.mark\.req\(['"](REQ-[A-Za-z0-9-]+)['"]\)`)
 	funcPattern := regexp.MustCompile(`^(?:async\s+)?def\s+(test_\w+)\s*\(`)
 	classPattern := regexp.MustCompile(`^class\s+(Test\w+)\s*[:(]`)
 	otherMarkerPattern := regexp.MustCompile(`@pytest\.mark\.(scope_\w+|technique_\w+|env_\w+)`)
@@ -495,15 +495,27 @@ func extractMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	var pendingReqIDs []string
 	var pendingMarkers []string
 	var currentClass string
+	classIndent := 0
 
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
 
+		// Leave the current class once a non-blank, non-comment line appears at or
+		// below the class's own indentation: a module-level function defined after
+		// a test class must not inherit the class name (which would qualify its
+		// TestFunction as Class::func and break the JUnit join).
+		if currentClass != "" && trimmed != "" && !strings.HasPrefix(trimmed, "#") {
+			if lineIndent(line) <= classIndent {
+				currentClass = ""
+			}
+		}
+
 		// Check for class definition
 		if match := classPattern.FindStringSubmatch(trimmed); match != nil {
 			currentClass = match[1]
+			classIndent = lineIndent(line)
 			continue
 		}
 
@@ -565,6 +577,12 @@ func extractMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	}
 
 	return results, scanner.Err()
+}
+
+// lineIndent returns the leading-whitespace width of a source line (spaces and
+// tabs counted equally), used to detect when a class block has ended.
+func lineIndent(line string) int {
+	return len(line) - len(strings.TrimLeft(line, " \t"))
 }
 
 // extractConftestRegistrations parses conftest.py for marker registration patterns
@@ -669,9 +687,9 @@ func extractRustMarkersFromFile(filePath string) ([]TestRequirement, error) {
 	lines := strings.Split(string(data), "\n")
 
 	// Patterns for marker styles
-	attrPattern := regexp.MustCompile(`#\[req\("(REQ-[A-Z0-9-]+)"`)
-	commentPattern := regexp.MustCompile(`//\s*(?:rtmx:req|@req)\s+(REQ-[A-Z0-9-]+)`)
-	callPattern := regexp.MustCompile(`rtmx::req\("(REQ-[A-Z0-9-]+)"`)
+	attrPattern := regexp.MustCompile(`#\[req\("(REQ-[A-Za-z0-9-]+)"`)
+	commentPattern := regexp.MustCompile(`//\s*(?:rtmx:req|@req)\s+(REQ-[A-Za-z0-9-]+)`)
+	callPattern := regexp.MustCompile(`rtmx::req\("(REQ-[A-Za-z0-9-]+)"`)
 
 	// Pattern for Rust function definitions (fn, pub fn, async fn, pub async fn)
 	funcPattern := regexp.MustCompile(`^\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)\s*\(`)

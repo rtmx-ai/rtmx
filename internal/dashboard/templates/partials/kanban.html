@@ -1,26 +1,24 @@
-<div style="display: flex; flex-direction: column; gap: 1rem;">
-  <h2 style="font-size: 1.5rem; font-weight: 700;">Kanban Board</h2>
+<div class="space-y-4">
+  <h2 class="text-2xl font-bold">Kanban Board</h2>
 
-  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;" x-data="kanbanBoard()">
+  <div class="grid grid-cols-4 gap-4" x-data="kanbanBoard()">
     {{range .Columns}}
     <div class="kanban-column" data-status="{{.Status}}"
          @dragover.prevent="dragOver($event)" @drop="drop($event, '{{.Status}}')">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-        <h3 style="font-weight: 600; font-size: 0.875rem;">{{.Label}}</h3>
-        <span class="text-dim" style="font-size: 0.75rem;">{{.Count}}</span>
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-sm">{{.Label}}</h3>
+        <span class="text-xs text-gray-500">{{.Count}}</span>
       </div>
       {{range .Cards}}
       <div class="kanban-card pri-{{.PriorityClass}}" draggable="true"
            data-req-id="{{.ReqID}}"
            @dragstart="dragStart($event, '{{.ReqID}}')"
            @dragend="dragEnd($event)">
-        <div class="req-id" style="font-size: 0.7rem; cursor: pointer;"
-             hx-get="/partials/detail/{{.ReqID}}" hx-target="#detail-panel-body"
-             @click.stop>{{.ReqID}}</div>
-        <div style="font-size: 0.8rem; margin-top: 0.25rem;">{{.Description}}</div>
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+        <div class="font-mono text-xs text-gray-500">{{.ReqID}}</div>
+        <div class="text-sm mt-1">{{.Description}}</div>
+        <div class="flex items-center gap-2 mt-2">
           <span class="badge badge-{{.StatusClass}}">{{.Status}}</span>
-          {{if .Blocked}}<span style="font-size: 0.7rem; color: var(--rtmx-missing);">[Blocked]</span>{{end}}
+          {{if .Blocked}}<span class="text-xs text-red-600">[Blocked]</span>{{end}}
         </div>
       </div>
       {{end}}

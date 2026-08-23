@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"net/http"
-	"sort"
 	"strings"
 
 	"github.com/rtmx-ai/rtmx/internal/dashboard"
@@ -35,24 +33,10 @@ type categoryData struct {
 
 // requirementsListData holds template data for the requirements partial.
 type requirementsListData struct {
-	Requirements   []reqRowData
-	Categories     []string
-	Priorities     []string
-	HasMore        bool
-	NextPage       int
-	SortField      string
-	SortOrder      string
-	FilterStatus   string
-	FilterCat      string
-	FilterPriority string
-	FilterSearch   string
-	ActiveFilters  []activeFilter
-}
-
-type activeFilter struct {
-	Field string
-	Value string
-	Param string
+	Requirements []reqRowData
+	Categories   []string
+	HasMore      bool
+	NextPage     int
 }
 
 type reqRowData struct {
@@ -63,8 +47,6 @@ type reqRowData struct {
 	Category    string
 	Description string
 	Effort      string
-	Assignee    string
-	Sprint      string
 }
 
 // detailData holds template data for the detail partial.
@@ -95,17 +77,7 @@ type graphPartialData struct {
 	EdgeCount  int
 	WebCount   int
 	Categories []string
-	GraphJSON  template.JS
-}
-
-// timelinePartialData holds template data for the timeline partial.
-type timelinePartialData struct {
-	TimelineJSON template.JS
-}
-
-// treemapPartialData holds template data for the treemap partial.
-type treemapPartialData struct {
-	TreemapJSON template.JS
+	GraphJSON  string
 }
 
 // kanbanData holds template data for the kanban partial.
@@ -174,11 +146,6 @@ type agentClaimData struct {
 	Description string
 }
 
-// paletteResultsData holds template data for the palette results partial.
-type paletteResultsData struct {
-	Results []reqRowData
-}
-
 func statusClassFor(status database.Status) string {
 	switch status {
 	case database.StatusComplete:
@@ -222,17 +189,12 @@ func registerDashboardRoutes(mux *http.ServeMux, db *database.Database, g *graph
 	// Partials (htmx targets)
 	mux.HandleFunc("/partials/status", handlePartialStatus(db))
 	mux.HandleFunc("/partials/requirements", handlePartialRequirements(db))
-	mux.HandleFunc("/partials/requirements/row/", handlePartialRequirementRow(db))
 	mux.HandleFunc("/partials/detail/", handlePartialDetail(db, g))
 	mux.HandleFunc("/partials/graph", handlePartialGraph(db, g))
-	mux.HandleFunc("/partials/timeline", handlePartialTimeline(db))
-	mux.HandleFunc("/partials/treemap", handlePartialTreemap(db))
-	mux.HandleFunc("/partials/parallel", handlePartialParallel(db, g))
 	mux.HandleFunc("/partials/kanban", handlePartialKanban(db, g))
 	mux.HandleFunc("/partials/releases", handlePartialReleases(db))
 	mux.HandleFunc("/partials/health", handlePartialHealth(db, g))
 	mux.HandleFunc("/partials/agents", handlePartialAgents(db))
-	mux.HandleFunc("/partials/palette-results", handlePartialPaletteResults(db))
 }
 
 func handleDashboardShell(db *database.Database) http.HandlerFunc {
@@ -270,10 +232,8 @@ func handlePartialStatus(db *database.Database) http.HandlerFunc {
 
 func handlePartialRequirements(db *database.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query()
 		reqs := db.All()
-
-		// Collect categories for filter dropdown
+		// Collect categories
 		catSet := make(map[string]bool)
 		for _, req := range reqs {
 			catSet[req.Category] = true
@@ -282,46 +242,24 @@ func handlePartialRequirements(db *database.Database) http.HandlerFunc {
 		for c := range catSet {
 			cats = append(cats, c)
 		}
-		sort.Strings(cats)
 
-		// REQ-DASH-020/022: Apply filters from query params (comma-separated multi-select)
-		status := q.Get("status")
-		category := q.Get("category")
-		search := q.Get("search")
-		priority := q.Get("priority")
-
-		statusSet := splitFilter(status)
-		categorySet := splitFilter(category)
-		prioritySet := splitFilter(priority)
+		// Apply filters
+		status := r.URL.Query().Get("status")
+		category := r.URL.Query().Get("category")
+		search := r.URL.Query().Get("search")
 
 		var filtered []*database.Requirement
 		for _, req := range reqs {
-			if len(statusSet) > 0 && !statusSet[string(req.Status)] {
+			if status != "" && string(req.Status) != status {
 				continue
 			}
-			if len(categorySet) > 0 && !categorySet[req.Category] {
-				continue
-			}
-			if len(prioritySet) > 0 && !prioritySet[string(req.Priority)] {
+			if category != "" && req.Category != category {
 				continue
 			}
 			if search != "" && !strings.Contains(strings.ToLower(req.ReqID+req.RequirementText), strings.ToLower(search)) {
 				continue
 			}
 			filtered = append(filtered, req)
-		}
-
-		// REQ-DASH-020: Sort support
-		sortField := q.Get("sort")
-		if sortField == "" {
-			sortField = "req_id"
-		}
-		order := q.Get("order")
-		if order == "" {
-			order = "asc"
-		}
-		if validSortFields[sortField] {
-			sortRequirements(filtered, sortField, order == "desc")
 		}
 
 		rows := make([]reqRowData, 0, len(filtered))
@@ -334,64 +272,16 @@ func handlePartialRequirements(db *database.Database) http.HandlerFunc {
 				Category:    req.Category,
 				Description: req.RequirementText,
 				Effort:      fmt.Sprintf("%.1fw", req.EffortWeeks),
-				Assignee:    req.Assignee,
-				Sprint:      req.Sprint,
 			})
 		}
 
-		// Collect priorities for filter dropdown
-		priSet := make(map[string]bool)
-		for _, req := range db.All() {
-			priSet[string(req.Priority)] = true
-		}
-		pris := make([]string, 0, len(priSet))
-		for p := range priSet {
-			pris = append(pris, p)
-		}
-		sort.Strings(pris)
-
 		data := requirementsListData{
-			Requirements:   rows,
-			Categories:     cats,
-			Priorities:     pris,
-			SortField:      sortField,
-			SortOrder:      order,
-			FilterStatus:   status,
-			FilterCat:      category,
-			FilterPriority: priority,
-			FilterSearch:   search,
-			ActiveFilters:  buildActiveFilters(status, category, priority),
+			Requirements: rows,
+			Categories:   cats,
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_ = dashboard.RenderPartial(w, "requirements", data)
-	}
-}
-
-// REQ-DASH-016: Row partial endpoint returns a single table row.
-func handlePartialRequirementRow(db *database.Database) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		reqID := strings.TrimPrefix(r.URL.Path, "/partials/requirements/row/")
-		req := db.Get(reqID)
-		if req == nil {
-			http.NotFound(w, r)
-			return
-		}
-
-		data := reqRowData{
-			ReqID:       req.ReqID,
-			Status:      string(req.Status),
-			StatusClass: statusClassFor(req.Status),
-			Priority:    string(req.Priority),
-			Category:    req.Category,
-			Description: req.RequirementText,
-			Effort:      fmt.Sprintf("%.1fw", req.EffortWeeks),
-			Assignee:    req.Assignee,
-			Sprint:      req.Sprint,
-		}
-
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = dashboard.RenderPartial(w, "requirement_row", data)
 	}
 }
 
@@ -459,353 +349,43 @@ func handlePartialGraph(db *database.Database, g *graph.Graph) http.HandlerFunc 
 			cats = append(cats, c)
 		}
 
-		// Apply category filter
-		filterCat := r.URL.Query().Get("category")
-
-		// Build enriched JSON for D3/dagre (REQ-DASH-044, 045, 046, 047)
+		// Build JSON for D3
 		type gNode struct {
-			ID            string   `json:"id"`
-			Status        string   `json:"status"`
-			Group         string   `json:"group"`
-			Description   string   `json:"description"`
-			EffortWeeks   float64  `json:"effort_weeks"`
-			Priority      string   `json:"priority"`
-			Phase         int      `json:"phase"`
-			Assignee      string   `json:"assignee"`
-			Sprint        string   `json:"sprint"`
-			IsBlocked     bool     `json:"is_blocked"`
-			IsCritical    bool     `json:"is_critical"`
-			IsCycleMember bool     `json:"is_cycle_member"`
-			Layer         int      `json:"layer"`
-			WebID         int      `json:"web_id"`
-			BlockingIDs   []string `json:"blocking_ids"`
+			ID     string `json:"id"`
+			Status string `json:"status"`
+			Group  string `json:"group"`
 		}
 		type gEdge struct {
-			Source         string `json:"source"`
-			Target         string `json:"target"`
-			IsCriticalPath bool   `json:"is_critical_path"`
+			Source string `json:"source"`
+			Target string `json:"target"`
 		}
 		type gJSON struct {
-			Nodes      []gNode    `json:"nodes"`
-			Edges      []gEdge    `json:"edges"`
-			Cycles     [][]string `json:"cycles"`
-			LayerCount int        `json:"layer_count"`
-			WebCount   int        `json:"web_count"`
+			Nodes []gNode `json:"nodes"`
+			Edges []gEdge `json:"edges"`
 		}
-
-		// Pre-compute graph analysis (once per request)
-		criticalPath := g.CriticalPath()
-		criticalSet := make(map[string]bool, len(criticalPath))
-		for _, id := range criticalPath {
-			criticalSet[id] = true
-		}
-
-		cycles := g.FindCycles()
-		cycleSet := make(map[string]bool)
-		for _, cycle := range cycles {
-			for _, id := range cycle {
-				cycleSet[id] = true
-			}
-		}
-
-		layers := g.Layers()
-		layerDepth := make(map[string]int)
-		for layerIdx, layer := range layers {
-			for _, id := range layer {
-				layerDepth[id] = layerIdx
-			}
-		}
-
-		webs := g.DetectWebs()
-		webIndex := make(map[string]int)
-		for i, web := range webs {
-			for _, id := range web.IDs {
-				webIndex[id] = i
-			}
-		}
-
-		// Build filtered node set
-		nodeSet := make(map[string]bool)
+		gData := gJSON{}
 		for _, req := range db.All() {
-			if filterCat != "" && req.Category != filterCat {
-				continue
-			}
-			nodeSet[req.ReqID] = true
-		}
-
-		// Recompute layers for filtered subgraph if category filter is active
-		filteredLayerDepth := layerDepth
-		filteredLayerCount := len(layers)
-		if filterCat != "" {
-			filteredLayerDepth = make(map[string]int)
-			// BFS from filtered roots (nodes with no in-set deps)
-			inSetDeps := make(map[string]int)
-			for _, req := range db.All() {
-				if !nodeSet[req.ReqID] {
-					continue
-				}
-				count := 0
-				for dep := range req.Dependencies {
-					if nodeSet[dep] {
-						count++
-					}
-				}
-				inSetDeps[req.ReqID] = count
-			}
-			var queue []string
-			for id, count := range inSetDeps {
-				if count == 0 {
-					queue = append(queue, id)
-					filteredLayerDepth[id] = 0
-				}
-			}
-			maxFilteredLayer := 0
-			for len(queue) > 0 {
-				node := queue[0]
-				queue = queue[1:]
-				for _, req := range db.All() {
-					if !nodeSet[req.ReqID] {
-						continue
-					}
-					if _, hasDep := req.Dependencies[node]; hasDep {
-						newDepth := filteredLayerDepth[node] + 1
-						if d, exists := filteredLayerDepth[req.ReqID]; !exists || newDepth > d {
-							filteredLayerDepth[req.ReqID] = newDepth
-							if newDepth > maxFilteredLayer {
-								maxFilteredLayer = newDepth
-							}
-							queue = append(queue, req.ReqID)
-						}
-					}
-				}
-			}
-			filteredLayerCount = maxFilteredLayer + 1
-			if len(filteredLayerDepth) == 0 {
-				filteredLayerCount = 0
-			}
-		}
-
-		// Build nodes
-		gData := gJSON{WebCount: len(webs)}
-		for _, req := range db.All() {
-			if !nodeSet[req.ReqID] {
-				continue
-			}
-			layer, hasLayer := filteredLayerDepth[req.ReqID]
-			if !hasLayer {
-				if cycleSet[req.ReqID] {
-					layer = -1
-				}
-			}
-			wid := -1 // default for complete reqs not in any web
-			if idx, ok := webIndex[req.ReqID]; ok {
-				wid = idx
-			}
-			// REQ-DASH-095: Compute blocking_ids (incomplete direct deps)
-			blockingIDs := []string{}
-			for dep := range req.Dependencies {
-				if depReq := db.Get(dep); depReq != nil && !depReq.IsComplete() {
-					blockingIDs = append(blockingIDs, dep)
-				}
-			}
-			sort.Strings(blockingIDs)
 			gData.Nodes = append(gData.Nodes, gNode{
-				ID:            req.ReqID,
-				Status:        string(req.Status),
-				Group:         req.Category,
-				Description:   req.RequirementText,
-				EffortWeeks:   req.EffortWeeks,
-				Priority:      string(req.Priority),
-				Phase:         req.Phase,
-				Assignee:      req.Assignee,
-				Sprint:        req.Sprint,
-				IsBlocked:     g.IsBlocked(req.ReqID),
-				IsCritical:    criticalSet[req.ReqID],
-				IsCycleMember: cycleSet[req.ReqID],
-				Layer:         layer,
-				WebID:         wid,
-				BlockingIDs:   blockingIDs,
+				ID:     req.ReqID,
+				Status: string(req.Status),
+				Group:  req.Category,
 			})
-		}
-		gData.LayerCount = filteredLayerCount
-
-		// REQ-DASH-096: Add cycle paths (SCCs of size >= 2)
-		gData.Cycles = [][]string{}
-		for _, cycle := range cycles {
-			gData.Cycles = append(gData.Cycles, cycle)
-		}
-
-		// Build edges with critical path flag
-		// Two consecutive nodes on the critical path connected by an edge are critical path edges
-		criticalPathPos := make(map[string]int, len(criticalPath))
-		for i, id := range criticalPath {
-			criticalPathPos[id] = i
-		}
-		for _, req := range db.All() {
-			if !nodeSet[req.ReqID] {
-				continue
-			}
 			for dep := range req.Dependencies {
-				if nodeSet[dep] {
-					isCritEdge := false
-					if criticalSet[dep] && criticalSet[req.ReqID] {
-						isCritEdge = true
-					}
-					gData.Edges = append(gData.Edges, gEdge{
-						Source:         dep,
-						Target:         req.ReqID,
-						IsCriticalPath: isCritEdge,
-					})
-				}
+				gData.Edges = append(gData.Edges, gEdge{Source: dep, Target: req.ReqID})
 			}
 		}
 		graphJSON, _ := json.Marshal(gData)
 
-		// Use filtered counts when a category filter is applied
-		filteredNodes := len(gData.Nodes)
-		filteredEdges := len(gData.Edges)
-		if filterCat == "" {
-			filteredNodes = nodeCount
-			filteredEdges = edgeCount
-		}
-
 		data := graphPartialData{
-			NodeCount:  filteredNodes,
-			EdgeCount:  filteredEdges,
-			WebCount:   len(webs),
+			NodeCount:  nodeCount,
+			EdgeCount:  edgeCount,
+			WebCount:   len(g.DetectWebs()),
 			Categories: cats,
-			GraphJSON:  template.JS(graphJSON),
+			GraphJSON:  string(graphJSON),
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_ = dashboard.RenderPartial(w, "graph", data)
-	}
-}
-
-// REQ-DASH-067: Timeline Go handler building sprint-grouped JSON data structure
-func handlePartialTimeline(db *database.Database) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		type tlReq struct {
-			ID          string  `json:"id"`
-			Title       string  `json:"title"`
-			Status      string  `json:"status"`
-			EffortWeeks float64 `json:"effort_weeks"`
-			Assignee    string  `json:"assignee"`
-			Sprint      string  `json:"sprint"`
-			Category    string  `json:"category"`
-		}
-		type tlJSON struct {
-			Sprints      []string `json:"sprints"`
-			Categories   []string `json:"categories"`
-			Requirements []tlReq  `json:"requirements"`
-		}
-
-		// Collect sprints (semver-sorted) and categories
-		versions := db.Versions()
-		catSet := make(map[string]bool)
-		hasUnscheduled := false
-		var reqs []tlReq
-
-		for _, req := range db.All() {
-			catSet[req.Category] = true
-			sprint := req.Sprint
-			if sprint == "" {
-				sprint = "Unscheduled"
-				hasUnscheduled = true
-			}
-			reqs = append(reqs, tlReq{
-				ID:          req.ReqID,
-				Title:       req.RequirementText,
-				Status:      string(req.Status),
-				EffortWeeks: req.EffortWeeks,
-				Assignee:    req.Assignee,
-				Sprint:      sprint,
-				Category:    req.Category,
-			})
-		}
-
-		sprints := make([]string, len(versions))
-		copy(sprints, versions)
-		if hasUnscheduled {
-			sprints = append(sprints, "Unscheduled")
-		}
-
-		cats := make([]string, 0, len(catSet))
-		for c := range catSet {
-			cats = append(cats, c)
-		}
-		sort.Strings(cats)
-
-		tl := tlJSON{
-			Sprints:      sprints,
-			Categories:   cats,
-			Requirements: reqs,
-		}
-		tlBytes, _ := json.Marshal(tl)
-
-		data := timelinePartialData{
-			TimelineJSON: template.JS(tlBytes),
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = dashboard.RenderPartial(w, "timeline", data)
-	}
-}
-
-// REQ-DASH-071: Treemap Go handler building two-level hierarchy JSON
-func handlePartialTreemap(db *database.Database) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		type tmReq struct {
-			ID          string  `json:"id"`
-			Title       string  `json:"title"`
-			Status      string  `json:"status"`
-			EffortWeeks float64 `json:"effort_weeks"`
-			Category    string  `json:"category"`
-			Assignee    string  `json:"assignee"`
-		}
-		type tmCat struct {
-			Name     string  `json:"name"`
-			Children []tmReq `json:"children"`
-		}
-		type tmRoot struct {
-			Name     string  `json:"name"`
-			Children []tmCat `json:"children"`
-		}
-
-		catMap := make(map[string][]tmReq)
-		var catOrder []string
-		for _, req := range db.All() {
-			if _, exists := catMap[req.Category]; !exists {
-				catOrder = append(catOrder, req.Category)
-			}
-			ew := req.EffortWeeks
-			if ew <= 0 {
-				ew = 0.25
-			}
-			catMap[req.Category] = append(catMap[req.Category], tmReq{
-				ID:          req.ReqID,
-				Title:       req.RequirementText,
-				Status:      string(req.Status),
-				EffortWeeks: ew,
-				Category:    req.Category,
-				Assignee:    req.Assignee,
-			})
-		}
-
-		sort.Strings(catOrder)
-		root := tmRoot{Name: "root"}
-		for _, cat := range catOrder {
-			reqs := catMap[cat]
-			if len(reqs) > 0 {
-				root.Children = append(root.Children, tmCat{Name: cat, Children: reqs})
-			}
-		}
-
-		tmBytes, _ := json.Marshal(root)
-		data := treemapPartialData{
-			TreemapJSON: template.JS(tmBytes),
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = dashboard.RenderPartial(w, "treemap", data)
 	}
 }
 
@@ -857,21 +437,22 @@ func handlePartialKanban(db *database.Database, g *graph.Graph) http.HandlerFunc
 func handlePartialReleases(db *database.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Group by version/sprint
-		versionReqs := make(map[string][]*database.Requirement)
+		versions := make(map[string][]*database.Requirement)
+		var versionOrder []string
 		for _, req := range db.All() {
 			v := req.Sprint
 			if v == "" {
 				continue
 			}
-			versionReqs[v] = append(versionReqs[v], req)
+			if _, exists := versions[v]; !exists {
+				versionOrder = append(versionOrder, v)
+			}
+			versions[v] = append(versions[v], req)
 		}
-
-		// Sort versions by semver
-		versionOrder := db.Versions()
 
 		data := releasePageData{}
 		for _, v := range versionOrder {
-			reqs := versionReqs[v]
+			reqs := versions[v]
 			complete := 0
 			rows := make([]reqRowData, 0, len(reqs))
 			for _, req := range reqs {
@@ -951,96 +532,6 @@ func handlePartialAgents(db *database.Database) http.HandlerFunc {
 	}
 }
 
-// REQ-DASH-032/034: Palette search results partial with action prefixes.
-func handlePartialPaletteResults(db *database.Database) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		search := r.URL.Query().Get("search")
-		reqs := db.All()
-
-		var results []reqRowData
-
-		// REQ-DASH-034: Handle action prefixes
-		if strings.HasPrefix(search, ">") {
-			// Page navigation commands
-			pages := []struct{ id, desc string }{
-				{"status", "Go to Status"},
-				{"requirements", "Go to Requirements"},
-				{"graph", "Go to Graph"},
-				{"kanban", "Go to Kanban"},
-				{"releases", "Go to Releases"},
-				{"health", "Go to Health"},
-				{"agents", "Go to Agents"},
-			}
-			query := strings.ToLower(strings.TrimPrefix(search, ">"))
-			for _, p := range pages {
-				if query == "" || strings.Contains(strings.ToLower(p.desc), strings.TrimSpace(query)) {
-					results = append(results, reqRowData{
-						ReqID:       ">" + p.id,
-						Description: p.desc,
-						StatusClass: "not-started",
-						Status:      "NAV",
-					})
-				}
-			}
-		} else if strings.HasPrefix(search, "@") {
-			// Assignee filter
-			query := strings.ToLower(strings.TrimPrefix(search, "@"))
-			assigneeSet := make(map[string]bool)
-			for _, req := range reqs {
-				if req.Assignee != "" {
-					assigneeSet[req.Assignee] = true
-				}
-			}
-			for assignee := range assigneeSet {
-				if query == "" || strings.Contains(strings.ToLower(assignee), strings.TrimSpace(query)) {
-					results = append(results, reqRowData{
-						ReqID:       "@" + assignee,
-						Description: "Filter by assignee: " + assignee,
-						StatusClass: "not-started",
-						Status:      "FILTER",
-					})
-				}
-			}
-		} else if strings.HasPrefix(search, "#") {
-			// Category filter
-			query := strings.ToLower(strings.TrimPrefix(search, "#"))
-			catSet := make(map[string]bool)
-			for _, req := range reqs {
-				catSet[req.Category] = true
-			}
-			for cat := range catSet {
-				if query == "" || strings.Contains(strings.ToLower(cat), strings.TrimSpace(query)) {
-					results = append(results, reqRowData{
-						ReqID:       "#" + cat,
-						Description: "Filter by category: " + cat,
-						StatusClass: "not-started",
-						Status:      "FILTER",
-					})
-				}
-			}
-		} else if search != "" {
-			// Standard requirement search
-			needle := strings.ToLower(search)
-			for _, req := range reqs {
-				if strings.Contains(strings.ToLower(req.ReqID+req.RequirementText), needle) {
-					results = append(results, reqRowData{
-						ReqID:       req.ReqID,
-						Status:      string(req.Status),
-						StatusClass: statusClassFor(req.Status),
-						Description: req.RequirementText,
-					})
-					if len(results) >= 20 {
-						break
-					}
-				}
-			}
-		}
-
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = dashboard.RenderPartial(w, "palette_results", paletteResultsData{Results: results})
-	}
-}
-
 func buildStatusData(db *database.Database) statusData {
 	reqs := db.All()
 	complete, partial, missing := 0, 0, 0
@@ -1109,129 +600,4 @@ func titleCase(s string) string {
 		return s
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
-}
-
-// splitFilter splits a comma-separated filter string into a set for multi-select matching.
-// Returns nil if the input is empty (meaning no filter is active).
-func splitFilter(s string) map[string]bool {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	m := make(map[string]bool, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			m[p] = true
-		}
-	}
-	if len(m) == 0 {
-		return nil
-	}
-	return m
-}
-
-// buildActiveFilters constructs filter chips from current filter params.
-func buildActiveFilters(status, category, priority string) []activeFilter {
-	var filters []activeFilter
-	for _, v := range strings.Split(status, ",") {
-		v = strings.TrimSpace(v)
-		if v != "" {
-			filters = append(filters, activeFilter{Field: "Status", Value: v, Param: "status"})
-		}
-	}
-	for _, v := range strings.Split(priority, ",") {
-		v = strings.TrimSpace(v)
-		if v != "" {
-			filters = append(filters, activeFilter{Field: "Priority", Value: v, Param: "priority"})
-		}
-	}
-	for _, v := range strings.Split(category, ",") {
-		v = strings.TrimSpace(v)
-		if v != "" {
-			filters = append(filters, activeFilter{Field: "Category", Value: v, Param: "category"})
-		}
-	}
-	return filters
-}
-
-// REQ-ORCH-017: Parallel workstream dashboard visualization.
-func handlePartialParallel(db *database.Database, g *graph.Graph) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		webs := g.DetectWebs()
-		groups := g.ParallelGroups(webs)
-		deps := g.WebDependencies(webs)
-
-		type parallelWeb struct {
-			Index       int      `json:"index"`
-			IDs         []string `json:"ids"`
-			TotalEffort float64  `json:"total_effort"`
-			Unblocked   int      `json:"unblocked"`
-			Blocked     int      `json:"blocked"`
-			Progress    float64  `json:"progress"`
-		}
-
-		type parallelPhase struct {
-			Phase int           `json:"phase"`
-			Webs  []parallelWeb `json:"webs"`
-		}
-
-		type parallelDep struct {
-			From int `json:"from"`
-			To   int `json:"to"`
-		}
-
-		type parallelJSON struct {
-			Phases      []parallelPhase `json:"phases"`
-			Deps        []parallelDep   `json:"deps"`
-			TotalWebs   int             `json:"total_webs"`
-			TotalEffort float64         `json:"total_effort"`
-		}
-
-		data := parallelJSON{
-			TotalWebs: len(webs),
-		}
-
-		for _, web := range webs {
-			data.TotalEffort += web.TotalEffort
-		}
-
-		for i, grp := range groups {
-			phase := parallelPhase{Phase: i}
-			for _, wi := range grp.WebIndices {
-				web := webs[wi]
-				complete := 0
-				for _, id := range web.IDs {
-					req := db.Get(id)
-					if req != nil && !req.IsIncomplete() {
-						complete++
-					}
-				}
-				pct := 0.0
-				if len(web.IDs) > 0 {
-					pct = float64(complete) / float64(len(web.IDs)) * 100
-				}
-				phase.Webs = append(phase.Webs, parallelWeb{
-					Index:       wi,
-					IDs:         web.IDs,
-					TotalEffort: web.TotalEffort,
-					Unblocked:   len(web.Unblocked),
-					Blocked:     len(web.Blocked),
-					Progress:    pct,
-				})
-			}
-			data.Phases = append(data.Phases, phase)
-		}
-
-		for _, d := range deps {
-			data.Deps = append(data.Deps, parallelDep{From: d.From, To: d.To})
-		}
-
-		jsonData, _ := json.Marshal(data)
-		_ = dashboard.RenderPartial(w, "parallel", map[string]interface{}{
-			"ParallelJSON": template.JS(jsonData),
-			"PhaseCount":   len(groups),
-			"WebCount":     len(webs),
-		})
-	}
 }

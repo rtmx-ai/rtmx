@@ -3,6 +3,65 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.11.0] - 2026-08-23
+
+### Added
+
+- **Managed room sync** — `rtmx sync --sync-url --token` (or `RTMX_SYNC_TOKEN`)
+  joins a tenant-isolated rtmx-sync collaboration room, pushes/pulls CRDT
+  state, and persists the merge to CSV. `rtmx serve --sync-url` follows the
+  room into the dashboard database. Close code 4402 is reported as an
+  entitlement failure (REQ-SYNC-002, REQ-SYNC-003).
+
+### Fixed
+
+- Sync export external-id persistence (REQ-SYNC-001a) first shipped in this
+  tag (was already on main after v1.10.0; no separate v1.10.1 GitHub release).
+
+
+## [1.10.1] - 2026-08-05
+
+### Fixed
+
+- **Sync export now persists remote keys before reporting success.** Successful
+  Jira and issue-tracker creates immediately checkpoint the returned key in the
+  requirement's `external_id`, so a repeated export updates the existing item
+  instead of creating a duplicate. Empty keys are rejected, and a local save
+  failure stops further exports while reporting the created remote key for
+  recovery. (REQ-SYNC-001a)
+
+## [1.8.0]
+
+### Added
+
+- **`rtmx from-pytest` accepts multiple test paths.** Previously it scanned and
+  ran only a single path (default `tests`), so a multi-package layout — a
+  top-level `tests/` plus `packages/*/tests/` — could not be reconciled in one
+  invocation (the other packages were silently never scored). It now accepts one
+  or more paths (`rtmx from-pytest tests packages/foo/tests packages/bar/tests`)
+  and scans + runs all of them.
+
+### Fixed
+
+- **Path-qualified JUnit join.** Test results are now matched to scanned markers
+  by repo-relative file path first, falling back to the bare function name. This
+  prevents a passing test in one file from being mis-attributed to a same-named
+  test in another file — a real hazard once a multi-package tree is scanned.
+
+## [1.7.0]
+
+### Fixed
+
+- **`rtmx from-pytest` now carries marker dimensions and omits skipped tests.**
+  The JUnit-based pytest path emitted dimensionless results and recorded
+  `skipif`/`xfail` tests as failures. It now maps each test's
+  `scope_*`/`technique_*`/`env_*` pytest markers into the results schema's
+  `scope`/`technique`/`env` fields (e.g. `scope_unit` → `unit`,
+  `env_static_field` → `static_field`), so projects using a multi-dimensional
+  completeness policy can reach COMPLETE from the pytest path; and it omits
+  skipped tests entirely so a hardware-gated `skipif` no longer downgrades a
+  requirement. (REQ-LANG-004)
+
 ## [1.4.0] - 2026-06-04
 
 ### Added

@@ -4,16 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{.Title}} - RTMX Dashboard</title>
-  <script src="/static/vendor/htmx.min.js"></script>
-  <script defer src="/static/vendor/alpine.min.js"></script>
-  <script src="/static/vendor/d3.v7.min.js"></script>
-  <script src="/static/vendor/dagre.min.js"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.17/tailwind.min.css" rel="stylesheet">
   <link rel="stylesheet" href="/static/styles.css">
 </head>
-<body x-data="rtmxApp()">
-  <nav style="background: var(--rtmx-bg-card); border-bottom: 1px solid var(--rtmx-border); padding: 0.75rem 1.5rem; display: flex; align-items: center; justify-content: space-between;">
-    <div style="display: flex; align-items: center; gap: 1.5rem;">
-      <span style="font-weight: 700; font-size: 1.125rem; letter-spacing: -0.025em; color: var(--rtmx-emerald);">RTMX</span>
+<body class="bg-gray-50 text-gray-900 min-h-screen" x-data="rtmxApp()">
+  <nav class="bg-gray-900 text-white px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-6">
+      <span class="font-bold text-lg tracking-tight">RTMX</span>
       <a href="/" class="nav-link" :class="{'nav-active': page === 'status'}"
          @click.prevent="navigate('status')" hx-get="/partials/status" hx-target="#content" hx-push-url="/">Status</a>
       <a href="/requirements" class="nav-link" :class="{'nav-active': page === 'requirements'}"
@@ -29,86 +28,17 @@
       <a href="/agents" class="nav-link" :class="{'nav-active': page === 'agents'}"
          @click.prevent="navigate('agents')" hx-get="/partials/agents" hx-target="#content" hx-push-url="/agents">Agents</a>
     </div>
-    <div style="font-size: 0.8rem;">
-      <span x-show="connected" style="color: var(--rtmx-complete);">Connected</span>
-      <span x-show="!connected" style="color: var(--rtmx-missing);">Disconnected</span>
+    <div class="text-sm text-gray-400" id="connection-status">
+      <span x-show="connected" class="text-green-400">Connected</span>
+      <span x-show="!connected" class="text-red-400">Disconnected</span>
     </div>
   </nav>
 
-  <main style="max-width: 72rem; margin: 0 auto; padding: 1.5rem;">
+  <main class="max-w-7xl mx-auto px-6 py-6">
     <div id="content">
       {{.Content}}
     </div>
   </main>
-
-  <!-- Toast notifications (REQ-DASH-014) -->
-  <div id="toast-container" x-data="toastManager()" @show-toast.window="add($event.detail)"
-       style="position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 100; display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none;">
-    <template x-for="toast in toasts" :key="toast.id">
-      <div class="toast" :class="'toast-' + toast.type"
-           x-show="toast.visible" x-transition:enter="toast-enter" x-transition:leave="toast-leave"
-           style="pointer-events: auto; cursor: pointer;" @click="remove(toast.id)">
-        <span x-text="toast.message"></span>
-      </div>
-    </template>
-  </div>
-
-  <!-- Detail panel (REQ-DASH-025) -->
-  <div id="detail-panel-backdrop" x-show="panelOpen" @click="panelOpen = false"
-       x-transition:enter="backdrop-enter" x-transition:leave="backdrop-leave"
-       style="position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 40;"></div>
-  <div id="detail-panel" x-show="panelOpen"
-       x-transition:enter="panel-enter" x-transition:enter-start="panel-enter-start" x-transition:enter-end="panel-enter-end"
-       x-transition:leave="panel-leave" x-transition:leave-start="panel-leave-end" x-transition:leave-end="panel-enter-start"
-       @keydown.escape.window="panelOpen = false"
-       style="position: fixed; top: 0; right: 0; bottom: 0; width: 480px; max-width: 50vw; z-index: 50; background: var(--rtmx-bg); border-left: 1px solid var(--rtmx-border); overflow-y: auto; padding: 1.5rem;">
-    <div id="detail-panel-body">
-    </div>
-  </div>
-
-  <!-- Command palette (REQ-DASH-031) -->
-  <div id="palette-backdrop" x-show="paletteOpen" @click="paletteOpen = false"
-       x-transition:enter="backdrop-enter" x-transition:leave="backdrop-leave"
-       style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 60;"></div>
-  <div id="command-palette" x-show="paletteOpen"
-       x-transition:enter="palette-enter" x-transition:enter-start="palette-enter-start" x-transition:enter-end="palette-enter-end"
-       x-transition:leave="palette-leave" x-transition:leave-start="palette-enter-end" x-transition:leave-end="palette-enter-start"
-       @keydown.escape="paletteOpen = false"
-       style="position: fixed; top: 20%; left: 50%; transform: translateX(-50%); width: 100%; max-width: 600px; z-index: 70; background: var(--rtmx-bg-card); border: 1px solid var(--rtmx-border); border-radius: 0.75rem; box-shadow: var(--rtmx-shadow-elevated); overflow: hidden;">
-    <input id="palette-input" type="text" placeholder="Search requirements..." class="palette-input"
-           x-ref="paletteInput"
-           hx-get="/partials/palette-results" hx-target="#palette-results" hx-trigger="keyup changed delay:150ms"
-           @keydown="paletteKeyNav($event)"
-           name="search">
-    <div id="palette-results" style="max-height: 320px; overflow-y: auto;">
-    </div>
-  </div>
-
-  <!-- Bulk action bar (REQ-DASH-040) -->
-  <div id="bulk-action-bar" x-data="bulkActionBar()"
-       x-show="selectedCount > 0"
-       style="position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 30; background: var(--rtmx-bg-card); border: 1px solid var(--rtmx-border); border-radius: 0.75rem; padding: 0.75rem 1.25rem; display: flex; align-items: center; gap: 1rem; box-shadow: var(--rtmx-shadow-elevated);">
-    <span style="font-size: 0.875rem; color: var(--rtmx-text-muted);" x-text="selectedCount + ' selected'"></span>
-    <button class="btn-secondary" style="font-size: 0.8rem; padding: 0.25rem 0.75rem;" @click="bulkSetStatus()">Set Status</button>
-    <button class="btn-secondary" style="font-size: 0.8rem; padding: 0.25rem 0.75rem;" @click="bulkSetPriority()">Set Priority</button>
-    <button class="btn-secondary" style="font-size: 0.8rem; padding: 0.25rem 0.75rem;" @click="bulkSetAssignee()">Set Assignee</button>
-    <button class="btn-secondary" style="font-size: 0.8rem; padding: 0.25rem 0.75rem;" @click="bulkSetSprint()">Set Sprint</button>
-    <button style="background: none; border: none; color: var(--rtmx-text-dim); cursor: pointer; font-size: 0.8rem;" @click="clearSelection()">Clear</button>
-  </div>
-
-  <!-- Keyboard help overlay (REQ-DASH-037) -->
-  <div id="keyboard-help" x-data="keyboardHelpOverlay()" @toggle-help.window="toggle()" @keydown.escape.window="helpOpen = false">
-    <div x-show="helpOpen" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 80;" @click="helpOpen = false"></div>
-    <div x-show="helpOpen" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 90; background: var(--rtmx-bg-card); border: 1px solid var(--rtmx-border); border-radius: 0.75rem; padding: 1.5rem; min-width: 320px; max-width: 480px;">
-      <h3 style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem;">Keyboard Shortcuts</h3>
-      <template x-for="s in shortcuts" :key="s.keys">
-        <div style="display: flex; justify-content: space-between; padding: 0.375rem 0; border-bottom: 1px solid var(--rtmx-border);">
-          <code style="font-family: var(--rtmx-font-mono); font-size: 0.8rem; color: var(--rtmx-emerald);" x-text="s.keys"></code>
-          <span style="font-size: 0.875rem; color: var(--rtmx-text-muted);" x-text="s.desc"></span>
-        </div>
-      </template>
-    </div>
-  </div>
 
   <script src="/static/app.js"></script>
 </body>

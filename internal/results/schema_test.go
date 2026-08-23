@@ -87,6 +87,50 @@ func TestParseValidResultsMinimal(t *testing.T) {
 	}
 }
 
+// TestParseSkippedResults verifies that skip is decoded as a first-class,
+// non-evidence outcome rather than a silent failure (REQ-VERIFY-012): an explicit
+// status of "skip"/"skipped", an explicit "skipped": true, and a record supplying
+// NEITHER passed nor status all decode to Skipped=true, while a genuine failure is
+// unchanged.
+func TestParseSkippedResults(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-012",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+	m := `"marker":{"req_id":"REQ-AUTH-001","test_name":"t","test_file":"t.py"}`
+	cases := []struct {
+		name        string
+		body        string
+		wantPassed  bool
+		wantSkipped bool
+	}{
+		{"status skip", `{` + m + `,"status":"skip"}`, false, true},
+		{"status skipped", `{` + m + `,"status":"skipped"}`, false, true},
+		{"explicit skipped true", `{` + m + `,"skipped":true}`, false, true},
+		{"no outcome supplied is non-evidence", `{` + m + `}`, false, true},
+		{"status fail is unchanged", `{` + m + `,"status":"fail"}`, false, false},
+		{"passed true is unchanged", `{` + m + `,"passed":true}`, true, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := Parse(strings.NewReader("[" + tc.body + "]"))
+			if err != nil {
+				t.Fatalf("Parse() error = %v", err)
+			}
+			if len(res) != 1 {
+				t.Fatalf("got %d results, want 1", len(res))
+			}
+			if res[0].Passed != tc.wantPassed {
+				t.Errorf("Passed = %v, want %v", res[0].Passed, tc.wantPassed)
+			}
+			if res[0].Skipped != tc.wantSkipped {
+				t.Errorf("Skipped = %v, want %v", res[0].Skipped, tc.wantSkipped)
+			}
+		})
+	}
+}
+
 func TestParseValidResultsAllFields(t *testing.T) {
 	rtmx.Req(t, "REQ-VERIFY-002",
 		rtmx.Scope("unit"),

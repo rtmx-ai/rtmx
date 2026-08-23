@@ -25,6 +25,11 @@ func StaticFS() http.FileSystem {
 	return http.FS(sub)
 }
 
+// TemplateFS returns the embedded templates sub-filesystem.
+func TemplateFS() fs.FS {
+	sub, _ := fs.Sub(assets, "templates")
+	return sub
+}
 
 // HTMLContent is an alias for template.HTML to allow safe HTML injection.
 type HTMLContent = template.HTML
@@ -45,36 +50,10 @@ func RenderLayout(w io.Writer, data LayoutData) error {
 	return tmpl.Execute(w, data)
 }
 
-// ReadStaticFile returns the contents of a static asset as a string.
-// Returns an empty string if the file is not found.
-func ReadStaticFile(name string) string {
-	data, err := fs.ReadFile(assets, "static/"+name)
-	if err != nil {
-		return ""
-	}
-	return string(data)
-}
-
-// ReadTemplateFile returns the raw contents of a template file as a string.
-// The name should be relative to templates/ (e.g., "partials/graph.html").
-// Returns an empty string if the file is not found.
-func ReadTemplateFile(name string) string {
-	data, err := fs.ReadFile(assets, "templates/"+name)
-	if err != nil {
-		return ""
-	}
-	return string(data)
-}
-
-// templateFuncs provides custom functions available in all templates.
-var templateFuncs = template.FuncMap{
-	"list": func(args ...string) []string { return args },
-}
-
 // RenderPartial renders a named partial template.
 func RenderPartial(w io.Writer, name string, data interface{}) error {
 	path := "templates/partials/" + name + ".html"
-	tmpl, err := template.New(name + ".html").Funcs(templateFuncs).ParseFS(assets, path)
+	tmpl, err := template.ParseFS(assets, path)
 	if err != nil {
 		return err
 	}

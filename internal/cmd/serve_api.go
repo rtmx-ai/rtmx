@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
 	"math"
 	"net/http"
 	"sort"
@@ -12,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rtmx-ai/rtmx/internal/dashboard"
 	"github.com/rtmx-ai/rtmx/internal/database"
 	"github.com/rtmx-ai/rtmx/internal/graph"
 	"github.com/rtmx-ai/rtmx/internal/orchestration"
@@ -290,12 +287,6 @@ func writeAPIError(w http.ResponseWriter, status int, message string) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
-// writeAPIErrorWithToast writes a JSON error response with an HX-Trigger toast.
-func writeAPIErrorWithToast(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("HX-Trigger", `{"showToast":{"type":"error","message":"`+message+`"}}`)
-	writeAPIError(w, status, message)
-}
-
 // writeJSON writes a JSON response with 200 OK.
 func writeJSON(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -443,20 +434,20 @@ var mutableFields = map[string]bool{
 func handleRequirementPatch(w http.ResponseWriter, r *http.Request, db *database.Database, dbPath string, reqID string, mu *sync.Mutex) {
 	req := db.Get(reqID)
 	if req == nil {
-		writeAPIErrorWithToast(w, http.StatusNotFound, "requirement not found: "+reqID)
+		writeAPIError(w, http.StatusNotFound, "requirement not found: "+reqID)
 		return
 	}
 
 	var body map[string]interface{}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeAPIErrorWithToast(w, http.StatusBadRequest, "invalid JSON body")
+		writeAPIError(w, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
 
 	// Validate all fields are mutable
 	for key := range body {
 		if !mutableFields[key] {
-			writeAPIErrorWithToast(w, http.StatusBadRequest, "field not mutable: "+key)
+			writeAPIError(w, http.StatusBadRequest, "field not mutable: "+key)
 			return
 		}
 	}
@@ -465,11 +456,11 @@ func handleRequirementPatch(w http.ResponseWriter, r *http.Request, db *database
 	if v, ok := body["status"]; ok {
 		s, isStr := v.(string)
 		if !isStr {
-			writeAPIErrorWithToast(w, http.StatusBadRequest, "status must be a string")
+			writeAPIError(w, http.StatusBadRequest, "status must be a string")
 			return
 		}
 		if _, err := database.ParseStatus(s); err != nil {
-			writeAPIErrorWithToast(w, http.StatusBadRequest, "invalid status: "+s)
+			writeAPIError(w, http.StatusBadRequest, "invalid status: "+s)
 			return
 		}
 	}
@@ -478,11 +469,11 @@ func handleRequirementPatch(w http.ResponseWriter, r *http.Request, db *database
 	if v, ok := body["priority"]; ok {
 		s, isStr := v.(string)
 		if !isStr {
-			writeAPIErrorWithToast(w, http.StatusBadRequest, "priority must be a string")
+			writeAPIError(w, http.StatusBadRequest, "priority must be a string")
 			return
 		}
 		if _, err := database.ParsePriority(s); err != nil {
-			writeAPIErrorWithToast(w, http.StatusBadRequest, "invalid priority: "+s)
+			writeAPIError(w, http.StatusBadRequest, "invalid priority: "+s)
 			return
 		}
 	}
@@ -502,157 +493,22 @@ func handleRequirementPatch(w http.ResponseWriter, r *http.Request, db *database
 	}
 
 	if err := db.Update(reqID, body); err != nil {
-		writeAPIErrorWithToast(w, http.StatusInternalServerError, "update failed: "+err.Error())
+		writeAPIError(w, http.StatusInternalServerError, "update failed: "+err.Error())
 		return
 	}
 
 	if err := db.Save(dbPath); err != nil {
-		writeAPIErrorWithToast(w, http.StatusInternalServerError, "save failed: "+err.Error())
+		writeAPIError(w, http.StatusInternalServerError, "save failed: "+err.Error())
 		return
 	}
 
-	// REQ-DASH-015: Toast feedback via HX-Trigger header
-	w.Header().Set("HX-Trigger", `{"showToast":{"type":"success","message":"Saved `+reqID+`"}}`)
-
+	// Return updated requirement detail
 	updated := db.Get(reqID)
-
-	// REQ-DASH-030: If htmx request, return detail partial + OOB row swap
-	if r.Header.Get("HX-Request") == "true" {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		// Render the row partial with OOB swap
-		var rowBuf bytes.Buffer
-		rowData := reqRowData{
-			ReqID:       updated.ReqID,
-			Status:      string(updated.Status),
-			StatusClass: statusClassFor(updated.Status),
-			Priority:    string(updated.Priority),
-			Category:    updated.Category,
-			Description: updated.RequirementText,
-			Effort:      fmt.Sprintf("%.1fw", updated.EffortWeeks),
-			Assignee:    updated.Assignee,
-			Sprint:      updated.Sprint,
-		}
-		_ = dashboard.RenderPartial(&rowBuf, "requirement_row", rowData)
-		// Inject OOB swap attribute
-		oobRow := strings.Replace(rowBuf.String(), "<tr ", `<tr hx-swap-oob="true" `, 1)
-		_, _ = w.Write([]byte(oobRow))
-		return
-	}
-
-	// JSON response for non-htmx clients
 	resp := apiRequirementDetailResponse{
 		Requirement:      toAPIRequirementDetail(updated),
 		DependencyDetail: buildDependencyDetail(db, updated),
 	}
 	writeJSON(w, resp)
-}
-
-// --- REQ-DASH-041: Bulk Update Endpoint ---
-
-type apiBulkUpdateRequest struct {
-	ReqIDs  []string               `json:"req_ids"`
-	Updates map[string]interface{} `json:"updates"`
-}
-
-func handleAPIBulkUpdate(db *database.Database, dbPath string, mu *sync.Mutex) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			writeAPIError(w, http.StatusMethodNotAllowed, "method not allowed")
-			return
-		}
-
-		var req apiBulkUpdateRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeAPIErrorWithToast(w, http.StatusBadRequest, "invalid JSON body")
-			return
-		}
-
-		if len(req.ReqIDs) == 0 {
-			writeAPIErrorWithToast(w, http.StatusBadRequest, "req_ids must not be empty")
-			return
-		}
-
-		// Validate all fields are mutable
-		for key := range req.Updates {
-			if !mutableFields[key] {
-				writeAPIErrorWithToast(w, http.StatusBadRequest, "field not mutable: "+key)
-				return
-			}
-		}
-
-		// Validate status if provided
-		if v, ok := req.Updates["status"]; ok {
-			s, isStr := v.(string)
-			if !isStr {
-				writeAPIErrorWithToast(w, http.StatusBadRequest, "status must be a string")
-				return
-			}
-			if _, err := database.ParseStatus(s); err != nil {
-				writeAPIErrorWithToast(w, http.StatusBadRequest, "invalid status: "+s)
-				return
-			}
-		}
-
-		// Validate priority if provided
-		if v, ok := req.Updates["priority"]; ok {
-			s, isStr := v.(string)
-			if !isStr {
-				writeAPIErrorWithToast(w, http.StatusBadRequest, "priority must be a string")
-				return
-			}
-			if _, err := database.ParsePriority(s); err != nil {
-				writeAPIErrorWithToast(w, http.StatusBadRequest, "invalid priority: "+s)
-				return
-			}
-		}
-
-		// Verify all req_ids exist
-		for _, id := range req.ReqIDs {
-			if db.Get(id) == nil {
-				writeAPIErrorWithToast(w, http.StatusNotFound, "requirement not found: "+id)
-				return
-			}
-		}
-
-		mu.Lock()
-		defer mu.Unlock()
-
-		// Apply updates atomically
-		for _, id := range req.ReqIDs {
-			updates := make(map[string]interface{})
-			for k, v := range req.Updates {
-				updates[k] = v
-			}
-
-			// Handle completed_date auto-management
-			if statusVal, ok := updates["status"]; ok {
-				existing := db.Get(id)
-				newStatus, _ := database.ParseStatus(statusVal.(string))
-				if newStatus == database.StatusComplete && existing.Status != database.StatusComplete {
-					updates["completed_date"] = time.Now().UTC().Format("2006-01-02")
-				} else if newStatus != database.StatusComplete && existing.Status == database.StatusComplete {
-					updates["completed_date"] = ""
-				}
-			}
-
-			if err := db.Update(id, updates); err != nil {
-				writeAPIErrorWithToast(w, http.StatusInternalServerError, "update failed for "+id+": "+err.Error())
-				return
-			}
-		}
-
-		if dbPath != "" {
-			if err := db.Save(dbPath); err != nil {
-				writeAPIErrorWithToast(w, http.StatusInternalServerError, "save failed: "+err.Error())
-				return
-			}
-		}
-
-		count := len(req.ReqIDs)
-		msg := fmt.Sprintf("Updated %d requirements", count)
-		w.Header().Set("HX-Trigger", `{"showToast":{"type":"success","message":"`+msg+`"}}`)
-		writeJSON(w, map[string]interface{}{"updated": count})
-	}
 }
 
 // --- REQ-API-004: Dependency Graph Endpoint ---

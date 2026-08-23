@@ -93,7 +93,7 @@ func TestMCPServer(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected tools array, got %T", result["tools"])
 		}
-		// We expose 11 tools (8 read + 3 mutation)
+		// We expose 11 tools (7 read + 4 mutation)
 		if len(tools) != 11 {
 			t.Errorf("expected 11 tools, got %d", len(tools))
 		}
@@ -104,7 +104,7 @@ func TestMCPServer(t *testing.T) {
 			name, _ := tm["name"].(string)
 			names[name] = true
 		}
-		for _, expected := range []string{"status", "backlog", "health", "deps", "verify", "markers", "next", "claim", "release", "release_assign", "parallel_plan"} {
+		for _, expected := range []string{"status", "backlog", "health", "deps", "verify", "markers", "next", "claim", "release", "release_assign"} {
 			if !names[expected] {
 				t.Errorf("missing tool: %s", expected)
 			}
@@ -1452,95 +1452,6 @@ echo '{"Test":"TestFirst","Action":"pass","Package":"pkg"}'
 		vr := result.(verifyResult)
 		if vr.Updated != 0 {
 			t.Errorf("updated = %d, want 0 (no changes)", vr.Updated)
-		}
-	})
-}
-
-// TestMCPParallelPlan validates REQ-ORCH-018: MCP parallel_plan tool.
-func TestMCPParallelPlan(t *testing.T) {
-	rtmx.Req(t, "REQ-ORCH-018")
-
-	tmpDir := t.TempDir()
-	rtmxDir := filepath.Join(tmpDir, ".rtmx")
-	if err := os.MkdirAll(rtmxDir, 0o755); err != nil {
-		t.Fatalf("failed to create .rtmx dir: %v", err)
-	}
-
-	dbPath := filepath.Join(rtmxDir, "database.csv")
-	writeTestDB(t, dbPath)
-
-	cfgPath := filepath.Join(tmpDir, "rtmx.yaml")
-	writeTestConfig(t, cfgPath)
-	cfg, err := config.LoadFromDir(tmpDir)
-	if err != nil {
-		t.Fatalf("failed to load config: %v", err)
-	}
-
-	db, err := database.Load(dbPath)
-	if err != nil {
-		t.Fatalf("failed to load database: %v", err)
-	}
-
-	srv := NewServer(dbPath, cfg)
-
-	t.Run("returns_plan_data", func(t *testing.T) {
-		result := srv.toolParallelPlan(db)
-		data, err := json.Marshal(result)
-		if err != nil {
-			t.Fatalf("failed to marshal result: %v", err)
-		}
-		s := string(data)
-
-		// Should contain phases, deps, total_webs keys
-		if !strings.Contains(s, "phases") {
-			t.Error("result should contain phases")
-		}
-		if !strings.Contains(s, "total_webs") {
-			t.Error("result should contain total_webs")
-		}
-		if !strings.Contains(s, "deps") {
-			t.Error("result should contain deps")
-		}
-	})
-
-	t.Run("tool_listed", func(t *testing.T) {
-		srv2 := NewServer(dbPath, cfg, WithHost("127.0.0.1"), WithPort(0))
-		go func() {
-			_ = srv2.Start()
-		}()
-		deadline := time.Now().Add(2 * time.Second)
-		for srv2.Addr() == "" && time.Now().Before(deadline) {
-			time.Sleep(10 * time.Millisecond)
-		}
-		if srv2.Addr() == "" {
-			t.Fatal("server did not start")
-		}
-		defer func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-			defer cancel()
-			_ = srv2.Shutdown(ctx)
-		}()
-
-		baseURL := fmt.Sprintf("http://%s/mcp", srv2.Addr())
-		resp := rpcCall(t, baseURL, "tools/list", nil)
-		result, ok := resp["result"].(map[string]interface{})
-		if !ok {
-			t.Fatalf("expected result map, got %T", resp["result"])
-		}
-		tools, ok := result["tools"].([]interface{})
-		if !ok {
-			t.Fatalf("expected tools array, got %T", result["tools"])
-		}
-		found := false
-		for _, tool := range tools {
-			tm, _ := tool.(map[string]interface{})
-			if tm["name"] == "parallel_plan" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Error("parallel_plan tool should be listed")
 		}
 	})
 }

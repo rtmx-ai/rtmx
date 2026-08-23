@@ -1,163 +1,33 @@
-<div style="display: flex; flex-direction: column; gap: 1rem;" x-data="viewSwitcher()">
-  <div style="display: flex; align-items: center; justify-content: space-between;">
-    <h2 style="font-size: 1.5rem; font-weight: 700;">Dependency Graph</h2>
-    <div class="view-switcher" role="group" aria-label="View mode">
-      <button class="view-switcher-btn" :class="{'active': active === 'dag'}"
-              @click="switchView('dag')"
-              hx-get="/partials/graph?view=dag" hx-target="#graph-view-content" hx-swap="innerHTML"
-              hx-include="[name='category']"
-              aria-pressed="true" role="radio">DAG</button>
-      <button class="view-switcher-btn" :class="{'active': active === 'timeline'}"
-              @click="switchView('timeline')"
-              hx-get="/partials/timeline" hx-target="#graph-view-content" hx-swap="innerHTML"
-              aria-pressed="false" role="radio">Timeline</button>
-      <button class="view-switcher-btn" :class="{'active': active === 'treemap'}"
-              @click="switchView('treemap')"
-              hx-get="/partials/treemap" hx-target="#graph-view-content" hx-swap="innerHTML"
-              aria-pressed="false" role="radio">Treemap</button>
-    </div>
-  </div>
-
-  <!-- REQ-DASH-077: Accessible summary -->
-  <p class="text-muted" style="font-size: 0.8rem;" aria-live="polite" id="graph-summary">
-    Dependency graph: {{.NodeCount}} nodes, {{.EdgeCount}} edges, {{.WebCount}} webs
-  </p>
-  <!-- REQ-DASH-077: Screen reader live region -->
-  <div aria-live="polite" class="graph-a11y-announce" id="graph-announce"></div>
+<div class="space-y-4">
+  <h2 class="text-2xl font-bold">Dependency Graph</h2>
 
   <div class="card">
-    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap;">
-      <select name="category" class="form-input" aria-label="Filter by category"
+    <div class="flex items-center gap-4 mb-4">
+      <span class="text-sm text-gray-500">{{.NodeCount}} nodes, {{.EdgeCount}} edges, {{.WebCount}} webs</span>
+      <select name="category" class="border rounded px-3 py-1.5 text-sm"
               hx-get="/partials/graph" hx-target="#content" hx-trigger="change">
         <option value="">All Categories</option>
         {{range .Categories}}
         <option value="{{.}}">{{.}}</option>
         {{end}}
       </select>
-      <!-- REQ-DASH-049: Direction toggle -->
-      <div x-data="graphDirection()">
-        <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;"
-                @click="toggle()" x-text="dir === 'TB' ? 'TB' : 'LR'" aria-label="Toggle layout direction"></button>
-      </div>
-      <!-- REQ-DASH-064: Zoom controls toolbar -->
-      <div class="zoom-toolbar" role="toolbar" aria-label="Zoom controls">
-        <button class="btn-secondary zoom-btn" onclick="graphZoom('in')" title="Zoom in (+)" aria-label="Zoom in">+</button>
-        <span class="zoom-level-indicator text-muted" id="zoom-level">100%</span>
-        <button class="btn-secondary zoom-btn" onclick="graphZoom('out')" title="Zoom out (-)" aria-label="Zoom out">-</button>
-        <button class="btn-secondary zoom-btn" onclick="graphZoom('fit')" title="Fit to view (0)" aria-label="Fit to view">Fit</button>
-      </div>
-      <!-- REQ-DASH-065: Search input for graph -->
-      <div style="position: relative;">
-        <input type="text" class="form-input graph-search-input" id="graph-search"
-               placeholder="Search graph..." oninput="graphSearch(this.value)"
-               aria-label="Search graph nodes"
-               style="font-size: 0.8rem; padding: 0.25rem 0.5rem; width: 160px;">
-        <span class="text-muted graph-search-count" id="graph-search-count" style="font-size: 0.75rem;"></span>
-      </div>
-      <!-- REQ-DASH-060: Swimlane group-by control -->
-      <div x-data="graphSwimlanes()" class="cluster-control">
-        <select @change="setGroupBy($event.target.value)" aria-label="Group by dimension">
-          <option value="none">No Grouping</option>
-          <option value="category">Category</option>
-          <option value="assignee">Assignee</option>
-          <option value="phase">Phase</option>
-          <option value="sprint">Sprint</option>
-        </select>
-      </div>
-      <!-- REQ-DASH-089: Cluster threshold control -->
-      <div x-data="clusterThreshold()" class="cluster-control">
-        <select @change="setMode($event.target.value)" aria-label="Cluster mode">
-          <option value="auto">Auto Cluster</option>
-          <option value="always">Always Cluster</option>
-          <option value="never">Never Cluster</option>
-        </select>
-      </div>
-      <!-- REQ-DASH-078/079: Export buttons -->
-      <button class="btn-secondary export-btn" onclick="exportGraphSVG()" title="Export SVG" aria-label="Export graph as SVG">SVG</button>
-      <button class="btn-secondary export-btn" onclick="exportGraphPNG()" title="Export PNG" aria-label="Export graph as PNG">PNG</button>
-      <!-- REQ-DASH-080: Print button -->
-      <button class="btn-secondary export-btn" onclick="window.print()" title="Print" aria-label="Print graph">Print</button>
     </div>
-    <!-- REQ-DASH-061: Multi-select filter bar -->
-    <div class="graph-filter-bar" x-data="graphFilters()">
-      <template x-for="s in ['COMPLETE','PARTIAL','MISSING','NOT_STARTED']">
-        <span class="graph-filter-chip" :class="{'active': statusFilters.includes(s)}"
-              @click="toggleFilter('status', s)" x-text="s"></span>
-      </template>
-      <template x-for="p in ['P0','HIGH','MEDIUM','LOW']">
-        <span class="graph-filter-chip" :class="{'active': priorityFilters.includes(p)}"
-              @click="toggleFilter('priority', p)" x-text="p"></span>
-      </template>
-      <button class="btn-secondary" style="font-size: 0.7rem; padding: 0.1rem 0.3rem;" @click="clearAll()">Clear</button>
+    <div id="graph-container" style="width: 100%; height: 600px; border: 1px solid #e5e7eb; border-radius: 0.375rem;">
+      <svg id="graph-svg" width="100%" height="100%"></svg>
     </div>
-    <div id="graph-view-content">
-      <div id="graph-container" style="width: 100%; height: 600px; border-radius: 0.375rem; position: relative;">
-        <!-- REQ-DASH-081: Loading state -->
-        <div id="graph-loading" class="graph-loading">
-          <div class="graph-loading-skeleton"></div>
-        </div>
-        <svg id="graph-svg" width="100%" height="100%"></svg>
-        <!-- REQ-DASH-063: Minimap overview panel -->
-        <div class="graph-minimap" id="graph-minimap"></div>
-        <!-- REQ-DASH-057: Legend panel -->
-        <div class="graph-legend" x-data="{ collapsed: false }">
-          <button class="graph-legend-toggle" @click="collapsed = !collapsed"
-                  x-text="collapsed ? 'Legend' : 'Hide'" aria-label="Toggle legend panel"></button>
-          <div x-show="!collapsed" class="graph-legend-body">
-            <div class="graph-legend-section">
-              <span class="graph-legend-title">Size = Effort</span>
-              <div class="graph-legend-row">
-                <svg width="48" height="16"><circle cx="6" cy="8" r="4" fill="#6b7280"/><circle cx="22" cy="8" r="8" fill="#6b7280"/><circle cx="42" cy="8" r="12" fill="#6b7280" transform="scale(0.8)" transform-origin="42 8"/></svg>
-                <span>0.5w / 2w / 4w</span>
-              </div>
-            </div>
-            <div class="graph-legend-section">
-              <span class="graph-legend-title">Fill = Status</span>
-              <div class="graph-legend-row">
-                <svg width="80" height="12"><circle cx="6" cy="6" r="5" fill="var(--rtmx-complete)"/><circle cx="22" cy="6" r="5" fill="var(--rtmx-partial)"/><circle cx="38" cy="6" r="5" fill="var(--rtmx-missing)"/><circle cx="54" cy="6" r="5" fill="var(--rtmx-not-started)"/></svg>
-                <span>C / P / M / NS</span>
-              </div>
-            </div>
-            <div class="graph-legend-section">
-              <span class="graph-legend-title">Border = Priority</span>
-              <div class="graph-legend-row">
-                <svg width="64" height="14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--rtmx-missing)" stroke-width="3"/><circle cx="23" cy="7" r="5" fill="none" stroke="var(--rtmx-partial)" stroke-width="2"/><circle cx="39" cy="7" r="5" fill="none" stroke="var(--rtmx-medium)" stroke-width="1"/><circle cx="55" cy="7" r="5" fill="none" stroke="none"/></svg>
-                <span>P0 / H / M / L</span>
-              </div>
-            </div>
-            <div class="graph-legend-section">
-              <span class="graph-legend-title">Edge = Critical Path</span>
-              <div class="graph-legend-row">
-                <svg width="48" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="var(--rtmx-emerald)" stroke-width="3" stroke-dasharray="8 4"/><line x1="28" y1="4" x2="48" y2="4" stroke="var(--rtmx-border)" stroke-width="1"/></svg>
-                <span>Crit / Normal</span>
-              </div>
-            </div>
-            <div class="graph-legend-section">
-              <span class="graph-legend-title">Dashed = Blocked</span>
-              <div class="graph-legend-row">
-                <svg width="32" height="14"><circle cx="7" cy="7" r="5" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5 3"/><circle cx="23" cy="7" r="5" fill="none" stroke="#9ca3af" stroke-width="1.5"/></svg>
-                <span>Blocked / Open</span>
-              </div>
-            </div>
-            <div class="graph-legend-section">
-              <span class="graph-legend-title">Badge = Cycle</span>
-              <div class="graph-legend-row">
-                <svg width="16" height="14"><polygon points="8,0 16,14 0,14" fill="var(--rtmx-partial)"/><text x="8" y="11" text-anchor="middle" font-size="8" fill="#0a0a0a" font-weight="bold">!</text></svg>
-                <span>Cycle member</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- REQ-DASH-059: Reusable tooltip element -->
-      <div id="graph-tooltip" class="rtmx-tooltip" style="display: none;"></div>
+    <div class="mt-2 flex gap-4 text-xs text-gray-500">
+      <span><span style="color: #16a34a;">&#9632;</span> Complete</span>
+      <span><span style="color: #d97706;">&#9632;</span> Partial</span>
+      <span><span style="color: #dc2626;">&#9632;</span> Missing</span>
+      <span><span style="color: #71717a;">&#9632;</span> Not Started</span>
+      <span>--- Critical Path</span>
     </div>
   </div>
 
   <script>
     (function() {
       var graphData = {{.GraphJSON}};
-      if (typeof dagre !== 'undefined' && typeof d3 !== 'undefined' && graphData) {
+      if (typeof d3 !== 'undefined' && graphData) {
         renderGraph(graphData);
       }
     })();

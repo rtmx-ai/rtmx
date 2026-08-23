@@ -19,9 +19,10 @@ import (
 )
 
 var (
-	servePort    int
-	serveAuth    string
-	serveSyncURL string
+	servePort      int
+	serveAuth      string
+	serveSyncURL   string
+	serveSyncToken string
 )
 
 var serveCmd = &cobra.Command{
@@ -46,6 +47,8 @@ func init() {
 	serveCmd.Flags().IntVar(&servePort, "port", 8080, "port to listen on")
 	serveCmd.Flags().StringVar(&serveAuth, "auth", "", "authentication mode (api-key or oauth)")
 	serveCmd.Flags().StringVar(&serveSyncURL, "sync-url", "", "sync server URL for real-time collaboration")
+	serveCmd.Flags().StringVar(&serveSyncToken, "sync-token", os.Getenv("RTMX_SYNC_TOKEN"),
+		"API key or session token for the sync server (default $RTMX_SYNC_TOKEN)")
 	rootCmd.AddCommand(serveCmd)
 }
 
@@ -70,14 +73,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load database: %w", err)
 	}
 
-	mux := NewDashboardMuxWithPath(db, cfg, dbPath)
-
-	// Apply auth middleware when --auth is set
-	handler := http.Handler(mux)
-	if serveAuth != "" {
-		apiKey := os.Getenv("RTMX_API_KEY")
-		handler = authMiddleware(authConfig{Mode: serveAuth, APIKey: apiKey})(mux)
-	}
+	mux, dbLock := newDashboardMux(db, cfg, dbPath)
 
 	addr := fmt.Sprintf(":%d", servePort)
 	cmd.Printf("Starting RTMX dashboard on http://localhost%s\n", addr)
@@ -85,18 +81,29 @@ func runServe(cmd *cobra.Command, args []string) error {
 	if serveAuth != "" {
 		cmd.Printf("  Auth: %s\n", serveAuth)
 	}
-	if serveSyncURL != "" {
-		cmd.Printf("  Sync: %s\n", serveSyncURL)
-	}
 
-	srv := &http.Server{
-		Addr:    addr,
-		Handler: handler,
-	}
-
-	// Graceful shutdown on SIGINT/SIGTERM
+	srv := &http.Server{Addr: addr, Handler: mux}
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	syncCtx, stopSync := context.WithCancel(context.Background())
+	defer stopSync()
+
+	if serveSyncURL != "" {
+		cmd.Printf("  Sync: %s\n", serveSyncURL)
+		go func() {
+			if err := followRoomIntoDatabase(syncCtx, roomFollower{
+				db:     db,
+				dbPath: dbPath,
+				lock:   dbLock,
+				url:    serveSyncURL,
+				token:  serveSyncToken,
+				logf:   cmd.Printf,
+			}); err != nil {
+				cmd.Printf("  %sSync stopped:%s %v\n", output.Red, output.Reset, err)
+			}
+		}()
+	}
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -127,6 +134,17 @@ func NewDashboardMux(db *database.Database, cfg *config.Config) http.Handler {
 
 // NewDashboardMuxWithPath creates an HTTP handler with an explicit database path for persistence.
 func NewDashboardMuxWithPath(db *database.Database, cfg *config.Config, dbPath string) http.Handler {
+	handler, _ := newDashboardMux(db, cfg, dbPath)
+	return handler
+}
+
+// newDashboardMux also returns the lock guarding db, so a room follower can
+// apply remote writes without racing dashboard edits.
+func newDashboardMux(
+	db *database.Database,
+	cfg *config.Config,
+	dbPath string,
+) (http.Handler, *sync.Mutex) {
 	mux := http.NewServeMux()
 	mu := &sync.Mutex{} // protects writes to db
 
@@ -136,7 +154,10 @@ func NewDashboardMuxWithPath(db *database.Database, cfg *config.Config, dbPath s
 		claimsDir = filepath.Join(filepath.Dir(dbPath), "claims")
 	}
 
-	mux.HandleFunc("/", handleDashboardShell(db))
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = fmt.Fprint(w, dashboardHTML(db))
+	})
 
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -157,7 +178,6 @@ func NewDashboardMuxWithPath(db *database.Database, cfg *config.Config, dbPath s
 	})
 
 	mux.HandleFunc("/api/requirements", handleAPIRequirements(db))
-	mux.HandleFunc("/api/requirements/bulk", handleAPIBulkUpdate(db, dbPath, mu))
 	mux.HandleFunc("/api/requirements/", handleAPIRequirementDetail(db, dbPath, mu))
 	mux.HandleFunc("/api/graph", handleAPIGraph(db))
 	mux.HandleFunc("/api/backlog", handleAPIBacklog(db))
@@ -170,14 +190,51 @@ func NewDashboardMuxWithPath(db *database.Database, cfg *config.Config, dbPath s
 		_, _ = fmt.Fprintf(w, `{"status":"ok"}`)
 	})
 
-	// Slack slash command endpoint
-	slackSecret := os.Getenv("SLACK_SIGNING_SECRET")
-	mux.HandleFunc("/api/slack/command", handleSlackSlashCommand(db, slackSecret))
-
 	// Dashboard SPA and partials
 	g := graph.NewGraph(db)
 	registerDashboardRoutes(mux, db, g)
 
-	return mux
+	return mux, mu
 }
 
+func dashboardHTML(db *database.Database) string {
+	reqs := db.All()
+	complete, partial, missing := 0, 0, 0
+	for _, req := range reqs {
+		switch {
+		case req.IsComplete():
+			complete++
+		case req.Status == database.StatusPartial:
+			partial++
+		default:
+			missing++
+		}
+	}
+
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head><title>RTMX Dashboard</title>
+<style>
+body { font-family: system-ui, sans-serif; margin: 2rem; background: #f8f9fa; }
+.card { background: white; border-radius: 8px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.stats { display: flex; gap: 2rem; }
+.stat { text-align: center; }
+.stat .value { font-size: 2rem; font-weight: bold; }
+.complete { color: #16a34a; }
+.partial { color: #d97706; }
+.missing { color: #dc2626; }
+</style>
+</head>
+<body>
+<h1>RTMX Dashboard</h1>
+<div class="card">
+<div class="stats">
+<div class="stat"><div class="value complete">%d</div><div>Complete</div></div>
+<div class="stat"><div class="value partial">%d</div><div>Partial</div></div>
+<div class="stat"><div class="value missing">%d</div><div>Missing</div></div>
+<div class="stat"><div class="value">%d</div><div>Total</div></div>
+</div>
+</div>
+</body>
+</html>`, complete, partial, missing, len(reqs))
+}

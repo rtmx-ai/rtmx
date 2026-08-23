@@ -23,6 +23,20 @@ func compRes(scope, technique, env string, passed bool) results.Result {
 	}
 }
 
+func skipRes(scope, technique, env string) results.Result {
+	return results.Result{
+		Skipped: true,
+		Marker: results.Marker{
+			ReqID:     "REQ-SW-001",
+			TestName:  "t_skip_" + scope + "_" + technique,
+			TestFile:  "test_x.py",
+			Scope:     scope,
+			Technique: technique,
+			Env:       env,
+		},
+	}
+}
+
 func boolPtr(b bool) *bool { return &b }
 
 func TestDetermineStatusWithPolicy(t *testing.T) {
@@ -140,6 +154,127 @@ func TestDetermineStatusWithPolicy(t *testing.T) {
 			got := determineStatusWithPolicy(tt.results, tt.current, tt.policy)
 			if got != tt.expected {
 				t.Errorf("determineStatusWithPolicy() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestDetermineStatusWithPolicy_SkipNonEvidence covers the demotion direction that
+// let the skip-as-failure bug ship: an already-COMPLETE requirement re-verified from
+// a result set that contains a skipped (non-evidence) test must STAY COMPLETE, not be
+// demoted to PARTIAL. Skips neither add coverage nor count as failures (REQ-VERIFY-012).
+func TestDetermineStatusWithPolicy_SkipNonEvidence(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-012",
+		rtmx.Scope("unit"),
+		rtmx.Technique("nominal"),
+		rtmx.Env("simulation"),
+	)
+	combo3 := config.CompletenessConfig{
+		Policy:          "combinations",
+		Dimensions:      []string{"scope", "technique"},
+		MinCombinations: 3,
+	}
+
+	tests := []struct {
+		name     string
+		results  []results.Result
+		current  database.Status
+		policy   config.CompletenessConfig
+		expected database.Status
+	}{
+		{
+			name: "complete with 3 passing combos stays complete on re-verify (idempotent)",
+			results: []results.Result{
+				compRes("unit", "nominal", "simulation", true),
+				compRes("integration", "nominal", "simulation", true),
+				compRes("unit", "parametric", "simulation", true),
+			},
+			current:  database.StatusComplete,
+			policy:   combo3,
+			expected: database.StatusComplete,
+		},
+		{
+			name: "a skip does not demote a complete requirement (the bug)",
+			results: []results.Result{
+				compRes("unit", "nominal", "simulation", true),
+				compRes("integration", "nominal", "simulation", true),
+				compRes("unit", "parametric", "simulation", true),
+				skipRes("system", "nominal", "simulation"),
+			},
+			current:  database.StatusComplete,
+			policy:   combo3,
+			expected: database.StatusComplete,
+		},
+		{
+			name: "a real failure still downgrades complete to partial (regression guard)",
+			results: []results.Result{
+				compRes("unit", "nominal", "simulation", true),
+				compRes("integration", "nominal", "simulation", true),
+				compRes("unit", "parametric", "simulation", true),
+				compRes("system", "nominal", "simulation", false),
+			},
+			current:  database.StatusComplete,
+			policy:   combo3,
+			expected: database.StatusPartial,
+		},
+		{
+			name: "only skips keep current status (no positive evidence)",
+			results: []results.Result{
+				skipRes("unit", "nominal", "simulation"),
+				skipRes("integration", "nominal", "simulation"),
+			},
+			current:  database.StatusComplete,
+			policy:   combo3,
+			expected: database.StatusComplete,
+		},
+		{
+			name: "simple policy: a skip does not demote complete",
+			results: []results.Result{
+				compRes("unit", "nominal", "simulation", true),
+				skipRes("system", "nominal", "simulation"),
+			},
+			current:  database.StatusComplete,
+			policy:   config.CompletenessConfig{Policy: "simple"},
+			expected: database.StatusComplete,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := determineStatusWithPolicy(tt.results, tt.current, tt.policy)
+			if got != tt.expected {
+				t.Errorf("determineStatusWithPolicy() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+// TestClampNoDemote covers the raise-only rule for --no-demote (REQ-VERIFY-013):
+// a partial/sharded result set can raise a requirement's status but never lower it.
+func TestClampNoDemote(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-013",
+		rtmx.Scope("unit"),
+		rtmx.Technique("boundary"),
+		rtmx.Env("simulation"),
+	)
+	tests := []struct {
+		name     string
+		computed database.Status
+		current  database.Status
+		enabled  bool
+		expected database.Status
+	}{
+		{"enabled: a computed demotion is clamped to current", database.StatusPartial, database.StatusComplete, true, database.StatusComplete},
+		{"enabled: a promotion is still applied", database.StatusComplete, database.StatusPartial, true, database.StatusComplete},
+		{"enabled: an equal status is unchanged", database.StatusComplete, database.StatusComplete, true, database.StatusComplete},
+		{"enabled: MISSING->PARTIAL promotion applied", database.StatusPartial, database.StatusMissing, true, database.StatusPartial},
+		{"disabled: a demotion is applied (default behavior)", database.StatusPartial, database.StatusComplete, false, database.StatusPartial},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := clampNoDemote(tt.computed, tt.current, tt.enabled)
+			if got != tt.expected {
+				t.Errorf("clampNoDemote(%v, %v, %v) = %v, want %v", tt.computed, tt.current, tt.enabled, got, tt.expected)
 			}
 		})
 	}
