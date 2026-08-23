@@ -3,6 +3,22 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.11.0] - 2026-08-23
+
+### Added
+
+- **Managed room sync** — `rtmx sync --sync-url --token` (or `RTMX_SYNC_TOKEN`)
+  joins a tenant-isolated rtmx-sync collaboration room, pushes/pulls CRDT
+  state, and persists the merge to CSV. `rtmx serve --sync-url` follows the
+  room into the dashboard database. Close code 4402 is reported as an
+  entitlement failure (REQ-SYNC-002, REQ-SYNC-003).
+
+### Fixed
+
+- Sync export external-id persistence (REQ-SYNC-001a) first shipped in this
+  tag (was already on main after v1.10.0; no separate v1.10.1 GitHub release).
+
+
 ## [1.10.1] - 2026-08-05
 
 ### Fixed

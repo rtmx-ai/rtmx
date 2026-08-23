@@ -21,6 +21,13 @@ var (
 	syncDryRun       bool
 	syncPreferLocal  bool
 	syncPreferRemote bool
+
+	syncURL     string
+	syncToken   string
+	syncSet     []string
+	syncPull    bool
+	syncPush    bool
+	syncTimeout int
 )
 
 // SyncResult holds the results of a sync operation
@@ -75,7 +82,17 @@ var syncCmd = &cobra.Command{
 
 Supports bidirectional sync with conflict resolution strategies.
 
+With --sync-url, synchronizes with an rtmx-sync collaboration room instead
+of a tracker. The room is a shared view of the RTM; the CSV stays the source
+of truth on disk.
+
 Examples:
+  # Join a room and take the shared state
+  rtmx sync --sync-url wss://sync.example.com/sync/acme/mvp --token $RTMX_SYNC_TOKEN --pull
+
+  # Publish one status change to the room
+  rtmx sync --sync-url wss://sync.example.com/sync/acme/mvp --set REQ-DEMO-001=COMPLETE
+
   # Import issues from GitHub
   rtmx sync --service github --import
 
@@ -99,10 +116,28 @@ func init() {
 	syncCmd.Flags().BoolVar(&syncPreferLocal, "prefer-local", false, "RTM wins on conflicts")
 	syncCmd.Flags().BoolVar(&syncPreferRemote, "prefer-remote", false, "service wins on conflicts")
 
+	syncCmd.Flags().StringVar(&syncURL, "sync-url", os.Getenv("RTMX_SYNC_URL"),
+		"rtmx-sync room to join, e.g. wss://sync.example.com/sync/acme/mvp")
+	syncCmd.Flags().StringVar(&syncToken, "token", "",
+		"API key or session token for the room (or set RTMX_SYNC_TOKEN)")
+	syncCmd.Flags().StringArrayVar(&syncSet, "set", nil,
+		"set a requirement status in the room, e.g. --set REQ-DEMO-001=COMPLETE")
+	syncCmd.Flags().BoolVar(&syncPull, "pull", false, "pull room state into the local database")
+	syncCmd.Flags().BoolVar(&syncPush, "push", false, "push the local database into the room")
+	syncCmd.Flags().IntVar(&syncTimeout, "timeout", 30, "seconds to wait for the room")
+
 	rootCmd.AddCommand(syncCmd)
 }
 
 func runSync(cmd *cobra.Command, args []string) error {
+	if syncURL != "" {
+		cfg, err := config.LoadFromDir(".")
+		if err != nil {
+			cfg = config.DefaultConfig()
+		}
+		return runRoomSync(cfg)
+	}
+
 	// Validate flags
 	if !syncImport && !syncExport && !syncBidirect {
 		fmt.Printf("%sNo sync direction specified. Use --import, --export, or --bidirectional%s\n",

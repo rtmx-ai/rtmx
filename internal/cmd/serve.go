@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/rtmx-ai/rtmx/internal/config"
@@ -16,9 +19,10 @@ import (
 )
 
 var (
-	servePort    int
-	serveAuth    string
-	serveSyncURL string
+	servePort      int
+	serveAuth      string
+	serveSyncURL   string
+	serveSyncToken string
 )
 
 var serveCmd = &cobra.Command{
@@ -43,6 +47,8 @@ func init() {
 	serveCmd.Flags().IntVar(&servePort, "port", 8080, "port to listen on")
 	serveCmd.Flags().StringVar(&serveAuth, "auth", "", "authentication mode (api-key or oauth)")
 	serveCmd.Flags().StringVar(&serveSyncURL, "sync-url", "", "sync server URL for real-time collaboration")
+	serveCmd.Flags().StringVar(&serveSyncToken, "sync-token", os.Getenv("RTMX_SYNC_TOKEN"),
+		"API key or session token for the sync server (default $RTMX_SYNC_TOKEN)")
 	rootCmd.AddCommand(serveCmd)
 }
 
@@ -67,7 +73,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load database: %w", err)
 	}
 
-	mux := NewDashboardMuxWithPath(db, cfg, dbPath)
+	mux, dbLock := newDashboardMux(db, cfg, dbPath)
 
 	addr := fmt.Sprintf(":%d", servePort)
 	cmd.Printf("Starting RTMX dashboard on http://localhost%s\n", addr)
@@ -75,11 +81,50 @@ func runServe(cmd *cobra.Command, args []string) error {
 	if serveAuth != "" {
 		cmd.Printf("  Auth: %s\n", serveAuth)
 	}
+
+	srv := &http.Server{Addr: addr, Handler: mux}
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	syncCtx, stopSync := context.WithCancel(context.Background())
+	defer stopSync()
+
 	if serveSyncURL != "" {
 		cmd.Printf("  Sync: %s\n", serveSyncURL)
+		go func() {
+			if err := followRoomIntoDatabase(syncCtx, roomFollower{
+				db:     db,
+				dbPath: dbPath,
+				lock:   dbLock,
+				url:    serveSyncURL,
+				token:  serveSyncToken,
+				logf:   cmd.Printf,
+			}); err != nil {
+				cmd.Printf("  %sSync stopped:%s %v\n", output.Red, output.Reset, err)
+			}
+		}()
 	}
 
-	return http.ListenAndServe(addr, mux)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- srv.ListenAndServe()
+	}()
+
+	select {
+	case err := <-errCh:
+		if err != nil && err != http.ErrServerClosed {
+			return err
+		}
+	case sig := <-stop:
+		cmd.Printf("\nReceived %s, shutting down...\n", sig)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(ctx); err != nil {
+			return fmt.Errorf("shutdown error: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // NewDashboardMux creates an HTTP handler for the RTMX web dashboard.
@@ -89,6 +134,17 @@ func NewDashboardMux(db *database.Database, cfg *config.Config) http.Handler {
 
 // NewDashboardMuxWithPath creates an HTTP handler with an explicit database path for persistence.
 func NewDashboardMuxWithPath(db *database.Database, cfg *config.Config, dbPath string) http.Handler {
+	handler, _ := newDashboardMux(db, cfg, dbPath)
+	return handler
+}
+
+// newDashboardMux also returns the lock guarding db, so a room follower can
+// apply remote writes without racing dashboard edits.
+func newDashboardMux(
+	db *database.Database,
+	cfg *config.Config,
+	dbPath string,
+) (http.Handler, *sync.Mutex) {
 	mux := http.NewServeMux()
 	mu := &sync.Mutex{} // protects writes to db
 
@@ -138,7 +194,7 @@ func NewDashboardMuxWithPath(db *database.Database, cfg *config.Config, dbPath s
 	g := graph.NewGraph(db)
 	registerDashboardRoutes(mux, db, g)
 
-	return mux
+	return mux, mu
 }
 
 func dashboardHTML(db *database.Database) string {
