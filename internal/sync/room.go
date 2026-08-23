@@ -119,7 +119,7 @@ func DialRoom(ctx context.Context, opts RoomOptions) (*RoomClient, error) {
 	})
 
 	if err := client.handshake(); err != nil {
-		client.Close()
+		_ = client.Close()
 		return nil, err
 	}
 	return client, nil

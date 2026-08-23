@@ -53,7 +53,7 @@ func runRoomSync(cfg *config.Config) error {
 		fmt.Printf("  %s✗%s %v\n", output.Red, output.Reset, err)
 		return NewExitError(1, err.Error())
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 	fmt.Printf("  %s✓%s joined room\n\n", output.Green, output.Reset)
 
 	outbound := setUpdates
