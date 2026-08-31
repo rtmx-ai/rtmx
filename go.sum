@@ -53,8 +53,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/redis/go-redis/v9 v9.18.0 h1:pMkxYPkEbMPwRdenAzUNyFNrDgHx9U+DrBabWNfSRQs=
 github.com/redis/go-redis/v9 v9.18.0/go.mod h1:k3ufPphLU5YXwNTUcCRXGxUoF1fqxnhFQmscfkCoDA0=
-github.com/reearth/ygo v1.48.0 h1:H734bFKGdZHj7bS8AtVidpE6AMLQfxha8Oh5B2aX9nY=
-github.com/reearth/ygo v1.48.0/go.mod h1:QN5MsM+QBk9cP6Sr/iaKlkJtnJ9Fo0fT+MJqSw2xPUA=
+github.com/reearth/ygo v1.49.1 h1:BPC/lUHOJoo9n8vM2/WdZR87yOj7iXyvpzZOvZErscU=
+github.com/reearth/ygo v1.49.1/go.mod h1:QN5MsM+QBk9cP6Sr/iaKlkJtnJ9Fo0fT+MJqSw2xPUA=
 github.com/rivo/uniseg v0.4.7 h1:WUdvkW8uEhrYfLC4ZzdpI2ztxP1I582+49Oc5Mq64VQ=
 github.com/rivo/uniseg v0.4.7/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
