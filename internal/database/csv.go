@@ -174,9 +174,17 @@ func ReadCSV(r io.Reader) (*Database, error) {
 	return db, nil
 }
 
+// normalizeCellValue trims surrounding whitespace and stray carriage returns
+// from a CSV field. encoding/csv handles CRLF record terminators; this covers
+// Windows-edited cells and trailing \r after TrimSpace on LF-terminated files.
+func normalizeCellValue(s string) string {
+	return strings.TrimRight(strings.TrimSpace(s), "\r")
+}
+
 // WriteCSV writes the database to a CSV writer.
 func (db *Database) WriteCSV(w io.Writer) error {
 	writer := csv.NewWriter(w)
+	writer.UseCRLF = false
 	defer writer.Flush()
 
 	// Collect all extra columns used
@@ -249,7 +257,7 @@ func normalizeColumnName(name string) string {
 func parseRow(record []string, colIndex map[string]int, extraCols []string) (*Requirement, error) {
 	getValue := func(col string) string {
 		if idx, ok := colIndex[col]; ok && idx < len(record) {
-			return strings.TrimSpace(record[idx])
+			return normalizeCellValue(record[idx])
 		}
 		return ""
 	}
