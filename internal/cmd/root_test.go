@@ -126,6 +126,7 @@ func newTestVersionCmd() *cobra.Command {
 func newTestInitCmd() *cobra.Command {
 	var force bool
 	var legacy bool
+	var dryRun bool
 
 	cmd := &cobra.Command{
 		Use:   "init",
@@ -133,11 +134,13 @@ func newTestInitCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			initForce = force
 			initLegacy = legacy
+			initDryRun = dryRun
 			return runInit(cmd, args)
 		},
 	}
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "overwrite existing files")
 	cmd.Flags().BoolVar(&legacy, "legacy", false, "use legacy docs/ directory structure")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print delivery-rule paths without writing")
 	return cmd
 }
 
