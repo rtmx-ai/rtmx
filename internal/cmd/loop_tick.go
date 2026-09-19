@@ -42,7 +42,10 @@ func runLoopOnce(cmd *cobra.Command) error {
 	if len(edges) == 0 {
 		return writeIdlePlan(cmd)
 	}
+	return runDeliveryTick(cmd)
+}
 
+func runDeliveryTick(cmd *cobra.Command) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
