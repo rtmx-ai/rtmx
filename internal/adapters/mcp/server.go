@@ -1306,6 +1306,7 @@ type nextResult struct {
 	TotalIncomplete  int             `json:"total_incomplete"`
 	TotalEffortWeeks float64         `json:"total_effort_weeks"`
 	Webs             []nextWebResult `json:"webs"`
+	Delivery         *deliveryPlan   `json:"delivery,omitempty"`
 }
 
 func (s *Server) toolNext(db *database.Database, filter toolFilter) interface{} {
@@ -1367,6 +1368,8 @@ func (s *Server) toolNext(db *database.Database, filter toolFilter) interface{} 
 
 	result.TotalWebs = len(result.Webs)
 	result.Webs = applyLimit(result.Webs, filter.Limit)
+	plan := s.planDelivery(db, webs, filter.Category)
+	result.Delivery = &plan
 
 	return result
 }
