@@ -1,0 +1,45 @@
+{
+  "$comment": "REQ-DATA-001e sketch only — not an enforced contract. Additive extension ideas for nested ACs without breaking sync-protocol-v1 consumers.",
+  "title": "RTMX Sync Protocol v1.1 AC extension (stub)",
+  "extends": "sync-protocol-v1.json",
+  "compatibility": {
+    "managed_sync_launch": "v1 requirement_fields remain sufficient; this extension is optional and ignored by v1-only clients",
+    "breaking_change_required": false
+  },
+  "metadata": {
+    "schema_version_examples": ["1.0.0", "1.1.0-ac"],
+    "capability_flag": "rtm-doc/v0"
+  },
+  "additive_shared_types": {
+    "requirement_acs": {
+      "type": "Y.Map<string, ACList>",
+      "key": "req_id",
+      "description": "Nested acceptance criteria per requirement; absent on v1-only rooms",
+      "ac_record_fields": {
+        "ac_id": "string (stable key)",
+        "statement": "string",
+        "required": "boolean",
+        "severity": "string (optional)"
+      }
+    },
+    "requirement_bindings": {
+      "type": "Y.Map<string, BindingList>",
+      "key": "req_id",
+      "binding_record_fields": {
+        "binding_id": "string",
+        "ac_id": "string (optional if req-level)",
+        "req_id": "string (optional)",
+        "test_module": "string",
+        "test_function": "string",
+        "marker": "string"
+      }
+    }
+  },
+  "not_synced_by_default": [
+    "rationale",
+    "markdown_body",
+    "fixture_bodies",
+    "derived_ac_evidence"
+  ],
+  "mcp_projection_omit": ["rationale", "notes", "requirement_file_body"]
+}
