@@ -5,7 +5,7 @@
 - **Subcategory**: Python
 - **Priority**: HIGH
 - **Phase**: 14
-- **Status**: MISSING
+- **Status**: COMPLETE
 - **Dependencies**: REQ-LANG-004
 
 ## Requirement
@@ -27,10 +27,11 @@ files — or a glob — in one call removes that workaround and makes
 
 ## Acceptance Criteria
 
-- [ ] `--junitxml` is repeatable and glob-expanded; cases from all matched files
+- [x] `--junitxml` is repeatable and glob-expanded; cases from all matched files
       are combined.
-- [ ] Duplicate matched paths are de-duplicated.
-- [ ] A literal non-matching path is preserved (surfaces as a read error), keeping
+- [x] Duplicate matched paths are de-duplicated.
+- [x] A literal non-matching path is preserved (surfaces as a read error), keeping
       prior single-file behavior.
-- [ ] Verified by `internal/cmd/from_pytest_test.go::TestExpandJUnitPaths` and
+- [x] Verified by `internal/cmd/from_pytest_test.go::TestExpandJUnitPaths_GlobRepeatable`,
+      `::TestExpandJUnitPaths_Dedup`, `::TestExpandJUnitPaths_LiteralPassthrough`, and
       `::TestFromPytestMultiFileJUnit`.

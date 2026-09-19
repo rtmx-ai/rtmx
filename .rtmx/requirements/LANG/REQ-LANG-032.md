@@ -5,7 +5,7 @@
 - **Subcategory**: Python
 - **Priority**: HIGH
 - **Phase**: 14
-- **Status**: MISSING
+- **Status**: COMPLETE
 - **Dependencies**: REQ-LANG-004
 
 ## Requirement
@@ -31,8 +31,10 @@ module-level tests follow a documentation test class).
 
 ## Acceptance Criteria
 
-- [ ] A test method inside a class is recorded as `Class::method`.
-- [ ] A module-level test function defined after a class is recorded with a bare,
+- [x] A test method inside a class is recorded as `Class::method`.
+- [x] A module-level test function defined after a class is recorded with a bare,
       unqualified function name.
-- [ ] Consecutive classes each scope only their own methods.
-- [ ] Verified by `internal/cmd/from_tests_test.go::TestExtractMarkersModuleFuncAfterClass`.
+- [x] Consecutive classes each scope only their own methods.
+- [x] Verified by `internal/cmd/from_tests_test.go::TestExtractMarkersInClassMethod`,
+      `::TestExtractMarkersModuleFuncAfterClass`, and
+      `::TestExtractMarkersConsecutiveClasses`.
