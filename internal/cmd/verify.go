@@ -12,20 +12,22 @@ import (
 
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/database"
+	"github.com/rtmx-ai/rtmx/internal/docmodel/acverify"
 	"github.com/rtmx-ai/rtmx/internal/output"
 	"github.com/rtmx-ai/rtmx/internal/results"
 	"github.com/spf13/cobra"
 )
 
 var (
-	verifyUpdate   bool
-	verifyDryRun   bool
-	verifyVerbose  bool
-	verifyAudit    bool
-	verifyCommand  string
-	verifyResults  string
-	verifyVersion  string
-	verifyNoDemote bool
+	verifyUpdate     bool
+	verifyDryRun     bool
+	verifyVerbose    bool
+	verifyAudit      bool
+	verifyCommand    string
+	verifyResults    string
+	verifyVersion    string
+	verifyNoDemote   bool
+	verifyACDocument string
 )
 
 var verifyCmd = &cobra.Command{
@@ -56,6 +58,7 @@ Examples:
   rtmx verify --command "pytest -v"    # Use custom test command
   rtmx verify --results results.json --update  # Cross-language results
   rtmx verify --audit                # Show audit diagnostics for stale refs
+  rtmx verify --ac-document doc.json # Opt-in AC matrix (atdd-required-all-v0); does not update CSV
 
 Results file format (--results):
   A JSON array of result objects. Marker fields may be supplied
@@ -89,6 +92,7 @@ func init() {
 	verifyCmd.Flags().BoolVar(&verifyAudit, "audit", false, "show audit diagnostics for stale or unmatched test references")
 	verifyCmd.Flags().IntVar(&verifyWarnThreshold, "warn-threshold", 0, "status change count that triggers a warning (0=use config, default: 5)")
 	verifyCmd.Flags().IntVar(&verifyFailThreshold, "fail-threshold", 0, "status change count that blocks updates (0=use config, default: 15)")
+	verifyCmd.Flags().StringVar(&verifyACDocument, "ac-document", "", "opt-in AC-matrix verify from a requirement-document/v0 JSON (report-only; does not flip default COMPLETE)")
 
 	rootCmd.AddCommand(verifyCmd)
 }
@@ -127,6 +131,14 @@ type VerificationResult struct {
 func runVerify(cmd *cobra.Command, args []string) error {
 	if noColor {
 		output.DisableColor()
+	}
+
+	// Opt-in AC document path (REQ-DATA-002): report-only, never updates CSV.
+	if verifyACDocument != "" {
+		if verifyUpdate {
+			return fmt.Errorf("--ac-document is report-only; refuse --update (default COMPLETE semantics unchanged)")
+		}
+		return runVerifyACDocument(cmd)
 	}
 
 	// Check for mutually exclusive flags
@@ -277,6 +289,55 @@ func countFailingReqs(results []VerificationResult) int {
 		}
 	}
 	return count
+}
+
+// runVerifyACDocument prints an AC evidence matrix from a document-model JSON
+// file (REQ-DATA-002). Optional --results supplies evidence; CSV is never updated.
+func runVerifyACDocument(cmd *cobra.Command) error {
+	doc, err := acverify.LoadDocumentFile(verifyACDocument)
+	if err != nil {
+		return err
+	}
+
+	var evidence []acverify.EvidenceHit
+	if verifyResults != "" {
+		var r *os.File
+		if verifyResults == "-" {
+			r = os.Stdin
+		} else {
+			r, err = os.Open(verifyResults)
+			if err != nil {
+				return fmt.Errorf("failed to open results file: %w", err)
+			}
+			defer r.Close()
+		}
+		parsed, err := results.Parse(r)
+		if err != nil {
+			return fmt.Errorf("failed to parse results: %w", err)
+		}
+		for _, res := range parsed {
+			evidence = append(evidence, acverify.EvidenceHit{
+				TestName: res.Marker.TestName,
+				ReqID:    res.Marker.ReqID,
+				Passed:   res.Passed,
+			})
+		}
+	}
+
+	cmd.Printf("AC-matrix verify (policy=%s) — report-only; CSV unchanged\n\n", acverify.PolicyATDDRequiredAll)
+	resultsList := acverify.EvaluateDocument(doc, evidence)
+	incomplete := 0
+	for _, res := range resultsList {
+		cmd.Print(acverify.FormatMatrix(res))
+		cmd.Println()
+		if res.Status != "COMPLETE" {
+			incomplete++
+		}
+	}
+	if incomplete > 0 {
+		return fmt.Errorf("ac-document: %d requirement(s) not COMPLETE under %s", incomplete, acverify.PolicyATDDRequiredAll)
+	}
+	return nil
 }
 
 // runVerifyFromResults processes an RTMX results JSON file (cross-language).
