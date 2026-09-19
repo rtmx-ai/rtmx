@@ -263,79 +263,104 @@ func runImport(adapter adapters.ServiceAdapter, cfg *config.Config, dryRun bool)
 
 	fmt.Printf("%sFetching items from %s...%s\n", output.Bold, adapter.Name(), output.Reset)
 
-	// Load existing RTM
 	dbPath := cfg.RTMX.Database
 	if dbPath == "" {
 		dbPath = ".rtmx/database.csv"
 	}
 
+	var db *database.Database
 	requirements := make(map[string]*database.Requirement)
 	externalIDMap := make(map[string]string) // external_id -> req_id
 
 	if _, err := os.Stat(dbPath); err == nil {
-		db, err := database.Load(dbPath)
-		if err == nil {
-			for _, req := range db.All() {
-				requirements[req.ReqID] = req
-				if req.ExternalID != "" {
-					externalIDMap[req.ExternalID] = req.ReqID
-				}
+		loaded, err := database.Load(dbPath)
+		if err != nil {
+			result.Errors = append(result.Errors, SyncError{ID: "", Error: fmt.Sprintf("failed to load database: %v", err)})
+			return result
+		}
+		db = loaded
+		for _, req := range db.All() {
+			requirements[req.ReqID] = req
+			if req.ExternalID != "" {
+				externalIDMap[req.ExternalID] = req.ReqID
 			}
 		}
+	} else if err != nil && !os.IsNotExist(err) {
+		result.Errors = append(result.Errors, SyncError{ID: "", Error: fmt.Sprintf("failed to stat database: %v", err)})
+		return result
+	} else {
+		db = database.NewDatabase()
 	}
 
-	// Fetch external items
 	items, err := adapter.FetchItems(nil)
 	if err != nil {
 		result.Errors = append(result.Errors, SyncError{ID: "", Error: err.Error()})
 		return result
 	}
 
+	dirty := false
 	for _, item := range items {
-		// Check if already linked
 		if reqID, ok := externalIDMap[item.ExternalID]; ok {
 			req := requirements[reqID]
-
-			// Update status from external
 			newStatus := adapter.MapStatusToRTMX(item.Status)
 			if newStatus != req.Status {
+				oldStatus := req.Status
 				if dryRun {
-					fmt.Printf("  Would update %s status: %s → %s\n", reqID, req.Status, newStatus)
+					fmt.Printf("  Would update %s status: %s → %s\n", reqID, oldStatus, newStatus)
 				} else {
-					fmt.Printf("  %s↻%s %s: %s → %s\n", output.Blue, output.Reset, reqID, req.Status, newStatus)
+					req.Status = newStatus
+					dirty = true
+					fmt.Printf("  %s↻%s %s: %s → %s\n", output.Blue, output.Reset, reqID, oldStatus, newStatus)
 				}
 				result.Updated = append(result.Updated, reqID)
 			} else {
 				result.Skipped = append(result.Skipped, item.ExternalID)
 			}
+			continue
+		}
 
-		} else if item.RequirementID != "" {
-			// Item references a requirement we have
-			if _, ok := requirements[item.RequirementID]; ok {
+		if item.RequirementID != "" {
+			if req, ok := requirements[item.RequirementID]; ok {
 				if dryRun {
 					fmt.Printf("  Would link %s to %s\n", item.RequirementID, item.ExternalID)
 				} else {
+					if req.ExternalID != item.ExternalID {
+						req.ExternalID = item.ExternalID
+						externalIDMap[item.ExternalID] = req.ReqID
+						dirty = true
+					}
 					fmt.Printf("  %s⇄%s Linked %s ↔ %s\n", output.Green, output.Reset, item.RequirementID, item.ExternalID)
 				}
 				result.Updated = append(result.Updated, item.RequirementID)
 			}
+			continue
+		}
+
+		title := item.Title
+		if len(title) > 50 {
+			title = title[:50] + "..."
+		}
+		if dryRun {
+			fmt.Printf("  Would import: [%s] %s\n", item.ExternalID, title)
 		} else {
-			// New item - import candidate
-			title := item.Title
-			if len(title) > 50 {
-				title = title[:50] + "..."
-			}
-			if dryRun {
-				fmt.Printf("  Would import: [%s] %s\n", item.ExternalID, title)
-			} else {
-				fmt.Printf("  %s+%s [%s] %s\n", output.Green, output.Reset, item.ExternalID, title)
-			}
-			result.Created = append(result.Created, item.ExternalID)
+			fmt.Printf("  %s+%s [%s] %s\n", output.Green, output.Reset, item.ExternalID, title)
+		}
+		result.Created = append(result.Created, item.ExternalID)
+	}
+
+	if dirty && !dryRun {
+		if err := db.Save(dbPath); err != nil {
+			syncErr := fmt.Sprintf("failed to persist imported changes: %v", err)
+			fmt.Printf("  %s✗%s %s\n", output.Red, output.Reset, syncErr)
+			result.Errors = append(result.Errors, SyncError{ID: "", Error: syncErr})
+			// Do not report mutations as successful updates when persistence failed.
+			result.Updated = nil
+			result.Created = nil
+			return result
 		}
 	}
 
 	fmt.Printf("\nFound %d items in %s\n", len(items), adapter.Name())
-
 	return result
 }
 
