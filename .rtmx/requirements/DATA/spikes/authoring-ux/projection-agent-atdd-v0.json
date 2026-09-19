@@ -1,0 +1,39 @@
+{
+  "projection": "agent-atdd-v0",
+  "description": "Metadata + ACs + bindings without bulk rationale (REQ-DATA-001c AC2)",
+  "source_encoding": "jsonl-plus-md",
+  "requirements": [
+    {
+      "req_id": "REQ-AUTH-001",
+      "status": "PARTIAL",
+      "priority": "HIGH",
+      "requirement_text": "Users shall authenticate before accessing protected rooms.",
+      "acs": [
+        {
+          "ac_id": "AC-1",
+          "statement": "Unauthenticated WebSocket joins receive close code 4401.",
+          "required": true
+        },
+        {
+          "ac_id": "AC-2",
+          "statement": "Valid Bearer session tokens are accepted on /auth/me.",
+          "required": true
+        }
+      ],
+      "test_bindings": [
+        {
+          "binding_id": "TB-1",
+          "ac_id": "AC-1",
+          "test_module": "internal/sync/room_test.go",
+          "test_function": "TestRoomRejectsMissingToken"
+        },
+        {
+          "binding_id": "TB-2",
+          "ac_id": "AC-2",
+          "test_module": "internal/cmd/auth_test.go",
+          "test_function": "TestAuthStatusWithValidToken"
+        }
+      ]
+    }
+  ]
+}
