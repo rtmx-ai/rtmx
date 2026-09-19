@@ -1,0 +1,17 @@
+{
+  "schema_version": "requirement-document/v0",
+  "requirements": [
+    {
+      "req_id": "NOT-A-VALID-ID",
+      "requirement_text": "Bad identity",
+      "status": "MISSING",
+      "priority": "LOW",
+      "acs": [
+        {
+          "ac_id": "AC-1",
+          "statement": "Has an AC but req_id is invalid."
+        }
+      ]
+    }
+  ]
+}

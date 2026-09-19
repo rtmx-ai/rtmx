@@ -1,0 +1,16 @@
+{
+  "schema_version": "requirement-document/v0",
+  "requirements": [
+    {
+      "req_id": "REQ-BAD-001",
+      "requirement_text": "Missing AC statement",
+      "status": "MISSING",
+      "priority": "LOW",
+      "acs": [
+        {
+          "ac_id": "AC-1"
+        }
+      ]
+    }
+  ]
+}
