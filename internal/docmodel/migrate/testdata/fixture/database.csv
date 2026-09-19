@@ -1,0 +1,3 @@
+req_id,requirement_text,status,priority,dependencies,blocks
+REQ-VERIFY-013,Raise-only --no-demote mode for partial result sets,MISSING,HIGH,REQ-VERIFY-012,
+REQ-SYNC-002,rtmx shall sync a local RTM with an rtmx-sync collaboration room,COMPLETE,HIGH,REQ-GO-042,
