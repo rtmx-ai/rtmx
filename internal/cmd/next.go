@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -76,18 +77,41 @@ func runNext(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	var unblocked []string
+	for _, web := range webs {
+		unblocked = append(unblocked, web.Unblocked...)
+	}
+	named := lookupOpenPRNames(cmd, unblocked)
+
 	if nextBatch {
 		return runNextBatch(cmd, db, webs, cwd)
 	}
 
 	if nextOne {
-		return runNextOne(cmd, db, webs)
+		return runNextOne(cmd, db, webs, named)
 	}
 
-	return runNextShow(cmd, db, webs)
+	return runNextShow(cmd, db, webs, named)
 }
 
-func runNextShow(cmd *cobra.Command, db *database.Database, webs []graph.Web) error {
+func runNextShow(cmd *cobra.Command, db *database.Database, webs []graph.Web, named map[string]bool) error {
+	var unblocked []string
+	for _, web := range webs {
+		unblocked = append(unblocked, web.Unblocked...)
+	}
+	keep, skipped := openPRSkips(unblocked, named)
+	if len(unblocked) > 0 && len(keep) == 0 {
+		if nextJSON {
+			return writeNextJSON(cmd, nil, skipped)
+		}
+		printOpenPRSkips(cmd, skipped)
+		cmd.Println("No unblocked requirements available.")
+		return nil
+	}
+	if !nextJSON {
+		printOpenPRSkips(cmd, skipped)
+	}
+
 	width := output.TerminalWidth()
 	cmd.Println(output.Header("Work Webs", width))
 	cmd.Println()
@@ -106,8 +130,9 @@ func runNextShow(cmd *cobra.Command, db *database.Database, webs []graph.Web) er
 		// Find top-priority unblocked item
 		topItem := ""
 		topPriority := ""
-		if len(web.Unblocked) > 0 {
-			best := pickHighestPriority(db, web.Unblocked)
+		selectable, _ := openPRSkips(web.Unblocked, named)
+		if len(selectable) > 0 {
+			best := pickHighestPriority(db, selectable)
 			if best != nil {
 				topItem = best.ReqID
 				topPriority = string(best.Priority)
@@ -153,7 +178,7 @@ func runNextShow(cmd *cobra.Command, db *database.Database, webs []graph.Web) er
 	return nil
 }
 
-func runNextOne(cmd *cobra.Command, db *database.Database, webs []graph.Web) error {
+func runNextOne(cmd *cobra.Command, db *database.Database, webs []graph.Web, named map[string]bool) error {
 	// Collect all unblocked items across all webs
 	var allUnblocked []string
 	for _, web := range webs {
@@ -165,17 +190,21 @@ func runNextOne(cmd *cobra.Command, db *database.Database, webs []graph.Web) err
 		return nil
 	}
 
-	best := pickHighestPriority(db, allUnblocked)
+	selectable, skipped := openPRSkips(allUnblocked, named)
+	best := pickHighestPriority(db, selectable)
 	if best == nil {
+		if nextJSON {
+			return writeNextJSON(cmd, nil, skipped)
+		}
+		printOpenPRSkips(cmd, skipped)
 		cmd.Println("No unblocked requirements available.")
 		return nil
 	}
 
 	if nextJSON {
-		cmd.Printf("{\"req_id\":%q,\"priority\":%q,\"category\":%q,\"effort_weeks\":%.1f,\"text\":%q}\n",
-			best.ReqID, string(best.Priority), best.Category, best.EffortWeeks, best.RequirementText)
-		return nil
+		return writeNextJSON(cmd, best, skipped)
 	}
+	printOpenPRSkips(cmd, skipped)
 
 	width := output.TerminalWidth()
 	cmd.Println(output.Header("Next Requirement", width))
@@ -213,6 +242,20 @@ func runNextOne(cmd *cobra.Command, db *database.Database, webs []graph.Web) err
 	}
 
 	cmd.Println()
+	return nil
+}
+
+func writeNextJSON(cmd *cobra.Command, best *database.Requirement, skipped []openPRSkip) error {
+	rawSkipped, err := json.Marshal(skipped)
+	if err != nil {
+		return err
+	}
+	if best == nil {
+		cmd.Printf("{\"idle\":true,\"skipped\":%s}\n", rawSkipped)
+		return nil
+	}
+	cmd.Printf("{\"req_id\":%q,\"priority\":%q,\"category\":%q,\"effort_weeks\":%.1f,\"text\":%q,\"skipped\":%s}\n",
+		best.ReqID, string(best.Priority), best.Category, best.EffortWeeks, best.RequirementText, rawSkipped)
 	return nil
 }
 
