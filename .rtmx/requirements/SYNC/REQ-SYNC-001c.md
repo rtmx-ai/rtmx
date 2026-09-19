@@ -5,7 +5,7 @@
 - **Subcategory**: Persistence
 - **Priority**: HIGH
 - **Phase**: 29
-- **Status**: MISSING
+- **Status**: COMPLETE
 - **Dependencies**: REQ-GO-028
 - **Blocks**: REQ-SYNC-001
 
@@ -24,17 +24,17 @@ before bidirectional mode can converge across repeated runs.
 
 ## Acceptance Criteria
 
-1. `--prefer-remote` assigns the mapped remote status locally and the change
+1. [x] `--prefer-remote` assigns the mapped remote status locally and the change
    survives database reload.
-2. `--prefer-local` reports success only when the remote update succeeds.
-3. Items matched through an embedded RTMX requirement ID gain a durable
+2. [x] `--prefer-local` reports success only when the remote update succeeds.
+3. [x] Items matched through an embedded RTMX requirement ID gain a durable
    `external_id` linkage.
-4. Any implemented import or export candidate action checkpoints its resulting
+4. [x] Any implemented import or export candidate action checkpoints its resulting
    local state before continuing.
-5. Adapter and persistence failures are represented in `SyncResult.Errors`.
-6. Re-running bidirectional sync after success converges to skipped/no-change
+5. [x] Adapter and persistence failures are represented in `SyncResult.Errors`.
+6. [x] Re-running bidirectional sync after success converges to skipped/no-change
    results rather than repeating mutations.
-7. Dry-run mode performs no local or remote writes.
+7. [x] Dry-run mode performs no local or remote writes.
 
 ## Files to Create/Modify
 
