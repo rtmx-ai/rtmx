@@ -8,21 +8,22 @@ import (
 
 // DocumentFile is the on-disk requirement-document/v0 shape (subset for verify).
 type DocumentFile struct {
-	SchemaVersion string              `json:"schema_version"`
+	SchemaVersion string                `json:"schema_version"`
 	Requirements  []DocumentRequirement `json:"requirements"`
 }
 
 // DocumentRequirement holds ACs and bindings from the document model.
 type DocumentRequirement struct {
-	ReqID         string            `json:"req_id"`
-	ACs           []DocumentAC      `json:"acs"`
-	TestBindings  []DocumentBinding `json:"test_bindings"`
+	ReqID        string            `json:"req_id"`
+	ACs          []DocumentAC      `json:"acs"`
+	TestBindings []DocumentBinding `json:"test_bindings"`
 }
 
 // DocumentAC is one acceptance criterion record.
 type DocumentAC struct {
-	ID       string `json:"ac_id"`
-	Required *bool  `json:"required"`
+	ID        string `json:"ac_id"`
+	Statement string `json:"statement,omitempty"`
+	Required  *bool  `json:"required"`
 }
 
 // DocumentBinding links a test identity to an AC or req.
