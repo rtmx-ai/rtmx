@@ -5,7 +5,7 @@
 - **Subcategory**: Python
 - **Priority**: HIGH
 - **Phase**: 14
-- **Status**: COMPLETE
+- **Status**: MISSING
 - **Dependencies**: REQ-LANG-030
 
 ## Requirement
@@ -32,14 +32,12 @@ including hyphenated (non-importable) package directories.
 
 ## Acceptance Criteria
 
-- [x] With `--no-run` and no path argument, a marker under a package directory is
+- [ ] With `--no-run` and no path argument, a marker under a package directory is
       discovered from the JUnit class name and joined.
-- [x] A hyphenated package directory (e.g. `packages/signal-processing/tests`) is
+- [ ] A hyphenated package directory (e.g. `packages/signal-processing/tests`) is
       resolved the same as any other (dots→slashes, hyphens preserved).
-- [x] A case's `file` attribute takes precedence over its class name.
-- [x] A missing implicit `tests` path does not error when JUnit-discovered markers
+- [ ] A case's `file` attribute takes precedence over its class name.
+- [ ] A missing implicit `tests` path does not error when JUnit-discovered markers
       exist; an explicitly-passed missing path still errors.
-- [x] Verified by `internal/cmd/from_pytest_test.go::TestFromPytestNoRunDiscoversPackageMarkers`,
-      `::TestFromPytestNoRunDiscoversHyphenatedPackage`, `::TestClassNameToPath_Hyphenated`,
-      `::TestCaseSourceFile_FileAttrPrecedence`, and
-      `::TestFromPytestExplicitMissingPathErrors`.
+- [ ] Verified by `internal/cmd/from_pytest_test.go::TestClassNameToPath` and
+      `::TestFromPytestNoRunDiscoversPackageMarkers`.
