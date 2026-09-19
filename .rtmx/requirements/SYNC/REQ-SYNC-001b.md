@@ -5,7 +5,7 @@
 - **Subcategory**: Persistence
 - **Priority**: HIGH
 - **Phase**: 29
-- **Status**: COMPLETE
+- **Status**: MISSING
 - **Dependencies**: REQ-GO-028
 - **Blocks**: REQ-SYNC-001
 
@@ -23,15 +23,15 @@ rediscovers the same change.
 
 ## Acceptance Criteria
 
-1. [x] A linked external item's mapped status is assigned to the local requirement
+1. A linked external item's mapped status is assigned to the local requirement
    and survives database reload.
-2. [x] An external item carrying a known RTMX requirement ID sets that
+2. An external item carrying a known RTMX requirement ID sets that
    requirement's `external_id` and survives database reload.
-3. [x] Unchanged linked items do not rewrite the database.
-4. [x] A persistence failure is returned as a sync error and is not reported as a
+3. Unchanged linked items do not rewrite the database.
+4. A persistence failure is returned as a sync error and is not reported as a
    successful update.
-5. [x] Dry-run mode reports changes without mutating memory or disk.
-6. [x] Database load failures are surfaced rather than silently treated as an empty
+5. Dry-run mode reports changes without mutating memory or disk.
+6. Database load failures are surfaced rather than silently treated as an empty
    database.
 
 ## Files to Create/Modify

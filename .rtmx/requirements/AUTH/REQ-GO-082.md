@@ -5,7 +5,7 @@
 - **Subcategory**: Managed
 - **Priority**: P0
 - **Phase**: 8
-- **Status**: COMPLETE
+- **Status**: MISSING
 - **Dependencies**: REQ-GO-040
 - **External ID**: rtmx-ai/REQ-MONO-021a
 
@@ -18,11 +18,11 @@ machinery from REQ-GO-040.
 
 ## Acceptance Criteria
 
-1. [x] Managed defaults require no custom `auth.issuer` in rtmx.yaml.
-2. [x] Browser + loopback complete without manual code paste.
-3. [x] Tokens/session stored in the existing auth token store.
-4. [x] `rtmx auth status` / `logout` work for the managed credential.
-5. [x] Table-driven / injectable tests (no real browser in unit tests).
+1. [ ] Managed defaults require no custom `auth.issuer` in rtmx.yaml.
+2. [ ] Browser + loopback complete without manual code paste.
+3. [ ] Tokens/session stored in the existing auth token store.
+4. [ ] `rtmx auth status` / `logout` work for the managed credential.
+5. [ ] Table-driven / injectable tests (no real browser in unit tests).
 
 ## Files (expected)
 

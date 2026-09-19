@@ -5,7 +5,7 @@
 - **Subcategory**: DOCUMENT_MODEL
 - **Priority**: HIGH
 - **Phase**: 34
-- **Status**: COMPLETE
+- **Status**: MISSING
 - **Dependencies**: REQ-DATA-001a
 - **Blocks**: REQ-DATA-001f
 - **External ID**:
@@ -26,11 +26,11 @@ idempotent round-trip, AC-to-test ATDD cannot be adopted on existing projects.
 
 ## Acceptance Criteria
 
-1. [x] Parser handles representative AC shapes (numbered lists and checkbox lists), including samples patterned on REQ-VERIFY-013 and REQ-SYNC-002.
-2. [x] Emits stable `ac_id`s under the scheme named in 001a when AC text is unchanged.
-3. [x] CSV export drops AC nesting without losing req-level identity, status, deps, and other mapped scalars.
-4. [x] Second migrate does not churn `ac_id`s when content is unchanged (idempotence).
-5. [x] Documented limits list what does not round-trip (e.g. free-form Implementation history).
+1. Parser handles representative AC shapes (numbered lists and checkbox lists), including samples patterned on REQ-VERIFY-013 and REQ-SYNC-002.
+2. Emits stable `ac_id`s under the scheme named in 001a when AC text is unchanged.
+3. CSV export drops AC nesting without losing req-level identity, status, deps, and other mapped scalars.
+4. Second migrate does not churn `ac_id`s when content is unchanged (idempotence).
+5. Documented limits list what does not round-trip (e.g. free-form Implementation history).
 
 ## Test Strategy
 

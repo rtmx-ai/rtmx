@@ -5,7 +5,7 @@
 - **Subcategory**: Billing
 - **Priority**: P0
 - **Phase**: 8
-- **Status**: COMPLETE
+- **Status**: MISSING
 - **Dependencies**: REQ-GO-082|REQ-GO-083
 - **External ID**: rtmx-ai/REQ-MONO-021c
 
@@ -17,11 +17,11 @@ the managed billing API, and opens the Stripe URL in the system browser.
 
 ## Acceptance Criteria
 
-1. [x] Command opens Checkout URL (browser opener injectable).
-2. [x] Triggers managed login when unauthenticated.
-3. [x] Org via `--org` / create prompt; seats default 1, `--seats` override.
-4. [x] Messaging: entitlement after Stripe/webhook, not on command return.
-5. [x] HTTP client injectable; unit tests mock billing API.
+1. [ ] Command opens Checkout URL (browser opener injectable).
+2. [ ] Triggers managed login when unauthenticated.
+3. [ ] Org via `--org` / create prompt; seats default 1, `--seats` override.
+4. [ ] Messaging: entitlement after Stripe/webhook, not on command return.
+5. [ ] HTTP client injectable; unit tests mock billing API.
 
 ## Effort Estimate
 

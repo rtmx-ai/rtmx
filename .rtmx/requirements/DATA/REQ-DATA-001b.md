@@ -5,7 +5,7 @@
 - **Subcategory**: DOCUMENT_MODEL
 - **Priority**: HIGH
 - **Phase**: 34
-- **Status**: COMPLETE
+- **Status**: MISSING
 - **Dependencies**: REQ-DATA-001a
 - **Blocks**: REQ-DATA-001e|REQ-DATA-001f
 - **External ID**:
@@ -28,11 +28,11 @@ test for the document model.
 
 ## Acceptance Criteria
 
-1. [x] Fixture with one requirement, three ACs, and three tests (one binding per AC); verify (spike path) prints an AC matrix with pass/fail/gap per `ac_id`.
-2. [x] Failing or unbound required AC yields PARTIAL (or policy-documented equivalent), never silent COMPLETE.
-3. [x] Completeness policy is written beside the spike (policy name + aggregation rules).
-4. [x] Req-level-only bindings still produce req-level status (v1 compat path).
-5. [x] Spike code may live under `testdata/` / experimental package; it is not wired as the default CLI verify path.
+1. Fixture with one requirement, three ACs, and three tests (one binding per AC); verify (spike path) prints an AC matrix with pass/fail/gap per `ac_id`.
+2. Failing or unbound required AC yields PARTIAL (or policy-documented equivalent), never silent COMPLETE.
+3. Completeness policy is written beside the spike (policy name + aggregation rules).
+4. Req-level-only bindings still produce req-level status (v1 compat path).
+5. Spike code may live under `testdata/` / experimental package; it is not wired as the default CLI verify path.
 
 ## Test Strategy
 
