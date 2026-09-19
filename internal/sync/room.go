@@ -46,7 +46,7 @@ type RoomError struct {
 func (e *RoomError) Error() string {
 	switch e.Code {
 	case CloseUnauthenticated:
-		return "not authenticated: pass --token or set RTMX_SYNC_TOKEN"
+		return "not authenticated: run 'rtmx login' or pass --token / RTMX_SYNC_TOKEN"
 	case CloseNotEntitled:
 		return fmt.Sprintf("no active entitlement for this organization (%s)", e.Reason)
 	case CloseForbidden:

@@ -47,8 +47,8 @@ func init() {
 	serveCmd.Flags().IntVar(&servePort, "port", 8080, "port to listen on")
 	serveCmd.Flags().StringVar(&serveAuth, "auth", "", "authentication mode (api-key or oauth)")
 	serveCmd.Flags().StringVar(&serveSyncURL, "sync-url", "", "sync server URL for real-time collaboration")
-	serveCmd.Flags().StringVar(&serveSyncToken, "sync-token", os.Getenv("RTMX_SYNC_TOKEN"),
-		"API key or session token for the sync server (default $RTMX_SYNC_TOKEN)")
+	serveCmd.Flags().StringVar(&serveSyncToken, "sync-token", "",
+		"API key or session token for the sync server (or $RTMX_SYNC_TOKEN / stored login)")
 	rootCmd.AddCommand(serveCmd)
 }
 
@@ -97,7 +97,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 				dbPath: dbPath,
 				lock:   dbLock,
 				url:    serveSyncURL,
-				token:  serveSyncToken,
+				token:  resolveSyncToken(serveSyncToken),
 				logf:   cmd.Printf,
 			}); err != nil {
 				cmd.Printf("  %sSync stopped:%s %v\n", output.Red, output.Reset, err)
