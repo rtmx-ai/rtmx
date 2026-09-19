@@ -5,7 +5,7 @@
 - **Subcategory**: COMPLETENESS
 - **Priority**: HIGH
 - **Phase**: 29
-- **Status**: MISSING
+- **Status**: COMPLETE
 - **Dependencies**: REQ-VERIFY-004
 - **Blocks**: REQ-VERIFY-013
 - **External ID**:
@@ -38,14 +38,18 @@ run. A skipped test conveys no evidence and must move nothing.
 
 ## Acceptance Criteria
 
-- [ ] A COMPLETE requirement with `>= min_combinations` passing combos plus one
+- [x] A COMPLETE requirement with `>= min_combinations` passing combos plus one
       skipped result stays COMPLETE (combinations policy).
-- [ ] A COMPLETE requirement with a passing test plus a skipped result stays
+- [x] A COMPLETE requirement with a passing test plus a skipped result stays
       COMPLETE (simple policy).
-- [ ] A skipped result does not increment `TestsFailed` and does not cause a
+- [x] A skipped result does not increment `TestsFailed` and does not cause a
       non-zero verify exit.
-- [ ] A results record with `status:"skip"`/`"skipped"`, `"skipped":true`, or no
+- [x] A results record with `status:"skip"`/`"skipped"`, `"skipped":true`, or no
       outcome field at all decodes as skipped (non-evidence), not as a failure.
-- [ ] A genuine failing result still downgrades COMPLETE→PARTIAL (regression guard).
-- [ ] Verified by `internal/cmd/verify_completeness_test.go::TestDetermineStatusWithPolicy_SkipNonEvidence`
-      and `internal/results/schema_test.go::TestParseSkippedResults`.
+- [x] A genuine failing result still downgrades COMPLETE→PARTIAL (regression guard).
+- [x] Verified by `internal/cmd/verify_completeness_test.go::TestDetermineStatusWithPolicy_SkipKeepsCompleteCombinations`,
+      `::TestDetermineStatusWithPolicy_SkipKeepsCompleteSimple`,
+      `::TestSkipNonEvidenceDoesNotCountAsFailed`,
+      `::TestDetermineStatusWithPolicy_FailureStillDemotes`,
+      `::TestDetermineStatusWithPolicy_SkipNonEvidence`, and
+      `internal/results/schema_test.go::TestParseSkippedResults`.
