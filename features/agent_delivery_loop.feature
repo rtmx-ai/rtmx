@@ -6,6 +6,18 @@ Feature: Deployable falling-edge agent delivery loop
   `rtmx init` installs the delivery rule: one commit per acceptance
   criterion, one pull request per requirement.
 
+  Local RTM is enough. Deploy does not need managed-sync OAuth or Stripe,
+  and it does not edit an agent session in this repository.
+
+    rtmx loop
+    rtmx loop install
+
+  macOS enable (install does not run this):
+    launchctl bootstrap gui/$(id -u) .rtmx/loop/ai.rtmx.loop.plist
+
+  Linux enable (install does not run this):
+    systemctl --user link .rtmx/loop/rtmx-loop.service && systemctl --user enable rtmx-loop.service
+
   Scenario: Init installs the delivery rule (REQ-ORCH-021)
     When I run "rtmx init" in an empty project
     Then ".rtmx/agent/delivery.md" contains "One pull request per requirement"
