@@ -3,6 +3,14 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.12.1] - 2026-10-04
+
+### Fixed
+
+- Compile `WorktreeRegistry` so `internal/orchestration` tests and lint typecheck.
+- `TestReconcileCommand` accepts both "reciprocal" and "reciprocity" so a live
+  database with outstanding reciprocity issues does not fail CI.
+
 ## [1.12.0] - 2026-10-04
 
 ### Added
