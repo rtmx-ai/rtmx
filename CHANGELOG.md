@@ -3,7 +3,7 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased] — v1.12.0
+## [1.12.0] - 2026-10-04
 
 ### Added
 
@@ -16,7 +16,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   `trade_*` (no `run_cli`).
 - **Agent delivery loop (REQ-ORCH-019–022, REQ-MCP-012)** — falling-edge
   `rtmx loop`, `decompose`, init-time delivery rule, open-PR skip on `next`,
-  MCP `next` delivery plan. Not in v1.11.0; ships in this minor.
+  MCP `next` delivery plan.
+- **SaaS connections** — `rtmx connect` / `rtmx connections` including Asana
+  OAuth via the managed vault (REQ-MONO-026).
+- **Document-model track (REQ-DATA-002–006)** — opt-in AC-matrix verify,
+  JSONL+MD helpers, MCP AC gaps/bindings. CSV v1 unchanged.
 
 ## [1.11.0] - 2026-08-23
 
