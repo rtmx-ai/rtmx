@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/rtmx-ai/rtmx/internal/adapters"
@@ -139,6 +140,9 @@ func TestImportUnchangedLinkedDoesNotRewrite(t *testing.T) {
 
 func TestImportPersistenceFailureIsSyncError(t *testing.T) {
 	rtmx.Req(t, "REQ-SYNC-001b")
+	if runtime.GOOS == "windows" {
+		t.Skip("directory write-bit is not enforced on NTFS")
+	}
 
 	req := database.NewRequirement("REQ-TEST-004")
 	req.Category = "TEST"

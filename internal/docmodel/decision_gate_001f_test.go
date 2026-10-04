@@ -19,7 +19,7 @@ func TestDecisionGate001fAcceptsADR0007(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	adrText := string(adr)
+	adrText := strings.ReplaceAll(string(adr), "\r\n", "\n")
 	if !strings.Contains(adrText, "## Status\n\nAccepted") {
 		t.Fatal("ADR-0007 Status must be Accepted")
 	}
@@ -68,7 +68,7 @@ func TestParentDATA001ClosesWithGate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(adr), "## Status\n\nAccepted") {
+	if !strings.Contains(strings.ReplaceAll(string(adr), "\r\n", "\n"), "## Status\n\nAccepted") {
 		t.Fatal("parent DATA-001 requires Accepted ADR-0007")
 	}
 	gate := filepath.Join(root, "docs", "schemas", "DECISION_GATE_001f.md")
