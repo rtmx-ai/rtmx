@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/rtmx-ai/rtmx/internal/orchestration/deliverycheck"
 	"github.com/rtmx-ai/rtmx/internal/output"
@@ -135,12 +133,4 @@ func reportDeliveryCheckForGate(cmd *cobra.Command, cwd string) {
 		}
 		cmd.Printf("    - %s\n", e)
 	}
-	_ = strings.TrimSpace
-}
-
-func formatDeliveryCheckSummary(res *deliverycheck.Result) string {
-	if res.OK {
-		return fmt.Sprintf("ok (%d commits)", len(res.Commits))
-	}
-	return fmt.Sprintf("%d issue(s)", len(res.Errors))
 }

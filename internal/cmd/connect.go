@@ -78,10 +78,10 @@ func runConnect(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("could not reach %s: %w", base, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	raw, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusServiceUnavailable {
-		return fmt.Errorf("Asana OAuth is not configured on the sync host (set RTMX_ASANA_CLIENT_ID)")
+		return fmt.Errorf("asana OAuth is not configured on the sync host (set RTMX_ASANA_CLIENT_ID)")
 	}
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("could not start Asana OAuth (%d): %s", resp.StatusCode, strings.TrimSpace(string(raw)))
@@ -117,7 +117,7 @@ func runConnectionsList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	raw, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("could not list connections (%d): %s", resp.StatusCode, strings.TrimSpace(string(raw)))

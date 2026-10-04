@@ -62,7 +62,7 @@ func WriteJSONL(path string, reqs []Requirement) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	enc := json.NewEncoder(f)
 	doc := ToDocument(reqs)
 	for _, r := range doc.Requirements {
@@ -91,7 +91,7 @@ func LoadJSONL(path string) ([]Requirement, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	var out []Requirement
 	s := bufio.NewScanner(f)
 	// Allow long lines
