@@ -25,6 +25,7 @@ func TestConnectUnsupportedProvider(t *testing.T) {
 func TestConnectRequiresLogin(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	// Ensure no tokens file exists.
 	cmd := &cobra.Command{}
 	err := runConnect(cmd, []string{"asana"})
@@ -36,6 +37,7 @@ func TestConnectRequiresLogin(t *testing.T) {
 func TestConnectionsList(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	tokenDir := filepath.Join(home, ".rtmx", "auth")
 	if err := os.MkdirAll(tokenDir, 0o700); err != nil {
 		t.Fatal(err)
@@ -78,6 +80,7 @@ func TestConnectionsList(t *testing.T) {
 func TestConnectStartsAsanaOAuth(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	tokenDir := filepath.Join(home, ".rtmx", "auth")
 	if err := os.MkdirAll(tokenDir, 0o700); err != nil {
 		t.Fatal(err)

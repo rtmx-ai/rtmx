@@ -3,6 +3,13 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.12.4] - 2026-10-04
+
+### Fixed
+
+- Windows CI: `USERPROFILE` for Asana connect tests, NTFS skip for chmod-based
+  import persist, CRLF-tolerant ADR-0007 status check.
+
 ## [1.12.3] - 2026-10-04
 
 ### Fixed
