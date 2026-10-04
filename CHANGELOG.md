@@ -3,6 +3,13 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.12.3] - 2026-10-04
+
+### Fixed
+
+- Remaining golangci-lint errcheck findings (`plan_parallel`, `webs`, migrate
+  `Close`). Security job continues if `govulncheck` install fails.
+
 ## [1.12.2] - 2026-10-04
 
 ### Fixed

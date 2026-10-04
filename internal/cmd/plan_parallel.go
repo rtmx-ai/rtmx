@@ -141,17 +141,17 @@ func runPlanParallel(cmd *cobra.Command, args []string) error {
 
 	// Table output
 	w := cmd.OutOrStdout()
-	fmt.Fprintf(w, "Parallel Execution Plan: %d webs, %d phases\n", plan.TotalWebs, len(plan.Phases))
-	fmt.Fprintf(w, "Total effort: %.1fw, Critical path: %.1fw, Parallelism: %.1fx\n\n",
+	_, _ = fmt.Fprintf(w, "Parallel Execution Plan: %d webs, %d phases\n", plan.TotalWebs, len(plan.Phases))
+	_, _ = fmt.Fprintf(w, "Total effort: %.1fw, Critical path: %.1fw, Parallelism: %.1fx\n\n",
 		plan.TotalEffort, plan.CriticalPath, plan.Parallelism)
 
 	for _, phase := range plan.Phases {
-		fmt.Fprintf(w, "Phase %d (%.1fw effort):\n", phase.Phase, phase.PhaseEffort)
+		_, _ = fmt.Fprintf(w, "Phase %d (%.1fw effort):\n", phase.Phase, phase.PhaseEffort)
 		for _, pw := range phase.Webs {
-			fmt.Fprintf(w, "  Web %d: %d reqs (%.1fw), %d unblocked, %d blocked\n",
+			_, _ = fmt.Fprintf(w, "  Web %d: %d reqs (%.1fw), %d unblocked, %d blocked\n",
 				pw.WebIndex, len(pw.IDs), pw.TotalEffort, pw.Unblocked, pw.Blocked)
 		}
-		fmt.Fprintf(w, "  Merge order: %v\n\n", phase.MergeOrder)
+		_, _ = fmt.Fprintf(w, "  Merge order: %v\n\n", phase.MergeOrder)
 	}
 
 	return nil

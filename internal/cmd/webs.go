@@ -120,7 +120,7 @@ func runWebs(cmd *cobra.Command, args []string) error {
 
 	// Table output
 	w := cmd.OutOrStdout()
-	fmt.Fprintf(w, "Work Webs: %d webs, %d parallel groups\n\n", len(webs), len(groups))
+	_, _ = fmt.Fprintf(w, "Work Webs: %d webs, %d parallel groups\n\n", len(webs), len(groups))
 
 	for i, web := range webs {
 		groupIdx := -1
@@ -131,14 +131,14 @@ func runWebs(cmd *cobra.Command, args []string) error {
 				}
 			}
 		}
-		fmt.Fprintf(w, "Web %d (Group %d) -- %d reqs, %.1fw effort\n",
+		_, _ = fmt.Fprintf(w, "Web %d (Group %d) -- %d reqs, %.1fw effort\n",
 			i, groupIdx, len(web.IDs), web.TotalEffort)
-		fmt.Fprintf(w, "  IDs: %s\n", strings.Join(web.IDs, ", "))
+		_, _ = fmt.Fprintf(w, "  IDs: %s\n", strings.Join(web.IDs, ", "))
 		if len(web.Unblocked) > 0 {
-			fmt.Fprintf(w, "  Unblocked: %s\n", strings.Join(web.Unblocked, ", "))
+			_, _ = fmt.Fprintf(w, "  Unblocked: %s\n", strings.Join(web.Unblocked, ", "))
 		}
 		if len(web.Blocked) > 0 {
-			fmt.Fprintf(w, "  Blocked: %s\n", strings.Join(web.Blocked, ", "))
+			_, _ = fmt.Fprintf(w, "  Blocked: %s\n", strings.Join(web.Blocked, ", "))
 		}
 		_, _ = fmt.Fprintln(w)
 	}
@@ -146,7 +146,7 @@ func runWebs(cmd *cobra.Command, args []string) error {
 	if len(deps) > 0 {
 		_, _ = fmt.Fprintln(w, "Cross-Web Dependencies:")
 		for _, d := range deps {
-			fmt.Fprintf(w, "  Web %d -> Web %d\n", d.From, d.To)
+			_, _ = fmt.Fprintf(w, "  Web %d -> Web %d\n", d.From, d.To)
 		}
 		_, _ = fmt.Fprintln(w)
 	}
@@ -154,7 +154,7 @@ func runWebs(cmd *cobra.Command, args []string) error {
 	if len(overlaps) > 0 {
 		_, _ = fmt.Fprintln(w, "File Surface Overlaps:")
 		for _, o := range overlaps {
-			fmt.Fprintf(w, "  Web %d <-> Web %d: %s\n", o.WebA, o.WebB, strings.Join(o.SharedFiles, ", "))
+			_, _ = fmt.Fprintf(w, "  Web %d <-> Web %d: %s\n", o.WebA, o.WebB, strings.Join(o.SharedFiles, ", "))
 		}
 		_, _ = fmt.Fprintln(w)
 	}
