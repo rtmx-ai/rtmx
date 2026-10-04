@@ -3,6 +3,12 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.12.2] - 2026-10-04
+
+### Fixed
+
+- golangci-lint errcheck/unused/staticcheck findings that failed v1.12.1 CI.
+
 ## [1.12.1] - 2026-10-04
 
 ### Fixed

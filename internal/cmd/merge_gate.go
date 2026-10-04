@@ -132,17 +132,17 @@ func runMergeGate(cmd *cobra.Command, args []string) error {
 	} else {
 		w := cmd.OutOrStdout()
 		if result.Safe {
-			fmt.Fprintf(w, "Web %d: SAFE to merge\n", mergeGateWebIndex)
+			_, _ = fmt.Fprintf(w, "Web %d: SAFE to merge\n", mergeGateWebIndex)
 		} else {
-			fmt.Fprintf(w, "Web %d: NOT safe to merge\n", mergeGateWebIndex)
+			_, _ = fmt.Fprintf(w, "Web %d: NOT safe to merge\n", mergeGateWebIndex)
 			for _, f := range result.Failures {
-				fmt.Fprintf(w, "  - %s\n", f)
+				_, _ = fmt.Fprintf(w, "  - %s\n", f)
 			}
 			if len(result.IncompleteIDs) > 0 {
-				fmt.Fprintf(w, "  Incomplete: %v\n", result.IncompleteIDs)
+				_, _ = fmt.Fprintf(w, "  Incomplete: %v\n", result.IncompleteIDs)
 			}
 			if len(result.BlockedUpstream) > 0 {
-				fmt.Fprintf(w, "  Blocked by upstream webs: %v\n", result.BlockedUpstream)
+				_, _ = fmt.Fprintf(w, "  Blocked by upstream webs: %v\n", result.BlockedUpstream)
 			}
 		}
 	}

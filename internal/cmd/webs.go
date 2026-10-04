@@ -140,23 +140,23 @@ func runWebs(cmd *cobra.Command, args []string) error {
 		if len(web.Blocked) > 0 {
 			fmt.Fprintf(w, "  Blocked: %s\n", strings.Join(web.Blocked, ", "))
 		}
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 
 	if len(deps) > 0 {
-		fmt.Fprintln(w, "Cross-Web Dependencies:")
+		_, _ = fmt.Fprintln(w, "Cross-Web Dependencies:")
 		for _, d := range deps {
 			fmt.Fprintf(w, "  Web %d -> Web %d\n", d.From, d.To)
 		}
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 
 	if len(overlaps) > 0 {
-		fmt.Fprintln(w, "File Surface Overlaps:")
+		_, _ = fmt.Fprintln(w, "File Surface Overlaps:")
 		for _, o := range overlaps {
 			fmt.Fprintf(w, "  Web %d <-> Web %d: %s\n", o.WebA, o.WebB, strings.Join(o.SharedFiles, ", "))
 		}
-		fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w)
 	}
 
 	return nil

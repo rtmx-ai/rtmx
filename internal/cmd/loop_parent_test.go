@@ -28,7 +28,7 @@ func TestParentDeliveryLoop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer dbFile.Close()
+	defer func() { _ = dbFile.Close() }()
 	rows, err := csv.NewReader(dbFile).ReadAll()
 	if err != nil {
 		t.Fatal(err)

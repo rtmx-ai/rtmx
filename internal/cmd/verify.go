@@ -309,7 +309,7 @@ func runVerifyACDocument(cmd *cobra.Command) error {
 			if err != nil {
 				return fmt.Errorf("failed to open results file: %w", err)
 			}
-			defer r.Close()
+			defer func() { _ = r.Close() }()
 		}
 		parsed, err := results.Parse(r)
 		if err != nil {
