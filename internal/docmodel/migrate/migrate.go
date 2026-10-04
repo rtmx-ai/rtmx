@@ -151,7 +151,7 @@ func ProjectCSV(path string, reqs []Requirement) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	w := csv.NewWriter(f)
 	_ = w.Write([]string{"req_id", "requirement_text", "status", "priority", "dependencies", "blocks"})
 	for _, r := range reqs {
@@ -174,7 +174,7 @@ func LoadCSVRequirements(path string) ([]Requirement, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	r := csv.NewReader(f)
 	rows, err := r.ReadAll()
 	if err != nil {
@@ -259,7 +259,7 @@ func ScanFile(path string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	var lines []string
 	s := bufio.NewScanner(f)
 	for s.Scan() {
