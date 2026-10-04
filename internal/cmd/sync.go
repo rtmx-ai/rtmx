@@ -28,6 +28,12 @@ var (
 	syncPull    bool
 	syncPush    bool
 	syncTimeout int
+
+	// saveDatabase persists the RTM CSV. Tests override this to force save failures
+	// without relying on OS-specific permission bits (chmod is not enforced on NTFS).
+	saveDatabase = func(db *database.Database, path string) error {
+		return db.Save(path)
+	}
 )
 
 // SyncResult holds the results of a sync operation
@@ -349,7 +355,7 @@ func runImport(adapter adapters.ServiceAdapter, cfg *config.Config, dryRun bool)
 	}
 
 	if dirty && !dryRun {
-		if err := db.Save(dbPath); err != nil {
+		if err := saveDatabase(db, dbPath); err != nil {
 			syncErr := fmt.Sprintf("failed to persist imported changes: %v", err)
 			fmt.Printf("  %s✗%s %s\n", output.Red, output.Reset, syncErr)
 			result.Errors = append(result.Errors, SyncError{ID: "", Error: syncErr})
@@ -421,7 +427,7 @@ func runExport(adapter adapters.ServiceAdapter, cfg *config.Config, dryRun bool)
 				}
 
 				req.ExternalID = externalID
-				if err := db.Save(dbPath); err != nil {
+				if err := saveDatabase(db, dbPath); err != nil {
 					syncErr := fmt.Sprintf(
 						"remote item %s created for %s but failed to persist external_id: %v",
 						externalID, req.ReqID, err,
@@ -494,7 +500,7 @@ func runBidirectional(adapter adapters.ServiceAdapter, cfg *config.Config, confl
 		if dryRun || !dirty {
 			return true
 		}
-		if err := db.Save(dbPath); err != nil {
+		if err := saveDatabase(db, dbPath); err != nil {
 			syncErr := fmt.Sprintf("failed to persist sync changes: %v", err)
 			fmt.Printf("  %s✗%s %s\n", output.Red, output.Reset, syncErr)
 			result.Errors = append(result.Errors, SyncError{ID: "", Error: syncErr})

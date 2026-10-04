@@ -3,12 +3,20 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.12.5] - 2026-10-04
+
+### Fixed
+
+- Security CI is a hard gate again: pin `govulncheck@v1.7.0` (Go 1.25) and drop
+  `continue-on-error`. Import persist failure test uses an injectable saver so
+  Windows is covered without skipping on NTFS chmod behavior.
+
 ## [1.12.4] - 2026-10-04
 
 ### Fixed
 
-- Windows CI: `USERPROFILE` for Asana connect tests, NTFS skip for chmod-based
-  import persist, CRLF-tolerant ADR-0007 status check.
+- Windows CI: `USERPROFILE` for Asana connect tests, CRLF-tolerant ADR-0007
+  status check.
 
 ## [1.12.3] - 2026-10-04
 

@@ -1,9 +1,9 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/rtmx-ai/rtmx/internal/adapters"
@@ -140,9 +140,6 @@ func TestImportUnchangedLinkedDoesNotRewrite(t *testing.T) {
 
 func TestImportPersistenceFailureIsSyncError(t *testing.T) {
 	rtmx.Req(t, "REQ-SYNC-001b")
-	if runtime.GOOS == "windows" {
-		t.Skip("directory write-bit is not enforced on NTFS")
-	}
 
 	req := database.NewRequirement("REQ-TEST-004")
 	req.Category = "TEST"
@@ -167,10 +164,12 @@ func TestImportPersistenceFailureIsSyncError(t *testing.T) {
 		statusMapping: map[string]database.Status{"closed": database.StatusComplete},
 	}
 
-	if err := os.Chmod(dir, 0o555); err != nil {
-		t.Fatal(err)
+	// Force persist failure without chmod: NTFS does not enforce directory write bits.
+	prev := saveDatabase
+	saveDatabase = func(*database.Database, string) error {
+		return fmt.Errorf("simulated persist failure")
 	}
-	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+	t.Cleanup(func() { saveDatabase = prev })
 
 	old := os.Stdout
 	_, w, _ := os.Pipe()
