@@ -3,6 +3,25 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.12.0] - 2026-10-04
+
+### Added
+
+- **Agent delivery science (REQ-ORCH-023*)** — warn-first `rtmx delivery-check`
+  (one PR per REQ, one commit per AC; `--strict` fails). `rtmx loop tick`
+  next+claims+decomposes and re-decomposes from `.rtmx/delivery/` notes.
+  Trade checkpoints (`rtmx trade open|list|resolve`, `.rtmx/trades/`) set
+  `trade_required` on the loop plan. MCP scientific tools: `loop_tick`,
+  `decompose`, `hygiene`, `cycles`, `webs`, `context`, `delivery_check`,
+  `trade_*` (no `run_cli`).
+- **Agent delivery loop (REQ-ORCH-019–022, REQ-MCP-012)** — falling-edge
+  `rtmx loop`, `decompose`, init-time delivery rule, open-PR skip on `next`,
+  MCP `next` delivery plan.
+- **SaaS connections** — `rtmx connect` / `rtmx connections` including Asana
+  OAuth via the managed vault (REQ-MONO-026).
+- **Document-model track (REQ-DATA-002–006)** — opt-in AC-matrix verify,
+  JSONL+MD helpers, MCP AC gaps/bindings. CSV v1 unchanged.
+
 ## [1.11.0] - 2026-08-23
 
 ### Added

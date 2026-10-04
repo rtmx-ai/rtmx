@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,9 @@ import (
 )
 
 func createNextTestCmd() *cobra.Command {
+	if openPRSource == nil {
+		openPRSource = staticOpenPRs{}
+	}
 	root := &cobra.Command{
 		Use:           "rtmx",
 		SilenceUsage:  true,
@@ -391,3 +395,139 @@ func TestNextBatchWorktree(t *testing.T) {
 		// The important thing is the flag is recognized -- no "unknown flag" error
 	})
 }
+
+type staticOpenPRs []PullRequest
+
+func (s staticOpenPRs) ListOpen() ([]PullRequest, error) { return []PullRequest(s), nil }
+
+type errOpenPRLookup struct{ err error }
+
+func (e errOpenPRLookup) ListOpen() ([]PullRequest, error) { return nil, e.err }
+
+func TestNextSkipsOpenPR(t *testing.T) {
+	rtmx.Req(t, "REQ-ORCH-022")
+	prev := openPRSource
+	t.Cleanup(func() { openPRSource = prev })
+
+	dbContent := testDBHeader +
+		"REQ-EX-001,CLI,Commands,Has open PR,Pass,mod,TestA,Unit Test,MISSING,P0,1,,1.0,,,,,,,\n" +
+		"REQ-EX-002,CLI,Commands,No open PR,Pass,mod,TestB,Unit Test,MISSING,MEDIUM,1,,1.0,,,,,,,\n"
+
+	run := func(t *testing.T, args []string) (string, string) {
+		t.Helper()
+		tmpDir := setupNextTestProject(t, dbContent)
+		origDir, _ := os.Getwd()
+		if err := os.Chdir(tmpDir); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+		cmd := createNextTestCmd()
+		out := new(bytes.Buffer)
+		errBuf := new(bytes.Buffer)
+		cmd.SetOut(out)
+		cmd.SetErr(errBuf)
+		cmd.SetArgs(args)
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("next failed: %v\n%s", err, out.String())
+		}
+		return out.String(), errBuf.String()
+	}
+
+	t.Run("title_and_body_name_the_id", func(t *testing.T) {
+		if !textNamesReq("feat(REQ-EX-001): x", "REQ-EX-001") {
+			t.Fatal("title should name REQ-EX-001")
+		}
+		if !textNamesReq("body mentions REQ-EX-001.", "REQ-EX-001") {
+			t.Fatal("body should name REQ-EX-001")
+		}
+		if textNamesReq("feat(REQ-EX-001a): child", "REQ-EX-001") {
+			t.Fatal("child ID must not name the parent")
+		}
+	})
+
+	t.Run("selects_next_without_open_pr", func(t *testing.T) {
+		openPRSource = staticOpenPRs{{Title: "feat(REQ-EX-001): demo", Body: ""}}
+		out, _ := run(t, []string{"next"})
+		if !strings.Contains(out, "Skipped REQ-EX-001 because of an open pull request") {
+			t.Fatalf("expected skip notice, got:\n%s", out)
+		}
+		found := false
+		for _, line := range strings.Split(out, "\n") {
+			if !strings.Contains(line, "->") {
+				continue
+			}
+			if strings.Contains(line, "REQ-EX-001") {
+				t.Fatalf("skipped ID selected:\n%s", out)
+			}
+			if strings.Contains(line, "REQ-EX-002") {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("expected REQ-EX-002 selected, got:\n%s", out)
+		}
+	})
+
+	t.Run("body_match_skips", func(t *testing.T) {
+		openPRSource = staticOpenPRs{{Title: "unrelated", Body: "implements REQ-EX-001"}}
+		out, _ := run(t, []string{"next", "--one"})
+		if !strings.Contains(out, "Skipped REQ-EX-001 because of an open pull request") {
+			t.Fatalf("body match should skip, got:\n%s", out)
+		}
+		if !strings.Contains(out, "REQ-EX-002") {
+			t.Fatalf("expected REQ-EX-002, got:\n%s", out)
+		}
+	})
+
+	t.Run("all_open_is_idle", func(t *testing.T) {
+		openPRSource = staticOpenPRs{
+			{Title: "feat(REQ-EX-001): a", Body: ""},
+			{Title: "feat(REQ-EX-002): b", Body: ""},
+		}
+		out, _ := run(t, []string{"next", "--one"})
+		if !strings.Contains(out, "No unblocked requirements available.") {
+			t.Fatalf("expected idle, got:\n%s", out)
+		}
+		if strings.Contains(out, "Requirement:") {
+			t.Fatalf("skipped ID was selected:\n%s", out)
+		}
+	})
+
+	t.Run("lookup_unavailable_keeps_today", func(t *testing.T) {
+		openPRSource = errOpenPRLookup{err: fmt.Errorf("gh not found")}
+		out, errOut := run(t, []string{"next", "--one"})
+		if strings.Count(errOut, "warning:") != 1 {
+			t.Fatalf("expected one warning, got %q", errOut)
+		}
+		if !strings.Contains(out, "REQ-EX-001") || strings.Contains(out, "Skipped") {
+			t.Fatalf("expected today's pick without skips, got:\n%s", out)
+		}
+	})
+
+	t.Run("json_includes_skipped", func(t *testing.T) {
+		openPRSource = staticOpenPRs{{Title: "feat(REQ-EX-001): demo", Body: ""}}
+		out, _ := run(t, []string{"next", "--one", "--json"})
+		if !strings.Contains(out, `"req_id":"REQ-EX-002"`) {
+			t.Fatalf("JSON selection: %s", out)
+		}
+		if !strings.Contains(out, `"skipped":[{"req_id":"REQ-EX-001","reason":"open_pr"}]`) {
+			t.Fatalf("JSON skipped: %s", out)
+		}
+	})
+
+	t.Run("json_idle_when_all_skipped", func(t *testing.T) {
+		openPRSource = staticOpenPRs{
+			{Title: "REQ-EX-001", Body: ""},
+			{Title: "REQ-EX-002", Body: ""},
+		}
+		out, _ := run(t, []string{"next", "--one", "--json"})
+		if !strings.Contains(out, `"idle":true`) {
+			t.Fatalf("expected idle JSON, got %s", out)
+		}
+		if strings.Contains(out, `"priority"`) {
+			t.Fatalf("idle JSON must not select a requirement: %s", out)
+		}
+	})
+}
+

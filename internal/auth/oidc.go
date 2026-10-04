@@ -64,6 +64,12 @@ type TokenSet struct {
 	ExpiresIn    int    `json:"expires_in,omitempty"`
 	ExpiresAt    int64  `json:"expires_at,omitempty"`
 	Scope        string `json:"scope,omitempty"`
+	// Managed Sync session metadata (REQ-GO-082 / MONO-021a).
+	Email       string `json:"email,omitempty"`
+	DisplayName string `json:"display_name,omitempty"`
+	SyncURL     string `json:"sync_url,omitempty"`
+	Mode        string `json:"mode,omitempty"` // "managed" or empty for generic OIDC
+	Provider    string `json:"provider,omitempty"`
 }
 
 // IsExpired returns true if the access token has expired.

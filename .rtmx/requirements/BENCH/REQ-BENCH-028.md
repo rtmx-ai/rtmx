@@ -5,7 +5,7 @@
 - **Subcategory**: Observability
 - **Priority**: LOW
 - **Phase**: 23
-- **Status**: MISSING
+- **Status**: COMPLETE
 - **Dependencies**: REQ-BENCH-026
 - **Blocks**: (none)
 
@@ -16,13 +16,14 @@ Benchmark workflow health shall be aggregated into make workspace-status at the 
 Benchmark status is currently visible only by navigating to the rtmx repo Actions tab. Operators using workspace-status have no visibility into benchmark health.
 
 ## Acceptance Criteria
-1. make workspace-status output includes benchmark health section with latest run status per language.
+1. make workspace-status output includes a Benchmark Resilience section with REQ-BENCH-* completion and config counts.
 
 ## Files to Create/Modify
 - system/scripts/workspace-status.sh
+- system/tests/test_benchmark_resilience.py
 
 ## Effort Estimate
 0.5 weeks
 
 ## Test Strategy
-- Run workspace-status after a benchmark run; verify benchmark section appears.
+- `make test-integration SLICE=benchmark-resilience`

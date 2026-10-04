@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/rtmx-ai/rtmx/internal/output"
 	"github.com/spf13/cobra"
@@ -12,6 +13,7 @@ import (
 var (
 	initForce  bool
 	initLegacy bool
+	initDryRun bool
 )
 
 var initCmd = &cobra.Command{
@@ -38,6 +40,7 @@ Use --legacy to create the older docs/ structure instead.`,
 func init() {
 	initCmd.Flags().BoolVarP(&initForce, "force", "f", false, "overwrite existing files")
 	initCmd.Flags().BoolVar(&initLegacy, "legacy", false, "use legacy docs/ directory structure")
+	initCmd.Flags().BoolVar(&initDryRun, "dry-run", false, "print delivery-rule paths without writing")
 
 	rootCmd.AddCommand(initCmd)
 }
@@ -67,13 +70,21 @@ func initRtmxStructure(cmd *cobra.Command, cwd string) error {
 	gitignore := filepath.Join(rtmxDir, ".gitignore")
 
 	// Check for existing files
-	if !initForce {
+	if !initForce && !initDryRun {
 		if _, err := os.Stat(rtmxDir); err == nil {
 			cmd.Printf("%s The following already exist:\n", output.Color("Warning:", output.Yellow))
 			cmd.Printf("  %s\n\n", rtmxDir)
 			cmd.Printf("%s\n", output.Color("Use --force to overwrite", output.Dim))
 			os.Exit(1)
 		}
+	}
+
+	if initDryRun {
+		for _, p := range deliveryRulePaths(cwd) {
+			cmd.Printf("would write %s\n", p)
+		}
+		cmd.Println("Dry run — no changes written")
+		return nil
 	}
 
 	// Create directories
@@ -164,6 +175,10 @@ rtmx:
 	}
 	cmd.Printf("  %s Created %s\n", output.Color("✓", output.Green), configFile)
 
+	if err := installDeliveryRule(cmd, cwd); err != nil {
+		return err
+	}
+
 	cmd.Println()
 	cmd.Printf("%s\n", output.Color("✓ RTM initialized successfully!", output.Green))
 	cmd.Println()
@@ -173,6 +188,87 @@ rtmx:
 	cmd.Println("  3. Run 'rtmx status' to see progress")
 
 	return nil
+}
+
+const deliveryRuleBody = `RTMX delivery rule:
+
+- One pull request per requirement. The PR title contains the requirement ID.
+- One commit per acceptance criterion of that requirement. The commit message names the requirement ID and the AC.
+- Do not implement a parent in the same PR as its children. If ` + "`rtmx decompose`" + ` split the requirement, implement the children.
+- Do not open a second PR for a requirement that already has an open PR.
+- Mark the requirement COMPLETE only via ` + "`rtmx verify`" + `, never by editing status by hand.
+- Merge the PR only after verify is green for that requirement.
+- Run ` + "`rtmx delivery-check`" + ` (warn-first) before opening or merging a PR; use ` + "`--strict`" + ` in release gates when the project opts in.
+- When a requirement is ambiguous or multi-option, open a trade under ` + "`.rtmx/trades/`" + ` and resolve it before coding; prefer MCP ` + "`loop_tick`" + ` / ` + "`trade_*`" + ` / ` + "`delivery_check`" + ` over shelling arbitrary CLI.
+`
+
+const (
+	deliveryRuleStart = "<!-- rtmx:delivery-rule -->"
+	deliveryRuleEnd   = "<!-- /rtmx:delivery-rule -->"
+)
+
+func deliveryRulePaths(cwd string) []string {
+	return []string{
+		filepath.Join(cwd, ".rtmx", "agent", "delivery.md"),
+		filepath.Join(cwd, ".cursor", "rules", "rtmx-delivery.mdc"),
+		filepath.Join(cwd, "CLAUDE.md"),
+	}
+}
+
+func installDeliveryRule(cmd *cobra.Command, cwd string) error {
+	agentDir := filepath.Join(cwd, ".rtmx", "agent")
+	if err := os.MkdirAll(agentDir, 0755); err != nil {
+		return fmt.Errorf("delivery rule dir: %w", err)
+	}
+	deliveryPath := filepath.Join(agentDir, "delivery.md")
+	if err := os.WriteFile(deliveryPath, []byte(deliveryRuleBody), 0644); err != nil {
+		return fmt.Errorf("write delivery.md: %w", err)
+	}
+	cmd.Printf("  %s Created %s\n", output.Color("✓", output.Green), deliveryPath)
+
+	rulesDir := filepath.Join(cwd, ".cursor", "rules")
+	if err := os.MkdirAll(rulesDir, 0755); err != nil {
+		return fmt.Errorf("cursor rules dir: %w", err)
+	}
+	mdcPath := filepath.Join(rulesDir, "rtmx-delivery.mdc")
+	mdc := "---\ndescription: RTMX delivery rule\nalwaysApply: true\n---\n\n" + deliveryRuleBody
+	if err := os.WriteFile(mdcPath, []byte(mdc), 0644); err != nil {
+		return fmt.Errorf("write cursor rule: %w", err)
+	}
+	cmd.Printf("  %s Created %s\n", output.Color("✓", output.Green), mdcPath)
+
+	claudePath := filepath.Join(cwd, "CLAUDE.md")
+	if err := upsertDeliveryBlock(claudePath); err != nil {
+		return err
+	}
+	cmd.Printf("  %s Updated %s\n", output.Color("✓", output.Green), claudePath)
+	return nil
+}
+
+func upsertDeliveryBlock(path string) error {
+	block := deliveryRuleStart + "\n" + deliveryRuleBody + deliveryRuleEnd + "\n"
+	existing, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	text := string(existing)
+	start := strings.Index(text, deliveryRuleStart)
+	end := strings.Index(text, deliveryRuleEnd)
+	if start >= 0 && end > start {
+		end += len(deliveryRuleEnd)
+		if end < len(text) && text[end] == '\n' {
+			end++
+		}
+		text = text[:start] + block + text[end:]
+	} else if text == "" {
+		text = block
+	} else {
+		if !strings.HasSuffix(text, "\n") {
+			text += "\n"
+		}
+		text += "\n" + block
+	}
+	return os.WriteFile(path, []byte(text), 0644)
 }
 
 func initLegacyStructure(cmd *cobra.Command, cwd string) error {

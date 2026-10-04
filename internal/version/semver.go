@@ -109,6 +109,65 @@ func ParseBumpLevel(s string) BumpLevel {
 	}
 }
 
+// Compare returns -1, 0, or 1 comparing a to b by semver precedence.
+func Compare(a, b Version) int {
+	if a.Major != b.Major {
+		if a.Major < b.Major {
+			return -1
+		}
+		return 1
+	}
+	if a.Minor != b.Minor {
+		if a.Minor < b.Minor {
+			return -1
+		}
+		return 1
+	}
+	if a.Patch != b.Patch {
+		if a.Patch < b.Patch {
+			return -1
+		}
+		return 1
+	}
+	// Pre-release versions have lower precedence than release
+	if a.Prerelease != "" && b.Prerelease == "" {
+		return -1
+	}
+	if a.Prerelease == "" && b.Prerelease != "" {
+		return 1
+	}
+	if a.Prerelease < b.Prerelease {
+		return -1
+	}
+	if a.Prerelease > b.Prerelease {
+		return 1
+	}
+	return 0
+}
+
+// CompareStrings compares two version strings by semver precedence.
+// Non-parseable strings sort after valid versions, in lexicographic order.
+func CompareStrings(a, b string) int {
+	va, errA := Parse(a)
+	vb, errB := Parse(b)
+	if errA != nil && errB != nil {
+		if a < b {
+			return -1
+		}
+		if a > b {
+			return 1
+		}
+		return 0
+	}
+	if errA != nil {
+		return 1
+	}
+	if errB != nil {
+		return -1
+	}
+	return Compare(va, vb)
+}
+
 // ActualBump determines the bump level between two versions.
 func ActualBump(from, to Version) BumpLevel {
 	if to.Major > from.Major {

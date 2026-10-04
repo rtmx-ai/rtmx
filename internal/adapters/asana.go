@@ -64,8 +64,12 @@ func NewAsanaAdapter(cfg *config.AsanaAdapterConfig, opts ...AdapterOption) (*As
 		tokenEnv = "ASANA_TOKEN"
 	}
 	token := options.getEnv(tokenEnv)
+	// REQ-MONO-026: prefer vault-exported token when env PAT is unset.
 	if token == "" {
-		return nil, fmt.Errorf("asana token not found, set %s environment variable", tokenEnv)
+		token = options.getEnv("RTMX_ASANA_CONNECTION_TOKEN")
+	}
+	if token == "" {
+		return nil, fmt.Errorf("asana token not found, set %s environment variable or connect via rtmx connect asana", tokenEnv)
 	}
 
 	return &AsanaAdapter{

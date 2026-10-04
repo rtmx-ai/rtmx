@@ -1,11 +1,14 @@
 package orchestration
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
 
 func initTestRepo(t *testing.T) string {
@@ -97,6 +100,112 @@ func TestCreateWorktree(t *testing.T) {
 			if _, err := os.Stat(p); err != nil {
 				t.Errorf("worktree %s should exist", p)
 			}
+		}
+	})
+}
+
+// TestWorktreeTracking verifies REQ-ORCH-016: persistent worktree assignments.
+func TestWorktreeTracking(t *testing.T) {
+	rtmx.Req(t, "REQ-ORCH-016")
+
+	t.Run("assign_and_list", func(t *testing.T) {
+		dir := t.TempDir()
+		regPath := filepath.Join(dir, "worktrees.json")
+		reg := NewWorktreeRegistry(regPath)
+
+		err := reg.AssignWorktree(WorktreeAssignment{
+			WebID:   1,
+			AgentID: "agent-a",
+			Branch:  "agent/web-1",
+			Path:    "/tmp/wt-1",
+		})
+		if err != nil {
+			t.Fatalf("AssignWorktree failed: %v", err)
+		}
+
+		assignments, err := reg.ListActiveWorktrees()
+		if err != nil {
+			t.Fatalf("ListActiveWorktrees failed: %v", err)
+		}
+		if len(assignments) != 1 {
+			t.Fatalf("expected 1 assignment, got %d", len(assignments))
+		}
+		if assignments[0].WebID != 1 {
+			t.Errorf("web_id = %d, want 1", assignments[0].WebID)
+		}
+		if assignments[0].AgentID != "agent-a" {
+			t.Errorf("agent_id = %q, want %q", assignments[0].AgentID, "agent-a")
+		}
+	})
+
+	t.Run("replace_existing_assignment", func(t *testing.T) {
+		dir := t.TempDir()
+		regPath := filepath.Join(dir, "worktrees.json")
+		reg := NewWorktreeRegistry(regPath)
+
+		_ = reg.AssignWorktree(WorktreeAssignment{WebID: 1, AgentID: "agent-a"})
+		_ = reg.AssignWorktree(WorktreeAssignment{WebID: 1, AgentID: "agent-b"})
+
+		assignments, _ := reg.ListActiveWorktrees()
+		if len(assignments) != 1 {
+			t.Fatalf("expected 1 assignment after replace, got %d", len(assignments))
+		}
+		if assignments[0].AgentID != "agent-b" {
+			t.Errorf("agent should be updated to agent-b, got %q", assignments[0].AgentID)
+		}
+	})
+
+	t.Run("release_worktree", func(t *testing.T) {
+		dir := t.TempDir()
+		regPath := filepath.Join(dir, "worktrees.json")
+		reg := NewWorktreeRegistry(regPath)
+
+		_ = reg.AssignWorktree(WorktreeAssignment{WebID: 1, AgentID: "agent-a"})
+		_ = reg.AssignWorktree(WorktreeAssignment{WebID: 2, AgentID: "agent-b"})
+
+		err := reg.ReleaseWorktree(1)
+		if err != nil {
+			t.Fatalf("ReleaseWorktree failed: %v", err)
+		}
+
+		assignments, _ := reg.ListActiveWorktrees()
+		if len(assignments) != 1 {
+			t.Fatalf("expected 1 assignment after release, got %d", len(assignments))
+		}
+		if assignments[0].WebID != 2 {
+			t.Errorf("remaining assignment should be web 2, got %d", assignments[0].WebID)
+		}
+	})
+
+	t.Run("atomic_file_write", func(t *testing.T) {
+		dir := t.TempDir()
+		regPath := filepath.Join(dir, "worktrees.json")
+		reg := NewWorktreeRegistry(regPath)
+
+		_ = reg.AssignWorktree(WorktreeAssignment{WebID: 1, AgentID: "agent-a"})
+
+		// Verify file exists and is valid JSON
+		data, err := os.ReadFile(regPath)
+		if err != nil {
+			t.Fatalf("registry file should exist: %v", err)
+		}
+		var assignments []WorktreeAssignment
+		if err := json.Unmarshal(data, &assignments); err != nil {
+			t.Fatalf("registry file should be valid JSON: %v", err)
+		}
+	})
+
+	t.Run("empty_list_on_new_registry", func(t *testing.T) {
+		dir := t.TempDir()
+		regPath := filepath.Join(dir, "nonexistent.json")
+		reg := NewWorktreeRegistry(regPath)
+
+		assignments, err := reg.ListActiveWorktrees()
+		if err != nil {
+			t.Fatalf("ListActiveWorktrees on empty should not error: %v", err)
+		}
+		if len(assignments) != 0 {
+			t.Errorf("expected 0 assignments on new registry, got %d", len(assignments))
 		}
 	})
 }

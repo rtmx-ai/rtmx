@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/rtmx-ai/rtmx/internal/auth"
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/database"
 	"github.com/rtmx-ai/rtmx/internal/output"
@@ -41,17 +43,22 @@ func runRoomSync(cfg *config.Config) error {
 	}
 
 	fmt.Printf("%sConnecting to %s...%s\n", output.Bold, syncURL, output.Reset)
+	token := roomToken()
+	if token == "" {
+		fmt.Printf("  %s✗%s %v\n", output.Red, output.Reset, errMissingSyncAuth())
+		return errMissingSyncAuth()
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), roomTimeout())
 	defer cancel()
 
 	client, err := syncpkg.DialRoom(ctx, syncpkg.RoomOptions{
 		URL:     syncURL,
-		Token:   roomToken(),
+		Token:   token,
 		Timeout: roomTimeout(),
 	})
 	if err != nil {
-		fmt.Printf("  %s✗%s %v\n", output.Red, output.Reset, err)
-		return NewExitError(1, err.Error())
+		fmt.Printf("  %s✗%s %v\n", output.Red, output.Reset, formatRoomDialError(err))
+		return NewExitError(1, formatRoomDialError(err).Error())
 	}
 	defer func() { _ = client.Close() }()
 	fmt.Printf("  %s✓%s joined room\n\n", output.Green, output.Reset)
@@ -135,11 +142,33 @@ func parseSetUpdates(args []string, db *database.Database) ([]syncpkg.Requiremen
 }
 
 func roomToken() string {
-	if syncToken != "" {
-		return syncToken
-	}
-	return os.Getenv("RTMX_SYNC_TOKEN")
+	return resolveSyncToken(syncToken)
 }
+
+// resolveSyncToken returns the room credential with precedence:
+// explicit flag/value, RTMX_SYNC_TOKEN, then stored managed login (REQ-GO-083).
+func resolveSyncToken(explicit string) string {
+	if explicit != "" {
+		return explicit
+	}
+	if v := os.Getenv("RTMX_SYNC_TOKEN"); v != "" {
+		return v
+	}
+	tokens, err := auth.LoadStoredTokens(resolveTokenPath())
+	if err != nil || tokens == nil || tokens.AccessToken == "" {
+		return ""
+	}
+	if tokens.IsExpired() {
+		return ""
+	}
+	return tokens.AccessToken
+}
+
+// errMissingSyncAuth is returned when room sync has no usable credential.
+func errMissingSyncAuth() error {
+	return NewExitError(1, "not authenticated: run 'rtmx login' or pass --token / RTMX_SYNC_TOKEN")
+}
+
 
 func roomTimeout() time.Duration {
 	if syncTimeout > 0 {
@@ -147,3 +176,13 @@ func roomTimeout() time.Duration {
 	}
 	return 30 * time.Second
 }
+
+// formatRoomDialError maps server close codes to actionable CLI guidance.
+func formatRoomDialError(err error) error {
+	var roomErr *syncpkg.RoomError
+	if errors.As(err, &roomErr) && roomErr.Code == syncpkg.CloseUnauthenticated {
+		return errMissingSyncAuth()
+	}
+	return err
+}
+

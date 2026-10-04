@@ -399,6 +399,49 @@ func TestCSVRoundTrip(t *testing.T) {
 	}
 }
 
+func TestCSVCrlfInput(t *testing.T) {
+	// Windows-style CRLF line endings and trailing \r on fields.
+	crlfCSV := "req_id,category,subcategory,requirement_text,target_value,test_module,test_function,validation_method,status,priority,phase,notes,effort_weeks,dependencies,blocks,assignee,sprint,started_date,completed_date,requirement_file,external_id\r\n" +
+		"REQ-CRLF-001,DATA,CSV,CRLF tolerant read,,internal/database/database_test.go,TestCSVCrlfInput,Unit Test,COMPLETE,HIGH,2,notes\r\n"
+
+	db, err := ReadCSV(strings.NewReader(crlfCSV))
+	if err != nil {
+		t.Fatalf("ReadCSV(CRLF) failed: %v", err)
+	}
+	req := db.Get("REQ-CRLF-001")
+	if req == nil {
+		t.Fatal("REQ-CRLF-001 not parsed from CRLF input")
+	}
+	if req.Status != StatusComplete {
+		t.Errorf("Status: got %v, want COMPLETE", req.Status)
+	}
+	if req.Notes != "notes" {
+		t.Errorf("Notes: got %q, want %q", req.Notes, "notes")
+	}
+}
+
+func TestWriteCSVEmitsLF(t *testing.T) {
+	db := NewDatabase()
+	req := NewRequirement("REQ-LF-001")
+	req.Category = "DATA"
+	req.Status = StatusComplete
+	if err := db.Add(req); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	var buf bytes.Buffer
+	if err := db.WriteCSV(&buf); err != nil {
+		t.Fatalf("WriteCSV failed: %v", err)
+	}
+	out := buf.Bytes()
+	if bytes.Contains(out, []byte("\r\n")) {
+		t.Errorf("WriteCSV must emit LF-only line endings, got CRLF in output")
+	}
+	if !bytes.Contains(out, []byte("\n")) {
+		t.Error("WriteCSV output missing LF line endings")
+	}
+}
+
 func TestLoadRealDatabase(t *testing.T) {
 	// Try multiple paths to find the database
 	paths := []string{

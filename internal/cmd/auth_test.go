@@ -217,7 +217,7 @@ func TestAuthStatusNoToken(t *testing.T) {
 	if !strings.Contains(out, "Not authenticated") {
 		t.Errorf("expected 'Not authenticated' in output, got:\n%s", out)
 	}
-	if !strings.Contains(out, "rtmx auth login") {
+	if !strings.Contains(out, "rtmx login") {
 		t.Errorf("expected login hint in output, got:\n%s", out)
 	}
 }
@@ -325,7 +325,7 @@ func TestAuthStatusWithExpiredToken(t *testing.T) {
 	if !strings.Contains(out, "Expired") {
 		t.Errorf("expected 'Expired' in output, got:\n%s", out)
 	}
-	if !strings.Contains(out, "rtmx auth login") {
+	if !strings.Contains(out, "rtmx login") {
 		t.Errorf("expected re-auth hint in output, got:\n%s", out)
 	}
 }
@@ -487,16 +487,21 @@ func TestAuthLoginOIDCClientFactoryInjection(t *testing.T) {
 
 func TestAuthStatusMissingConfig(t *testing.T) {
 	rtmx.Req(t, "REQ-GO-078")
+	rtmx.Req(t, "REQ-GO-082")
 	output.DisableColor()
 	defer output.EnableColor()
 
-	// Use a dir with no auth config (empty issuer/client_id).
+	// No OIDC issuer: status still works via token store (managed path).
 	_, cleanup := setupAuthTestDir(t, map[string]interface{}{})
 	defer cleanup()
 
 	old := oidcClientFactory
 	oidcClientFactory = nil
 	defer func() { oidcClientFactory = old }()
+
+	prevPath := authTokenPath
+	authTokenPath = filepath.Join(t.TempDir(), "no-tokens.json")
+	defer func() { authTokenPath = prevPath }()
 
 	cmd := createAuthTestCmd()
 	buf := new(bytes.Buffer)
@@ -505,16 +510,17 @@ func TestAuthStatusMissingConfig(t *testing.T) {
 	cmd.SetArgs([]string{"auth", "status"})
 
 	err := cmd.Execute()
-	if err == nil {
-		t.Fatal("expected error when issuer is not configured for status")
+	if err != nil {
+		t.Fatalf("status without issuer should succeed: %v", err)
 	}
-	if !strings.Contains(err.Error(), "auth.issuer not configured") {
-		t.Errorf("expected issuer-not-configured error, got: %v", err)
+	if !strings.Contains(buf.String(), "Not authenticated") {
+		t.Errorf("expected Not authenticated, got:\n%s", buf.String())
 	}
 }
 
 func TestAuthLogoutMissingConfig(t *testing.T) {
 	rtmx.Req(t, "REQ-GO-078")
+	rtmx.Req(t, "REQ-GO-082")
 	output.DisableColor()
 	defer output.EnableColor()
 
@@ -525,6 +531,10 @@ func TestAuthLogoutMissingConfig(t *testing.T) {
 	oidcClientFactory = nil
 	defer func() { oidcClientFactory = old }()
 
+	prevPath := authTokenPath
+	authTokenPath = filepath.Join(t.TempDir(), "no-tokens.json")
+	defer func() { authTokenPath = prevPath }()
+
 	cmd := createAuthTestCmd()
 	buf := new(bytes.Buffer)
 	cmd.SetOut(buf)
@@ -532,11 +542,11 @@ func TestAuthLogoutMissingConfig(t *testing.T) {
 	cmd.SetArgs([]string{"auth", "logout"})
 
 	err := cmd.Execute()
-	if err == nil {
-		t.Fatal("expected error when issuer is not configured for logout")
+	if err != nil {
+		t.Fatalf("logout without issuer should succeed: %v", err)
 	}
-	if !strings.Contains(err.Error(), "auth.issuer not configured") {
-		t.Errorf("expected issuer-not-configured error, got: %v", err)
+	if !strings.Contains(buf.String(), "Logged out") {
+		t.Errorf("expected Logged out, got:\n%s", buf.String())
 	}
 }
 

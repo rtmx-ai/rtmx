@@ -23,6 +23,7 @@ coverage.html
 
 # Dependency directories
 vendor/
+!internal/dashboard/static/vendor/
 
 # IDE
 .idea/

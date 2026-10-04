@@ -238,26 +238,76 @@ func TestScanPytestMarkersLowercaseSuffix(t *testing.T) {
 
 // --- PR-B: multi-file JUnit + JUnit-driven marker discovery ---
 
+// TestFromPytestNoRunDiscoversPackageMarkers covers AC1 of REQ-LANG-031: with
+// --no-run and no path argument, a marker under a package directory is discovered
+// from the JUnit class name and joined (default "tests/" is absent).
+func TestFromPytestNoRunDiscoversPackageMarkers(t *testing.T) {
+	rtmx.Req(t, "REQ-LANG-031",
+		rtmx.Scope("integration"), rtmx.Technique("nominal"), rtmx.Env("simulation"))
+	dir := t.TempDir()
+	writePyMarker(t, filepath.Join(dir, "packages", "foo", "tests", "test_range.py"), "REQ-DSP-011", "scope_unit")
+	junitPath := filepath.Join(dir, "j.xml")
+	junit := `<?xml version="1.0"?><testsuite name="p"><testcase classname="packages.foo.tests.test_range" name="test_fn" time="0.01"/></testsuite>`
+	if err := os.WriteFile(junitPath, []byte(junit), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+
+	out := filepath.Join(dir, "results.json")
+	withFromPytestGlobals(t, []string{junitPath}, out)
+
+	if err := runFromPytest(newTestRootCmd(), nil); err != nil {
+		t.Fatalf("runFromPytest: %v", err)
+	}
+	parsed := readResults(t, out)
+	if len(parsed) != 1 || parsed[0].Marker.ReqID != "REQ-DSP-011" || parsed[0].Marker.Scope != "unit" {
+		t.Fatalf("expected one REQ-DSP-011 (unit) result, got %+v", parsed)
+	}
+}
+
+// TestClassNameToPath_Hyphenated covers AC2 of REQ-LANG-031: hyphenated package
+// directory components are preserved when mapping a dotted class name to a path.
+func TestClassNameToPath_Hyphenated(t *testing.T) {
+	rtmx.Req(t, "REQ-LANG-031",
+		rtmx.Scope("unit"), rtmx.Technique("nominal"), rtmx.Env("simulation"))
+	in := "packages.signal-processing.tests.test_range"
+	want := "packages/signal-processing/tests/test_range.py"
+	if got := classNameToPath(in); got != want {
+		t.Fatalf("classNameToPath(%q) = %q, want %q", in, got, want)
+	}
+}
+
 // TestClassNameToPath covers resolving a JUnit test case to its source file when
 // the case carries no `file` attribute (REQ-LANG-031): a dotted class name maps
-// to a path (dots -> slashes, ".py"), hyphenated package dirs are preserved, and a
-// trailing ClassName segment is dropped. The `file` attribute takes precedence.
+// to a path (dots -> slashes, ".py"), and a trailing ClassName segment is dropped.
 func TestClassNameToPath(t *testing.T) {
 	rtmx.Req(t, "REQ-LANG-031",
 		rtmx.Scope("unit"), rtmx.Technique("nominal"), rtmx.Env("simulation"))
 	cases := map[string]string{
-		"tests.test_auth": "tests/test_auth.py",
-		"packages.signal-processing.tests.test_range": "packages/signal-processing/tests/test_range.py",
-		"packages.foo.tests.test_x.TestClass":         "packages/foo/tests/test_x.py",
-		"":                                            "",
+		"tests.test_auth":                     "tests/test_auth.py",
+		"packages.foo.tests.test_x.TestClass": "packages/foo/tests/test_x.py",
+		"":                                    "",
 	}
 	for in, want := range cases {
 		if got := classNameToPath(in); got != want {
 			t.Errorf("classNameToPath(%q) = %q, want %q", in, got, want)
 		}
 	}
-	if got := caseSourceFile(junitTestCase{ClassName: "a.b.test_x", File: "pkg/test_x.py"}); got != "pkg/test_x.py" {
-		t.Errorf("caseSourceFile file-attr precedence = %q, want pkg/test_x.py", got)
+}
+
+// TestCaseSourceFile_FileAttrPrecedence covers AC3 of REQ-LANG-031: a case's
+// `file` attribute takes precedence over its dotted class name.
+func TestCaseSourceFile_FileAttrPrecedence(t *testing.T) {
+	rtmx.Req(t, "REQ-LANG-031",
+		rtmx.Scope("unit"), rtmx.Technique("nominal"), rtmx.Env("simulation"))
+	got := caseSourceFile(junitTestCase{ClassName: "a.b.test_x", File: "pkg/test_x.py"})
+	if got != "pkg/test_x.py" {
+		t.Fatalf("caseSourceFile file-attr precedence = %q, want pkg/test_x.py", got)
+	}
+	// Without file attr, class name still resolves.
+	got2 := caseSourceFile(junitTestCase{ClassName: "tests.test_auth"})
+	if got2 != "tests/test_auth.py" {
+		t.Fatalf("caseSourceFile class-name fallback = %q, want tests/test_auth.py", got2)
 	}
 }
 
@@ -311,11 +361,10 @@ func writePyMarker(t *testing.T, path, req, scope string) {
 	}
 }
 
-// TestFromPytestNoRunDiscoversPackageMarkers is the Phoenix regression: with no
-// path argument (the promote-from-junit invocation), from-pytest --no-run must
-// still join a test under a hyphenated package dir by discovering its marker from
-// the JUnit class name (REQ-LANG-031). The default "tests" path is absent here.
-func TestFromPytestNoRunDiscoversPackageMarkers(t *testing.T) {
+// TestFromPytestNoRunDiscoversHyphenatedPackage covers AC2 of REQ-LANG-031: a
+// hyphenated package directory resolves the same as any other (dots→slashes,
+// hyphens preserved) and joins under --no-run.
+func TestFromPytestNoRunDiscoversHyphenatedPackage(t *testing.T) {
 	rtmx.Req(t, "REQ-LANG-031",
 		rtmx.Scope("integration"), rtmx.Technique("nominal"), rtmx.Env("simulation"))
 	dir := t.TempDir()
@@ -325,7 +374,7 @@ func TestFromPytestNoRunDiscoversPackageMarkers(t *testing.T) {
 	if err := os.WriteFile(junitPath, []byte(junit), 0644); err != nil {
 		t.Fatal(err)
 	}
-	t.Chdir(dir) // discovery resolves class name -> path relative to cwd
+	t.Chdir(dir)
 
 	out := filepath.Join(dir, "results.json")
 	withFromPytestGlobals(t, []string{junitPath}, out)
@@ -334,8 +383,35 @@ func TestFromPytestNoRunDiscoversPackageMarkers(t *testing.T) {
 		t.Fatalf("runFromPytest: %v", err)
 	}
 	parsed := readResults(t, out)
-	if len(parsed) != 1 || parsed[0].Marker.ReqID != "REQ-DSP-011" || parsed[0].Marker.Scope != "unit" {
-		t.Fatalf("expected one REQ-DSP-011 (unit) result, got %+v", parsed)
+	if len(parsed) != 1 || parsed[0].Marker.ReqID != "REQ-DSP-011" {
+		t.Fatalf("expected one REQ-DSP-011 result, got %+v", parsed)
+	}
+}
+
+// TestFromPytestExplicitMissingPathErrors covers AC4 of REQ-LANG-031: an
+// explicitly-passed missing path still errors, while a missing implicit default
+// "tests" path is tolerated when JUnit-discovered markers exist (covered by
+// TestFromPytestNoRunDiscoversPackageMarkers).
+func TestFromPytestExplicitMissingPathErrors(t *testing.T) {
+	rtmx.Req(t, "REQ-LANG-031",
+		rtmx.Scope("unit"), rtmx.Technique("nominal"), rtmx.Env("simulation"))
+	dir := t.TempDir()
+	writePyMarker(t, filepath.Join(dir, "packages", "foo", "tests", "test_x.py"), "REQ-Z-001", "scope_unit")
+	junitPath := filepath.Join(dir, "j.xml")
+	junit := `<?xml version="1.0"?><testsuite name="p"><testcase classname="packages.foo.tests.test_x" name="test_fn"/></testsuite>`
+	if err := os.WriteFile(junitPath, []byte(junit), 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	out := filepath.Join(dir, "results.json")
+	withFromPytestGlobals(t, []string{junitPath}, out)
+
+	err := runFromPytest(newTestRootCmd(), []string{"does-not-exist"})
+	if err == nil {
+		t.Fatal("expected error for explicitly-passed missing path")
+	}
+	if !strings.Contains(err.Error(), "does not exist") && !strings.Contains(err.Error(), "does-not-exist") {
+		t.Fatalf("error = %v, want missing-path context", err)
 	}
 }
 

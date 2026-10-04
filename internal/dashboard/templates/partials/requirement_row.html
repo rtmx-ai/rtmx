@@ -1,0 +1,35 @@
+<tr id="row-{{.ReqID}}" data-req-id="{{.ReqID}}">
+  <td style="text-align: center;" @click.stop>
+    <input type="checkbox" class="bulk-select" value="{{.ReqID}}">
+  </td>
+  <td class="req-id" hx-get="/partials/detail/{{.ReqID}}" hx-target="#detail-panel-body" style="cursor: pointer;">{{.ReqID}}</td>
+  <td x-data="inlineSelect('{{.ReqID}}', 'status', '{{.Status}}')" class="inline-edit-cell">
+    <span x-show="!editing" @click.stop="startEdit()" class="badge badge-{{.StatusClass}}" style="cursor: pointer;">{{.Status}}</span>
+    <select x-show="editing" x-ref="input" @change="save($el.value)" @keydown.escape="cancel()" class="inline-select">
+      <option value="NOT_STARTED"{{if eq .Status "NOT_STARTED"}} selected{{end}}>NOT_STARTED</option>
+      <option value="MISSING"{{if eq .Status "MISSING"}} selected{{end}}>MISSING</option>
+      <option value="PARTIAL"{{if eq .Status "PARTIAL"}} selected{{end}}>PARTIAL</option>
+      <option value="COMPLETE"{{if eq .Status "COMPLETE"}} selected{{end}}>COMPLETE</option>
+    </select>
+  </td>
+  <td x-data="inlineSelect('{{.ReqID}}', 'priority', '{{.Priority}}')" class="inline-edit-cell">
+    <span x-show="!editing" @click.stop="startEdit()" style="cursor: pointer;">{{.Priority}}</span>
+    <select x-show="editing" x-ref="input" @change="save($el.value)" @keydown.escape="cancel()" class="inline-select">
+      <option value="P0"{{if eq .Priority "P0"}} selected{{end}}>P0</option>
+      <option value="HIGH"{{if eq .Priority "HIGH"}} selected{{end}}>HIGH</option>
+      <option value="MEDIUM"{{if eq .Priority "MEDIUM"}} selected{{end}}>MEDIUM</option>
+      <option value="LOW"{{if eq .Priority "LOW"}} selected{{end}}>LOW</option>
+    </select>
+  </td>
+  <td>{{.Category}}</td>
+  <td>{{.Description}}</td>
+  <td x-data="inlineText('{{.ReqID}}', 'assignee', '{{.Assignee}}')" class="inline-edit-cell">
+    <span x-show="!editing" @click.stop="startEdit()" style="cursor: pointer; min-width: 40px; display: inline-block;" x-text="value || '--'"></span>
+    <input x-show="editing" x-ref="input" type="text" :value="value" @blur="save($el.value)" @keydown.enter="save($el.value)" @keydown.escape="cancel()" class="inline-input">
+  </td>
+  <td x-data="inlineText('{{.ReqID}}', 'sprint', '{{.Sprint}}')" class="inline-edit-cell">
+    <span x-show="!editing" @click.stop="startEdit()" style="cursor: pointer; min-width: 40px; display: inline-block;" x-text="value || '--'"></span>
+    <input x-show="editing" x-ref="input" type="text" :value="value" @blur="save($el.value)" @keydown.enter="save($el.value)" @keydown.escape="cancel()" class="inline-input">
+  </td>
+  <td>{{.Effort}}</td>
+</tr>

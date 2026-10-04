@@ -3,6 +3,8 @@ package database
 import (
 	"fmt"
 	"sort"
+
+	"github.com/rtmx-ai/rtmx/internal/version"
 )
 
 // Database is the in-memory RTM database.
@@ -380,7 +382,9 @@ func (db *Database) Versions() []string {
 			versions = append(versions, v)
 		}
 	}
-	sort.Strings(versions)
+	sort.Slice(versions, func(i, j int) bool {
+		return version.CompareStrings(versions[i], versions[j]) < 0
+	})
 	return versions
 }
 

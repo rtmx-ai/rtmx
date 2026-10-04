@@ -1,0 +1,15 @@
+<div class="parallel-dashboard">
+  <h3>Parallel Workstreams</h3>
+  <p class="text-muted" style="font-size: 0.8rem;">
+    {{.PhaseCount}} phases, {{.WebCount}} webs
+  </p>
+  <div id="parallel-swimlane" style="width: 100%; min-height: 300px;"></div>
+  <script>
+    (function() {
+      var data = {{.ParallelJSON}};
+      if (typeof d3 !== 'undefined' && data) {
+        renderParallelSwimlane(data);
+      }
+    })();
+  </script>
+</div>

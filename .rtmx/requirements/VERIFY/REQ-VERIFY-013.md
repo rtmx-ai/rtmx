@@ -5,7 +5,7 @@
 - **Subcategory**: COMPLETENESS
 - **Priority**: HIGH
 - **Phase**: 29
-- **Status**: MISSING
+- **Status**: COMPLETE
 - **Dependencies**: REQ-VERIFY-012
 - **Blocks**:
 - **External ID**:
@@ -37,10 +37,12 @@ spurious downgrades.
 
 ## Acceptance Criteria
 
-- [ ] With `--no-demote`, a COMPLETE requirement whose result set yields PARTIAL
+- [x] With `--no-demote`, a COMPLETE requirement whose result set yields PARTIAL
       stays COMPLETE.
-- [ ] With `--no-demote`, a MISSING/PARTIAL requirement whose result set yields
+- [x] With `--no-demote`, a MISSING/PARTIAL requirement whose result set yields
       COMPLETE is still promoted (raises are not blocked).
-- [ ] An equal computed status is unchanged.
-- [ ] Without the flag, the default demotion behavior is preserved.
-- [ ] Verified by `internal/cmd/verify_completeness_test.go::TestClampNoDemote`.
+- [x] An equal computed status is unchanged.
+- [x] Without the flag, the default demotion behavior is preserved.
+- [x] Verified by `internal/cmd/verify_completeness_test.go::TestClampNoDemote_ClampsDemotion`,
+      `::TestClampNoDemote_AllowsPromotion`, `::TestClampNoDemote_EqualUnchanged`,
+      `::TestClampNoDemote_DisabledPreservesDemotion`, and `::TestClampNoDemote`.

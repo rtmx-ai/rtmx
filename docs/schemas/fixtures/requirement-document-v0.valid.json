@@ -1,0 +1,103 @@
+{
+  "schema_version": "requirement-document/v0",
+  "requirements": [
+    {
+      "req_id": "REQ-AUTH-001",
+      "category": "AUTH",
+      "subcategory": "Login",
+      "requirement_text": "Users shall authenticate before accessing protected rooms.",
+      "target_value": "401 without token; 200 with session",
+      "status": "PARTIAL",
+      "priority": "HIGH",
+      "phase": 8,
+      "effort_weeks": 1.0,
+      "dependencies": [],
+      "blocks": ["REQ-AUTH-002"],
+      "requirement_file": ".rtmx/requirements/AUTH/REQ-AUTH-001.md",
+      "acs": [
+        {
+          "ac_id": "AC-1",
+          "statement": "Unauthenticated WebSocket joins receive close code 4401.",
+          "required": true,
+          "severity": "must"
+        },
+        {
+          "ac_id": "AC-2",
+          "statement": "Valid Bearer session tokens are accepted on /auth/me.",
+          "required": true,
+          "severity": "must"
+        }
+      ],
+      "test_bindings": [
+        {
+          "binding_id": "TB-1",
+          "ac_id": "AC-1",
+          "test_module": "internal/sync/room_test.go",
+          "test_function": "TestRoomRejectsMissingToken"
+        },
+        {
+          "binding_id": "TB-2",
+          "ac_id": "AC-2",
+          "test_module": "internal/cmd/auth_test.go",
+          "test_function": "TestAuthStatusWithValidToken"
+        }
+      ]
+    },
+    {
+      "req_id": "REQ-DATA-010",
+      "category": "DATA",
+      "subcategory": "CSV",
+      "requirement_text": "CSV round-trip preserves identity and dependency edges.",
+      "status": "COMPLETE",
+      "priority": "HIGH",
+      "acs": [
+        {
+          "ac_id": "AC-1",
+          "statement": "WriteCSV then Load yields identical req_id set."
+        }
+      ],
+      "test_bindings": [
+        {
+          "binding_id": "TB-1",
+          "ac_id": "AC-1",
+          "test_module": "internal/database/database_test.go",
+          "test_function": "TestCSVRoundTrip"
+        }
+      ]
+    },
+    {
+      "req_id": "REQ-VERIFY-020",
+      "category": "VERIFY",
+      "subcategory": "Gaps",
+      "requirement_text": "Verify reports per-AC gaps when bindings exist.",
+      "status": "MISSING",
+      "priority": "MEDIUM",
+      "dependencies": ["REQ-DATA-010"],
+      "acs": [
+        {
+          "ac_id": "AC-1",
+          "statement": "An AC with no passing binding is reported as a gap."
+        },
+        {
+          "ac_id": "AC-2",
+          "statement": "Requirement-level COMPLETE still requires an explicit completeness policy.",
+          "severity": "should"
+        }
+      ],
+      "test_bindings": [
+        {
+          "binding_id": "TB-req",
+          "req_id": "REQ-VERIFY-020",
+          "marker": "req('REQ-VERIFY-020')",
+          "notes": "Placeholder req-level binding until AC verify lands."
+        },
+        {
+          "binding_id": "TB-ac1",
+          "ac_id": "AC-1",
+          "test_module": "internal/docmodel/validate_test.go",
+          "test_function": "TestValidFixtureThreeRequirements"
+        }
+      ]
+    }
+  ]
+}

@@ -115,6 +115,247 @@ func (g *Graph) DetectWebs() []Web {
 	return webs
 }
 
+// WebDep represents a directed dependency between two webs.
+type WebDep struct {
+	From int // index of upstream web
+	To   int // index of downstream web
+}
+
+// WebDependencies computes cross-web dependencies by analyzing inter-requirement
+// dependencies that span web boundaries, including transitive dependencies
+// through complete intermediary requirements. Returns a list of directed edges
+// between web indices where From must complete before To. REQ-ORCH-010.
+func (g *Graph) WebDependencies(webs []Web) []WebDep {
+	if len(webs) < 2 {
+		return nil
+	}
+
+	// Map each incomplete requirement ID to its web index
+	reqToWeb := make(map[string]int)
+	for i, web := range webs {
+		for _, id := range web.IDs {
+			reqToWeb[id] = i
+		}
+	}
+
+	// For each incomplete req, find all reachable incomplete reqs via dependency
+	// edges (traversing through complete intermediaries). If any reachable req
+	// is in a different web, that creates a cross-web dependency.
+	edgeSet := make(map[[2]int]bool)
+	var deps []WebDep
+
+	for _, req := range g.db.All() {
+		if !req.IsIncomplete() {
+			continue
+		}
+		toWeb, ok := reqToWeb[req.ReqID]
+		if !ok {
+			continue
+		}
+
+		// BFS through dependency chain, including complete intermediaries
+		visited := make(map[string]bool)
+		queue := make([]string, 0)
+		for dep := range req.Dependencies {
+			if !visited[dep] {
+				visited[dep] = true
+				queue = append(queue, dep)
+			}
+		}
+
+		for len(queue) > 0 {
+			cur := queue[0]
+			queue = queue[1:]
+
+			// If cur is incomplete and in a different web, record cross-web dep
+			if fromWeb, ok2 := reqToWeb[cur]; ok2 && fromWeb != toWeb {
+				key := [2]int{fromWeb, toWeb}
+				if !edgeSet[key] {
+					edgeSet[key] = true
+					deps = append(deps, WebDep{From: fromWeb, To: toWeb})
+				}
+				continue // don't traverse further past an incomplete node
+			}
+
+			// If cur is complete, traverse its dependencies to find
+			// transitive cross-web deps through complete intermediaries
+			curReq := g.db.Get(cur)
+			if curReq != nil && !curReq.IsIncomplete() {
+				for dep := range curReq.Dependencies {
+					if !visited[dep] {
+						visited[dep] = true
+						queue = append(queue, dep)
+					}
+				}
+			}
+		}
+	}
+
+	// Sort for stable output
+	sort.Slice(deps, func(i, j int) bool {
+		if deps[i].From != deps[j].From {
+			return deps[i].From < deps[j].From
+		}
+		return deps[i].To < deps[j].To
+	})
+
+	return deps
+}
+
+// MergeOrder computes a safe merge ordering for work webs, respecting
+// cross-web dependencies and separating webs with file overlaps.
+// Returns web indices in topological order. REQ-ORCH-011.
+func (g *Graph) MergeOrder(webs []Web) []int {
+	n := len(webs)
+	if n == 0 {
+		return nil
+	}
+
+	// Build adjacency and in-degree from web dependencies
+	deps := g.WebDependencies(webs)
+	adj := make(map[int][]int)
+	inDeg := make(map[int]int)
+	for i := 0; i < n; i++ {
+		inDeg[i] = 0
+	}
+	for _, d := range deps {
+		adj[d.From] = append(adj[d.From], d.To)
+		inDeg[d.To]++
+	}
+
+	// Also add ordering edges for overlapping webs (lower index first for stability)
+	overlaps := g.DetectOverlaps(webs)
+	overlapSet := make(map[[2]int]bool)
+	for _, ov := range overlaps {
+		key := [2]int{ov.WebA, ov.WebB}
+		if !overlapSet[key] {
+			overlapSet[key] = true
+			// Only add if no existing dep edge in either direction
+			fwd := [2]int{ov.WebA, ov.WebB}
+			rev := [2]int{ov.WebB, ov.WebA}
+			hasFwd := false
+			hasRev := false
+			for _, d := range deps {
+				if d.From == fwd[0] && d.To == fwd[1] {
+					hasFwd = true
+				}
+				if d.From == rev[0] && d.To == rev[1] {
+					hasRev = true
+				}
+			}
+			if !hasFwd && !hasRev {
+				adj[ov.WebA] = append(adj[ov.WebA], ov.WebB)
+				inDeg[ov.WebB]++
+			}
+		}
+	}
+
+	// Kahn's topological sort
+	var queue []int
+	for i := 0; i < n; i++ {
+		if inDeg[i] == 0 {
+			queue = append(queue, i)
+		}
+	}
+	sort.Ints(queue) // stable ordering
+
+	var order []int
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		order = append(order, cur)
+		for _, next := range adj[cur] {
+			inDeg[next]--
+			if inDeg[next] == 0 {
+				queue = append(queue, next)
+				sort.Ints(queue) // keep stable
+			}
+		}
+	}
+
+	// If cycle detected, append remaining nodes
+	if len(order) < n {
+		inOrder := make(map[int]bool)
+		for _, idx := range order {
+			inOrder[idx] = true
+		}
+		for i := 0; i < n; i++ {
+			if !inOrder[i] {
+				order = append(order, i)
+			}
+		}
+	}
+
+	return order
+}
+
+// ParallelGroup represents a set of webs that can execute concurrently.
+type ParallelGroup struct {
+	WebIndices []int
+}
+
+// ParallelGroups partitions webs into parallel execution groups where
+// no two webs in the same group have cross-web dependencies or file overlaps.
+// Returns minimum groups maximizing parallelism. REQ-ORCH-012.
+func (g *Graph) ParallelGroups(webs []Web) []ParallelGroup {
+	n := len(webs)
+	if n == 0 {
+		return nil
+	}
+
+	// Build conflict graph: webs that cannot be in the same group
+	conflicts := make(map[int]map[int]bool)
+	for i := 0; i < n; i++ {
+		conflicts[i] = make(map[int]bool)
+	}
+
+	// Cross-web dependencies create conflicts
+	deps := g.WebDependencies(webs)
+	for _, d := range deps {
+		conflicts[d.From][d.To] = true
+		conflicts[d.To][d.From] = true
+	}
+
+	// File overlaps create conflicts
+	overlaps := g.DetectOverlaps(webs)
+	for _, ov := range overlaps {
+		conflicts[ov.WebA][ov.WebB] = true
+		conflicts[ov.WebB][ov.WebA] = true
+	}
+
+	// Greedy coloring in merge order for stability
+	order := g.MergeOrder(webs)
+	color := make(map[int]int) // web index -> group index
+	maxColor := 0
+
+	for _, idx := range order {
+		// Find smallest color not used by any conflicting neighbor
+		usedColors := make(map[int]bool)
+		for neighbor := range conflicts[idx] {
+			if c, ok := color[neighbor]; ok {
+				usedColors[c] = true
+			}
+		}
+		c := 0
+		for usedColors[c] {
+			c++
+		}
+		color[idx] = c
+		if c > maxColor {
+			maxColor = c
+		}
+	}
+
+	// Build groups
+	groups := make([]ParallelGroup, maxColor+1)
+	for _, idx := range order {
+		c := color[idx]
+		groups[c].WebIndices = append(groups[c].WebIndices, idx)
+	}
+
+	return groups
+}
+
 // WebOverlap describes an implicit coupling between two webs
 // via shared file surface.
 type WebOverlap struct {

@@ -249,6 +249,53 @@ func TestDetermineStatusWithPolicy_SkipNonEvidence(t *testing.T) {
 	}
 }
 
+// TestClampNoDemote_ClampsDemotion covers AC1 of REQ-VERIFY-013: with --no-demote,
+// a COMPLETE requirement whose result set yields PARTIAL stays COMPLETE.
+func TestClampNoDemote_ClampsDemotion(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-013",
+		rtmx.Scope("unit"), rtmx.Technique("boundary"), rtmx.Env("simulation"))
+	got := clampNoDemote(database.StatusPartial, database.StatusComplete, true)
+	if got != database.StatusComplete {
+		t.Fatalf("clampNoDemote(PARTIAL, COMPLETE, true) = %v, want COMPLETE", got)
+	}
+}
+
+// TestClampNoDemote_AllowsPromotion covers AC2 of REQ-VERIFY-013: with --no-demote,
+// MISSING/PARTIAL requirements are still promoted when the result set yields a
+// more complete status.
+func TestClampNoDemote_AllowsPromotion(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-013",
+		rtmx.Scope("unit"), rtmx.Technique("boundary"), rtmx.Env("simulation"))
+	if got := clampNoDemote(database.StatusComplete, database.StatusPartial, true); got != database.StatusComplete {
+		t.Fatalf("PARTIAL->COMPLETE = %v, want COMPLETE", got)
+	}
+	if got := clampNoDemote(database.StatusPartial, database.StatusMissing, true); got != database.StatusPartial {
+		t.Fatalf("MISSING->PARTIAL = %v, want PARTIAL", got)
+	}
+}
+
+// TestClampNoDemote_EqualUnchanged covers AC3 of REQ-VERIFY-013: an equal
+// computed status is unchanged.
+func TestClampNoDemote_EqualUnchanged(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-013",
+		rtmx.Scope("unit"), rtmx.Technique("boundary"), rtmx.Env("simulation"))
+	got := clampNoDemote(database.StatusComplete, database.StatusComplete, true)
+	if got != database.StatusComplete {
+		t.Fatalf("equal COMPLETE = %v, want COMPLETE", got)
+	}
+}
+
+// TestClampNoDemote_DisabledPreservesDemotion covers AC4 of REQ-VERIFY-013:
+// without the flag, the default demotion behavior is preserved.
+func TestClampNoDemote_DisabledPreservesDemotion(t *testing.T) {
+	rtmx.Req(t, "REQ-VERIFY-013",
+		rtmx.Scope("unit"), rtmx.Technique("boundary"), rtmx.Env("simulation"))
+	got := clampNoDemote(database.StatusPartial, database.StatusComplete, false)
+	if got != database.StatusPartial {
+		t.Fatalf("disabled demotion = %v, want PARTIAL", got)
+	}
+}
+
 // TestClampNoDemote covers the raise-only rule for --no-demote (REQ-VERIFY-013):
 // a partial/sharded result set can raise a requirement's status but never lower it.
 func TestClampNoDemote(t *testing.T) {

@@ -1,0 +1,16 @@
+{{if .Results}}
+<div class="palette-result-list">
+  {{range .Results}}
+  <div class="palette-result" hx-get="/partials/detail/{{.ReqID}}" hx-target="#detail-panel-body"
+       @click="paletteOpen = false" style="cursor: pointer;">
+    <span class="req-id" style="min-width: 120px;">{{.ReqID}}</span>
+    <span class="badge badge-{{.StatusClass}}" style="min-width: 80px; text-align: center;">{{.Status}}</span>
+    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{.Description}}</span>
+  </div>
+  {{end}}
+</div>
+{{else}}
+<div style="padding: 1.5rem; text-align: center; color: var(--rtmx-text-dim); font-size: 0.875rem;">
+  No matching requirements
+</div>
+{{end}}

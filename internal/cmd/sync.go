@@ -263,79 +263,104 @@ func runImport(adapter adapters.ServiceAdapter, cfg *config.Config, dryRun bool)
 
 	fmt.Printf("%sFetching items from %s...%s\n", output.Bold, adapter.Name(), output.Reset)
 
-	// Load existing RTM
 	dbPath := cfg.RTMX.Database
 	if dbPath == "" {
 		dbPath = ".rtmx/database.csv"
 	}
 
+	var db *database.Database
 	requirements := make(map[string]*database.Requirement)
 	externalIDMap := make(map[string]string) // external_id -> req_id
 
 	if _, err := os.Stat(dbPath); err == nil {
-		db, err := database.Load(dbPath)
-		if err == nil {
-			for _, req := range db.All() {
-				requirements[req.ReqID] = req
-				if req.ExternalID != "" {
-					externalIDMap[req.ExternalID] = req.ReqID
-				}
+		loaded, err := database.Load(dbPath)
+		if err != nil {
+			result.Errors = append(result.Errors, SyncError{ID: "", Error: fmt.Sprintf("failed to load database: %v", err)})
+			return result
+		}
+		db = loaded
+		for _, req := range db.All() {
+			requirements[req.ReqID] = req
+			if req.ExternalID != "" {
+				externalIDMap[req.ExternalID] = req.ReqID
 			}
 		}
+	} else if err != nil && !os.IsNotExist(err) {
+		result.Errors = append(result.Errors, SyncError{ID: "", Error: fmt.Sprintf("failed to stat database: %v", err)})
+		return result
+	} else {
+		db = database.NewDatabase()
 	}
 
-	// Fetch external items
 	items, err := adapter.FetchItems(nil)
 	if err != nil {
 		result.Errors = append(result.Errors, SyncError{ID: "", Error: err.Error()})
 		return result
 	}
 
+	dirty := false
 	for _, item := range items {
-		// Check if already linked
 		if reqID, ok := externalIDMap[item.ExternalID]; ok {
 			req := requirements[reqID]
-
-			// Update status from external
 			newStatus := adapter.MapStatusToRTMX(item.Status)
 			if newStatus != req.Status {
+				oldStatus := req.Status
 				if dryRun {
-					fmt.Printf("  Would update %s status: %s → %s\n", reqID, req.Status, newStatus)
+					fmt.Printf("  Would update %s status: %s → %s\n", reqID, oldStatus, newStatus)
 				} else {
-					fmt.Printf("  %s↻%s %s: %s → %s\n", output.Blue, output.Reset, reqID, req.Status, newStatus)
+					req.Status = newStatus
+					dirty = true
+					fmt.Printf("  %s↻%s %s: %s → %s\n", output.Blue, output.Reset, reqID, oldStatus, newStatus)
 				}
 				result.Updated = append(result.Updated, reqID)
 			} else {
 				result.Skipped = append(result.Skipped, item.ExternalID)
 			}
+			continue
+		}
 
-		} else if item.RequirementID != "" {
-			// Item references a requirement we have
-			if _, ok := requirements[item.RequirementID]; ok {
+		if item.RequirementID != "" {
+			if req, ok := requirements[item.RequirementID]; ok {
 				if dryRun {
 					fmt.Printf("  Would link %s to %s\n", item.RequirementID, item.ExternalID)
 				} else {
+					if req.ExternalID != item.ExternalID {
+						req.ExternalID = item.ExternalID
+						externalIDMap[item.ExternalID] = req.ReqID
+						dirty = true
+					}
 					fmt.Printf("  %s⇄%s Linked %s ↔ %s\n", output.Green, output.Reset, item.RequirementID, item.ExternalID)
 				}
 				result.Updated = append(result.Updated, item.RequirementID)
 			}
+			continue
+		}
+
+		title := item.Title
+		if len(title) > 50 {
+			title = title[:50] + "..."
+		}
+		if dryRun {
+			fmt.Printf("  Would import: [%s] %s\n", item.ExternalID, title)
 		} else {
-			// New item - import candidate
-			title := item.Title
-			if len(title) > 50 {
-				title = title[:50] + "..."
-			}
-			if dryRun {
-				fmt.Printf("  Would import: [%s] %s\n", item.ExternalID, title)
-			} else {
-				fmt.Printf("  %s+%s [%s] %s\n", output.Green, output.Reset, item.ExternalID, title)
-			}
-			result.Created = append(result.Created, item.ExternalID)
+			fmt.Printf("  %s+%s [%s] %s\n", output.Green, output.Reset, item.ExternalID, title)
+		}
+		result.Created = append(result.Created, item.ExternalID)
+	}
+
+	if dirty && !dryRun {
+		if err := db.Save(dbPath); err != nil {
+			syncErr := fmt.Sprintf("failed to persist imported changes: %v", err)
+			fmt.Printf("  %s✗%s %s\n", output.Red, output.Reset, syncErr)
+			result.Errors = append(result.Errors, SyncError{ID: "", Error: syncErr})
+			// Do not report mutations as successful updates when persistence failed.
+			result.Updated = nil
+			result.Created = nil
+			return result
 		}
 	}
 
 	fmt.Printf("\nFound %d items in %s\n", len(items), adapter.Name())
-
 	return result
 }
 
@@ -420,28 +445,35 @@ func runBidirectional(adapter adapters.ServiceAdapter, cfg *config.Config, confl
 
 	fmt.Printf("%sRunning bidirectional sync with %s...%s\n", output.Bold, adapter.Name(), output.Reset)
 
-	// Load RTM
 	dbPath := cfg.RTMX.Database
 	if dbPath == "" {
 		dbPath = ".rtmx/database.csv"
 	}
 
+	var db *database.Database
 	requirements := make(map[string]*database.Requirement)
 	externalIDMap := make(map[string]string)
 
 	if _, err := os.Stat(dbPath); err == nil {
-		db, err := database.Load(dbPath)
-		if err == nil {
-			for _, req := range db.All() {
-				requirements[req.ReqID] = req
-				if req.ExternalID != "" {
-					externalIDMap[req.ExternalID] = req.ReqID
-				}
+		loaded, err := database.Load(dbPath)
+		if err != nil {
+			result.Errors = append(result.Errors, SyncError{ID: "", Error: fmt.Sprintf("failed to load database: %v", err)})
+			return result
+		}
+		db = loaded
+		for _, req := range db.All() {
+			requirements[req.ReqID] = req
+			if req.ExternalID != "" {
+				externalIDMap[req.ExternalID] = req.ReqID
 			}
 		}
+	} else if err != nil && !os.IsNotExist(err) {
+		result.Errors = append(result.Errors, SyncError{ID: "", Error: fmt.Sprintf("failed to stat database: %v", err)})
+		return result
+	} else {
+		db = database.NewDatabase()
 	}
 
-	// Fetch external items
 	fmt.Printf("\n%sFetching external items...%s\n", output.Dim, output.Reset)
 	items, err := adapter.FetchItems(nil)
 	if err != nil {
@@ -457,50 +489,95 @@ func runBidirectional(adapter adapters.ServiceAdapter, cfg *config.Config, confl
 	fmt.Printf("Found %d external items\n", len(externalItems))
 	fmt.Printf("Have %d local requirements\n\n", len(requirements))
 
-	// Process linked items
-	for externalID, reqID := range externalIDMap {
-		if item, ok := externalItems[externalID]; ok {
-			req := requirements[reqID]
-
-			// Check for status conflict
-			externalStatus := adapter.MapStatusToRTMX(item.Status)
-			if externalStatus != req.Status {
-				switch conflictRes {
-				case "prefer-local":
-					if dryRun {
-						fmt.Printf("  Would update %s: %s → %s\n", externalID, item.Status, req.Status)
-					} else {
-						adapter.UpdateItem(externalID, req)
-						fmt.Printf("  %s↻%s %s: Local wins (%s)\n", output.Blue, output.Reset, reqID, req.Status)
-					}
-					result.Updated = append(result.Updated, reqID)
-
-				case "prefer-remote":
-					if dryRun {
-						fmt.Printf("  Would update %s: %s → %s\n", reqID, req.Status, externalStatus)
-					} else {
-						fmt.Printf("  %s↻%s %s: Remote wins (%s)\n", output.Blue, output.Reset, reqID, externalStatus)
-					}
-					result.Updated = append(result.Updated, reqID)
-
-				default:
-					fmt.Printf("  %s?%s Conflict: %s (local=%s, remote=%s)\n",
-						output.Yellow, output.Reset, reqID, req.Status, externalStatus)
-					result.Conflicts = append(result.Conflicts, SyncConflict{
-						ID:     reqID,
-						Reason: fmt.Sprintf("Status conflict: %s vs %s", req.Status, externalStatus),
-					})
-				}
-			} else {
-				result.Skipped = append(result.Skipped, reqID)
-			}
-
-			delete(externalItems, externalID)
+	dirty := false
+	checkpoint := func() bool {
+		if dryRun || !dirty {
+			return true
 		}
+		if err := db.Save(dbPath); err != nil {
+			syncErr := fmt.Sprintf("failed to persist sync changes: %v", err)
+			fmt.Printf("  %s✗%s %s\n", output.Red, output.Reset, syncErr)
+			result.Errors = append(result.Errors, SyncError{ID: "", Error: syncErr})
+			result.Updated = nil
+			result.Created = nil
+			dirty = false
+			return false
+		}
+		dirty = false
+		return true
 	}
 
-	// Items only in external service (import candidates)
+	// Process already-linked items.
+	for externalID, reqID := range externalIDMap {
+		item, ok := externalItems[externalID]
+		if !ok {
+			continue
+		}
+		req := requirements[reqID]
+		externalStatus := adapter.MapStatusToRTMX(item.Status)
+		if externalStatus != req.Status {
+			switch conflictRes {
+			case "prefer-local":
+				if dryRun {
+					fmt.Printf("  Would update %s: %s → %s\n", externalID, item.Status, req.Status)
+					result.Updated = append(result.Updated, reqID)
+				} else if adapter.UpdateItem(externalID, req) {
+					fmt.Printf("  %s↻%s %s: Local wins (%s)\n", output.Blue, output.Reset, reqID, req.Status)
+					result.Updated = append(result.Updated, reqID)
+				} else {
+					fmt.Printf("  %s✗%s Failed to push local status for %s\n", output.Red, output.Reset, reqID)
+					result.Errors = append(result.Errors, SyncError{ID: reqID, Error: "remote update failed"})
+				}
+
+			case "prefer-remote":
+				old := req.Status
+				if dryRun {
+					fmt.Printf("  Would update %s: %s → %s\n", reqID, old, externalStatus)
+				} else {
+					req.Status = externalStatus
+					dirty = true
+					fmt.Printf("  %s↻%s %s: Remote wins (%s)\n", output.Blue, output.Reset, reqID, externalStatus)
+					if !checkpoint() {
+						return result
+					}
+				}
+				result.Updated = append(result.Updated, reqID)
+
+			default:
+				fmt.Printf("  %s?%s Conflict: %s (local=%s, remote=%s)\n",
+					output.Yellow, output.Reset, reqID, req.Status, externalStatus)
+				result.Conflicts = append(result.Conflicts, SyncConflict{
+					ID:     reqID,
+					Reason: fmt.Sprintf("Status conflict: %s vs %s", req.Status, externalStatus),
+				})
+			}
+		} else {
+			result.Skipped = append(result.Skipped, reqID)
+		}
+		delete(externalItems, externalID)
+	}
+
+	// Remaining external items: link by embedded requirement ID, else import candidate.
 	for externalID, item := range externalItems {
+		if item.RequirementID != "" {
+			if req, ok := requirements[item.RequirementID]; ok {
+				if dryRun {
+					fmt.Printf("  Would link %s to %s\n", item.RequirementID, externalID)
+				} else if req.ExternalID != externalID {
+					req.ExternalID = externalID
+					externalIDMap[externalID] = req.ReqID
+					dirty = true
+					fmt.Printf("  %s⇄%s Linked %s ↔ %s\n", output.Green, output.Reset, item.RequirementID, externalID)
+					if !checkpoint() {
+						return result
+					}
+				} else {
+					fmt.Printf("  %s⇄%s Linked %s ↔ %s\n", output.Green, output.Reset, item.RequirementID, externalID)
+				}
+				result.Updated = append(result.Updated, item.RequirementID)
+				continue
+			}
+		}
 		title := item.Title
 		if len(title) > 50 {
 			title = title[:50] + "..."
@@ -513,22 +590,42 @@ func runBidirectional(adapter adapters.ServiceAdapter, cfg *config.Config, confl
 		result.Created = append(result.Created, externalID)
 	}
 
-	// Requirements not in external service (export candidates)
-	exportedIDs := make(map[string]bool)
+	// Unlinked local requirements: export and persist external_id.
+	linked := make(map[string]bool)
 	for _, reqID := range externalIDMap {
-		exportedIDs[reqID] = true
+		linked[reqID] = true
 	}
-
-	for reqID := range requirements {
-		if !exportedIDs[reqID] {
-			if dryRun {
-				fmt.Printf("  Would export: %s\n", reqID)
-			} else {
-				fmt.Printf("  %s→%s Export candidate: %s\n", output.Green, output.Reset, reqID)
-			}
+	for reqID, req := range requirements {
+		if linked[reqID] {
+			continue
+		}
+		if dryRun {
+			fmt.Printf("  Would export: %s\n", reqID)
+			continue
+		}
+		externalID, err := adapter.CreateItem(req)
+		if err != nil {
+			fmt.Printf("  %s✗%s Failed to export %s: %v\n", output.Red, output.Reset, reqID, err)
+			result.Errors = append(result.Errors, SyncError{ID: reqID, Error: err.Error()})
+			continue
+		}
+		if strings.TrimSpace(externalID) == "" {
+			result.Errors = append(result.Errors, SyncError{ID: reqID, Error: "adapter returned empty external ID"})
+			continue
+		}
+		req.ExternalID = externalID
+		externalIDMap[externalID] = reqID
+		dirty = true
+		fmt.Printf("  %s→%s Exported %s → %s\n", output.Green, output.Reset, reqID, externalID)
+		result.Created = append(result.Created, reqID)
+		if !checkpoint() {
+			return result
 		}
 	}
 
+	if !checkpoint() {
+		return result
+	}
 	return result
 }
 

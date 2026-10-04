@@ -22,22 +22,24 @@ import (
 
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/database"
+	"github.com/rtmx-ai/rtmx/internal/docmodel/acverify"
 	"github.com/rtmx-ai/rtmx/internal/graph"
 	"github.com/rtmx-ai/rtmx/internal/orchestration"
 )
 
 // Server is an MCP server that exposes RTMX tools via JSON-RPC 2.0 over HTTP.
 type Server struct {
-	host     string
-	port     int
-	dbPath   string
-	cfg      *config.Config
-	claims   *orchestration.ClaimStore
-	mu       sync.RWMutex
-	server   *http.Server
-	listener net.Listener
-	logger   *log.Logger
-	quiet    bool
+	host       string
+	port       int
+	dbPath     string
+	cfg        *config.Config
+	claims     *orchestration.ClaimStore
+	mu         sync.RWMutex
+	server     *http.Server
+	listener   net.Listener
+	logger     *log.Logger
+	quiet      bool
+	acDocument *acverify.DocumentFile
 }
 
 // Option configures the Server.
@@ -51,6 +53,18 @@ func WithHost(host string) Option {
 // WithPort sets the listen port.
 func WithPort(port int) Option {
 	return func(s *Server) { s.port = port }
+}
+
+// WithACDocument loads a requirement-document/v0 file so backlog/verify
+// payloads include AC gaps and bindings. Narrative is never copied.
+func WithACDocument(path string) Option {
+	return func(s *Server) {
+		doc, err := acverify.LoadDocumentFile(path)
+		if err != nil {
+			return
+		}
+		s.acDocument = doc
+	}
 }
 
 // WithQuiet suppresses response size logging.
@@ -435,6 +449,7 @@ func (s *Server) handleToolsList() interface{} {
 			},
 		},
 	}
+	tools = append(tools, scientificToolDefs()...)
 
 	return map[string]interface{}{"tools": tools}
 }
@@ -493,6 +508,74 @@ func (s *Server) handleToolsCall(params json.RawMessage) (interface{}, *rpcError
 		result, rpcErr := s.toolSetStatus(db, call.Arguments)
 		s.logToolResult(call.Name, result)
 		return result, rpcErr
+	case "loop_tick":
+		result, rpcErr := s.toolLoopTick(db, call.Arguments)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+		if tr, ok := result.(toolResult); ok {
+			s.logToolResult(call.Name, tr)
+			return tr, nil
+		}
+		data = result
+	case "decompose":
+		result, rpcErr := s.toolDecompose(db, call.Arguments)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+		if tr, ok := result.(toolResult); ok {
+			s.logToolResult(call.Name, tr)
+			return tr, nil
+		}
+		data = result
+	case "hygiene":
+		data = s.toolHygiene(db, call.Arguments)
+	case "cycles":
+		data = s.toolCycles(db)
+	case "webs":
+		data = s.toolWebs(db, call.Arguments)
+	case "context":
+		data = s.toolContext(db)
+	case "delivery_check":
+		result, rpcErr := s.toolDeliveryCheck(call.Arguments)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+		if tr, ok := result.(toolResult); ok {
+			s.logToolResult(call.Name, tr)
+			return tr, nil
+		}
+		data = result
+	case "trade_open":
+		result, rpcErr := s.toolTradeOpen(call.Arguments)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+		if tr, ok := result.(toolResult); ok {
+			s.logToolResult(call.Name, tr)
+			return tr, nil
+		}
+		data = result
+	case "trade_list":
+		result, rpcErr := s.toolTradeList(call.Arguments)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+		if tr, ok := result.(toolResult); ok {
+			s.logToolResult(call.Name, tr)
+			return tr, nil
+		}
+		data = result
+	case "trade_resolve":
+		result, rpcErr := s.toolTradeResolve(call.Arguments)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+		if tr, ok := result.(toolResult); ok {
+			s.logToolResult(call.Name, tr)
+			return tr, nil
+		}
+		data = result
 	default:
 		return nil, &rpcError{Code: errNoMethod, Message: fmt.Sprintf("unknown tool: %s", call.Name)}
 	}
@@ -704,13 +787,17 @@ func (s *Server) toolStatus(db *database.Database, filter toolFilter) interface{
 
 // backlogItem is a single item in the backlog tool output.
 type backlogItem struct {
-	ReqID       string  `json:"req_id"`
-	Description string  `json:"description"`
-	Priority    string  `json:"priority"`
-	Status      string  `json:"status"`
-	Effort      float64 `json:"effort_weeks"`
-	Blocked     bool    `json:"blocked"`
-	Blocks      int     `json:"blocks"`
+	ReqID       string        `json:"req_id"`
+	Description string        `json:"description"`
+	Priority    string        `json:"priority"`
+	Status      string        `json:"status"`
+	Effort      float64       `json:"effort_weeks"`
+	Blocked     bool          `json:"blocked"`
+	Blocks      int           `json:"blocks"`
+	ACs         []acView      `json:"acs,omitempty"`
+	Bindings    []bindingView `json:"test_bindings,omitempty"`
+	ACGapCount  int           `json:"ac_gap_count,omitempty"`
+	Gaps        []acGap       `json:"gaps,omitempty"`
 }
 
 // backlogResult is the JSON output for the backlog tool.
@@ -736,7 +823,7 @@ func (s *Server) toolBacklog(db *database.Database, filter toolFilter) interface
 			}
 		}
 
-		items = append(items, backlogItem{
+		item := backlogItem{
 			ReqID:       req.ReqID,
 			Description: req.RequirementText,
 			Priority:    string(req.Priority),
@@ -744,7 +831,9 @@ func (s *Server) toolBacklog(db *database.Database, filter toolFilter) interface
 			Effort:      req.EffortWeeks,
 			Blocked:     blocked,
 			Blocks:      blocksCount,
-		})
+		}
+		s.attachACSurface(&item.ACs, &item.Bindings, &item.Gaps, &item.ACGapCount, req.ReqID, nil)
+		items = append(items, item)
 	}
 
 	items = applyLimit(items, filter.Limit)
@@ -934,10 +1023,10 @@ func (s *Server) toolDeps(db *database.Database, reqID string, limit int) (inter
 
 	// Overview mode
 	type info struct {
-		id    string
-		deps  int
-		blks  int
-		desc  string
+		id   string
+		deps int
+		blks int
+		desc string
 	}
 
 	var entries []info
@@ -967,23 +1056,27 @@ func (s *Server) toolDeps(db *database.Database, reqID string, limit int) (inter
 
 // verifyItem is a single entry in the verify tool output.
 type verifyItem struct {
-	ReqID      string `json:"req_id"`
-	Status     string `json:"status"`
-	Previous   string `json:"previous_status,omitempty"`
-	HasTest    bool   `json:"has_test"`
-	TestFunc   string `json:"test_function,omitempty"`
-	TestPassed bool   `json:"test_passed,omitempty"`
-	Updated    bool   `json:"updated,omitempty"`
+	ReqID      string        `json:"req_id"`
+	Status     string        `json:"status"`
+	Previous   string        `json:"previous_status,omitempty"`
+	HasTest    bool          `json:"has_test"`
+	TestFunc   string        `json:"test_function,omitempty"`
+	TestPassed bool          `json:"test_passed,omitempty"`
+	Updated    bool          `json:"updated,omitempty"`
+	ACs        []acView      `json:"acs,omitempty"`
+	Bindings   []bindingView `json:"test_bindings,omitempty"`
+	ACGapCount int           `json:"ac_gap_count,omitempty"`
+	Gaps       []acGap       `json:"gaps,omitempty"`
 }
 
 // verifyResult is the JSON output for the verify tool.
 type verifyResult struct {
-	Total     int          `json:"total"`
-	Complete  int          `json:"complete"`
-	Verified  int          `json:"verified"`
-	Updated   int          `json:"updated"`
-	Command   string       `json:"command,omitempty"`
-	Items     []verifyItem `json:"items"`
+	Total    int          `json:"total"`
+	Complete int          `json:"complete"`
+	Verified int          `json:"verified"`
+	Updated  int          `json:"updated"`
+	Command  string       `json:"command,omitempty"`
+	Items    []verifyItem `json:"items"`
 }
 
 // testResult holds the outcome of a single parsed test.
@@ -1047,6 +1140,17 @@ func (s *Server) toolVerify(db *database.Database, command string) interface{} {
 		if req.Status == database.StatusComplete {
 			complete++
 		}
+		var evidence []acverify.EvidenceHit
+		if req.TestFunction != "" {
+			if tr := findMatchingTest(testResults, req.TestFunction); tr != nil {
+				evidence = append(evidence, acverify.EvidenceHit{
+					TestName: tr.name,
+					ReqID:    req.ReqID,
+					Passed:   tr.passed,
+				})
+			}
+		}
+		s.attachACSurface(&item.ACs, &item.Bindings, &item.Gaps, &item.ACGapCount, req.ReqID, evidence)
 		items = append(items, item)
 	}
 
@@ -1215,10 +1319,10 @@ type markerEntry struct {
 
 // markersResult is the JSON output for the markers tool.
 type markersResult struct {
-	Total      int           `json:"total"`
-	WithTests  int           `json:"with_tests"`
-	Missing    int           `json:"missing"`
-	Items      []markerEntry `json:"items"`
+	Total     int           `json:"total"`
+	WithTests int           `json:"with_tests"`
+	Missing   int           `json:"missing"`
+	Items     []markerEntry `json:"items"`
 }
 
 func (s *Server) toolMarkers(db *database.Database, filter toolFilter) interface{} {
@@ -1271,6 +1375,7 @@ type nextResult struct {
 	TotalIncomplete  int             `json:"total_incomplete"`
 	TotalEffortWeeks float64         `json:"total_effort_weeks"`
 	Webs             []nextWebResult `json:"webs"`
+	Delivery         *deliveryPlan   `json:"delivery,omitempty"`
 }
 
 func (s *Server) toolNext(db *database.Database, filter toolFilter) interface{} {
@@ -1332,6 +1437,8 @@ func (s *Server) toolNext(db *database.Database, filter toolFilter) interface{} 
 
 	result.TotalWebs = len(result.Webs)
 	result.Webs = applyLimit(result.Webs, filter.Limit)
+	plan := s.planDelivery(db, webs, filter.Category)
+	result.Delivery = &plan
 
 	return result
 }
@@ -1476,4 +1583,3 @@ func (s *Server) toolSetStatus(db *database.Database, args map[string]interface{
 		Content: []toolContent{{Type: "text", Text: string(data)}},
 	}, nil
 }
-

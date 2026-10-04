@@ -33,7 +33,7 @@ Or download a binary from [releases](https://github.com/rtmx-ai/rtmx/releases).
 | `rtmx verify` | Run tests and cross-reference against requirements |
 | `rtmx health` | Lint your RTM: orphaned tests, circular deps, stale refs |
 | `rtmx backlog` | Prioritized work items with critical path analysis |
-| `rtmx mcp-server` | 7 tools for AI agents over JSON-RPC (read + write) |
+| `rtmx mcp-server` | Scientific workflow MCP tools (loop_tick, delivery_check, trades, …) |
 
 33 commands total. Run `rtmx --help` for the full list.
 
@@ -138,8 +138,10 @@ flowchart LR
     style Tests fill:#d1fae5,stroke:#10b981,color:#065f46
 ```
 
-10 tools (7 read + 3 mutation) with agent authorization and atomic
-claim/release for multi-agent coordination.
+Spine tools (status/backlog/next/claim/…) plus a scientific cycle surface
+(`loop_tick`, `decompose`, `hygiene`, `cycles`, `webs`, `context`,
+`delivery_check`, `trade_*`). Prefer these over shelling arbitrary CLI.
+No generic `run_cli` tool. Mutations require `agent_id`.
 
 ![RTMX MCP setup](docs/assets/rtmx-mcp-setup.gif)
 

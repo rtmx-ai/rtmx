@@ -781,12 +781,36 @@ func newPytestVerifyCmd() *cobra.Command {
 	return root
 }
 
-// TestExtractMarkersModuleFuncAfterClass is the regression for the class-context
-// leak (REQ-LANG-032): a module-level test function defined AFTER a test class
-// must be recorded with a bare TestFunction, not qualified with the preceding
-// class name. The stale qualification broke the JUnit join for such tests (e.g.
-// Phoenix's packages/signal-processing/tests/test_range_vs_rcs.py, where the
-// SW-DSP module-level tests follow a REQ-DOC test class).
+// TestExtractMarkersInClassMethod covers AC1 of REQ-LANG-032: a test method
+// inside a class is recorded as Class::method.
+func TestExtractMarkersInClassMethod(t *testing.T) {
+	rtmx.Req(t, "REQ-LANG-032",
+		rtmx.Scope("unit"), rtmx.Technique("nominal"), rtmx.Env("simulation"))
+	dir := t.TempDir()
+	content := `import pytest
+
+class TestGroup:
+    @pytest.mark.req("REQ-CLS-001")
+    @pytest.mark.scope_unit
+    def test_in_class(self):
+        pass
+`
+	f := filepath.Join(dir, "test_class.py")
+	if err := os.WriteFile(f, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	markers, err := extractMarkersFromFile(f)
+	if err != nil {
+		t.Fatalf("extractMarkersFromFile: %v", err)
+	}
+	if len(markers) != 1 || markers[0].TestFunction != "TestGroup::test_in_class" {
+		t.Fatalf("in-class TestFunction = %+v, want TestGroup::test_in_class", markers)
+	}
+}
+
+// TestExtractMarkersModuleFuncAfterClass covers AC2 of REQ-LANG-032: a
+// module-level test function defined AFTER a test class is recorded with a bare
+// (unqualified) function name.
 func TestExtractMarkersModuleFuncAfterClass(t *testing.T) {
 	rtmx.Req(t, "REQ-LANG-032",
 		rtmx.Scope("unit"), rtmx.Technique("nominal"), rtmx.Env("simulation"))
@@ -819,10 +843,45 @@ def test_after_class():
 	for _, m := range markers {
 		byReq[m.ReqID] = m.TestFunction
 	}
-	if got := byReq["REQ-CLS-001"]; got != "TestGroup::test_in_class" {
-		t.Errorf("in-class TestFunction = %q, want TestGroup::test_in_class", got)
-	}
 	if got := byReq["REQ-MOD-002"]; got != "test_after_class" {
 		t.Errorf("module-level TestFunction after class = %q, want test_after_class (unqualified)", got)
+	}
+}
+
+// TestExtractMarkersConsecutiveClasses covers AC3 of REQ-LANG-032: consecutive
+// classes each scope only their own methods (no cross-class qualification leak).
+func TestExtractMarkersConsecutiveClasses(t *testing.T) {
+	rtmx.Req(t, "REQ-LANG-032",
+		rtmx.Scope("unit"), rtmx.Technique("nominal"), rtmx.Env("simulation"))
+	dir := t.TempDir()
+	content := `import pytest
+
+class TestA:
+    @pytest.mark.req("REQ-A-001")
+    def test_a(self):
+        pass
+
+class TestB:
+    @pytest.mark.req("REQ-B-002")
+    def test_b(self):
+        pass
+`
+	f := filepath.Join(dir, "test_two_classes.py")
+	if err := os.WriteFile(f, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	markers, err := extractMarkersFromFile(f)
+	if err != nil {
+		t.Fatalf("extractMarkersFromFile: %v", err)
+	}
+	byReq := map[string]string{}
+	for _, m := range markers {
+		byReq[m.ReqID] = m.TestFunction
+	}
+	if got := byReq["REQ-A-001"]; got != "TestA::test_a" {
+		t.Errorf("TestA method = %q, want TestA::test_a", got)
+	}
+	if got := byReq["REQ-B-002"]; got != "TestB::test_b" {
+		t.Errorf("TestB method = %q, want TestB::test_b", got)
 	}
 }

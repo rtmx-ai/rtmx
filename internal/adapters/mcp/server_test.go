@@ -93,9 +93,9 @@ func TestMCPServer(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected tools array, got %T", result["tools"])
 		}
-		// We expose 11 tools (7 read + 4 mutation)
-		if len(tools) != 11 {
-			t.Errorf("expected 11 tools, got %d", len(tools))
+		// Spine tools + scientific workflow surface (REQ-ORCH-023c)
+		if len(tools) < 21 {
+			t.Errorf("expected at least 21 tools, got %d", len(tools))
 		}
 		// Verify tool names
 		names := make(map[string]bool)
@@ -104,7 +104,12 @@ func TestMCPServer(t *testing.T) {
 			name, _ := tm["name"].(string)
 			names[name] = true
 		}
-		for _, expected := range []string{"status", "backlog", "health", "deps", "verify", "markers", "next", "claim", "release", "release_assign"} {
+		for _, expected := range []string{
+			"status", "backlog", "health", "deps", "verify", "markers", "next",
+			"claim", "release", "release_assign", "set_status",
+			"loop_tick", "decompose", "hygiene", "cycles", "webs", "context", "delivery_check",
+			"trade_open", "trade_list", "trade_resolve",
+		} {
 			if !names[expected] {
 				t.Errorf("missing tool: %s", expected)
 			}
@@ -493,8 +498,8 @@ func TestMCPStdio(t *testing.T) {
 		}
 		result, _ := listResp["result"].(map[string]interface{})
 		tools, _ := result["tools"].([]interface{})
-		if len(tools) != 11 {
-			t.Errorf("expected 11 tools, got %d", len(tools))
+		if len(tools) < 21 {
+			t.Errorf("expected at least 21 tools, got %d", len(tools))
 		}
 	})
 

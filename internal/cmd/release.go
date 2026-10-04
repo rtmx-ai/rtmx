@@ -299,6 +299,9 @@ func runReleaseGate(cmd *cobra.Command, args []string) error {
 			}
 		}
 		cmd.Println()
+		cmd.Println("  Delivery check (non-blocking):")
+		reportDeliveryCheckForGate(cmd, cwd)
+		cmd.Println()
 	}
 
 	if !result.Passed {

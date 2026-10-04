@@ -1,0 +1,25 @@
+<div style="display: flex; flex-direction: column; gap: 0.75rem;">
+  <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <span class="text-muted" style="font-size: 0.8rem;">Timeline View</span>
+    <div style="display: flex; gap: 0.25rem;">
+      <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;" onclick="timelineZoom('in')">+</button>
+      <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;" onclick="timelineZoom('out')">-</button>
+      <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.2rem 0.5rem;" onclick="timelineZoom('reset')">Reset</button>
+    </div>
+  </div>
+  <div style="width: 100%; overflow-x: auto; border-radius: 0.375rem;">
+    <svg id="timeline-svg" width="100%" style="min-height: 400px;"></svg>
+  </div>
+  <script type="application/json" id="timeline-data">{{.TimelineJSON}}</script>
+  <script>
+    (function() {
+      var el = document.getElementById('timeline-data');
+      if (el && typeof d3 !== 'undefined') {
+        try {
+          var data = JSON.parse(el.textContent);
+          renderTimeline(data);
+        } catch(e) {}
+      }
+    })();
+  </script>
+</div>
