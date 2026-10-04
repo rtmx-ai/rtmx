@@ -198,6 +198,8 @@ const deliveryRuleBody = `RTMX delivery rule:
 - Do not open a second PR for a requirement that already has an open PR.
 - Mark the requirement COMPLETE only via ` + "`rtmx verify`" + `, never by editing status by hand.
 - Merge the PR only after verify is green for that requirement.
+- Run ` + "`rtmx delivery-check`" + ` (warn-first) before opening or merging a PR; use ` + "`--strict`" + ` in release gates when the project opts in.
+- When a requirement is ambiguous or multi-option, open a trade under ` + "`.rtmx/trades/`" + ` and resolve it before coding; prefer MCP ` + "`loop_tick`" + ` / ` + "`trade_*`" + ` / ` + "`delivery_check`" + ` over shelling arbitrary CLI.
 `
 
 const (

@@ -37,6 +37,8 @@ RTMX delivery rule:
 - Do not open a second PR for a requirement that already has an open PR.
 - Mark the requirement COMPLETE only via `rtmx verify`, never by editing status by hand.
 - Merge the PR only after verify is green for that requirement.
+- Run `rtmx delivery-check` (warn-first) before opening or merging a PR; use `--strict` in release gates when the project opts in.
+- When a requirement is ambiguous or multi-option, open a trade under `.rtmx/trades/` and resolve it before coding; prefer MCP `loop_tick` / `trade_*` / `delivery_check` over shelling arbitrary CLI.
 ```
 
 ## Acceptance Criteria
@@ -57,4 +59,4 @@ RTMX delivery rule:
 ## Out of Scope
 
 - Installing rules into every agent in `rtmx install --agents` (Claude hooks, Copilot, Cline). Those stay on `rtmx install`. Init covers the project-local Cursor rule, Claude marked block, and the canonical file.
-- A git hook that rejects multi-AC commits. The rule is agent instruction. A later requirement may add a mechanical check.
+- Hard-reject git hooks as default. Mechanical warn-first check is REQ-ORCH-023a (`rtmx delivery-check`).

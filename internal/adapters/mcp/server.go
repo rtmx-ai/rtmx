@@ -449,6 +449,7 @@ func (s *Server) handleToolsList() interface{} {
 			},
 		},
 	}
+	tools = append(tools, scientificToolDefs()...)
 
 	return map[string]interface{}{"tools": tools}
 }
@@ -507,6 +508,74 @@ func (s *Server) handleToolsCall(params json.RawMessage) (interface{}, *rpcError
 		result, rpcErr := s.toolSetStatus(db, call.Arguments)
 		s.logToolResult(call.Name, result)
 		return result, rpcErr
+	case "loop_tick":
+		result, rpcErr := s.toolLoopTick(db, call.Arguments)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+		if tr, ok := result.(toolResult); ok {
+			s.logToolResult(call.Name, tr)
+			return tr, nil
+		}
+		data = result
+	case "decompose":
+		result, rpcErr := s.toolDecompose(db, call.Arguments)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+		if tr, ok := result.(toolResult); ok {
+			s.logToolResult(call.Name, tr)
+			return tr, nil
+		}
+		data = result
+	case "hygiene":
+		data = s.toolHygiene(db, call.Arguments)
+	case "cycles":
+		data = s.toolCycles(db)
+	case "webs":
+		data = s.toolWebs(db, call.Arguments)
+	case "context":
+		data = s.toolContext(db)
+	case "delivery_check":
+		result, rpcErr := s.toolDeliveryCheck(call.Arguments)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+		if tr, ok := result.(toolResult); ok {
+			s.logToolResult(call.Name, tr)
+			return tr, nil
+		}
+		data = result
+	case "trade_open":
+		result, rpcErr := s.toolTradeOpen(call.Arguments)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+		if tr, ok := result.(toolResult); ok {
+			s.logToolResult(call.Name, tr)
+			return tr, nil
+		}
+		data = result
+	case "trade_list":
+		result, rpcErr := s.toolTradeList(call.Arguments)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+		if tr, ok := result.(toolResult); ok {
+			s.logToolResult(call.Name, tr)
+			return tr, nil
+		}
+		data = result
+	case "trade_resolve":
+		result, rpcErr := s.toolTradeResolve(call.Arguments)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+		if tr, ok := result.(toolResult); ok {
+			s.logToolResult(call.Name, tr)
+			return tr, nil
+		}
+		data = result
 	default:
 		return nil, &rpcError{Code: errNoMethod, Message: fmt.Sprintf("unknown tool: %s", call.Name)}
 	}

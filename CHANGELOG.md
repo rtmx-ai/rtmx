@@ -3,6 +3,21 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased] — v1.12.0
+
+### Added
+
+- **Agent delivery science (REQ-ORCH-023*)** — warn-first `rtmx delivery-check`
+  (one PR per REQ, one commit per AC; `--strict` fails). `rtmx loop tick`
+  next+claims+decomposes and re-decomposes from `.rtmx/delivery/` notes.
+  Trade checkpoints (`rtmx trade open|list|resolve`, `.rtmx/trades/`) set
+  `trade_required` on the loop plan. MCP scientific tools: `loop_tick`,
+  `decompose`, `hygiene`, `cycles`, `webs`, `context`, `delivery_check`,
+  `trade_*` (no `run_cli`).
+- **Agent delivery loop (REQ-ORCH-019–022, REQ-MCP-012)** — falling-edge
+  `rtmx loop`, `decompose`, init-time delivery rule, open-PR skip on `next`,
+  MCP `next` delivery plan. Not in v1.11.0; ships in this minor.
+
 ## [1.11.0] - 2026-08-23
 
 ### Added
