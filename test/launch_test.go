@@ -81,6 +81,17 @@ func TestReadmeLaunchReady(t *testing.T) {
 		}
 	})
 
+	// AC5b: Sync product framing — CLI is the open source client
+	t.Run("sync_client_framing", func(t *testing.T) {
+		if !strings.Contains(readme, "rtmx.ai/sync") {
+			t.Error("README must link to the Sync explainer (rtmx.ai/sync)")
+		}
+		lower := strings.ToLower(readme)
+		if !strings.Contains(lower, "open source client") && !strings.Contains(lower, "how you enter") {
+			t.Error("README must frame the CLI as the Sync client / access path")
+		}
+	})
+
 	// AC6: Self-referential dogfooding section
 	t.Run("dogfooding", func(t *testing.T) {
 		if !strings.Contains(readme, "requirements") && !strings.Contains(readme, "dogfood") {

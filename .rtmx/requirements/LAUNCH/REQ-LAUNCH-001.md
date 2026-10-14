@@ -1,6 +1,6 @@
 # REQ-LAUNCH-001: README rewritten as Show HN landing page
 
-## Status: MISSING
+## Status: COMPLETE
 ## Priority: HIGH
 ## Phase: 14 (Distribution)
 
@@ -9,9 +9,9 @@ The rtmx README shall be rewritten as a landing page optimized for the
 Show HN URL post. When a visitor clicks through from Hacker News, the README
 is the pitch. It must communicate value and make starring effortless.
 
-The current README reads as a reference document (installation, migration,
-architecture). It needs to function as a landing page first, reference
-second.
+The README leads with RTMX Sync (what comes after Git) and frames this
+open source CLI as how you access Sync. Local CSV-in-git remains the
+offline workspace; Sync is the multiplayer room.
 
 ### Required sections (in order)
 1. Hero: logo + one-line pitch + workflow GIF (docs/assets/rtmx-workflow.gif)
@@ -29,12 +29,13 @@ second.
   below a fold
 
 ## Acceptance Criteria
-- [ ] Hero section with workflow GIF visible without scrolling
-- [ ] brew install command within first screenful
-- [ ] Mermaid diagrams embedded (GitHub renders natively) or linked images
-- [ ] Migration guide moved out of README
-- [ ] Development section moved below feature content
-- [ ] Link to rtmx.ai/blog/show-hn-rtmx blog post
+- [x] Hero section with workflow GIF visible without scrolling
+- [x] brew install command within first screenful
+- [x] Mermaid diagrams embedded (GitHub renders natively) or linked images
+- [x] Migration guide moved out of README
+- [x] Development section moved below feature content
+- [x] Link to rtmx.ai/blog/show-hn-rtmx blog post
+- [x] Link to rtmx.ai/sync with CLI framed as Sync client
 
 ## Test Cases
 - `test/launch_test.go::TestReadmeLaunchReady`
