@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rtmx-ai/rtmx/internal/auth"
+	"github.com/rtmx-ai/rtmx/internal/billing"
 	syncpkg "github.com/rtmx-ai/rtmx/internal/sync"
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
@@ -80,6 +81,24 @@ func TestErrMissingSyncAuthHintsLogin(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "rtmx login") {
 		t.Fatalf("expected login hint, got %q", err.Error())
+	}
+}
+
+func TestPickSyncOrgSlug(t *testing.T) {
+	orgs := []billing.Org{
+		{ID: "1", Name: "Acme", Slug: "acme"},
+		{ID: "2", Name: "Beta", Slug: "beta"},
+	}
+	if _, err := pickSyncOrgSlug(orgs, ""); err == nil || !strings.Contains(err.Error(), "multiple") {
+		t.Fatalf("expected multiple-org error, got %v", err)
+	}
+	got, err := pickSyncOrgSlug(orgs, "beta")
+	if err != nil || got != "beta" {
+		t.Fatalf("want beta, got %q (%v)", got, err)
+	}
+	sole, err := pickSyncOrgSlug(orgs[:1], "")
+	if err != nil || sole != "acme" {
+		t.Fatalf("want acme, got %q (%v)", sole, err)
 	}
 }
 

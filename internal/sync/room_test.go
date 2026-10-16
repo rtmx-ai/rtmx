@@ -199,3 +199,13 @@ func TestNormalizeRoomURLAcceptsHTTPScheme(t *testing.T) {
 		t.Errorf("got %q, want the wss form", got)
 	}
 }
+
+func TestNormalizeRoomURLAcceptsBareHost(t *testing.T) {
+	got, err := normalizeRoomURL("sync.example.com/sync/acme/main")
+	if err != nil {
+		t.Fatalf("normalizeRoomURL: %v", err)
+	}
+	if got != "wss://sync.example.com/sync/acme/main" {
+		t.Errorf("got %q, want wss bare-host form", got)
+	}
+}

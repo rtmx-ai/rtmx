@@ -30,8 +30,10 @@ Or download a binary from [releases](https://github.com/rtmx-ai/rtmx/releases).
 
 ```bash
 rtmx login
-rtmx sync --sync-url wss://sync.rtmx.ai/sync/your-org/main
+rtmx sync
 ```
+
+Self-hosted: `rtmx sync --sync-url sync.example.com/sync/acme/main` (the client adds `wss://`).
 
 ## What It Does
 

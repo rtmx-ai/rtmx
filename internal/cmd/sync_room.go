@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/rtmx-ai/rtmx/internal/auth"
+	"github.com/rtmx-ai/rtmx/internal/billing"
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/database"
 	"github.com/rtmx-ai/rtmx/internal/output"
@@ -143,6 +144,64 @@ func parseSetUpdates(args []string, db *database.Database) ([]syncpkg.Requiremen
 
 func roomToken() string {
 	return resolveSyncToken(syncToken)
+}
+
+// resolveManagedRoomURL builds a room URL for hosted Sync after rtmx login.
+// Users should not paste wss:// or the managed host for the happy path.
+func resolveManagedRoomURL() (string, error) {
+	tokens, err := auth.LoadStoredTokens(resolveTokenPath())
+	if err != nil || tokens == nil || strings.TrimSpace(tokens.AccessToken) == "" {
+		return "", errMissingSyncAuth()
+	}
+	base := strings.TrimRight(strings.TrimSpace(tokens.SyncURL), "/")
+	if base == "" {
+		base = resolveManagedSyncURL()
+	}
+	base = strings.TrimRight(base, "/")
+
+	room := strings.TrimSpace(syncRoom)
+	if room == "" {
+		room = "main"
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	client := &billing.Client{BaseURL: base, Token: tokens.AccessToken}
+	orgs, err := client.ListOrgs(ctx)
+	if err != nil {
+		return "", fmt.Errorf("list organizations: %w", err)
+	}
+	slug, err := pickSyncOrgSlug(orgs, syncOrg)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/sync/%s/%s", base, slug, room), nil
+}
+
+func pickSyncOrgSlug(orgs []billing.Org, want string) (string, error) {
+	want = strings.TrimSpace(want)
+	if want != "" {
+		for _, o := range orgs {
+			if o.Slug == want || o.ID == want || strings.EqualFold(o.Name, want) {
+				if o.Slug != "" {
+					return o.Slug, nil
+				}
+				return o.ID, nil
+			}
+		}
+		return "", fmt.Errorf("organization %q not found; pass --org <slug>", want)
+	}
+	switch len(orgs) {
+	case 0:
+		return "", fmt.Errorf("no organizations on this account; create one via rtmx checkout or the dashboard")
+	case 1:
+		if orgs[0].Slug != "" {
+			return orgs[0].Slug, nil
+		}
+		return orgs[0].ID, nil
+	default:
+		return "", fmt.Errorf("multiple organizations; pass --org <slug>")
+	}
 }
 
 // resolveSyncToken returns the room credential with precedence:
