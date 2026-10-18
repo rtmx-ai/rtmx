@@ -1,7 +1,7 @@
 # REQ-GO-085: Managed sync adoption heartbeat
 
 ## Metadata
-- **Status**: MISSING
+- **Status**: COMPLETE
 - **Priority**: HIGH
 - **Phase**: 15
 - **External ID**: rtmx-ai/REQ-MONO-033g
@@ -14,10 +14,10 @@ SHALL POST an adoption heartbeat to Sync including canonical `external_ref`
 
 ## Acceptance Criteria
 
-- [ ] Heartbeat sent only for managed Sync (not GitHub Issues/Jira adapters alone)
-- [ ] Failure to heartbeat does not fail the sync UX (best-effort, logged)
-- [ ] Unit test with mock HTTP client
-- [ ] Dogfood path works for rtmx-ai/rtmx
+- [x] Heartbeat sent only for managed Sync (not GitHub Issues/Jira adapters alone)
+- [x] Failure to heartbeat does not fail the sync UX (best-effort, logged)
+- [x] Unit test with mock HTTP client
+- [x] Dogfood path works for rtmx-ai/rtmx
 
 ## Files
 
