@@ -24,6 +24,8 @@ var (
 
 	syncURL     string
 	syncToken   string
+	syncOrg     string
+	syncRoom    string
 	syncSet     []string
 	syncPull    bool
 	syncPush    bool
@@ -83,21 +85,26 @@ func (r *SyncResult) Summary() string {
 
 var syncCmd = &cobra.Command{
 	Use:   "sync",
-	Short: "Synchronize RTM with external services",
-	Long: `Synchronize requirements with GitHub Issues or Jira tickets.
+	Short: "Synchronize RTM with Sync rooms or external trackers",
+	Long: `Join a managed Sync room, or sync with GitHub Issues / Jira.
 
-Supports bidirectional sync with conflict resolution strategies.
+Hosted Sync (default after rtmx login):
+  rtmx sync
 
-With --sync-url, synchronizes with an rtmx-sync collaboration room instead
-of a tracker. The room is a shared view of the RTM; the CSV stays the source
-of truth on disk.
+Self-hosted: pass your host — the client adds wss://:
+  rtmx sync --sync-url sync.example.com/sync/acme/main
+
+Tracker adapters still use --service with --import / --export / --bidirectional.
 
 Examples:
-  # Join a room and take the shared state
-  rtmx sync --sync-url wss://sync.example.com/sync/acme/mvp --token $RTMX_SYNC_TOKEN --pull
+  # Managed Sync after login (defaults to --pull)
+  rtmx sync
+
+  # Self-hosted room (no wss:// prefix)
+  rtmx sync --sync-url sync.example.com/sync/acme/mvp --pull
 
   # Publish one status change to the room
-  rtmx sync --sync-url wss://sync.example.com/sync/acme/mvp --set REQ-DEMO-001=COMPLETE
+  rtmx sync --set REQ-DEMO-001=COMPLETE
 
   # Import issues from GitHub
   rtmx sync --service github --import
@@ -123,7 +130,11 @@ func init() {
 	syncCmd.Flags().BoolVar(&syncPreferRemote, "prefer-remote", false, "service wins on conflicts")
 
 	syncCmd.Flags().StringVar(&syncURL, "sync-url", os.Getenv("RTMX_SYNC_URL"),
-		"rtmx-sync room to join, e.g. wss://sync.example.com/sync/acme/mvp")
+		"rtmx-sync room URL (scheme optional; managed Sync omits this)")
+	syncCmd.Flags().StringVar(&syncOrg, "org", os.Getenv("RTMX_SYNC_ORG"),
+		"organization slug for managed Sync when multiple orgs exist")
+	syncCmd.Flags().StringVar(&syncRoom, "room", envOr("RTMX_SYNC_ROOM", "main"),
+		"room name for managed Sync (default main)")
 	syncCmd.Flags().StringVar(&syncToken, "token", "",
 		"API key or session token for the room (or set RTMX_SYNC_TOKEN)")
 	syncCmd.Flags().StringArrayVar(&syncSet, "set", nil,
@@ -135,8 +146,27 @@ func init() {
 	rootCmd.AddCommand(syncCmd)
 }
 
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
 func runSync(cmd *cobra.Command, args []string) error {
+	wantRoom := syncURL != "" || len(syncSet) > 0 || syncPull || syncPush ||
+		(!syncImport && !syncExport && !syncBidirect)
+	if wantRoom && syncURL == "" && !syncImport && !syncExport && !syncBidirect {
+		resolved, err := resolveManagedRoomURL()
+		if err != nil {
+			return err
+		}
+		syncURL = resolved
+	}
 	if syncURL != "" {
+		if !syncPull && !syncPush && len(syncSet) == 0 {
+			syncPull = true // seamless managed default
+		}
 		cfg, err := config.LoadFromDir(".")
 		if err != nil {
 			cfg = config.DefaultConfig()

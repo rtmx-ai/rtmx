@@ -1,0 +1,8 @@
+#!/bin/sh
+# Demo stub: pretend there are no open PRs so `rtmx next` stays quiet.
+if [ "$1" = "pr" ] && [ "$2" = "list" ]; then
+	echo '[]'
+	exit 0
+fi
+echo "gh stub: unsupported $*" >&2
+exit 1

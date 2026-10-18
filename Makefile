@@ -75,13 +75,15 @@ build-all:
 	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-darwin-arm64 ./cmd/rtmx
 	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-windows-amd64.exe ./cmd/rtmx
 
-## gifs: Generate terminal GIF demos from VHS tapes
+## gifs: Record terminal GIF demos in Docker (no host paths)
 gifs:
-	@command -v vhs >/dev/null 2>&1 || { echo "vhs not found. Install: brew install charmbracelet/tap/vhs"; exit 1; }
-	vhs docs/tapes/workflow.tape
-	vhs docs/tapes/commands.tape
-	vhs docs/tapes/agent-loop.tape
-	vhs docs/tapes/mcp-setup.tape
+	@command -v docker >/dev/null 2>&1 || { echo "docker required for reproducible demos"; exit 1; }
+	bash docs/tapes/record.sh
+
+## gifs-site: Record GIFs and rebuild rtmx.ai product demo MP4
+gifs-site:
+	@command -v docker >/dev/null 2>&1 || { echo "docker required for reproducible demos"; exit 1; }
+	RTMX_SITE_DEMO="$(CURDIR)/../rtmx.ai/public/demo/rtmx-product-demo.mp4" bash docs/tapes/record.sh
 
 ## parity: Run parity tests against Python CLI
 parity:

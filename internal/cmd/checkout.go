@@ -131,7 +131,7 @@ func runCheckout(cmd *cobra.Command, args []string) error {
 	cmd.Println()
 	cmd.Println("Complete payment in Stripe. Entitlement applies after the")
 	cmd.Println("webhook lands — this command does not grant write access by itself.")
-	cmd.Println("Then: rtmx sync --sync-url wss://sync.rtmx.ai/sync/<org>/<room> --pull")
+	cmd.Println("Then: rtmx sync")
 	return nil
 }
 

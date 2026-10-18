@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "rtmx": {
+      "command": "/usr/local/bin/rtmx",
+      "args": ["mcp-server", "--stdio"],
+      "cwd": "/Users/ryan/code/github.com/rtmx-ai"
+    },
+    "rtmx-sync": {
+      "command": "/usr/local/bin/rtmx",
+      "args": ["mcp-server", "--stdio"],
+      "cwd": "/Users/ryan/code/github.com/rtmx-ai/rtmx-sync"
+    },
+    "rtmx-site": {
+      "command": "/usr/local/bin/rtmx",
+      "args": ["mcp-server", "--stdio"],
+      "cwd": "/Users/ryan/code/github.com/rtmx-ai/rtmx.ai"
+    }
+  }
+}

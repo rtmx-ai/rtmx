@@ -298,10 +298,17 @@ func decodeRequirement(value any) map[string]string {
 	return fields
 }
 
-// normalizeRoomURL accepts http(s) as a convenience and requires a room path.
+// normalizeRoomURL accepts http(s) or a bare host/path (no scheme) and
+// requires a room path. Bare hosts default to wss:// so users never paste
+// the scheme for managed or self-hosted Sync.
 func normalizeRoomURL(raw string) (string, error) {
-	if strings.TrimSpace(raw) == "" {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
 		return "", errors.New("sync URL is empty")
+	}
+	// host/path without scheme → wss://host/path
+	if !strings.Contains(raw, "://") {
+		raw = "wss://" + strings.TrimPrefix(raw, "//")
 	}
 	parsed, err := url.Parse(raw)
 	if err != nil {
@@ -315,7 +322,7 @@ func normalizeRoomURL(raw string) (string, error) {
 	case "https":
 		parsed.Scheme = "wss"
 	default:
-		return "", fmt.Errorf("sync URL must be ws:// or wss://, got %q", parsed.Scheme)
+		return "", fmt.Errorf("sync URL must be ws:// or wss:// (or omit the scheme), got %q", parsed.Scheme)
 	}
 
 	if strings.Trim(parsed.Path, "/") == "" {

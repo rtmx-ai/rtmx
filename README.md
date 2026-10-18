@@ -1,6 +1,6 @@
 # RTMX
 
-**Track what you built, what's tested, and what's next -- from the terminal.**
+**The open source client for [RTMX Sync](https://rtmx.ai/sync) — what comes after Git for humans and agents.**
 
 [![CI](https://github.com/rtmx-ai/rtmx/actions/workflows/ci.yml/badge.svg)](https://github.com/rtmx-ai/rtmx/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/rtmx-ai/rtmx/badge.svg?branch=main)](https://coveralls.io/github/rtmx-ai/rtmx?branch=main)
@@ -9,10 +9,14 @@
 
 ![RTMX workflow](docs/assets/rtmx-workflow.gif)
 
-RTMX is a CLI that manages requirements traceability as a CSV file in git.
-Every requirement has an ID, a spec, and linked tests. Status is derived
-from test results -- not manually updated. AI agents query your requirements
-via MCP and build against your intent, not their own.
+Git versioned the file. Sync is the room: a live matrix of intent where humans
+and agents claim work, converge, and ship. This repo is the Apache 2.0 CLI and
+MCP surface — how you enter that room. Local CSV-in-git still works offline;
+Sync is how teams stay live.
+
+**[Explore Sync →](https://rtmx.ai/sync)** ·
+**[Plans](https://rtmx.ai/pricing)** ·
+[Read the backstory](https://rtmx.ai/blog/show-hn-rtmx)
 
 ## Install
 
@@ -24,10 +28,19 @@ go install github.com/rtmx-ai/rtmx/cmd/rtmx@latest
 
 Or download a binary from [releases](https://github.com/rtmx-ai/rtmx/releases).
 
+```bash
+rtmx login
+rtmx sync
+```
+
+Self-hosted: `rtmx sync --sync-url sync.example.com/sync/acme/main` (the client adds `wss://`).
+
 ## What It Does
 
 | Command | What it does |
 |---------|-------------|
+| `rtmx sync` | Join a Sync room (hosted or self-managed) |
+| `rtmx login` / `checkout` | Managed auth and Team Checkout |
 | `rtmx status` | Completion dashboard across all requirements and phases |
 | `rtmx next --one` | Pick the highest-priority unblocked requirement |
 | `rtmx verify` | Run tests and cross-reference against requirements |
@@ -145,14 +158,14 @@ No generic `run_cli` tool. Mutations require `agent_id`.
 
 ![RTMX MCP setup](docs/assets/rtmx-mcp-setup.gif)
 
-**Claude Code** -- one command:
-```bash
-claude mcp add rtmx -- rtmx mcp-server --stdio
-```
-
 **Cursor** -- add to `.cursor/mcp.json`:
 ```json
 {"mcpServers":{"rtmx":{"command":"rtmx","args":["mcp-server","--stdio"]}}}
+```
+
+**Claude Code** -- one command:
+```bash
+claude mcp add rtmx -- rtmx mcp-server --stdio
 ```
 
 ## Test Verification
