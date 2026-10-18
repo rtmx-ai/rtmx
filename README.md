@@ -158,14 +158,14 @@ No generic `run_cli` tool. Mutations require `agent_id`.
 
 ![RTMX MCP setup](docs/assets/rtmx-mcp-setup.gif)
 
-**Claude Code** -- one command:
-```bash
-claude mcp add rtmx -- rtmx mcp-server --stdio
-```
-
 **Cursor** -- add to `.cursor/mcp.json`:
 ```json
 {"mcpServers":{"rtmx":{"command":"rtmx","args":["mcp-server","--stdio"]}}}
+```
+
+**Claude Code** -- one command:
+```bash
+claude mcp add rtmx -- rtmx mcp-server --stdio
 ```
 
 ## Test Verification

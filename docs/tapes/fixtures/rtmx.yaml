@@ -1,0 +1,5 @@
+project:
+  name: rtmx-demo
+  version: "0.1.0"
+database:
+  path: .rtmx/database.csv

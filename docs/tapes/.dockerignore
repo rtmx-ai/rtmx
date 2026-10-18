@@ -1,0 +1,4 @@
+# Prefer root .dockerignore when present; this documents intent for tape builds.
+**/*
+!bin/rtmx
+!docs/tapes/

@@ -1,3 +1,3 @@
-#!/bin/bash
-# List RTMX MCP tools via stdio transport
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | rtmx mcp-server --stdio 2>/dev/null | jq -r '.result.tools[].name'
+#!/bin/sh
+# Prefer list-rtmx-mcp-tools inside the recording image (make gifs).
+exec "$(dirname "$0")/list-rtmx-mcp-tools"

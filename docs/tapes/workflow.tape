@@ -1,5 +1,5 @@
-# RTMX workflow demo -- dogfooded on itself, 233 requirements
-# Run with: vhs docs/tapes/workflow.tape
+# RTMX workflow demo — status → next → verify (matches SITE-018 / LAUNCH-003)
+# Record only via: make gifs  (Docker; no host paths)
 # Output: docs/assets/rtmx-workflow.gif
 
 Output docs/assets/rtmx-workflow.gif
@@ -13,22 +13,17 @@ Set Padding 16
 Set TypingSpeed 50ms
 Set CursorBlink false
 
-# Show status -- the hero shot
+# Hero: completion dashboard
 Type "rtmx status"
 Enter
-Sleep 5s
+Sleep 4s
 
-# Health check -- all green
-Type "rtmx health"
+# Pick the next unblocked requirement
+Type "rtmx next --one"
 Enter
 Sleep 4s
 
-# Dependency graph -- top connected requirements
-Type "rtmx deps"
-Enter
-Sleep 4s
-
-# Context -- what the project looks like
-Type "rtmx context"
+# Cross-check tests against the RTM (fixture results — no Go toolchain in VHS image)
+Type "rtmx verify --results results.json"
 Enter
 Sleep 5s
