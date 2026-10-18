@@ -9,10 +9,10 @@
 
 ![RTMX workflow](docs/assets/rtmx-workflow.gif)
 
-Git versioned the file. Sync lives the room: one multiplayer matrix of intent
-where humans and agents claim, converge, and ship. This repo is the Apache 2.0
-CLI and MCP surface — how you enter that room. Local CSV-in-git still works
-offline; Sync is how teams stay live.
+Git versioned the file. Sync is the room: a live matrix of intent where humans
+and agents claim work, converge, and ship. This repo is the Apache 2.0 CLI and
+MCP surface — how you enter that room. Local CSV-in-git still works offline;
+Sync is how teams stay live.
 
 **[Explore Sync →](https://rtmx.ai/sync)** ·
 **[Plans](https://rtmx.ai/pricing)** ·
@@ -158,14 +158,14 @@ No generic `run_cli` tool. Mutations require `agent_id`.
 
 ![RTMX MCP setup](docs/assets/rtmx-mcp-setup.gif)
 
-**Claude Code** -- one command:
-```bash
-claude mcp add rtmx -- rtmx mcp-server --stdio
-```
-
 **Cursor** -- add to `.cursor/mcp.json`:
 ```json
 {"mcpServers":{"rtmx":{"command":"rtmx","args":["mcp-server","--stdio"]}}}
+```
+
+**Claude Code** -- one command:
+```bash
+claude mcp add rtmx -- rtmx mcp-server --stdio
 ```
 
 ## Test Verification

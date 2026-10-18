@@ -1,5 +1,5 @@
 # RTMX additional commands demo
-# Run with: vhs docs/tapes/commands.tape
+# Record only via: make gifs  (Docker; no host paths)
 # Output: docs/assets/rtmx-commands.gif
 
 Output docs/assets/rtmx-commands.gif
@@ -13,22 +13,14 @@ Set Padding 16
 Set TypingSpeed 50ms
 Set CursorBlink false
 
-# Security audit
-Type "rtmx security"
+Type "rtmx health"
 Enter
 Sleep 4s
 
-# Release scoping
-Type "rtmx release scope v1.0.0"
+Type "rtmx backlog"
 Enter
 Sleep 4s
 
-# Status grouped by version
-Type "rtmx status --by-version"
-Enter
-Sleep 4s
-
-# JSON output for AI agents
 Type "rtmx next --one --json"
 Enter
 Sleep 4s

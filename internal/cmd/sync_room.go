@@ -88,7 +88,25 @@ func runRoomSync(cfg *config.Config) error {
 		}
 		return NewExitError(1, "room sync completed with errors")
 	}
+
+	// Best-effort adoption registry heartbeat for managed Sync (REQ-GO-085).
+	reportManagedAdoptionHeartbeat(syncURL, token)
 	return nil
+}
+
+// reportManagedAdoptionHeartbeat POSTs to Sync adoption registry when the
+// room is on the managed host. Failures are logged and never fail the sync.
+func reportManagedAdoptionHeartbeat(roomURL, token string) {
+	managedBase := resolveManagedSyncURL()
+	tokens, err := auth.LoadStoredTokens(resolveTokenPath())
+	if err == nil && tokens != nil && strings.TrimSpace(tokens.SyncURL) != "" {
+		managedBase = strings.TrimRight(tokens.SyncURL, "/")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := syncpkg.BestEffortAdoptionHeartbeat(ctx, nil, roomURL, token, managedBase, "."); err != nil {
+		fmt.Printf("  %s!%s adoption heartbeat skipped: %v\n", output.Yellow, output.Reset, err)
+	}
 }
 
 // loadOrCreateDatabase tolerates a first sync into an empty workspace.
