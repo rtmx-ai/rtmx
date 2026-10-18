@@ -243,14 +243,14 @@ func TestVhsGifGeneration(t *testing.T) {
 		}
 	})
 
-	// AC3: Tapes exercise core rtmx commands
+	// AC3: Tapes exercise core rtmx commands (REQ-LAUNCH-003: status/next/verify)
 	t.Run("tapes_exercise_commands", func(t *testing.T) {
 		content, err := os.ReadFile(filepath.Join(projectRoot, "docs", "tapes", "workflow.tape"))
 		if err != nil {
 			t.Fatal(err)
 		}
 		tape := string(content)
-		for _, cmd := range []string{"rtmx status", "rtmx health"} {
+		for _, cmd := range []string{"rtmx status", "rtmx next", "rtmx verify"} {
 			if !strings.Contains(tape, cmd) {
 				t.Errorf("workflow tape must exercise %q", cmd)
 			}
@@ -282,8 +282,11 @@ func TestVhsGifGeneration(t *testing.T) {
 		if !strings.Contains(tape, "rtmx-mcp-setup.gif") {
 			t.Error("tape output must target rtmx-mcp-setup.gif")
 		}
-		if !strings.Contains(tape, "mcp-server --stdio") {
-			t.Error("tape must show stdio setup")
+		if !strings.Contains(tape, ".cursor/mcp.json") {
+			t.Error("tape must show Cursor MCP config")
+		}
+		if !strings.Contains(tape, "list-rtmx-mcp-tools") {
+			t.Error("tape must list MCP tools over stdio")
 		}
 	})
 
