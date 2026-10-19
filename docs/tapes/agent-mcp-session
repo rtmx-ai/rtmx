@@ -1,0 +1,90 @@
+#!/bin/sh
+# Demo: what Cursor (or any MCP client) does *inside the agent* — not shell cat/list.
+# Calls RTMX MCP tools over stdio (same transport as .cursor/mcp.json).
+set -eu
+
+# Prefer Go CLI MCP (venv Python also has a mcp-server stub that breaks tools/call).
+is_go_mcp() {
+	bin="$1"
+	help=$("$bin" mcp-server --help 2>&1 || true)
+	printf '%s' "$help" | grep -q 'Model Context Protocol' || return 1
+	printf '%s' "$help" | grep -q '\[OPTIONS\]' && return 1
+	return 0
+}
+
+find_rtmx() {
+	here=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+	repo_bin=""
+	case "$here" in
+		*/docs/tapes) repo_bin="$(CDPATH= cd -- "$here/../.." && pwd)/bin/rtmx" ;;
+	esac
+	for c in "${RTMX_BIN:-}" "$repo_bin" /usr/local/bin/rtmx rtmx; do
+		[ -n "$c" ] || continue
+		[ -x "$c" ] || command -v "$c" >/dev/null 2>&1 || continue
+		bin=$(command -v "$c" 2>/dev/null || echo "$c")
+		if is_go_mcp "$bin"; then
+			printf '%s\n' "$bin"
+			return 0
+		fi
+	done
+	printf '%s\n' "${repo_bin:-rtmx}"
+}
+
+RTMX="$(find_rtmx)"
+
+mcp_call() {
+	name="$1"
+	args="$2"
+	if [ -z "$args" ]; then
+		args='{}'
+	fi
+	req=$(jq -nc --arg n "$name" --argjson a "$args" \
+		'{jsonrpc:"2.0",id:1,method:"tools/call",params:{name:$n,arguments:$a}}')
+	raw=$(printf '%s\n' "$req" | "$RTMX" mcp-server --stdio 2>/dev/null || true)
+	if [ -z "$raw" ]; then
+		printf '%s\n' "(no response)"
+		return 0
+	fi
+	printf '%s\n' "$raw" | jq -c '
+		if .result.content then
+			(.result.content[0].text | fromjson? // .result.content[0].text)
+		elif .error then .error
+		else .
+		end
+	' 2>/dev/null || printf '%s\n' "$raw"
+}
+
+echo "[Cursor · MCP rtmx]"
+echo ""
+echo "User: What's next on the backlog?"
+echo ""
+echo "→ MCP next"
+NEXT="$(mcp_call next '{"one":true}')"
+printf '← %s\n' "$NEXT" | head -c 280
+echo ""
+echo ""
+
+REQ="$(printf '%s' "$NEXT" | jq -r '
+  .delivery.req_id // .req_id // .webs[0].req_id // .items[0].req_id // empty
+' 2>/dev/null || true)"
+if [ -z "$REQ" ] || [ "$REQ" = "null" ]; then
+	REQ="$("$RTMX" next --one --json 2>/dev/null | jq -r '.req_id // .id // empty' || true)"
+fi
+if [ -z "$REQ" ] || [ "$REQ" = "null" ]; then
+	REQ="REQ-GO-007"
+fi
+
+echo "User: Claim it as the Cursor agent and show status."
+echo ""
+echo "→ MCP claim  req_id=$REQ  agent_id=cursor"
+CLAIM="$(mcp_call claim "{\"req_id\":\"${REQ}\",\"agent_id\":\"cursor\"}")"
+printf '← %s\n' "$CLAIM" | head -c 220
+echo ""
+echo ""
+echo "→ MCP status"
+STATUS="$(mcp_call status '{}')"
+SUMMARY=$(printf '%s' "$STATUS" | jq -c '{complete,missing,completion_pct,total} // .' 2>/dev/null || printf '%s' "$STATUS")
+printf '← %s\n' "$SUMMARY" | head -c 220
+echo ""
+echo ""
+echo "Done — agent used MCP tools; config stays in .cursor/mcp.json (not shown here)."
