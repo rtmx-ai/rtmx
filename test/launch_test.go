@@ -282,11 +282,15 @@ func TestVhsGifGeneration(t *testing.T) {
 		if !strings.Contains(tape, "rtmx-mcp-setup.gif") {
 			t.Error("tape output must target rtmx-mcp-setup.gif")
 		}
-		if !strings.Contains(tape, ".cursor/mcp.json") {
-			t.Error("tape must show Cursor MCP config")
+		// Agent session via MCP — not shell cat of mcp.json / tools/list
+		if !strings.Contains(tape, "agent-mcp-session") {
+			t.Error("tape must run agent-mcp-session (in-agent MCP tool use)")
 		}
-		if !strings.Contains(tape, "list-rtmx-mcp-tools") {
-			t.Error("tape must list MCP tools over stdio")
+		if strings.Contains(tape, "cat .cursor/mcp.json") {
+			t.Error("tape must not cat mcp.json; config belongs in README")
+		}
+		if strings.Contains(tape, "list-rtmx-mcp-tools") {
+			t.Error("tape must not list tools in the shell; agents call tools")
 		}
 	})
 

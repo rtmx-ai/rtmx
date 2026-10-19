@@ -156,14 +156,17 @@ Spine tools (status/backlog/next/claim/…) plus a scientific cycle surface
 `delivery_check`, `trade_*`). Prefer these over shelling arbitrary CLI.
 No generic `run_cli` tool. Mutations require `agent_id`.
 
-![RTMX MCP setup](docs/assets/rtmx-mcp-setup.gif)
+Agent session via MCP (next → claim → status). One-time client config below — the
+GIF is the agent calling tools, not a human inspecting `mcp.json`.
 
-**Cursor** -- add to `.cursor/mcp.json`:
+![RTMX MCP agent session](docs/assets/rtmx-mcp-setup.gif)
+
+**Cursor** — once, add to `.cursor/mcp.json` (then the agent uses the tools):
 ```json
 {"mcpServers":{"rtmx":{"command":"rtmx","args":["mcp-server","--stdio"]}}}
 ```
 
-**Claude Code** -- one command:
+**Claude Code** — once:
 ```bash
 claude mcp add rtmx -- rtmx mcp-server --stdio
 ```

@@ -1,3 +1,3 @@
 #!/bin/sh
-# Prefer list-rtmx-mcp-tools inside the recording image (make gifs).
+# Dev helper only — not used in the VHS demo (see agent-mcp-session).
 exec "$(dirname "$0")/list-rtmx-mcp-tools"

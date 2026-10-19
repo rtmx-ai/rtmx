@@ -5,9 +5,10 @@ USER root
 RUN apt-get update && apt-get install -y --no-install-recommends jq ca-certificates \
 	&& rm -rf /var/lib/apt/lists/*
 COPY bin/rtmx /usr/local/bin/rtmx
+COPY docs/tapes/agent-mcp-session /usr/local/bin/agent-mcp-session
 COPY docs/tapes/list-rtmx-mcp-tools /usr/local/bin/list-rtmx-mcp-tools
 COPY docs/tapes/stubs/gh /usr/local/bin/gh
-RUN chmod +x /usr/local/bin/rtmx /usr/local/bin/list-rtmx-mcp-tools /usr/local/bin/gh
+RUN chmod +x /usr/local/bin/rtmx /usr/local/bin/agent-mcp-session /usr/local/bin/list-rtmx-mcp-tools /usr/local/bin/gh
 
 ENV HOME=/home/demo \
 	USER=demo
