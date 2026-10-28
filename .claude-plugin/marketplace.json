@@ -1,0 +1,24 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "rtmx",
+  "description": "First-party RTMX Claude Code plugins — requirements traceability MCP and agent-loop skills.",
+  "owner": {
+    "name": "RTMX",
+    "email": "dev@rtmx.ai"
+  },
+  "plugins": [
+    {
+      "name": "rtmx",
+      "source": "./plugins/claude-rtmx",
+      "description": "RTMX MCP tools (status, backlog, next, claim, verify, …) plus agent-loop and PATH prerequisite skills. Requires rtmx on PATH.",
+      "version": "1.9.0",
+      "author": {
+        "name": "RTMX",
+        "email": "dev@rtmx.ai"
+      },
+      "homepage": "https://github.com/rtmx-ai/rtmx/tree/main/plugins/claude-rtmx",
+      "category": "development",
+      "keywords": ["rtmx", "requirements", "mcp", "traceability"]
+    }
+  ]
+}

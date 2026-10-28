@@ -17,14 +17,20 @@ import (
 
 const DefaultManagedSyncURL = "https://sync.rtmx.ai"
 
+// ErrSilentUnsupported is returned when prompt=none is not available for the
+// provider (e.g. GitHub OAuth Apps). Callers should fall back to interactive login.
+var ErrSilentUnsupported = fmt.Errorf("silent OAuth not supported for this provider; run interactive login")
+
 // ManagedLoginConfig configures zero-config managed OAuth login.
 type ManagedLoginConfig struct {
 	SyncURL      string
-	Provider     string // github (default) or google
+	Provider     string // github (default), google, or microsoft
 	CallbackPort int    // 0 = ephemeral
 	Browser      BrowserOpener
 	HTTPClient   HTTPClient
 	TokenPath    string
+	// Silent requests Sync prompt=none (REQ-MONO-053c). Fail-closed on 409.
+	Silent bool
 }
 
 // ManagedLoginResult is returned after a successful loopback handoff.
@@ -91,6 +97,9 @@ func ManagedLogin(ctx context.Context, cfg ManagedLoginConfig) (*ManagedLoginRes
 		url.PathEscape(provider),
 		url.QueryEscape(cliRedirect),
 	)
+	if cfg.Silent {
+		startURL += "&prompt=none"
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, startURL, nil)
 	if err != nil {
 		return nil, err
@@ -103,6 +112,9 @@ func ManagedLogin(ctx context.Context, cfg ManagedLoginConfig) (*ManagedLoginRes
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
+	}
+	if cfg.Silent && resp.StatusCode == http.StatusConflict {
+		return nil, fmt.Errorf("%w (%s)", ErrSilentUnsupported, provider)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("managed login start failed (%d): %s", resp.StatusCode, truncate(string(body), 200))
@@ -136,13 +148,14 @@ func ManagedLogin(ctx context.Context, cfg ManagedLoginConfig) (*ManagedLoginRes
 
 	tokens := &TokenSet{
 		AccessToken:  handoff.sessionToken,
+		RefreshToken: handoff.refreshToken,
 		TokenType:    "Bearer",
 		Email:        handoff.email,
 		DisplayName:  handoff.displayName,
 		SyncURL:      syncURL,
 		Mode:         "managed",
 		Provider:     provider,
-		ExpiresAt:    0, // managed sessions are opaque; refresh via re-login
+		ExpiresAt:    0, // managed sessions are opaque; renew via refresh_token or silent OAuth
 	}
 	client := &OIDCClient{TokenStorePath: tokenPath}
 	if err := client.SaveTokens(tokens); err != nil {
@@ -153,6 +166,7 @@ func ManagedLogin(ctx context.Context, cfg ManagedLoginConfig) (*ManagedLoginRes
 
 type managedHandoff struct {
 	sessionToken string
+	refreshToken string
 	email        string
 	displayName  string
 	err          error
@@ -186,10 +200,87 @@ func managedCallbackHandler(ch chan<- managedHandoff) http.Handler {
 		_, _ = w.Write([]byte("<html><body><h1>Signed in to RTMX</h1><p>You can close this window and return to the CLI.</p></body></html>"))
 		ch <- managedHandoff{
 			sessionToken: token,
+			refreshToken: q.Get("refresh_token"),
 			email:        q.Get("email"),
 			displayName:  q.Get("display_name"),
 		}
 	})
+}
+
+// RefreshManagedSession exchanges a stored managed refresh_token for a new
+// session via POST /auth/refresh (REQ-MONO-057c). Rotates the refresh token.
+func RefreshManagedSession(ctx context.Context, syncURL, refreshToken, tokenPath string) (*TokenSet, error) {
+	if strings.TrimSpace(refreshToken) == "" {
+		return nil, fmt.Errorf("no managed refresh token")
+	}
+	syncURL = strings.TrimRight(strings.TrimSpace(syncURL), "/")
+	if syncURL == "" {
+		return nil, fmt.Errorf("sync URL required")
+	}
+	if tokenPath == "" {
+		var err error
+		tokenPath, err = DefaultTokenStorePath()
+		if err != nil {
+			return nil, err
+		}
+	}
+	body := fmt.Sprintf(`{"refresh_token":%q}`, refreshToken)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, syncURL+"/auth/refresh", strings.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("refresh request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, fmt.Errorf("refresh rejected (401): %s", strings.TrimSpace(string(raw)))
+	}
+	if resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("refresh failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	var out struct {
+		SessionToken string `json:"session_token"`
+		RefreshToken string `json:"refresh_token"`
+		Email        string `json:"email"`
+		DisplayName  string `json:"display_name"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, fmt.Errorf("invalid refresh response: %w", err)
+	}
+	if strings.TrimSpace(out.SessionToken) == "" {
+		return nil, fmt.Errorf("refresh response missing session_token")
+	}
+	prev, _ := LoadStoredTokens(tokenPath)
+	provider := ""
+	if prev != nil {
+		provider = prev.Provider
+		if out.Email == "" {
+			out.Email = prev.Email
+		}
+		if out.DisplayName == "" {
+			out.DisplayName = prev.DisplayName
+		}
+	}
+	tokens := &TokenSet{
+		AccessToken:  out.SessionToken,
+		RefreshToken: out.RefreshToken,
+		TokenType:    "Bearer",
+		Email:        out.Email,
+		DisplayName:  out.DisplayName,
+		SyncURL:      syncURL,
+		Mode:         "managed",
+		Provider:     provider,
+		ExpiresAt:    0,
+	}
+	client := &OIDCClient{TokenStorePath: tokenPath}
+	if err := client.SaveTokens(tokens); err != nil {
+		return nil, err
+	}
+	return tokens, nil
 }
 
 func truncate(s string, n int) string {

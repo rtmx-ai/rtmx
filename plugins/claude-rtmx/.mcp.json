@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "rtmx": {
+      "command": "rtmx",
+      "args": ["mcp-server", "--stdio"]
+    }
+  }
+}

@@ -12,20 +12,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// REQ-MONO-026: SaaS connection OAuth from the CLI (Asana first).
+// REQ-MONO-026 / REQ-MONO-038b / REQ-MONO-038c: SaaS connection OAuth.
 
 var connectBrowser = openSystemBrowser
 
 var connectCmd = &cobra.Command{
 	Use:   "connect [provider]",
 	Short: "Connect a project-management SaaS via OAuth",
-	Long: `Authenticate RTMX against a project-management SaaS (Asana first).
+	Long: `Authenticate RTMX against a project-management SaaS (Asana, Jira, Monday, GitLab, GitHub Issues).
 
 Opens a browser OAuth flow mediated by the managed sync host.
 List connections with: rtmx connections
 
-Example:
+Forge org affiliation (Prove with GitHub) is separate — use Organizations on rtmx.ai.
+
+Examples:
   rtmx connect asana
+  rtmx connect jira
+  rtmx connect monday
+  rtmx connect gitlab
+  rtmx connect github
 `,
 	Args: cobra.ExactArgs(1),
 	RunE: runConnect,
@@ -52,8 +58,10 @@ func managedSyncHTTPBase() string {
 
 func runConnect(cmd *cobra.Command, args []string) error {
 	provider := strings.ToLower(strings.TrimSpace(args[0]))
-	if provider != "asana" {
-		return fmt.Errorf("unsupported provider %q (supported: asana)", provider)
+	switch provider {
+	case "asana", "jira", "monday", "gitlab", "github":
+	default:
+		return fmt.Errorf("unsupported provider %q (supported: asana, jira, monday, gitlab, github)", provider)
 	}
 
 	tok, err := auth.LoadStoredTokens("")
@@ -62,12 +70,18 @@ func runConnect(cmd *cobra.Command, args []string) error {
 	}
 
 	base := managedSyncHTTPBase()
+	// Browser completes on the marketing site; sync stores tokens via /callback.
+	redirectURI := "https://rtmx.ai/account"
+	if v := strings.TrimSpace(os.Getenv("RTMX_CONNECT_REDIRECT_URI")); v != "" {
+		redirectURI = v
+	}
 	body := map[string]string{
-		"redirect_uri": base + "/connections/asana/callback-browser",
+		"redirect_uri": redirectURI,
 		"cli_redirect": "http://127.0.0.1:8765/callback",
 	}
 	payload, _ := json.Marshal(body)
-	req, err := http.NewRequest(http.MethodPost, base+"/connections/asana/start", strings.NewReader(string(payload)))
+	startPath := fmt.Sprintf("/connections/%s/start", provider)
+	req, err := http.NewRequest(http.MethodPost, base+startPath, strings.NewReader(string(payload)))
 	if err != nil {
 		return err
 	}
@@ -81,10 +95,21 @@ func runConnect(cmd *cobra.Command, args []string) error {
 	defer func() { _ = resp.Body.Close() }()
 	raw, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusServiceUnavailable {
-		return fmt.Errorf("asana OAuth is not configured on the sync host (set RTMX_ASANA_CLIENT_ID)")
+		envHint := "RTMX_ASANA_CLIENT_ID"
+		switch provider {
+		case "jira":
+			envHint = "RTMX_JIRA_CLIENT_ID"
+		case "monday":
+			envHint = "RTMX_MONDAY_CLIENT_ID"
+		case "gitlab":
+			envHint = "RTMX_GITLAB_CLIENT_ID"
+		case "github":
+			envHint = "RTMX_GITHUB_ISSUES_CLIENT_ID"
+		}
+		return fmt.Errorf("%s OAuth is not configured on the sync host (set %s)", provider, envHint)
 	}
 	if resp.StatusCode >= 300 {
-		return fmt.Errorf("could not start Asana OAuth (%d): %s", resp.StatusCode, strings.TrimSpace(string(raw)))
+		return fmt.Errorf("could not start %s OAuth (%d): %s", provider, resp.StatusCode, strings.TrimSpace(string(raw)))
 	}
 	var started struct {
 		AuthorizationURL string `json:"authorization_url"`
@@ -96,7 +121,7 @@ func runConnect(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("sync host returned no authorization_url")
 	}
 
-	cmd.Printf("Open this URL to authorize Asana:\n%s\n", started.AuthorizationURL)
+	cmd.Printf("Open this URL to authorize %s:\n%s\n", provider, started.AuthorizationURL)
 	cmd.Println("After approval, list connections with: rtmx connections")
 	_ = connectBrowser(started.AuthorizationURL)
 	return nil

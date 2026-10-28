@@ -37,6 +37,16 @@ var installCmd = &cobra.Command{
 	Short: "Install RTM-aware prompts into AI agent configs or git hooks",
 	Long: `Inject RTMX context and commands into AI agent configs or git hooks.
 
+Prefer marketplace / emit for MCP tools (same path as end users):
+
+    claude plugin marketplace add rtmx-ai/rtmx && claude plugin install rtmx@rtmx
+    rtmx plugin emit --agents cursor,codex   # offline / air-gapped OK
+    See docs/CLAUDE_MARKETPLACE.md, docs/CURSOR_MARKETPLACE.md, docs/CODEX_MCP.md
+
+This command still injects agent prompt files (and optional hooks). It does
+not replace marketplace install; use it when you need prompt context or when
+marketplace is unavailable.
+
 Supported agents: claude, cursor, copilot, cline, gemini, windsurf, aider,
 amazonq, zed, continue.
 
@@ -1084,39 +1094,19 @@ echo "RTMX workspace setup complete."
 echo "MCP server accessible at http://localhost:8484"
 `
 
-// codexToolDefinition is the tool definition for OpenAI Codex CLI.
-const codexToolDefinition = `{
-  "name": "rtmx",
-  "description": "Requirements traceability management. Query project status, backlog, dependencies, and verify requirements against test evidence.",
-  "tools": [
-    {
-      "name": "rtmx_status",
-      "description": "Show RTM completion status with progress bars and category breakdown.",
-      "command": "rtmx status --json"
-    },
-    {
-      "name": "rtmx_backlog",
-      "description": "Show prioritized backlog of incomplete requirements.",
-      "command": "rtmx backlog --json"
-    },
-    {
-      "name": "rtmx_verify",
-      "description": "Run tests and update requirement status based on results.",
-      "command": "rtmx verify --update --json"
-    },
-    {
-      "name": "rtmx_deps",
-      "description": "Show dependency graph for a requirement.",
-      "command": "rtmx deps --json"
-    },
-    {
-      "name": "rtmx_next",
-      "description": "Show the next highest-priority unblocked requirement.",
-      "command": "rtmx next --one --json"
-    }
-  ]
-}
+// codexMCPInstallNotes replaces the obsolete shell-tool JSON (REQ-MONO-062k).
+// Prefer Codex MCP stdio from the shared agent pack.
+const codexMCPInstallNotes = `# RTMX + OpenAI Codex (MCP)
+
+The legacy templates/codex/rtmx-tools.json shell-tool list is obsolete.
+Use MCP instead (same pack as Claude/Cursor marketplaces):
+
+    codex mcp add rtmx -- rtmx mcp-server --stdio
+    rtmx plugin emit --agents codex
+
+See docs/CODEX_MCP.md.
 `
+
 
 // gastownPluginConfig is the MCP-based plugin config for Gastown.
 const gastownPluginConfig = `{
@@ -1126,7 +1116,7 @@ const gastownPluginConfig = `{
   "transport": {
     "type": "stdio",
     "command": "rtmx",
-    "args": ["mcp-server"]
+    "args": ["mcp-server", "--stdio"]
   },
   "capabilities": {
     "tools": true,
@@ -1185,23 +1175,24 @@ func runCodexInstall(cmd *cobra.Command) error {
 	}
 
 	codexDir := filepath.Join(cwd, "templates", "codex")
-	toolPath := filepath.Join(codexDir, "rtmx-tools.json")
+	notesPath := filepath.Join(codexDir, "README.md")
 
 	if installDryRun {
-		cmd.Printf("  Would create: %s\n", toolPath)
+		cmd.Printf("  Would create: %s\n", notesPath)
 	} else {
 		if err := os.MkdirAll(codexDir, 0755); err != nil {
 			return fmt.Errorf("failed to create templates/codex directory: %w", err)
 		}
-		if err := os.WriteFile(toolPath, []byte(codexToolDefinition), 0644); err != nil {
-			return fmt.Errorf("failed to write rtmx-tools.json: %w", err)
+		if err := os.WriteFile(notesPath, []byte(codexMCPInstallNotes), 0644); err != nil {
+			return fmt.Errorf("failed to write Codex MCP notes: %w", err)
 		}
-		cmd.Printf("  %s %s\n", output.Color("Created:", output.Green), toolPath)
+		cmd.Printf("  %s %s\n", output.Color("Created:", output.Green), notesPath)
 	}
 
 	cmd.Println()
-	cmd.Printf("%s\n", output.Color("Codex tool definition installed", output.Green))
-	cmd.Println("All commands use --json for structured output.")
+	cmd.Printf("%s\n", output.Color("Codex MCP install notes written", output.Green))
+	cmd.Println("One-liner: codex mcp add rtmx -- rtmx mcp-server --stdio")
+	cmd.Println("See docs/CODEX_MCP.md")
 	return nil
 }
 
@@ -1248,15 +1239,8 @@ const geminiCLIExtensionConfig = `{
   "transport": {
     "type": "stdio",
     "command": "rtmx",
-    "args": ["mcp", "serve"]
-  },
-  "tools": [
-    {"name": "rtmx_status", "description": "Show RTM completion status"},
-    {"name": "rtmx_backlog", "description": "Show prioritized backlog"},
-    {"name": "rtmx_next", "description": "Get next claimable requirement"},
-    {"name": "rtmx_claim", "description": "Claim a requirement for work"},
-    {"name": "rtmx_verify", "description": "Verify requirement completion"}
-  ]
+    "args": ["mcp-server", "--stdio"]
+  }
 }
 `
 

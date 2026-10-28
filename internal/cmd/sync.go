@@ -263,7 +263,11 @@ func getAdapter(service string, cfg *config.Config) (adapters.ServiceAdapter, er
 		if !cfg.RTMX.Adapters.GitHub.Enabled {
 			return nil, fmt.Errorf("github adapter not enabled in rtmx.yaml")
 		}
-		return adapters.NewGitHubAdapter(&cfg.RTMX.Adapters.GitHub)
+		// REQ-MONO-046c: vault credential when GITHUB_TOKEN unset.
+		return adapters.NewGitHubAdapter(
+			&cfg.RTMX.Adapters.GitHub,
+			adapters.WithEnvGetter(githubEnvWithVault(os.Getenv)),
+		)
 
 	case "jira":
 		if !cfg.RTMX.Adapters.Jira.Enabled {

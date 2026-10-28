@@ -84,6 +84,7 @@ var (
 	authProvider  string
 	authSyncURL   string
 	authTokenPath string
+	authSilent    bool
 )
 
 // oidcClientFactory allows tests to inject a mock OIDC client.
@@ -107,11 +108,15 @@ func init() {
 		"Override token store path (default ~/.rtmx/auth/tokens.json)")
 
 	loginCmd.Flags().StringVar(&authProvider, "provider", "github",
-		"OAuth provider: github or google")
+		"OAuth provider: github, google, or microsoft")
 	loginCmd.Flags().StringVar(&authSyncURL, "sync-http-url", "",
 		"Managed sync HTTP base URL (default https://sync.rtmx.ai or $RTMX_SYNC_HTTP_URL)")
 	loginCmd.Flags().StringVar(&authTokenPath, "token-path", "",
 		"Override token store path (default ~/.rtmx/auth/tokens.json)")
+	loginCmd.Flags().BoolVar(&authSilent, "silent", false,
+		"Try silent IdP restore (prompt=none); use --provider google|microsoft (REQ-MONO-053c)")
+	authLoginCmd.Flags().BoolVar(&authSilent, "silent", false,
+		"Try silent IdP restore when --managed (prompt=none)")
 
 	authCmd.AddCommand(authLoginCmd)
 	authCmd.AddCommand(authStatusCmd)
@@ -178,11 +183,22 @@ func runManagedLoginCmd(cmd *cobra.Command, args []string) error {
 	if provider == "" {
 		provider = "github"
 	}
+	if authSilent && (provider == "github" || provider == "") {
+		return fmt.Errorf("silent login requires --provider google or microsoft (GitHub cannot prompt=none)")
+	}
 
-	cmd.Printf("Signing in to managed Sync (%s) via %s...\n", syncURL, provider)
-	cmd.Println("Opening browser for login...")
+	if authSilent {
+		cmd.Printf("Silent sign-in to managed Sync (%s) via %s...\n", syncURL, provider)
+	} else {
+		cmd.Printf("Signing in to managed Sync (%s) via %s...\n", syncURL, provider)
+		cmd.Println("Opening browser for login...")
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	timeout := 5 * time.Minute
+	if authSilent {
+		timeout = 45 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	result, err := managedLoginFunc(ctx, auth.ManagedLoginConfig{
@@ -191,6 +207,7 @@ func runManagedLoginCmd(cmd *cobra.Command, args []string) error {
 		TokenPath:  resolveTokenPath(),
 		Browser:    openSystemBrowser,
 		HTTPClient: nil, // default
+		Silent:     authSilent,
 	})
 	if err != nil {
 		return fmt.Errorf("managed login failed: %w", err)

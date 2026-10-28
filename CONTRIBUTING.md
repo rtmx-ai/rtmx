@@ -33,6 +33,26 @@ Thank you for your interest in contributing to RTMX.
    make lint
    ```
 
+4. **Agent / MCP setup (marketplace-first)** — same path end users use
+   (REQ-MONO-062p). Prefer marketplace or emit over pasting MCP JSON.
+
+   ```bash
+   # Claude Code (first-party marketplace)
+   claude plugin marketplace add rtmx-ai/rtmx   # or: add "$PWD" from this checkout
+   claude plugin install rtmx@rtmx
+
+   # Cursor — deeplink / Marketplace, or local dogfood:
+   # see docs/CURSOR_MARKETPLACE.md and plugins/cursor-rtmx/README.md
+
+   # Codex / offline / air-gapped (no marketplace needed)
+   rtmx plugin emit --agents claude,cursor,codex
+   # or: codex mcp add rtmx -- rtmx mcp-server --stdio
+   ```
+
+   Requires `rtmx` on `PATH` (`brew install rtmx-ai/tap/rtmx`). Prompt-only
+   `rtmx install --agents …` still works offline; it should point contributors
+   at marketplace when available.
+
 ## Code Style
 
 - `go fmt` and `goimports` for formatting (`make fmt`)

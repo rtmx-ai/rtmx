@@ -61,8 +61,15 @@ func NewGitHubAdapter(cfg *config.GitHubAdapterConfig, opts ...AdapterOption) (*
 	}
 
 	token := options.getEnv(tokenEnv)
+	// REQ-MONO-046c: prefer vault-exported token when env PAT is unset.
 	if token == "" {
-		return nil, fmt.Errorf("GitHub token not found. Set %s environment variable", tokenEnv)
+		token = options.getEnv("RTMX_GITHUB_CONNECTION_TOKEN")
+	}
+	if token == "" {
+		return nil, fmt.Errorf(
+			"GitHub token not found. Set %s, or run rtmx connect github and sync while signed in (vault)",
+			tokenEnv,
+		)
 	}
 
 	return &GitHubAdapter{

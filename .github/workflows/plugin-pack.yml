@@ -1,0 +1,87 @@
+name: Plugin pack
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "plugins/**"
+      - "internal/agentpack/**"
+      - "docs/MCP_PUBLIC_CONTRACT.md"
+      - "docs/AGENT_PLUGIN_RELEASE.md"
+      - ".claude-plugin/**"
+      - ".github/workflows/plugin-pack.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "plugins/**"
+      - "internal/agentpack/**"
+      - "docs/MCP_PUBLIC_CONTRACT.md"
+      - "docs/AGENT_PLUGIN_RELEASE.md"
+      - ".claude-plugin/**"
+      - ".github/workflows/plugin-pack.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plugin-pack-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate agent plugin pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@v6.5.0
+        with:
+          go-version: "1.26.9"
+
+      - name: Pack / wrapper parity + manifests
+        run: go test ./internal/agentpack/ -count=1 -v
+
+      - name: Required pack files
+        run: |
+          test -f plugins/rtmx/mcp.json
+          test -f plugins/rtmx/VERSION
+          test -f plugins/claude-rtmx/.claude-plugin/plugin.json
+          test -f plugins/claude-rtmx/.mcp.json
+          test -f plugins/cursor-rtmx/.cursor-plugin/plugin.json
+          test -f plugins/cursor-rtmx/mcp.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          pack = json.loads(Path("plugins/rtmx/mcp.json").read_text())["mcpServers"]["rtmx"]
+          assert pack["command"] == "rtmx" and pack["args"] == ["mcp-server", "--stdio"]
+          for path in [
+              "plugins/claude-rtmx/.mcp.json",
+              "plugins/cursor-rtmx/mcp.json",
+              "internal/agentpack/mcp.json",
+          ]:
+              got = json.loads(Path(path).read_text())["mcpServers"]["rtmx"]
+              assert got == pack, path
+          for path in [
+              "plugins/claude-rtmx/.claude-plugin/plugin.json",
+              "plugins/cursor-rtmx/.cursor-plugin/plugin.json",
+          ]:
+              m = json.loads(Path(path).read_text())
+              assert m.get("name") and m.get("version") and m.get("description"), path
+          print("pack parity OK")
+          PY
+
+      - name: Claude plugin validate (if CLI available)
+        continue-on-error: true
+        run: |
+          if command -v claude >/dev/null 2>&1; then
+            claude plugin validate --strict ./plugins/claude-rtmx
+            claude plugin validate --strict .
+          else
+            echo "claude CLI not installed in CI runner; Go/JSON gates still enforce pack"
+          fi
+
+      - name: Marketplace smoke (REQ-MONO-062r)
+        run: bash scripts/marketplace_smoke.sh

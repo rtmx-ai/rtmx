@@ -161,7 +161,13 @@ go build -ldflags "-X github.com/rtmx-ai/rtmx/internal/cmd.Version=v0.1.0 ..."
 
 RTMX follows semantic versioning (MAJOR.MINOR.PATCH). The public surface
 that determines version bumps is: CLI commands and flags, CSV database
-format, config file format, exit codes, and --json output schema.
+format, config file format, exit codes, --json output schema, and the
+**MCP tool contract** (`rtmx mcp-server --stdio` tool names and input
+schemas — see [docs/MCP_PUBLIC_CONTRACT.md](docs/MCP_PUBLIC_CONTRACT.md)).
+
+Marketplace / agent plugins that wrap MCP **track the CLI minor version**.
+A plugin for `v0.N` must work with CLI `v0.N.*` patches. Breaking MCP
+changes require a CLI **MAJOR** and a coordinated plugin pack bump.
 
 ### MAJOR bump (breaking change)
 
@@ -173,6 +179,8 @@ A major bump is required when any of these change in a non-backward-compatible w
 - Change to exit codes for existing commands
 - Change to --json output schema (field removal, type change, structural change)
 - Removal of a public Go API in pkg/rtmx/
+- Removal or rename of an MCP tool, or incompatible change to a tool’s
+  required inputs / types (marketplace plugins must bump in lockstep)
 
 ### MINOR bump (new feature, backward compatible)
 
@@ -185,6 +193,8 @@ A minor bump is used when new functionality is added without breaking existing b
 - New --json output fields (additive; existing consumers unaffected)
 - New database methods or FilterOptions fields
 - New schema plugin support
+- New MCP tools or additive optional MCP input/output fields (bump
+  marketplace plugin minor to match)
 
 ### PATCH bump (bug fix, no new features)
 
@@ -196,6 +206,15 @@ A patch bump is used for fixes that do not add or change public surface:
 - CI/CD pipeline fixes
 - Performance improvements with no behavioral change
 - Internal refactoring with no public API change
+- MCP handler fixes that do not change tool names or schemas (plugin
+  pack bump optional)
+
+### Agent plugin / marketplace releases
+
+When releasing a CLI **minor** (or MCP-breaking **major**), bump the shared
+agent-plugin pack and marketplace manifests per
+[docs/AGENT_PLUGIN_RELEASE.md](docs/AGENT_PLUGIN_RELEASE.md). Pure CLI patches
+that do not change MCP tool names/schemas need not bump pack major/minor.
 
 ### Release Workflow
 
