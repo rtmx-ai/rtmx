@@ -169,6 +169,7 @@ claude plugin install rtmx@rtmx
 
 **Cursor** (one-click MCP deeplink):
 [Add RTMX in Cursor](https://cursor.com/link/mcp?name=rtmx&config=eyJjb21tYW5kIjoicnRteCIsImFyZ3MiOlsibWNwLXNlcnZlciIsIi0tc3RkaW8iXX0%3D)
+· [cursor.directory/plugins/rtmx](https://cursor.directory/plugins/rtmx)
 
 **Codex**:
 ```bash

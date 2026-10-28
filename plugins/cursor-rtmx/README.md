@@ -31,4 +31,6 @@ HTTPS hand-off: https://cursor.com/link/mcp?name=rtmx&config=eyJjb21tYW5kIjoicnR
 
 Full publish checklist + regenerate script: [docs/CURSOR_MARKETPLACE.md](../../docs/CURSOR_MARKETPLACE.md).
 
-Marketplace: submit this plugin at https://cursor.com/marketplace/publish (review may lag; deeplink works now). Community listings: [docs/COMMUNITY_LISTINGS.md](../../docs/COMMUNITY_LISTINGS.md).
+cursor.directory (live): https://cursor.directory/plugins/rtmx  
+
+Official Marketplace: https://cursor.com/marketplace/publish (review may lag; deeplink works now). See [docs/COMMUNITY_LISTINGS.md](../../docs/COMMUNITY_LISTINGS.md).
