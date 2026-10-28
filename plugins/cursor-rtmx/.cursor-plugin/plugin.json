@@ -1,0 +1,13 @@
+{
+  "name": "rtmx",
+  "version": "1.9.0",
+  "description": "RTMX requirements traceability — MCP tools and skills for the agent loop (next, claim, verify).",
+  "author": {
+    "name": "RTMX",
+    "email": "dev@rtmx.ai"
+  },
+  "homepage": "https://github.com/rtmx-ai/rtmx/tree/main/plugins/cursor-rtmx",
+  "repository": "https://github.com/rtmx-ai/rtmx",
+  "license": "Apache-2.0",
+  "keywords": ["rtmx", "requirements", "mcp", "traceability"]
+}

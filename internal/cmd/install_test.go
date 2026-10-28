@@ -826,7 +826,7 @@ func TestInstallCodex(t *testing.T) {
 		rtmx.Env("simulation"),
 	)
 
-	t.Run("creates_tool_definition", func(t *testing.T) {
+	t.Run("creates_mcp_install_notes", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		origDir, _ := os.Getwd()
 		_ = os.Chdir(tmpDir)
@@ -838,20 +838,17 @@ func TestInstallCodex(t *testing.T) {
 			t.Fatalf("install --codex failed: %v", err)
 		}
 
-		toolPath := filepath.Join(tmpDir, "templates", "codex", "rtmx-tools.json")
-		data, err := os.ReadFile(toolPath)
+		notesPath := filepath.Join(tmpDir, "templates", "codex", "README.md")
+		data, err := os.ReadFile(notesPath)
 		if err != nil {
-			t.Fatalf("Expected rtmx-tools.json to exist: %v", err)
-		}
-
-		// Verify valid JSON
-		var tools map[string]interface{}
-		if err := json.Unmarshal(data, &tools); err != nil {
-			t.Fatalf("rtmx-tools.json is not valid JSON: %v", err)
+			t.Fatalf("Expected Codex README.md to exist: %v", err)
 		}
 		content := string(data)
-		if !strings.Contains(content, "--json") {
-			t.Error("tool definition should use --json for structured output")
+		if !strings.Contains(content, "codex mcp add rtmx") {
+			t.Error("notes should document codex mcp add one-liner")
+		}
+		if !strings.Contains(content, "mcp-server --stdio") {
+			t.Error("notes should reference stdio MCP pack")
 		}
 	})
 }

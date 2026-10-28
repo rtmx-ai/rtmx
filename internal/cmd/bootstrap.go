@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/rtmx-ai/rtmx/internal/adapters"
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/output"
 	"github.com/spf13/cobra"
@@ -16,20 +17,34 @@ var (
 	bootstrapFromTests  bool
 	bootstrapFromGitHub bool
 	bootstrapFromJira   bool
+	bootstrapFromAsana  bool
+	bootstrapFromMonday bool
+	bootstrapFromGitLab bool
 	bootstrapMerge      bool
 	bootstrapDryRun     bool
 	bootstrapPrefix     string
 )
 
+// bootstrapGetAdapter resolves a ServiceAdapter for bootstrap imports.
+// Overridable in tests (same shape as sync getAdapter).
+var bootstrapGetAdapter = getAdapter
+
 var bootstrapCmd = &cobra.Command{
 	Use:   "bootstrap",
 	Short: "Generate initial RTM from project artifacts",
-	Long: `Bootstrap requirements from existing tests, GitHub issues, or Jira tickets.
+	Long: `Bootstrap requirements from existing tests or project-management adapters.
+
+With no --from-* flag on a TTY, opens the same interactive provider picker as
+rtmx link. Non-TTY / CI must pass an explicit --from-* flag.
 
 Examples:
+    rtmx bootstrap                     # TTY: interactive provider picker
     rtmx bootstrap --from-tests        # Generate from test markers
     rtmx bootstrap --from-github       # Import from GitHub issues
     rtmx bootstrap --from-jira         # Import from Jira tickets
+    rtmx bootstrap --from-asana        # Import from Asana tasks
+    rtmx bootstrap --from-monday       # Import from Monday.com boards
+    rtmx bootstrap --from-gitlab       # Import from GitLab issues
     rtmx bootstrap --from-tests --merge  # Merge with existing RTM`,
 	RunE: runBootstrap,
 }
@@ -38,6 +53,9 @@ func init() {
 	bootstrapCmd.Flags().BoolVar(&bootstrapFromTests, "from-tests", false, "generate requirements from test functions")
 	bootstrapCmd.Flags().BoolVar(&bootstrapFromGitHub, "from-github", false, "import from GitHub issues")
 	bootstrapCmd.Flags().BoolVar(&bootstrapFromJira, "from-jira", false, "import from Jira tickets")
+	bootstrapCmd.Flags().BoolVar(&bootstrapFromAsana, "from-asana", false, "import from Asana tasks")
+	bootstrapCmd.Flags().BoolVar(&bootstrapFromMonday, "from-monday", false, "import from Monday.com board items")
+	bootstrapCmd.Flags().BoolVar(&bootstrapFromGitLab, "from-gitlab", false, "import from GitLab issues")
 	bootstrapCmd.Flags().BoolVar(&bootstrapMerge, "merge", false, "merge with existing RTM (default: replace)")
 	bootstrapCmd.Flags().BoolVar(&bootstrapDryRun, "dry-run", false, "preview without writing files")
 	bootstrapCmd.Flags().StringVar(&bootstrapPrefix, "prefix", "REQ", "requirement ID prefix")
@@ -53,8 +71,17 @@ type BootstrapRequirement struct {
 	Text        string
 	TestModule  string
 	TestFunc    string
-	Source      string // "test", "github", "jira"
+	Source      string // "test", "github", "jira", "asana", "monday", "gitlab"
 	ExternalID  string // GitHub issue number or Jira ticket key
+}
+
+func bootstrapSourceSelected() bool {
+	return bootstrapFromTests ||
+		bootstrapFromGitHub ||
+		bootstrapFromJira ||
+		bootstrapFromAsana ||
+		bootstrapFromMonday ||
+		bootstrapFromGitLab
 }
 
 func runBootstrap(cmd *cobra.Command, args []string) error {
@@ -62,9 +89,19 @@ func runBootstrap(cmd *cobra.Command, args []string) error {
 		output.DisableColor()
 	}
 
-	if !bootstrapFromTests && !bootstrapFromGitHub && !bootstrapFromJira {
-		cmd.Printf("%s\n", output.Color("No source specified. Use --from-tests, --from-github, or --from-jira", output.Yellow))
-		return NewExitError(1, "no source specified")
+	if !bootstrapSourceSelected() {
+		if isTerminal() {
+			if err := selectBootstrapSourceInteractive(cmd); err != nil {
+				return err
+			}
+			if !bootstrapSourceSelected() {
+				cmd.Println("Skipped linking an issue store.")
+				return nil
+			}
+		} else {
+			cmd.Printf("%s\n", output.Color("No source specified. Use --from-tests, --from-github, --from-jira, --from-asana, --from-monday, or --from-gitlab (or run rtmx link on a TTY)", output.Yellow))
+			return NewExitError(1, "no source specified")
+		}
 	}
 
 	cmd.Println("=== RTMX Bootstrap ===")
@@ -98,34 +135,29 @@ func runBootstrap(cmd *cobra.Command, args []string) error {
 		cmd.Println()
 	}
 
-	// Bootstrap from GitHub
-	if bootstrapFromGitHub {
-		cmd.Printf("%s\n", output.Color("Fetching GitHub issues...", output.Bold))
-		if !cfg.RTMX.Adapters.GitHub.Enabled {
-			cmd.Printf("  %s\n", output.Color("GitHub adapter not enabled in rtmx.yaml", output.Red))
-		} else if cfg.RTMX.Adapters.GitHub.Repo == "" {
-			cmd.Printf("  %s\n", output.Color("GitHub repo not configured in rtmx.yaml", output.Red))
-		} else {
-			cmd.Printf("  Repository: %s\n", cfg.RTMX.Adapters.GitHub.Repo)
-			// TODO: Implement actual GitHub API integration
-			cmd.Printf("  %s\n", output.Color("GitHub bootstrap coming in future release", output.Dim))
-		}
-		cmd.Println()
+	adapterSources := []struct {
+		enabled bool
+		service string
+		label   string
+	}{
+		{bootstrapFromGitHub, "github", "GitHub issues"},
+		{bootstrapFromJira, "jira", "Jira tickets"},
+		{bootstrapFromAsana, "asana", "Asana tasks"},
+		{bootstrapFromMonday, "monday", "Monday.com items"},
+		{bootstrapFromGitLab, "gitlab", "GitLab issues"},
 	}
 
-	// Bootstrap from Jira
-	if bootstrapFromJira {
-		cmd.Printf("%s\n", output.Color("Fetching Jira tickets...", output.Bold))
-		if !cfg.RTMX.Adapters.Jira.Enabled {
-			cmd.Printf("  %s\n", output.Color("Jira adapter not enabled in rtmx.yaml", output.Red))
-		} else if cfg.RTMX.Adapters.Jira.Project == "" {
-			cmd.Printf("  %s\n", output.Color("Jira project not configured in rtmx.yaml", output.Red))
-		} else {
-			cmd.Printf("  Server: %s\n", cfg.RTMX.Adapters.Jira.Server)
-			cmd.Printf("  Project: %s\n", cfg.RTMX.Adapters.Jira.Project)
-			// TODO: Implement actual Jira API integration
-			cmd.Printf("  %s\n", output.Color("Jira bootstrap coming in future release", output.Dim))
+	for _, src := range adapterSources {
+		if !src.enabled {
+			continue
 		}
+		cmd.Printf("%s\n", output.Color(fmt.Sprintf("Fetching %s...", src.label), output.Bold))
+		adapterReqs, fetchErr := bootstrapFromService(cmd, src.service, cfg, bootstrapPrefix)
+		if fetchErr != nil {
+			return fetchErr
+		}
+		requirements = append(requirements, adapterReqs...)
+		cmd.Printf("  Found %d items\n", len(adapterReqs))
 		cmd.Println()
 	}
 
@@ -150,6 +182,67 @@ func runBootstrap(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// bootstrapFromService fetches ExternalItems via the adapter and maps them to BootstrapRequirement.
+func bootstrapFromService(cmd *cobra.Command, service string, cfg *config.Config, prefix string) ([]BootstrapRequirement, error) {
+	adapter, err := bootstrapGetAdapter(service, cfg)
+	if err != nil {
+		cmd.Printf("  %s\n", output.Color(err.Error(), output.Red))
+		return nil, NewExitError(1, err.Error())
+	}
+	if !adapter.IsConfigured() {
+		msg := fmt.Sprintf("%s adapter is enabled but not configured (check credentials / rtmx.yaml)", service)
+		cmd.Printf("  %s\n", output.Color(msg, output.Red))
+		return nil, NewExitError(1, msg)
+	}
+
+	items, err := adapter.FetchItems(nil)
+	if err != nil {
+		msg := fmt.Sprintf("failed to fetch from %s: %v", service, err)
+		cmd.Printf("  %s\n", output.Color(msg, output.Red))
+		return nil, NewExitError(1, msg)
+	}
+
+	return mapExternalItemsToBootstrap(items, service, prefix), nil
+}
+
+// mapExternalItemsToBootstrap converts adapter items into bootstrap rows.
+func mapExternalItemsToBootstrap(items []adapters.ExternalItem, service, prefix string) []BootstrapRequirement {
+	requirements := make([]BootstrapRequirement, 0, len(items))
+	reqCounter := 0
+	category := strings.ToUpper(service)
+
+	for _, item := range items {
+		reqID := item.RequirementID
+		if reqID == "" {
+			reqID = adapters.ExtractReqID(item.Title)
+		}
+		if reqID == "" {
+			reqID = adapters.ExtractReqID(item.Description)
+		}
+		if reqID == "" {
+			reqCounter++
+			reqID = fmt.Sprintf("%s-%s-%03d", prefix, category, reqCounter)
+		}
+
+		text := strings.TrimSpace(item.Title)
+		if text == "" {
+			text = strings.TrimSpace(item.Description)
+		}
+		if text == "" {
+			text = fmt.Sprintf("Imported from %s item %s", service, item.ExternalID)
+		}
+
+		requirements = append(requirements, BootstrapRequirement{
+			ID:         reqID,
+			Category:   category,
+			Text:       text,
+			Source:     service,
+			ExternalID: item.ExternalID,
+		})
+	}
+	return requirements
 }
 
 func bootstrapFromTestFiles(cwd string, prefix string) []BootstrapRequirement {

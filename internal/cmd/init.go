@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +16,7 @@ var (
 	initForce  bool
 	initLegacy bool
 	initDryRun bool
+	initYes    bool
 )
 
 var initCmd = &cobra.Command{
@@ -41,6 +44,7 @@ func init() {
 	initCmd.Flags().BoolVarP(&initForce, "force", "f", false, "overwrite existing files")
 	initCmd.Flags().BoolVar(&initLegacy, "legacy", false, "use legacy docs/ directory structure")
 	initCmd.Flags().BoolVar(&initDryRun, "dry-run", false, "print delivery-rule paths without writing")
+	initCmd.Flags().BoolVarP(&initYes, "yes", "y", false, "skip interactive prompts (no link handoff)")
 
 	rootCmd.AddCommand(initCmd)
 }
@@ -179,15 +183,23 @@ rtmx:
 		return err
 	}
 
+	printInitNextSteps(cmd, rtmCSV, requirementsDir)
+	return maybeOfferLinkHandoff(cmd)
+}
+
+func printInitNextSteps(cmd *cobra.Command, rtmCSV, requirementsDir string) {
 	cmd.Println()
 	cmd.Printf("%s\n", output.Color("✓ RTM initialized successfully!", output.Green))
 	cmd.Println()
 	cmd.Println("Next steps:")
 	cmd.Printf("  1. Edit %s to add your requirements\n", rtmCSV)
 	cmd.Printf("  2. Create requirement spec files in %s\n", requirementsDir)
-	cmd.Println("  3. Run 'rtmx status' to see progress")
-
-	return nil
+	cmd.Println("  3. Run 'rtmx link' to bootstrap from an issue store (or 'rtmx status' to verify)")
+	cmd.Println()
+	cmd.Println("Agent MCP (marketplace-first; emit works offline):")
+	cmd.Println("  claude plugin marketplace add rtmx-ai/rtmx && claude plugin install rtmx@rtmx")
+	cmd.Println("  rtmx plugin emit --agents cursor,codex   # air-gapped / no marketplace")
+	cmd.Println("  Requires rtmx on PATH (brew install rtmx-ai/tap/rtmx). See CONTRIBUTING.md.")
 }
 
 const deliveryRuleBody = `RTMX delivery rule:
@@ -373,13 +385,57 @@ rtmx:
 	}
 	cmd.Printf("  %s Created %s\n", output.Color("✓", output.Green), configFile)
 
-	cmd.Println()
-	cmd.Printf("%s\n", output.Color("✓ RTM initialized successfully!", output.Green))
-	cmd.Println()
-	cmd.Println("Next steps:")
-	cmd.Printf("  1. Edit %s to add your requirements\n", rtmCSV)
-	cmd.Printf("  2. Create requirement spec files in %s\n", requirementsDir)
-	cmd.Println("  3. Run 'rtmx status' to see progress")
+	printInitNextSteps(cmd, rtmCSV, requirementsDir)
+	return maybeOfferLinkHandoff(cmd)
+}
 
+// confirmLinkOffer asks whether to open the link picker. Overridable in tests.
+var confirmLinkOffer = func(cmd *cobra.Command, in io.Reader) bool {
+	cmd.Print("Link an issue store now? [y/N] ")
+	scanner := bufio.NewScanner(in)
+	if !scanner.Scan() {
+		return false
+	}
+	answer := strings.TrimSpace(strings.ToLower(scanner.Text()))
+	return answer == "y" || answer == "yes"
+}
+
+// runLinkHandoffAfterInit runs the picker + bootstrap. Overridable in tests.
+// Failures are logged but do not fail init (files already written).
+var runLinkHandoffAfterInit = func(cmd *cobra.Command) error {
+	if err := selectBootstrapSourceInteractive(cmd); err != nil {
+		return err
+	}
+	if !bootstrapSourceSelected() {
+		cmd.Println("Skipped linking an issue store.")
+		return nil
+	}
+	return runBootstrap(cmd, nil)
+}
+
+// stdinIsTerminal reports whether stdin is a character device. Overridable in tests.
+var stdinIsTerminal = func() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
+}
+
+// maybeOfferLinkHandoff offers rtmx link after a successful init on a TTY
+// when --yes is unset (REQ-GO-090 / REQ-MONO-044c).
+func maybeOfferLinkHandoff(cmd *cobra.Command) error {
+	if initYes || initDryRun || !isTerminalFn() || !stdinIsTerminal() {
+		return nil
+	}
+	cmd.Println()
+	if !confirmLinkOffer(cmd, cmd.InOrStdin()) {
+		return nil
+	}
+	if err := runLinkHandoffAfterInit(cmd); err != nil {
+		cmd.Printf("%s Link handoff failed (RTM files were still created): %v\n",
+			output.Color("Warning:", output.Yellow), err)
+		return nil
+	}
 	return nil
 }

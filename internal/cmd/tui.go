@@ -56,7 +56,7 @@ func runTui(cmd *cobra.Command, args []string) error {
 
 	// Interactive mode: launch Bubble Tea app
 	// Fall back to --once mode for non-TTY or explicit flag
-	if !tuiOnce && isTerminal() {
+	if !tuiOnce && isTerminalFn() {
 		app := tui.NewAppModel(db, dbPath)
 		p := tea.NewProgram(app, tea.WithAltScreen())
 		_, err := p.Run()
@@ -66,13 +66,17 @@ func runTui(cmd *cobra.Command, args []string) error {
 	return renderTuiDashboard(cmd, db)
 }
 
-func isTerminal() bool {
+// isTerminalFn detects a character device on stdout. Overridable in tests.
+var isTerminalFn = func() bool {
 	fi, err := os.Stdout.Stat()
 	if err != nil {
 		return false
 	}
 	return fi.Mode()&os.ModeCharDevice != 0
 }
+
+// isTerminal is the historical name used by commands.
+func isTerminal() bool { return isTerminalFn() }
 
 func renderTuiDashboard(cmd *cobra.Command, db *database.Database) error {
 	reqs := db.All()

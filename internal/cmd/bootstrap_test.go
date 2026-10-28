@@ -2,37 +2,59 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/rtmx-ai/rtmx/internal/adapters"
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/pkg/rtmx"
 )
+
+func resetBootstrapFlags() func() {
+	origFromTests := bootstrapFromTests
+	origFromGitHub := bootstrapFromGitHub
+	origFromJira := bootstrapFromJira
+	origFromAsana := bootstrapFromAsana
+	origFromMonday := bootstrapFromMonday
+	origFromGitLab := bootstrapFromGitLab
+	origMerge := bootstrapMerge
+	origDryRun := bootstrapDryRun
+	origPrefix := bootstrapPrefix
+	origGetAdapter := bootstrapGetAdapter
+
+	bootstrapFromTests = false
+	bootstrapFromGitHub = false
+	bootstrapFromJira = false
+	bootstrapFromAsana = false
+	bootstrapFromMonday = false
+	bootstrapFromGitLab = false
+	bootstrapMerge = false
+	bootstrapDryRun = false
+	bootstrapPrefix = "REQ"
+	bootstrapGetAdapter = getAdapter
+
+	return func() {
+		bootstrapFromTests = origFromTests
+		bootstrapFromGitHub = origFromGitHub
+		bootstrapFromJira = origFromJira
+		bootstrapFromAsana = origFromAsana
+		bootstrapFromMonday = origFromMonday
+		bootstrapFromGitLab = origFromGitLab
+		bootstrapMerge = origMerge
+		bootstrapDryRun = origDryRun
+		bootstrapPrefix = origPrefix
+		bootstrapGetAdapter = origGetAdapter
+	}
+}
 
 // TestBootstrapCommand tests the bootstrap command.
 // REQ-GO-027: Go CLI shall implement bootstrap command with tests at internal/cmd/bootstrap_test.go
 func TestBootstrapCommand(t *testing.T) {
 	rtmx.Req(t, "REQ-GO-027")
-
-	// Save original flag values
-	origFromTests := bootstrapFromTests
-	origFromGitHub := bootstrapFromGitHub
-	origFromJira := bootstrapFromJira
-	origMerge := bootstrapMerge
-	origDryRun := bootstrapDryRun
-	origPrefix := bootstrapPrefix
-
-	defer func() {
-		// Restore original flag values
-		bootstrapFromTests = origFromTests
-		bootstrapFromGitHub = origFromGitHub
-		bootstrapFromJira = origFromJira
-		bootstrapMerge = origMerge
-		bootstrapDryRun = origDryRun
-		bootstrapPrefix = origPrefix
-	}()
+	defer resetBootstrapFlags()()
 
 	tests := []struct {
 		name        string
@@ -45,62 +67,49 @@ func TestBootstrapCommand(t *testing.T) {
 	}{
 		{
 			name:        "no source specified",
-			fromTests:   false,
-			fromGitHub:  false,
-			fromJira:    false,
 			wantErr:     true,
 			wantContain: "No source specified",
 		},
 		{
 			name:        "dry run from tests",
 			fromTests:   true,
-			fromGitHub:  false,
-			fromJira:    false,
 			dryRun:      true,
 			wantErr:     false,
 			wantContain: "DRY RUN",
 		},
 		{
 			name:        "from github without config",
-			fromTests:   false,
 			fromGitHub:  true,
-			fromJira:    false,
-			wantErr:     false,
-			wantContain: "GitHub adapter not enabled",
+			wantErr:     true,
+			wantContain: "github adapter not enabled",
 		},
 		{
 			name:        "from jira without config",
-			fromTests:   false,
-			fromGitHub:  false,
 			fromJira:    true,
-			wantErr:     false,
-			wantContain: "Jira adapter not enabled",
+			wantErr:     true,
+			wantContain: "jira adapter not enabled",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set flags
+			defer resetBootstrapFlags()()
 			bootstrapFromTests = tt.fromTests
 			bootstrapFromGitHub = tt.fromGitHub
 			bootstrapFromJira = tt.fromJira
-			bootstrapMerge = false
 			bootstrapDryRun = tt.dryRun
 			bootstrapPrefix = "REQ"
 
-			// Create a temp directory for testing
 			tmpDir, err := os.MkdirTemp("", "rtmx-test-*")
 			if err != nil {
 				t.Fatalf("Failed to create temp dir: %v", err)
 			}
 			defer func() { _ = os.RemoveAll(tmpDir) }()
 
-			// Change to temp directory
 			origDir, _ := os.Getwd()
 			_ = os.Chdir(tmpDir)
 			defer func() { _ = os.Chdir(origDir) }()
 
-			// Capture output
 			var buf bytes.Buffer
 			bootstrapCmd.SetOut(&buf)
 			bootstrapCmd.SetErr(&buf)
@@ -114,9 +123,12 @@ func TestBootstrapCommand(t *testing.T) {
 				t.Errorf("Unexpected error: %v", err)
 			}
 
-			output := buf.String()
-			if tt.wantContain != "" && !strings.Contains(output, tt.wantContain) {
-				t.Errorf("Output should contain %q, got: %s", tt.wantContain, output)
+			out := buf.String()
+			if tt.wantContain != "" && !strings.Contains(strings.ToLower(out), strings.ToLower(tt.wantContain)) {
+				t.Errorf("Output should contain %q, got: %s", tt.wantContain, out)
+			}
+			if strings.Contains(out, "future release") {
+				t.Errorf("must not print future-release stub, got: %s", out)
 			}
 		})
 	}
@@ -397,13 +409,18 @@ func TestWriteBootstrapRequirementsMerge(t *testing.T) {
 }
 
 // TestBootstrapCommandFlags tests that all flags are properly registered.
+// REQ-GO-086 / REQ-MONO-040a: bootstrap exposes from flags for all PM adapters.
 func TestBootstrapCommandFlags(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-086")
 	flags := bootstrapCmd.Flags()
 
 	expectedFlags := []string{
 		"from-tests",
 		"from-github",
 		"from-jira",
+		"from-asana",
+		"from-monday",
+		"from-gitlab",
 		"merge",
 		"dry-run",
 		"prefix",
@@ -413,6 +430,207 @@ func TestBootstrapCommandFlags(t *testing.T) {
 		if flags.Lookup(name) == nil {
 			t.Errorf("Missing flag: %s", name)
 		}
+	}
+}
+
+// TestBootstrapHelpListsAdapterSources asserts help documents every adapter flag.
+func TestBootstrapHelpListsAdapterSources(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-086")
+	var buf bytes.Buffer
+	bootstrapCmd.SetOut(&buf)
+	bootstrapCmd.SetErr(&buf)
+	_ = bootstrapCmd.Help()
+	help := buf.String()
+	for _, flag := range []string{
+		"--from-tests",
+		"--from-github",
+		"--from-jira",
+		"--from-asana",
+		"--from-monday",
+		"--from-gitlab",
+	} {
+		if !strings.Contains(help, flag) {
+			t.Errorf("help missing %s:\n%s", flag, help)
+		}
+	}
+}
+
+// TestBootstrapAdapterFlags is the REQ-GO-086 marker alias used in the RTM CSV.
+func TestBootstrapAdapterFlags(t *testing.T) {
+	TestBootstrapCommandFlags(t)
+	TestBootstrapHelpListsAdapterSources(t)
+}
+
+// TestBootstrapAdapterImport covers FetchItems → BootstrapRequirement for all five PM adapters.
+// REQ-GO-087 / REQ-MONO-040b
+func TestBootstrapAdapterImport(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-087")
+	defer resetBootstrapFlags()()
+
+	services := []string{"github", "jira", "asana", "monday", "gitlab"}
+	for _, service := range services {
+		t.Run(service+"_dry_run", func(t *testing.T) {
+			defer resetBootstrapFlags()()
+			bootstrapDryRun = true
+			bootstrapPrefix = "REQ"
+			switch service {
+			case "github":
+				bootstrapFromGitHub = true
+			case "jira":
+				bootstrapFromJira = true
+			case "asana":
+				bootstrapFromAsana = true
+			case "monday":
+				bootstrapFromMonday = true
+			case "gitlab":
+				bootstrapFromGitLab = true
+			}
+
+			mock := &mockAdapter{
+				name:      service,
+				connected: true,
+				items: []adapters.ExternalItem{
+					{ExternalID: "1", Title: "First " + service + " item", RequirementID: "REQ-IMP-001"},
+					{ExternalID: "2", Title: "Second untitled"},
+				},
+			}
+			bootstrapGetAdapter = func(svc string, _ *config.Config) (adapters.ServiceAdapter, error) {
+				if svc != service {
+					t.Fatalf("unexpected service %q", svc)
+				}
+				return mock, nil
+			}
+
+			tmpDir, err := os.MkdirTemp("", "rtmx-boot-*")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = os.RemoveAll(tmpDir) }()
+			origDir, _ := os.Getwd()
+			_ = os.Chdir(tmpDir)
+			defer func() { _ = os.Chdir(origDir) }()
+
+			var buf bytes.Buffer
+			bootstrapCmd.SetOut(&buf)
+			bootstrapCmd.SetErr(&buf)
+			err = runBootstrap(bootstrapCmd, nil)
+			if err != nil {
+				t.Fatalf("unexpected error: %v\n%s", err, buf.String())
+			}
+			out := buf.String()
+			if strings.Contains(out, "future release") {
+				t.Fatalf("stub message still present: %s", out)
+			}
+			if !strings.Contains(out, "DRY RUN") {
+				t.Fatalf("expected dry-run banner, got: %s", out)
+			}
+			if !strings.Contains(out, "REQ-IMP-001") {
+				t.Fatalf("expected mapped req id in output: %s", out)
+			}
+			if !strings.Contains(out, "Found 2 items") {
+				t.Fatalf("expected 2 items, got: %s", out)
+			}
+			if _, err := os.Stat(filepath.Join(tmpDir, ".rtmx", "database.csv")); !os.IsNotExist(err) {
+				t.Fatalf("dry-run must not write CSV, stat err=%v", err)
+			}
+		})
+	}
+
+	t.Run("disabled_adapter_exits", func(t *testing.T) {
+		defer resetBootstrapFlags()()
+		bootstrapFromJira = true
+		bootstrapGetAdapter = func(string, *config.Config) (adapters.ServiceAdapter, error) {
+			return nil, fmt.Errorf("jira adapter not enabled in rtmx.yaml")
+		}
+		tmpDir, err := os.MkdirTemp("", "rtmx-boot-*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.RemoveAll(tmpDir) }()
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		var buf bytes.Buffer
+		bootstrapCmd.SetOut(&buf)
+		bootstrapCmd.SetErr(&buf)
+		err = runBootstrap(bootstrapCmd, nil)
+		if err == nil {
+			t.Fatal("expected non-zero exit when adapter disabled")
+		}
+		if !strings.Contains(buf.String(), "jira adapter not enabled") {
+			t.Fatalf("expected clear enable message, got: %s", buf.String())
+		}
+	})
+
+	t.Run("write_on_success", func(t *testing.T) {
+		defer resetBootstrapFlags()()
+		bootstrapFromAsana = true
+		bootstrapDryRun = false
+		bootstrapGetAdapter = func(string, *config.Config) (adapters.ServiceAdapter, error) {
+			return &mockAdapter{
+				name:      "asana",
+				connected: true,
+				items: []adapters.ExternalItem{
+					{ExternalID: "gid-9", Title: "Ship bootstrap parity"},
+				},
+			}, nil
+		}
+		tmpDir, err := os.MkdirTemp("", "rtmx-boot-*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = os.RemoveAll(tmpDir) }()
+		// Minimal config so DatabasePath resolves under tmpDir
+		if err := os.WriteFile(filepath.Join(tmpDir, "rtmx.yaml"), []byte("rtmx:\n  database: .rtmx/database.csv\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		origDir, _ := os.Getwd()
+		_ = os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(origDir) }()
+
+		var buf bytes.Buffer
+		bootstrapCmd.SetOut(&buf)
+		bootstrapCmd.SetErr(&buf)
+		if err := runBootstrap(bootstrapCmd, nil); err != nil {
+			t.Fatalf("unexpected error: %v\n%s", err, buf.String())
+		}
+		content, err := os.ReadFile(filepath.Join(tmpDir, ".rtmx", "database.csv"))
+		if err != nil {
+			t.Fatalf("expected CSV write: %v", err)
+		}
+		if !strings.Contains(string(content), "Ship bootstrap parity") {
+			t.Fatalf("CSV missing imported title: %s", content)
+		}
+		if !strings.Contains(string(content), "gid-9") {
+			t.Fatalf("CSV missing external id: %s", content)
+		}
+	})
+}
+
+// TestMapExternalItemsToBootstrap unit-tests ID and text mapping.
+func TestMapExternalItemsToBootstrap(t *testing.T) {
+	rtmx.Req(t, "REQ-GO-087")
+	items := []adapters.ExternalItem{
+		{ExternalID: "a", Title: "[REQ-CLI-010] Keep id", Description: "body"},
+		{ExternalID: "b", Title: "No id here", Description: "see REQ-DASH-002 in body"},
+		{ExternalID: "c", Title: "", Description: ""},
+	}
+	reqs := mapExternalItemsToBootstrap(items, "github", "REQ")
+	if len(reqs) != 3 {
+		t.Fatalf("len=%d", len(reqs))
+	}
+	if reqs[0].ID != "REQ-CLI-010" || reqs[0].ExternalID != "a" {
+		t.Fatalf("title extract: %+v", reqs[0])
+	}
+	if reqs[1].ID != "REQ-DASH-002" {
+		t.Fatalf("description extract: %+v", reqs[1])
+	}
+	if reqs[2].ID != "REQ-GITHUB-001" {
+		t.Fatalf("generated id: %+v", reqs[2])
+	}
+	if reqs[2].Source != "github" {
+		t.Fatalf("source: %s", reqs[2].Source)
 	}
 }
 

@@ -156,20 +156,36 @@ Spine tools (status/backlog/next/claim/…) plus a scientific cycle surface
 `delivery_check`, `trade_*`). Prefer these over shelling arbitrary CLI.
 No generic `run_cli` tool. Mutations require `agent_id`.
 
-Agent session via MCP (next → claim → status). One-time client config below — the
-GIF is the agent calling tools, not a human inspecting `mcp.json`.
+Agent session via MCP (next → claim → status). Prefer marketplace / one-click
+install — the GIF is the agent calling tools, not a human pasting `mcp.json`.
 
 ![RTMX MCP agent session](docs/assets/rtmx-mcp-setup.gif)
 
-**Cursor** — once, add to `.cursor/mcp.json` (then the agent uses the tools):
+**Claude Code** (first-party marketplace):
+```bash
+claude plugin marketplace add rtmx-ai/rtmx
+claude plugin install rtmx@rtmx
+```
+
+**Cursor** (one-click MCP deeplink):
+[Add RTMX in Cursor](https://cursor.com/link/mcp?name=rtmx&config=eyJjb21tYW5kIjoicnRteCIsImFyZ3MiOlsibWNwLXNlcnZlciIsIi0tc3RkaW8iXX0%3D)
+
+**Codex**:
+```bash
+codex mcp add rtmx -- rtmx mcp-server --stdio
+```
+
+**Emit** (Claude/Cursor/Codex + long-tail gemini/windsurf/continue/gastown):
+`rtmx plugin emit --list` · `rtmx plugin emit --all` — see [docs/LONG_TAIL_EMIT.md](docs/LONG_TAIL_EMIT.md)
+
+Fallback paste (`.cursor/mcp.json` / generic MCP clients):
 ```json
 {"mcpServers":{"rtmx":{"command":"rtmx","args":["mcp-server","--stdio"]}}}
 ```
 
-**Claude Code** — once:
-```bash
-claude mcp add rtmx -- rtmx mcp-server --stdio
-```
+Details: [docs/CLAUDE_MARKETPLACE.md](docs/CLAUDE_MARKETPLACE.md),
+[docs/CURSOR_MARKETPLACE.md](docs/CURSOR_MARKETPLACE.md),
+[docs/CODEX_MCP.md](docs/CODEX_MCP.md).
 
 ## Test Verification
 

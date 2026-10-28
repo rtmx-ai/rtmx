@@ -2,7 +2,7 @@ module github.com/rtmx-ai/rtmx
 
 go 1.26
 
-toolchain go1.26.9
+toolchain go1.26.10
 
 require (
 	github.com/charmbracelet/bubbles v1.0.0

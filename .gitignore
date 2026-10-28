@@ -12,6 +12,9 @@ dist/
 rtmx-*
 !.github/workflows/rtmx-*
 !docs/assets/rtmx-*
+# Agent-plugin skills are named rtmx-* (REQ-MONO-062b/d); keep them tracked.
+!plugins/*/skills/rtmx-*/
+!plugins/*/skills/rtmx-*/**
 
 # Test binary, built with `go test -c`
 *.test
@@ -53,3 +56,4 @@ venv/
 .hypothesis/
 __pycache__/
 *.py[cod]
+.rtmx/claims/

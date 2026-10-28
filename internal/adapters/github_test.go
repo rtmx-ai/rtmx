@@ -123,6 +123,27 @@ func TestGitHubAdapterDisabled(t *testing.T) {
 	}
 }
 
+func TestNewGitHubAdapterVaultConnectionToken(t *testing.T) {
+	// REQ-MONO-046c: RTMX_GITHUB_CONNECTION_TOKEN when GITHUB_TOKEN unset.
+	cfg := config.GitHubAdapterConfig{
+		Enabled:  true,
+		Repo:     "owner/repo",
+		TokenEnv: "GITHUB_TOKEN",
+	}
+	adapter, err := NewGitHubAdapter(&cfg, WithEnvGetter(func(key string) string {
+		if key == "RTMX_GITHUB_CONNECTION_TOKEN" {
+			return "vault-token"
+		}
+		return ""
+	}))
+	if err != nil {
+		t.Fatalf("vault token should satisfy adapter: %v", err)
+	}
+	if adapter.token != "vault-token" {
+		t.Fatalf("token = %q", adapter.token)
+	}
+}
+
 func TestExtractPriority(t *testing.T) {
 	t.Setenv("TEST_GITHUB_TOKEN", "test-token")
 

@@ -1,0 +1,9 @@
+{
+  "name": "rtmx",
+  "description": "Shared RTMX agent-plugin pack (MCP + skills). Source of truth for marketplace wrappers and rtmx plugin emit.",
+  "version": "1.9.0",
+  "mcp": "mcp.json",
+  "skills": ["skills/rtmx-loop", "skills/rtmx-prerequisite"],
+  "contract": "../../docs/MCP_PUBLIC_CONTRACT.md",
+  "notes": "Pack minor tracks CLI minor. Do not diverge MCP command/args from mcp.json."
+}
