@@ -50,9 +50,12 @@ Submit at https://cursor.com/marketplace/publish (Cursor reviews manually).
 | `mcp.json` matches shared pack stdio | Ready |
 | README documents install + PATH | Ready |
 | Public Git host (`rtmx-ai/rtmx` after subtree push) | Ready for submit |
-| Form submitted / listing live | Pending review — deeplink is the interim auto-pull |
+| Form submitted / listing live | Community listing live; official Marketplace review may lag |
+| cursor.directory | **Live:** https://cursor.directory/plugins/rtmx |
 
-Notes: 2026-10-28 — deeplink + docs COMPLETE for install; Marketplace form submit/listing may lag (not a blocker per 062h OR clause). Site CTAs consume these URLs in REQ-MONO-062m.
+Notes: 2026-10-28 — deeplink + docs COMPLETE; cursor.directory published
+(https://cursor.directory/plugins/rtmx). Official Cursor Marketplace form
+submit/listing may still lag (not a blocker per 062h OR clause).
 
 ## Site / docs deep-link (062m)
 

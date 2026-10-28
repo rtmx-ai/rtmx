@@ -4,10 +4,12 @@ Interim discovery while Cursor Marketplace / Anthropic official review lag.
 Primary install docs remain [CURSOR_MARKETPLACE.md](./CURSOR_MARKETPLACE.md)
 and [CLAUDE_MARKETPLACE.md](./CLAUDE_MARKETPLACE.md).
 
-## Live listing (canonical public pointer)
+## Live listing
 
-**This document** is the canonical community listing text, published in the
-rtmx repo and linked from the Cursor plugin README and site MCP docs.
+**cursor.directory (live):** https://cursor.directory/plugins/rtmx  
+
+MCP payload on that page matches the shared pack (`rtmx` + `mcp-server --stdio`).
+Requires `rtmx` on PATH (`brew install rtmx-ai/tap/rtmx`).
 
 | Field | Value |
 |-------|-------|
@@ -21,21 +23,9 @@ rtmx repo and linked from the Cursor plugin README and site MCP docs.
 | Install docs | https://github.com/rtmx-ai/rtmx/blob/main/docs/CURSOR_MARKETPLACE.md |
 | Plugin path | https://github.com/rtmx-ai/rtmx/tree/main/plugins/cursor-rtmx |
 
-## cursor.directory form
-
-Submit at https://cursor.directory/mcp/new (or `/plugins/new` for Open
-Plugins auto-detect of `plugins/cursor-rtmx`).
-
-Paste:
-
-- **Name:** RTMX  
-- **Description:** Requirements traceability MCP (next, claim, verify). Requires `rtmx` on PATH via Homebrew `rtmx-ai/tap/rtmx`.  
-- **Cursor Deep Link:** (HTTPS hand-off above)  
-- **Install instructions URL:** https://github.com/rtmx-ai/rtmx/blob/main/docs/CURSOR_MARKETPLACE.md  
-
 | Date (UTC) | Action |
 |------------|--------|
-| 2026-10-28 | Listing text + brew/PATH prerequisite published; cursor.directory form fields ready. Directory UI submit is account-gated (listing may lag). |
+| 2026-10-28 | Published on cursor.directory: https://cursor.directory/plugins/rtmx |
 
 ## Team / Default-On playbook (Sync customers)
 
