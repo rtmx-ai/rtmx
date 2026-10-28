@@ -251,13 +251,13 @@ func emitCodex(cmd *cobra.Command, cwd string, srv agentpack.Server) error {
 	}
 	b.WriteByte('\n')
 	b.WriteString("\n[mcp_servers.rtmx]\n")
-	b.WriteString(fmt.Sprintf("command = %q\n", srv.Command))
+	fmt.Fprintf(&b, "command = %q\n", srv.Command)
 	b.WriteString("args = [")
 	for i, a := range srv.Args {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		b.WriteString(fmt.Sprintf("%q", a))
+		fmt.Fprintf(&b, "%q", a)
 	}
 	b.WriteString("]\n")
 	cmd.Println("Codex:")
@@ -332,10 +332,10 @@ func emitContinue(cmd *cobra.Command, cwd string, srv agentpack.Server) error {
 	b.WriteString("# Shared pack — do not diverge command/args.\n")
 	b.WriteString("mcpServers:\n")
 	b.WriteString("  - name: rtmx\n")
-	b.WriteString(fmt.Sprintf("    command: %s\n", srv.Command))
+	fmt.Fprintf(&b, "    command: %s\n", srv.Command)
 	b.WriteString("    args:\n")
 	for _, a := range srv.Args {
-		b.WriteString(fmt.Sprintf("      - %s\n", a))
+		fmt.Fprintf(&b, "      - %s\n", a)
 	}
 	readme := "# Continue.dev — RTMX emit\n\nMerge `mcp-rtmx.yaml` into Continue MCP config. Requires rtmx on PATH.\n"
 	cmd.Println("Continue:")

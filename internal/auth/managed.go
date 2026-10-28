@@ -234,7 +234,7 @@ func RefreshManagedSession(ctx context.Context, syncURL, refreshToken, tokenPath
 	if err != nil {
 		return nil, fmt.Errorf("refresh request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	raw, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode == http.StatusUnauthorized {
 		return nil, fmt.Errorf("refresh rejected (401): %s", strings.TrimSpace(string(raw)))

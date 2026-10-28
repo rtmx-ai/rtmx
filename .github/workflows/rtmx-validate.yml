@@ -11,7 +11,7 @@ on:
       go-version:
         description: 'Go version for building rtmx'
         required: false
-        default: '1.26.9'
+        default: '1.26.10'
         type: string
       fail-on-unhealthy:
         description: 'Fail the workflow if health status is unhealthy'

@@ -39,7 +39,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6.5.0
         with:
-          go-version: "1.26.9"
+          go-version: "1.26.10"
 
       - name: Pack / wrapper parity + manifests
         run: go test ./internal/agentpack/ -count=1 -v
