@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/rtmx-ai/rtmx/internal/broker"
 	"github.com/rtmx-ai/rtmx/internal/config"
 	"github.com/rtmx-ai/rtmx/internal/database"
 	"github.com/rtmx-ai/rtmx/internal/docmodel/acverify"
@@ -123,6 +124,8 @@ type VerificationResult struct {
 	TestsPassed    int
 	TestsFailed    int
 	TestsSkipped   int
+	EmptyBody      bool
+	ZeroAssertions bool
 	PreviousStatus database.Status
 	NewStatus      database.Status
 	Updated        bool
@@ -234,8 +237,13 @@ func runVerify(cmd *cobra.Command, args []string) error {
 
 		// Apply the updates
 		if updateCount > 0 {
+			fromResults := verifyResults != ""
 			for _, r := range verifyResultsList {
 				if r.Updated {
+					// REQ-MONO-069e (rtmx 2.0.0): results file alone cannot set COMPLETE.
+					if err := broker.RefuseCompleteFromResultsAlone(fromResults, r.NewStatus); err != nil {
+						return err
+					}
 					req := db.Get(r.ReqID)
 					if req != nil {
 						req.Status = r.NewStatus
@@ -269,6 +277,13 @@ func runVerify(cmd *cobra.Command, args []string) error {
 		}
 	} else if verifyDryRun {
 		cmd.Printf("\n%s\n", output.Color("Dry run - no changes made", output.Yellow))
+	}
+
+	// REQ-MONO-064b: record evidence only when HEAD resolves locally.
+	if !verifyDryRun {
+		if _, err := recordVerifyEvidence(cwd, db, verifyResultsList); err != nil {
+			cmd.Printf("%s Failed to write verification evidence: %v\n", output.Color("!", output.Yellow), err)
+		}
 	}
 
 	// Return error if any tests failed

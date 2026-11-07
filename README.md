@@ -156,8 +156,10 @@ Spine tools (status/backlog/next/claim/…) plus a scientific cycle surface
 `delivery_check`, `trade_*`). Prefer these over shelling arbitrary CLI.
 No generic `run_cli` tool. Mutations require `agent_id`.
 
-Agent session via MCP (next → claim → status). Prefer marketplace / one-click
-install — the GIF is the agent calling tools, not a human pasting `mcp.json`.
+Git-native requirements RTM for agents (next, claim, verify) — not another
+Jira/Linear MCP. Prefer marketplace / one-click install — the GIF is the
+agent calling tools, not a human pasting `mcp.json`.
+([Positioning](docs/POSITIONING.md))
 
 ![RTMX MCP agent session](docs/assets/rtmx-mcp-setup.gif)
 
@@ -168,13 +170,16 @@ claude plugin install rtmx@rtmx
 ```
 
 **Cursor** (one-click MCP deeplink):
-[Add RTMX in Cursor](https://cursor.com/link/mcp?name=rtmx&config=eyJjb21tYW5kIjoicnRteCIsImFyZ3MiOlsibWNwLXNlcnZlciIsIi0tc3RkaW8iXX0%3D)
-· [cursor.directory/plugins/rtmx](https://cursor.directory/plugins/rtmx)
+[Add RTMX in Cursor](https://cursor.com/link/mcp?name=rtmx&config=eyJjb21tYW5kIjoicnRteCIsImFyZ3MiOlsibWNwLXNlcnZlciIsIi0tc3RkaW8iXX0%3D&utm_source=rtmx_readme&utm_medium=referral&utm_campaign=agent_discovery&utm_content=cursor_deeplink)
+· [cursor.directory/plugins/rtmx](https://cursor.directory/plugins/rtmx?utm_source=rtmx_readme&utm_medium=referral&utm_campaign=agent_discovery&utm_content=cursor_directory)
 
 **Codex**:
 ```bash
 codex mcp add rtmx -- rtmx mcp-server --stdio
 ```
+
+**One-shot** (marketplace text + offline emit): `rtmx bootstrap agents` —
+see [docs/BOOTSTRAP_AGENTS.md](docs/BOOTSTRAP_AGENTS.md).
 
 **Emit** (Claude/Cursor/Codex + long-tail gemini/windsurf/continue/gastown):
 `rtmx plugin emit --list` · `rtmx plugin emit --all` — see [docs/LONG_TAIL_EMIT.md](docs/LONG_TAIL_EMIT.md)

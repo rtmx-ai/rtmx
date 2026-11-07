@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
 
       - name: Set up Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v6.5.0
         with:
           go-version: ${{ matrix.go }}
 
@@ -71,7 +71,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
 
       - name: Set up Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v6.5.0
         with:
           go-version: '1.26.10'
 
@@ -89,7 +89,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
 
       - name: Set up Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v6.5.0
         with:
           go-version: '1.26.10'
 
@@ -123,7 +123,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
 
       - name: Set up Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v6.5.0
         with:
           go-version: '1.26.10'
 
@@ -165,7 +165,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token || github.token }}
 
       - name: Set up Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v6.5.0
         with:
           go-version: '1.26.10'
 
@@ -207,7 +207,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
 
       - name: Set up Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v6.5.0
         with:
           go-version: '1.26.10'
 
@@ -266,7 +266,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
 
       - name: Set up Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v6.5.0
         with:
           go-version: '1.26.10'
 
@@ -315,7 +315,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v6.5.0
         with:
           go-version: '1.26.10'
 
@@ -371,7 +371,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
 
       - name: Set up Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v6.5.0
         with:
           go-version: '1.26.10'
 
@@ -384,7 +384,7 @@ jobs:
           go build -ldflags="-s -w" -o rtmx-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos == 'windows' && '.exe' || '' }} ./cmd/rtmx
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@v5
         with:
           name: rtmx-${{ matrix.goos }}-${{ matrix.goarch }}
           path: rtmx-${{ matrix.goos }}-${{ matrix.goarch }}*
@@ -398,7 +398,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
 
       - name: Set up Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v6.5.0
         with:
           go-version: '1.26.10'
 
@@ -417,7 +417,7 @@ jobs:
           ls -la docs/screenshots/
 
       - name: Upload screenshots
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@v5
         with:
           name: terminal-screenshots
           path: docs/screenshots/

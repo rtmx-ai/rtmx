@@ -22,10 +22,15 @@ When cutting a CLI minor (or MCP-breaking major):
 6. [ ] `claude plugin validate --strict ./plugins/claude-rtmx` and `claude plugin validate --strict .` (marketplace).
 7. [ ] Run pack/plugin CI / `go test ./internal/agentpack/...`.
 8. [ ] Note Marketplace re-index / Anthropic submit refresh if listed (062f/062h).
+8b. [ ] Bump `server.json` version (and npm package row if needed); follow
+    [MCP_REGISTRY.md](./MCP_REGISTRY.md) for `mcp-publisher publish` (063c).
 9. [ ] Run post-release marketplace smoke: `bash scripts/marketplace_smoke.sh`
    (also on `workflow_dispatch` of `.github/workflows/plugin-pack.yml`).
-   Optional remote check: `RTMX_MARKETPLACE_URL=<raw marketplace.json URL> bash scripts/marketplace_smoke.sh`.
-   Failures point back to this checklist (REQ-MONO-062r / 062o).
+   Optional remote checks (unset = offline CI):
+   - `RTMX_MARKETPLACE_URL=<raw marketplace.json URL>`
+   - `RTMX_DIRECTORY_URL=https://cursor.directory/plugins/rtmx` (REQ-MONO-063j)
+   - `RTMX_REGISTRY_URL='https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.rtmx-ai/rtmx'`
+   Failures point back to this checklist (REQ-MONO-062r / 062o / 063j).
 
 ### When NOT to bump pack minor/major
 

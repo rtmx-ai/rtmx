@@ -1,5 +1,8 @@
 # RTMX Cursor plugin
 
+Git-native requirements RTM for agents (next, claim, verify) — not another
+Jira/Linear MCP. ([Positioning](../../docs/POSITIONING.md))
+
 Cursor Plugin format (`.cursor-plugin/plugin.json` + root `mcp.json`) wrapping
 the shared pack at `../rtmx/`. MCP launch must stay identical to
 `../rtmx/mcp.json`: `rtmx mcp-server --stdio` with `rtmx` on `PATH`.

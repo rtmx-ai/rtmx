@@ -2,7 +2,8 @@
 
 Interim discovery while Cursor Marketplace / Anthropic official review lag.
 Primary install docs remain [CURSOR_MARKETPLACE.md](./CURSOR_MARKETPLACE.md)
-and [CLAUDE_MARKETPLACE.md](./CLAUDE_MARKETPLACE.md).
+and [CLAUDE_MARKETPLACE.md](./CLAUDE_MARKETPLACE.md). Official registry
+metadata: [MCP_REGISTRY.md](./MCP_REGISTRY.md) (`server.json`).
 
 ## Live listing
 
@@ -14,7 +15,7 @@ Requires `rtmx` on PATH (`brew install rtmx-ai/tap/rtmx`).
 | Field | Value |
 |-------|-------|
 | Name | RTMX |
-| Description | Git-native requirements traceability MCP: next/claim/verify agent loop. Not a Jira clone — durable local RTM + verify gates. |
+| Description | Git-native requirements RTM for agents (next, claim, verify) — not another Jira/Linear MCP. |
 | MCP launch | `rtmx mcp-server --stdio` |
 | Prerequisite | `brew install rtmx-ai/tap/rtmx` (or scoop / go install) — **rtmx on PATH** |
 | Cursor deeplink | `cursor://anysphere.cursor-deeplink/mcp/install?name=rtmx&config=eyJjb21tYW5kIjoicnRteCIsImFyZ3MiOlsibWNwLXNlcnZlciIsIi0tc3RkaW8iXX0%3D` |
@@ -28,6 +29,8 @@ Requires `rtmx` on PATH (`brew install rtmx-ai/tap/rtmx`).
 | 2026-10-28 | Published on cursor.directory: https://cursor.directory/plugins/rtmx |
 
 ## Team / Default-On playbook (Sync customers)
+
+Full one-pager: [TEAM_DEFAULT_ON.md](./TEAM_DEFAULT_ON.md) (REQ-MONO-063l).
 
 For orgs on RTMX Sync that want agents to pull RTMX by default:
 

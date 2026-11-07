@@ -1,0 +1,9 @@
+{
+  "name": "rtmx-verify",
+  "displayName": "RTMX Verification Broker",
+  "description": "REQ-MONO-069bc: signs verification runs. Install once as administrator.",
+  "executable": "C:\\Program Files\\RTMX\\verify.exe",
+  "arguments": "--pipe \\\\.\\pipe\\rtmx-verify --key C:\\ProgramData\\RTMX\\verify.key",
+  "serviceAccount": "NT SERVICE\\rtmx",
+  "startType": "automatic"
+}
