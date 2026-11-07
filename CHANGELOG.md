@@ -265,6 +265,8 @@ See docs/MIGRATION.md for details.
 - Graph algorithms (Tarjan SCC, topological sort, critical path)
 - GoReleaser with signed binaries and SBOM
 
+[2.0.0]: https://github.com/rtmx-ai/rtmx/releases/tag/v2.0.0
+[1.12.5]: https://github.com/rtmx-ai/rtmx/releases/tag/v1.12.5
 [1.0.0]: https://github.com/rtmx-ai/rtmx/releases/tag/v1.0.0
 [0.3.0]: https://github.com/rtmx-ai/rtmx/releases/tag/v0.3.0
 [0.2.0]: https://github.com/rtmx-ai/rtmx/releases/tag/v0.2.0
