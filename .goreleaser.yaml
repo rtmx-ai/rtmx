@@ -1,4 +1,4 @@
-# GoReleaser configuration for RTMX CLI
+# GoReleaser configuration for RTMX CLI + packaged verifier broker
 # Documentation: https://goreleaser.com
 
 version: 2
@@ -27,6 +27,21 @@ builds:
       - -X github.com/rtmx-ai/rtmx/internal/cmd.Commit={{.Commit}}
       - -X github.com/rtmx-ai/rtmx/internal/cmd.Date={{.Date}}
 
+  - id: verify
+    main: ./cmd/verify
+    binary: verify
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
 archives:
   - id: default
     formats:
@@ -43,6 +58,12 @@ archives:
     files:
       - README.md
       - LICENSE
+      - src: packaging/launchd/com.rtmx.verify.plist
+        dst: share/rtmx/com.rtmx.verify.plist
+      - src: packaging/systemd/verify.service
+        dst: share/rtmx/rtmx-verify.service
+      - src: packaging/windows/verify-service.json
+        dst: share/rtmx/verify-service.json
 
 checksum:
   name_template: 'checksums.txt'
@@ -65,15 +86,9 @@ sboms:
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
+# Curated notes come from CHANGELOG.md via scripts/github-release-notes.sh
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - '^docs:'
-      - '^test:'
-      - '^chore:'
-      - Merge pull request
-      - Merge branch
+  disable: true
 
 release:
   github:
@@ -82,31 +97,6 @@ release:
   draft: false
   prerelease: auto
   name_template: "v{{.Version}}"
-  header: |
-    ## Verify Your Download
-
-    ```bash
-    # Import RTMX public key
-    curl -fsSL https://rtmx.ai/gpg.key | gpg --import
-
-    # Verify checksums
-    gpg --verify checksums.txt.sig checksums.txt
-    sha256sum -c <(grep linux_amd64 checksums.txt)
-    ```
-
-    ## Install
-
-    ```bash
-    # Quick install (Linux/macOS)
-    curl -fsSL https://rtmx.ai/install.sh | sh
-
-    # Homebrew
-    brew install rtmx-ai/tap/rtmx
-
-    # Scoop (Windows)
-    scoop bucket add rtmx https://github.com/rtmx-ai/scoop-bucket
-    scoop install rtmx
-    ```
 
 brews:
   - name: rtmx
@@ -116,12 +106,26 @@ brews:
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     directory: Formula
     homepage: "https://rtmx.ai"
-    description: "Requirements Traceability Matrix toolkit"
+    description: "Requirements Traceability Matrix toolkit (CLI + verification broker)"
     license: "Apache-2.0"
     test: |
       system "#{bin}/rtmx", "version"
     install: |
       bin.install "rtmx"
+      (libexec/"rtmx").mkpath
+      (libexec/"rtmx").install "verify"
+      (share/"rtmx").mkpath
+      (share/"rtmx").install "share/rtmx/com.rtmx.verify.plist" if File.exist?("share/rtmx/com.rtmx.verify.plist")
+      (share/"rtmx").install "share/rtmx/rtmx-verify.service" if File.exist?("share/rtmx/rtmx-verify.service")
+      (share/"rtmx").install "share/rtmx/verify-service.json" if File.exist?("share/rtmx/verify-service.json")
+    caveats: |
+      The verification broker ships with this formula. Enable it once (Admin):
+
+        sudo rtmx broker install --prefix=#{prefix}
+
+      Upgrading the formula refreshes the staged broker binary; re-run
+      `sudo rtmx broker upgrade --prefix=#{prefix}` to reload the service.
+      `rtmx verify` never prompts for administrator credentials.
 
 scoops:
   - repository:
@@ -138,12 +142,21 @@ nfpms:
     vendor: ioTACTICAL LLC
     homepage: https://rtmx.ai
     maintainer: RTMX Engineering <dev@rtmx.ai>
-    description: Requirements Traceability Matrix toolkit
+    description: Requirements Traceability Matrix toolkit (CLI + verification broker)
     license: Apache-2.0
     formats:
       - deb
       - rpm
+    builds:
+      - rtmx
+      - verify
     bindir: /usr/bin
+    contents:
+      - src: packaging/systemd/verify.service
+        dst: /lib/systemd/system/rtmx-verify.service
+        type: config|noreplace
+    scripts:
+      postinstall: packaging/nfpm/postinstall.sh
 
 dockers:
   - image_templates:

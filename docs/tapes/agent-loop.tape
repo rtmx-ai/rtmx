@@ -21,7 +21,7 @@ Type "rtmx context"
 Enter
 Sleep 4s
 
-Type "rtmx verify --results results.json"
+Type "rtmx verify --results results.json --update --no-demote"
 Enter
 Sleep 5s
 
