@@ -35,7 +35,12 @@ func (c Client) SubmitCommit(requirementID, commitSHA string) (*Result, error) {
 		// In-process broker used by unit tests and CI signer harnesses.
 		return c.Broker.Run(req)
 	}
-	return nil, fmt.Errorf("verify: local broker not running; install the packaged service with `%s`", BrokerInstallHint)
+	// Package hooks usually enable the broker; if it is still missing, elevate
+	// once then connect without further prompts (REQ-MONO-069j).
+	if err := EnsureBrokerInstalled(EnsureOptions{SocketPath: sock}); err != nil {
+		return nil, err
+	}
+	return DialSubmit(sock, req)
 }
 
 // SubmitResultsFile is refused. A results file alone is not authority
