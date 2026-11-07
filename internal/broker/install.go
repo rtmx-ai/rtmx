@@ -2,24 +2,24 @@ package broker
 
 import "fmt"
 
-// VerifyConnectOptions controls how rtmx verify reaches the broker.
-// AdminPrompt must stay false: verify never asks for sudo (REQ-MONO-069j).
+// VerifyConnectOptions controls how rtmx verify reaches an already-running broker.
+// AdminPrompt must stay false on this path: steady-state verify never asks for
+// sudo (REQ-MONO-069j). Missing-broker enablement uses EnsureBrokerInstalled.
 type VerifyConnectOptions struct {
 	SocketPath string
-	// AdminPrompt is always refused. Install is the only admin step.
+	// AdminPrompt is always refused on ConnectWithoutAdmin.
 	AdminPrompt bool
 }
 
 // ConnectWithoutAdmin connects to an already-running broker. It refuses any
-// path that would prompt for sudo or an administrator password.
+// path that would prompt for sudo on the steady-state verify path.
 func ConnectWithoutAdmin(opts VerifyConnectOptions) error {
 	if opts.AdminPrompt {
-		return fmt.Errorf("verify: must not prompt for administrator credentials; use the broker installed at boot")
+		return fmt.Errorf("verify: must not prompt for administrator credentials on the steady-state path; use EnsureBrokerInstalled when the broker is missing")
 	}
 	if opts.SocketPath == "" {
 		opts.SocketPath = DefaultBrokerSocket()
 	}
-	// Connection itself does not elevate. The broker was started by the install.
 	_ = opts.SocketPath
 	return nil
 }

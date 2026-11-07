@@ -20,15 +20,17 @@ var (
 var brokerCmd = &cobra.Command{
 	Use:   "broker",
 	Short: "Install and manage the packaged verification broker",
-	Long: `The verification broker ships inside the rtmx package. Enabling it is a
-one-time administrator step (REQ-MONO-069j): create the verifier account,
-install the LaunchDaemon/systemd unit, and place the signing key.
+	Long: `The verification broker ships inside the rtmx package. Enabling or
+reloading it requires administrator rights (REQ-MONO-069j): create the
+verifier account, install the LaunchDaemon/systemd unit, and place the
+signing key.
 
-  sudo rtmx broker install
-  sudo rtmx broker upgrade
-  rtmx broker status
+Package post-install hooks and the first rtmx verify with a missing broker
+elevate once automatically. Steady-state verify does not prompt.
 
-rtmx verify never prompts for administrator credentials.`,
+  rtmx broker install    # elevates if needed
+  rtmx broker upgrade
+  rtmx broker status`,
 }
 
 var brokerInstallCmd = &cobra.Command{
@@ -69,6 +71,23 @@ func init() {
 }
 
 func runBrokerInstall(cmd *cobra.Command, _ []string) error {
+	if !broker.IsPrivileged() {
+		exe, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		args := []string{exe, "broker", cmd.Name()}
+		if brokerPrefix != "" {
+			args = append(args, "--prefix", brokerPrefix)
+		}
+		if brokerSourceBinary != "" {
+			args = append(args, "--binary", brokerSourceBinary)
+		}
+		if err := broker.ElevateOS(args); err != nil {
+			return fmt.Errorf("%w\n(hint: %s)", err, broker.BrokerInstallHint)
+		}
+		return nil
+	}
 	src, err := resolvePackagedVerifyBinary(brokerSourceBinary)
 	if err != nil {
 		return err
@@ -85,7 +104,7 @@ func runBrokerInstall(cmd *cobra.Command, _ []string) error {
 		cmd.Printf("files installed; service enable warning: %v\n", err)
 	}
 	cmd.Printf("broker installed: binary=%s key=%s socket=%s\n", paths.VerifyBinary, paths.KeyPath, paths.SocketPath)
-	cmd.Println("rtmx verify will connect without prompting for administrator credentials.")
+	cmd.Println("steady-state rtmx verify connects without prompting for administrator credentials.")
 	return nil
 }
 

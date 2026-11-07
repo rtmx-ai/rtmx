@@ -30,12 +30,13 @@ go install github.com/rtmx-ai/rtmx/cmd/rtmx@latest
 Or download a binary from [releases](https://github.com/rtmx-ai/rtmx/releases).
 Release archives include both `rtmx` and the `verify` broker daemon.
 
-Enable the packaged verification broker once (Admin). Day-to-day `rtmx verify`
-never prompts for credentials:
+The packaged verification broker enables automatically on formula/package
+install and upgrade. If it is still missing, the first `rtmx verify` elevates
+once. Steady-state `rtmx verify` does not prompt:
 
 ```bash
-sudo rtmx broker install              # or: sudo rtmx broker install --prefix="$(brew --prefix rtmx)"
 rtmx broker status
+# manual / fleet: rtmx broker install --prefix="$(brew --prefix rtmx)"
 ```
 
 ```bash
@@ -214,7 +215,8 @@ Elixir/Mix, Swift, Dart, Ruby -- 10+ frameworks supported.
 signature. A results file alone (`rtmx verify --results`) cannot set COMPLETE,
 and `rtmx status` counts COMPLETE only when the signature verifies. That is the
 verification moat — agents cannot impersonate the verifier. The broker daemon
-ships in the same package; enable it with `sudo rtmx broker install`.
+ships in the same package and enables via install hooks or a one-time elevate
+on first `rtmx verify` when missing.
 
 Release notes: [v2.0.0](https://github.com/rtmx-ai/rtmx/releases/tag/v2.0.0) ·
 [CHANGELOG.md](CHANGELOG.md)

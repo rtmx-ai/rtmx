@@ -143,14 +143,21 @@ brews:
       (share/"rtmx").install "share/rtmx/com.rtmx.verify.plist" if File.exist?("share/rtmx/com.rtmx.verify.plist")
       (share/"rtmx").install "share/rtmx/rtmx-verify.service" if File.exist?("share/rtmx/rtmx-verify.service")
       (share/"rtmx").install "share/rtmx/verify-service.json" if File.exist?("share/rtmx/verify-service.json")
+    custom_block: |
+      def post_install
+        ohai "Enabling RTMX verification broker (Admin may be requested once)"
+        system bin/"rtmx", "broker", "install", "--prefix=#{prefix}"
+      rescue
+        opoo "Broker enable deferred; first `rtmx verify` will elevate once"
+      end
     caveats: |
-      The verification broker ships with this formula. Enable it once (Admin):
+      The verification broker ships with this formula. `brew install` /
+      `brew upgrade` run `post_install` to enable or reload it (Admin may
+      be requested once). If that step is skipped, the first `rtmx verify`
+      elevates once. Steady-state `rtmx verify` does not prompt.
 
-        sudo rtmx broker install --prefix=#{prefix}
-
-      Upgrading the formula refreshes the staged broker binary; re-run
-      `sudo rtmx broker upgrade --prefix=#{prefix}` to reload the service.
-      `rtmx verify` never prompts for administrator credentials.
+        rtmx broker status
+        rtmx broker install --prefix=#{prefix}   # manual / fleet
 
 scoops:
   - repository:
