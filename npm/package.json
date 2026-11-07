@@ -1,6 +1,7 @@
 {
   "name": "rtmx",
   "version": "0.3.0",
+  "mcpName": "io.github.rtmx-ai/rtmx",
   "description": "Requirements traceability management CLI -- track what you built, tested, and what's next",
   "bin": {
     "rtmx": "bin/rtmx"
@@ -14,7 +15,8 @@
     "traceability",
     "testing",
     "cli",
-    "devops"
+    "devops",
+    "mcp"
   ],
   "author": "RTMX Engineering <dev@rtmx.ai>",
   "license": "Apache-2.0",

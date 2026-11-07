@@ -39,7 +39,7 @@ secrets, no vendored binary, no parent-path escapes in the plugin folder.
 |-------|-------|
 | Plugin folder | `plugins/claude-rtmx` in https://github.com/rtmx-ai/rtmx |
 | Name | `rtmx` |
-| Description | RTMX requirements traceability — MCP tools and skills for the agent loop (next, claim, verify). Requires `rtmx` on PATH. |
+| Description | Git-native requirements RTM for agents (next, claim, verify) — not another Jira/Linear MCP. Requires `rtmx` on PATH. |
 | Homepage | https://github.com/rtmx-ai/rtmx/tree/main/plugins/claude-rtmx |
 | Category | development |
 

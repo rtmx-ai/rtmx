@@ -31,3 +31,13 @@ instead of inventing a parallel process or pasting ad-hoc JSON configs.
 
 Do not invent work when `next` reports idle. Do not paste divergent MCP
 configs — use this pack’s `mcp.json`.
+
+## Multi-agent / team rooms
+
+When more than one human or agent shares the backlog, use **RTMX Sync**
+(same MCP tools — join the room via CLI, do not fork `mcp.json`):
+
+1. Sign up or open [rtmx.ai/sync](https://rtmx.ai/sync) / [pricing](https://rtmx.ai/pricing).
+2. `rtmx login` then `rtmx sync` (org room). Self-hosted: pass `--sync-url`.
+
+See [docs/SYNC_MARKETPLACE_COHESION.md](../../../../docs/SYNC_MARKETPLACE_COHESION.md).
