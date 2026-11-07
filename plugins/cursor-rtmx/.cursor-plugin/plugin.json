@@ -1,7 +1,7 @@
 {
   "name": "rtmx",
   "version": "1.9.0",
-  "description": "RTMX requirements traceability — MCP tools and skills for the agent loop (next, claim, verify).",
+  "description": "Git-native requirements RTM for agents (next, claim, verify) — not another Jira/Linear MCP.",
   "author": {
     "name": "RTMX",
     "email": "dev@rtmx.ai"
