@@ -1,7 +1,7 @@
 {
   "name": "rtmx",
-  "version": "1.9.0",
-  "description": "Git-native requirements RTM for agents (next, claim, verify) — not another Jira/Linear MCP.",
+  "version": "2.0.0",
+  "description": "Git-native requirements RTM for agents (next, claim, verify) \u2014 not another Jira/Linear MCP.",
   "author": {
     "name": "RTMX",
     "email": "dev@rtmx.ai"
@@ -9,5 +9,10 @@
   "homepage": "https://github.com/rtmx-ai/rtmx/tree/main/plugins/cursor-rtmx",
   "repository": "https://github.com/rtmx-ai/rtmx",
   "license": "Apache-2.0",
-  "keywords": ["rtmx", "requirements", "mcp", "traceability"]
+  "keywords": [
+    "rtmx",
+    "requirements",
+    "mcp",
+    "traceability"
+  ]
 }

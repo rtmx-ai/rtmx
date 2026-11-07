@@ -3,6 +3,23 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.0.0] - 2026-11-07
+
+### Changed
+
+- **Verification moat (breaking)** — COMPLETE status requires a verifying
+  attestation signature. A results file alone cannot set COMPLETE
+  (`rtmx verify --results`, REQ-MONO-069e). `rtmx status` counts COMPLETE only
+  with a verifying signature (REQ-MONO-069f).
+- Attestation contract, proof bundles, and local/CI/air-gap broker paths ship
+  for independent verification (REQ-MONO-064–069).
+
+### Added
+
+- Verifier broker packaging (launchd / systemd / Windows service ACL contracts).
+- Ed25519 attestation sign/verify over requirement, commit SHA, command, and
+  output hash.
+
 ## [1.12.5] - 2026-10-04
 
 ### Fixed
