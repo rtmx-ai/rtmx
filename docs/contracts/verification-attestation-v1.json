@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rtmx.ai/contracts/verification-attestation-v1.json",
+  "title": "RTMX Verification Attestation v1",
+  "description": "A signed proof that a verifier executed a configured test command at a commit (REQ-MONO-069a). The signature covers the requirement id, commit SHA, command, and output hash.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "requirement_id",
+    "commit_sha",
+    "command",
+    "output_hash",
+    "signature"
+  ],
+  "properties": {
+    "requirement_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "commit_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "command": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Configured test command the verifier executed."
+    },
+    "output_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the command output, lowercase hex."
+    },
+    "signature": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Ed25519 signature over the canonical payload, base64."
+    }
+  },
+  "examples": [
+    {
+      "requirement_id": "REQ-MONO-069a",
+      "commit_sha": "0123456789abcdef0123456789abcdef01234567",
+      "command": "go test ./internal/attestation/ -count=1",
+      "output_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "signature": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    }
+  ]
+}
