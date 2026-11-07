@@ -40,12 +40,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build release notes from CHANGELOG.md
+        run: |
+          chmod +x scripts/github-release-notes.sh
+          scripts/github-release-notes.sh "${GITHUB_REF_NAME}" > /tmp/rtmx-release-notes.md
+          cat /tmp/rtmx-release-notes.md
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8 # v7.2.1
         with:
           distribution: goreleaser
           version: '~> v2'
-          args: release --clean
+          args: release --clean --release-notes /tmp/rtmx-release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}

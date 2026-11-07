@@ -3,6 +3,16 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.0.1] - 2026-11-07
+
+### Added
+
+- **Packaged verification broker** — every rtmx release/Homebrew formula ships
+  the `verify` daemon next to the CLI. Enable once with
+  `sudo rtmx broker install` (or `upgrade` after formula bumps).
+  `rtmx broker status` reports reachability. `rtmx verify` never prompts for
+  Admin (REQ-MONO-069j).
+
 ## [2.0.0] - 2026-11-07
 
 ### Changed
@@ -265,6 +275,9 @@ See docs/MIGRATION.md for details.
 - Graph algorithms (Tarjan SCC, topological sort, critical path)
 - GoReleaser with signed binaries and SBOM
 
+[2.0.1]: https://github.com/rtmx-ai/rtmx/releases/tag/v2.0.1
+[2.0.0]: https://github.com/rtmx-ai/rtmx/releases/tag/v2.0.0
+[1.12.5]: https://github.com/rtmx-ai/rtmx/releases/tag/v1.12.5
 [1.0.0]: https://github.com/rtmx-ai/rtmx/releases/tag/v1.0.0
 [0.3.0]: https://github.com/rtmx-ai/rtmx/releases/tag/v0.3.0
 [0.2.0]: https://github.com/rtmx-ai/rtmx/releases/tag/v0.2.0
