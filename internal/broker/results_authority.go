@@ -10,7 +10,7 @@ import (
 // file alone is not authority to set COMPLETE.
 func RefuseCompleteFromResultsAlone(fromResultsFile bool, newStatus database.Status) error {
 	if fromResultsFile && newStatus == database.StatusComplete {
-		return fmt.Errorf("verify: results file alone cannot set COMPLETE; submit a commit to the broker")
+		return fmt.Errorf("verify: results file alone cannot set COMPLETE; submit a commit to the broker (`%s`)", BrokerInstallHint)
 	}
 	return nil
 }

@@ -3,6 +3,7 @@
 **The open source client for [RTMX Sync](https://rtmx.ai/sync) — what comes after Git for humans and agents.**
 
 [![CI](https://github.com/rtmx-ai/rtmx/actions/workflows/ci.yml/badge.svg)](https://github.com/rtmx-ai/rtmx/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/rtmx-ai/rtmx)](https://github.com/rtmx-ai/rtmx/releases/latest)
 [![Coverage Status](https://coveralls.io/repos/github/rtmx-ai/rtmx/badge.svg?branch=main)](https://coveralls.io/github/rtmx-ai/rtmx?branch=main)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rtmx-ai/rtmx)](https://goreportcard.com/report/github.com/rtmx-ai/rtmx)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
@@ -21,12 +22,21 @@ Sync is how teams stay live.
 ## Install
 
 ```bash
-brew install rtmx-ai/tap/rtmx        # macOS / Linux
+brew install rtmx-ai/tap/rtmx        # macOS / Linux (CLI + broker binary)
 scoop install rtmx                    # Windows
 go install github.com/rtmx-ai/rtmx/cmd/rtmx@latest
 ```
 
 Or download a binary from [releases](https://github.com/rtmx-ai/rtmx/releases).
+Release archives include both `rtmx` and the `verify` broker daemon.
+
+Enable the packaged verification broker once (Admin). Day-to-day `rtmx verify`
+never prompts for credentials:
+
+```bash
+sudo rtmx broker install              # or: sudo rtmx broker install --prefix="$(brew --prefix rtmx)"
+rtmx broker status
+```
 
 ```bash
 rtmx login
@@ -193,12 +203,21 @@ Details: [docs/CLAUDE_MARKETPLACE.md](docs/CLAUDE_MARKETPLACE.md),
 [docs/CURSOR_MARKETPLACE.md](docs/CURSOR_MARKETPLACE.md),
 [docs/CODEX_MCP.md](docs/CODEX_MCP.md).
 
-## Test Verification
+## Test Verification (2.0.0)
 
 `rtmx verify` auto-detects your test framework. No configuration needed.
 
 Go, Python/pytest, Rust/Cargo, Node.js/npm, Java/Gradle, Java/Maven,
 Elixir/Mix, Swift, Dart, Ruby -- 10+ frameworks supported.
+
+**Breaking in 2.0.0:** `COMPLETE` is earned only with a verifying attestation
+signature. A results file alone (`rtmx verify --results`) cannot set COMPLETE,
+and `rtmx status` counts COMPLETE only when the signature verifies. That is the
+verification moat — agents cannot impersonate the verifier. The broker daemon
+ships in the same package; enable it with `sudo rtmx broker install`.
+
+Release notes: [v2.0.0](https://github.com/rtmx-ai/rtmx/releases/tag/v2.0.0) ·
+[CHANGELOG.md](CHANGELOG.md)
 
 ## Dogfooding
 
@@ -241,8 +260,8 @@ and testing instructions.
 
 ### Migrating from Python CLI
 
-> **Deprecation Notice:** The Python `rtmx` CLI is deprecated and will reach
-> end-of-life on 2026-09-25. Run `pip uninstall rtmx` and switch to the Go
+> **Deprecation Notice:** The Python `rtmx` CLI is deprecated and reached
+> end-of-life on 2026-09-25. Run `pip uninstall rtmx` and install the Go
 > binary above.
 
 See [docs/MIGRATION.md](docs/MIGRATION.md) for full migration steps.

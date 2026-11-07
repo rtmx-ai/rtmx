@@ -24,11 +24,6 @@ func ConnectWithoutAdmin(opts VerifyConnectOptions) error {
 	return nil
 }
 
-// DefaultBrokerSocket is the socket the install enables at boot.
-func DefaultBrokerSocket() string {
-	return "/run/rtmx/verify.sock"
-}
-
 // FleetProvision describes unattended broker install by a fleet admin
 // (REQ-MONO-069j). The end user does not run this installer.
 type FleetProvision struct {

@@ -11,7 +11,7 @@ User=rtmx-verify
 Group=rtmx-verify
 StateDirectory=rtmx
 # Private signing key lives at /var/lib/rtmx/verify.key with mode 600.
-ExecStart=/usr/libexec/rtmx/verify --socket /run/rtmx/verify.sock --key /var/lib/rtmx/verify.key
+ExecStart=/usr/bin/verify --socket /run/rtmx/verify.sock --key /var/lib/rtmx/verify.key
 Restart=on-failure
 NoNewPrivileges=true
 

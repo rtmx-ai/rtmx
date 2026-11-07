@@ -3,3 +3,10 @@ project:
   version: "0.1.0"
 database:
   path: .rtmx/database.csv
+rtmx:
+  # Combinations + --no-demote lets the GIF show MISSING→PARTIAL from
+  # --results without claiming COMPLETE (rtmx 2.0.0 attestation rule).
+  completeness:
+    policy: combinations
+    dimensions: [scope, technique]
+    min_combinations: 2
