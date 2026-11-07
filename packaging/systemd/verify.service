@@ -1,0 +1,19 @@
+# REQ-MONO-069ba: Linux verifier broker.
+# Install once as root. The agent user does not start this unit.
+
+[Unit]
+Description=RTMX verification broker
+After=network.target
+
+[Service]
+Type=simple
+User=rtmx-verify
+Group=rtmx-verify
+StateDirectory=rtmx
+# Private signing key lives at /var/lib/rtmx/verify.key with mode 600.
+ExecStart=/usr/libexec/rtmx/verify --socket /run/rtmx/verify.sock --key /var/lib/rtmx/verify.key
+Restart=on-failure
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

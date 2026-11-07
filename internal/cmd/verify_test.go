@@ -137,11 +137,14 @@ REQ-AUTH-002,AUTH,Logout,Logout shall work,Tests pass,test_auth.py,test_logout,U
 	cmd.SetArgs([]string{"verify", "--results", resultsPath, "--update"})
 
 	err := cmd.Execute()
-	if err != nil {
+	// REQ-MONO-069e (rtmx 2.0.0): a results file alone cannot set COMPLETE.
+	if err == nil {
+		t.Fatal("expected verify --results --update to refuse COMPLETE")
+	}
+	if !strings.Contains(err.Error(), "results file alone cannot set COMPLETE") {
 		t.Fatalf("verify --results failed: %v\nOutput: %s", err, buf.String())
 	}
 
-	// Verify REQ-AUTH-001 is now COMPLETE
 	db, err := database.Load(filepath.Join(rtmxDir, "database.csv"))
 	if err != nil {
 		t.Fatalf("failed to reload database: %v", err)
@@ -150,11 +153,10 @@ REQ-AUTH-002,AUTH,Logout,Logout shall work,Tests pass,test_auth.py,test_logout,U
 	if req == nil {
 		t.Fatal("REQ-AUTH-001 not found in database")
 	}
-	if req.Status != database.StatusComplete {
-		t.Errorf("REQ-AUTH-001 status = %v, want COMPLETE", req.Status)
+	if req.Status == database.StatusComplete {
+		t.Errorf("REQ-AUTH-001 status = %v, want not COMPLETE without broker attestation", req.Status)
 	}
 
-	// REQ-AUTH-002 should still be MISSING
 	req2 := db.Get("REQ-AUTH-002")
 	if req2 == nil {
 		t.Fatal("REQ-AUTH-002 not found in database")

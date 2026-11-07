@@ -95,6 +95,13 @@ func TestRoomSnapshotAppliesToDatabase(t *testing.T) {
 }
 
 // A second writer must not lose the first writer's work.
+//
+// REQ-MONO-063k: Publish's roundTrip only proves *this* client's updates were
+// acknowledged — a freshly dialed observer can still briefly see a partial
+// y-websocket room doc while peer merges settle (seen on windows-latest).
+// Keep both writers connected (closing them can drop the in-memory room in
+// the test server), then poll Refresh+Snapshot until both keys appear
+// (bounded wait; not a fixed sleep).
 func TestConcurrentWritersConverge(t *testing.T) {
 	url := startRoomServer(t)
 
@@ -107,15 +114,55 @@ func TestConcurrentWritersConverge(t *testing.T) {
 	if err := second.Publish([]RequirementUpdate{statusUpdate("REQ-DEMO-002", "PARTIAL")}); err != nil {
 		t.Fatalf("second Publish: %v", err)
 	}
-
-	observer := dial(t, url)
-	seen := make(map[string]string)
-	for _, update := range observer.Snapshot() {
-		seen[update.ReqID] = update.Fields["status"]
+	// Pull peer state into each writer so the room has finished merging
+	// before the observer dials.
+	if err := first.Refresh(); err != nil {
+		t.Fatalf("first Refresh: %v", err)
+	}
+	if err := second.Refresh(); err != nil {
+		t.Fatalf("second Refresh: %v", err)
 	}
 
-	if seen["REQ-DEMO-001"] != "COMPLETE" || seen["REQ-DEMO-002"] != "PARTIAL" {
-		t.Errorf("room did not converge, saw %v", seen)
+	observer := dial(t, url)
+	want := map[string]string{
+		"REQ-DEMO-001": "COMPLETE",
+		"REQ-DEMO-002": "PARTIAL",
+	}
+	seen := waitForRoomStatuses(t, observer, want, 5*time.Second)
+	for id, status := range want {
+		if seen[id] != status {
+			t.Errorf("room did not converge, saw %v (want %v)", seen, want)
+			return
+		}
+	}
+}
+
+// waitForRoomStatuses Refresh+Snapshot until every want key matches or deadline.
+func waitForRoomStatuses(t *testing.T, client *RoomClient, want map[string]string, within time.Duration) map[string]string {
+	t.Helper()
+	deadline := time.Now().Add(within)
+	var seen map[string]string
+	for {
+		seen = make(map[string]string)
+		for _, update := range client.Snapshot() {
+			seen[update.ReqID] = update.Fields["status"]
+		}
+		ok := true
+		for id, status := range want {
+			if seen[id] != status {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			return seen
+		}
+		if time.Now().After(deadline) {
+			return seen
+		}
+		if err := client.Refresh(); err != nil {
+			t.Fatalf("Refresh while waiting for converge: %v", err)
+		}
 	}
 }
 
