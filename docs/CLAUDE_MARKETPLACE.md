@@ -40,3 +40,9 @@ claude plugin marketplace add "$PWD"   # from rtmx/ checkout
 claude plugin install rtmx@rtmx --scope user
 claude plugin list | grep -i rtmx
 ```
+
+## Managed Sync (multi-agent)
+
+Same stdio MCP after install — join a room without a second JSON:
+[rtmx.ai/sync](https://rtmx.ai/sync) → `rtmx login` → `rtmx sync`.
+See [SYNC_MARKETPLACE_COHESION.md](./SYNC_MARKETPLACE_COHESION.md) (REQ-MONO-063g).

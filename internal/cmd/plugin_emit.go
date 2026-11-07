@@ -177,6 +177,9 @@ Install Codex MCP (one command):
 
 Or run: rtmx plugin emit --agents codex
 then merge the TOML snippet into ~/.codex/config.toml. Requires rtmx on PATH.
+
+Multi-agent rooms (same MCP pack — do not fork mcp.json): rtmx.ai/sync →
+rtmx login → rtmx sync. See docs/SYNC_MARKETPLACE_COHESION.md.
 `
 
 func emitWrite(cmd *cobra.Command, path string, data []byte) error {
