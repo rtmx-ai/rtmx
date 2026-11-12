@@ -73,10 +73,16 @@ func RenderLaunchdPlist(p PackagePaths, command []string) string {
 		b.WriteString("</string>\n")
 	}
 	b.WriteString(`	</array>
+	<key>WorkingDirectory</key>
+	<string>/var/lib/rtmx/work</string>
 	<key>RunAtLoad</key>
 	<true/>
 	<key>KeepAlive</key>
 	<true/>
+	<key>StandardOutPath</key>
+	<string>/var/lib/rtmx/verify.stdout.log</string>
+	<key>StandardErrorPath</key>
+	<string>/var/lib/rtmx/verify.stderr.log</string>
 </dict>
 </plist>
 `)
@@ -116,7 +122,9 @@ WantedBy=multi-user.target
 }
 
 // Apply writes key, binary, and service unit under Layout.Root (testable without sudo).
-// Real machines use Root="" so paths are absolute system locations.
+// Real machines use Root="" so paths are absolute system locations. When Root is
+// empty, Apply also creates the verifier OS account and runtime directories
+// (REQ-MONO-069b / 069j); DESTDIR tests with a non-empty Root skip that.
 func (p InstallPlan) Apply() error {
 	paths := p.Layout.Paths
 	if paths.VerifyBinary == "" {
@@ -125,6 +133,15 @@ func (p InstallPlan) Apply() error {
 	}
 	if p.Layout.SourceBinary == "" {
 		return fmt.Errorf("broker install: source verify binary is required (shipped in the rtmx package)")
+	}
+	live := p.Layout.Root == ""
+	if live {
+		if err := EnsureVerifierAccount(paths.VerifierAccount); err != nil {
+			return err
+		}
+		if err := EnsureRuntimeDirs(paths); err != nil {
+			return err
+		}
 	}
 	raw, err := os.ReadFile(p.Layout.SourceBinary)
 	if err != nil {
@@ -153,6 +170,11 @@ func (p InstallPlan) Apply() error {
 	}
 	if err := EnsurePrivateKeyMode600(keyDest); err != nil {
 		return err
+	}
+	if live {
+		if err := ChownVerifierPaths(paths); err != nil {
+			return err
+		}
 	}
 
 	switch runtime.GOOS {
