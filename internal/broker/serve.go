@@ -71,7 +71,9 @@ func Serve(ctx context.Context, cfg ServeConfig) error {
 		return fmt.Errorf("broker: listen %s: %w", cfg.SocketPath, err)
 	}
 	defer func() { _ = ln.Close() }()
-	_ = os.Chmod(cfg.SocketPath, 0o660)
+	// Developers dial as their login user; the signing key (mode 600,
+	// verifier-owned) remains the privilege boundary — not the socket mode.
+	_ = os.Chmod(cfg.SocketPath, 0o666)
 
 	errCh := make(chan error, 1)
 	go func() {
