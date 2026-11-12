@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/rtmx-ai/rtmx/internal/broker"
 	"github.com/spf13/cobra"
@@ -86,6 +87,11 @@ func runBrokerInstall(cmd *cobra.Command, _ []string) error {
 		if err := broker.ElevateOS(args); err != nil {
 			return fmt.Errorf("%w\n(hint: %s)", err, broker.BrokerInstallHint)
 		}
+		// Elevated child must leave the broker reachable; do not report success otherwise.
+		sock := broker.DefaultBrokerSocket()
+		if err := waitBrokerReachable(sock, 10*time.Second); err != nil {
+			return err
+		}
 		return nil
 	}
 	src, err := resolvePackagedVerifyBinary(brokerSourceBinary)
@@ -101,11 +107,30 @@ func runBrokerInstall(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("%w\n(hint: run as root/administrator: %s)", err, broker.BrokerInstallHint)
 	}
 	if err := enableBrokerService(paths); err != nil {
-		cmd.Printf("files installed; service enable warning: %v\n", err)
+		return fmt.Errorf("broker files installed but service enable failed: %w", err)
 	}
-	cmd.Printf("broker installed: binary=%s key=%s socket=%s\n", paths.VerifyBinary, paths.KeyPath, paths.SocketPath)
+	if err := waitBrokerReachable(paths.SocketPath, 10*time.Second); err != nil {
+		return fmt.Errorf("%w\n(check: id %s; launchctl print system/com.rtmx.verify or systemctl status rtmx-verify)",
+			err, paths.VerifierAccount)
+	}
+	cmd.Printf("broker installed: binary=%s key=%s socket=%s account=%s\n",
+		paths.VerifyBinary, paths.KeyPath, paths.SocketPath, paths.VerifierAccount)
 	cmd.Println("steady-state rtmx verify connects without prompting for administrator credentials.")
 	return nil
+}
+
+func waitBrokerReachable(socket string, timeout time.Duration) error {
+	if socket == "" {
+		socket = broker.DefaultBrokerSocket()
+	}
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if broker.SocketReachable(socket) {
+			return nil
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return fmt.Errorf("broker install: service did not become reachable at %s", socket)
 }
 
 func resolvePackagedVerifyBinary(explicit string) (string, error) {

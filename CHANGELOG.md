@@ -3,6 +3,16 @@
 All notable changes to RTMX are documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.0.3] - 2026-11-12
+
+### Fixed
+
+- **Broker install creates `rtmx-verify` and runtime dirs** — `rtmx broker
+  install` on macOS/Linux now creates the verifier account/group,
+  `/var/run/rtmx`, and `/var/lib/rtmx/work`, chowns the signing key, and fails
+  if the LaunchDaemon/systemd unit does not become reachable (was reporting
+  success while launchd exited 78 / EX_CONFIG).
+
 ## [2.0.2] - 2026-11-07
 
 ### Changed
@@ -284,6 +294,7 @@ See docs/MIGRATION.md for details.
 - Graph algorithms (Tarjan SCC, topological sort, critical path)
 - GoReleaser with signed binaries and SBOM
 
+[2.0.3]: https://github.com/rtmx-ai/rtmx/releases/tag/v2.0.3
 [2.0.2]: https://github.com/rtmx-ai/rtmx/releases/tag/v2.0.2
 [2.0.1]: https://github.com/rtmx-ai/rtmx/releases/tag/v2.0.1
 [2.0.0]: https://github.com/rtmx-ai/rtmx/releases/tag/v2.0.0
