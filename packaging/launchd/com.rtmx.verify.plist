@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- REQ-MONO-069bb: macOS LaunchDaemon for the verifier broker.
-     Install under /Library/LaunchDaemons as root. Not a per-user LaunchAgent. -->
+     Install under /Library/LaunchDaemons as root. Not a per-user LaunchAgent.
+     `rtmx broker install` creates user/group rtmx-verify and runtime dirs. -->
 <plist version="1.0">
 <dict>
 	<key>Label</key>
@@ -17,10 +18,26 @@
 		<string>/var/run/rtmx/verify.sock</string>
 		<string>--key</string>
 		<string>/var/lib/rtmx/verify.key</string>
+		<string>--workdir</string>
+		<string>/var/lib/rtmx/work</string>
+		<string>--command</string>
+		<string>go</string>
+		<string>--command</string>
+		<string>test</string>
+		<string>--command</string>
+		<string>./...</string>
+		<string>--command</string>
+		<string>-count=1</string>
 	</array>
+	<key>WorkingDirectory</key>
+	<string>/var/lib/rtmx/work</string>
 	<key>RunAtLoad</key>
 	<true/>
 	<key>KeepAlive</key>
 	<true/>
+	<key>StandardOutPath</key>
+	<string>/var/lib/rtmx/verify.stdout.log</string>
+	<key>StandardErrorPath</key>
+	<string>/var/lib/rtmx/verify.stderr.log</string>
 </dict>
 </plist>
